@@ -152,3 +152,17 @@ base_dataset_sha256 (from base-f summary) + reform vector + policyengine_us_vers
 4. Launch base rebuild DETACHED (asec-mode, 3 years) -> out/base-f-YYYYMMDD/. Verify summary gates.
 5. Launch release DETACHED (checkpoint-root outside repo, --no-staging): dense parent + sparse L0+refit.
 6. Extract BOTH gate tables + calibration metrics vs certified reference. Verdict.
+
+### 2026-07-05 ~19:05 ET — steps 1–5 EXECUTED BY LEAD during agent session-limit outage
+- Env verified (imports OK incl. torch). v5 feed copied to _buildf-runtime/inputs, sha VERIFIED
+  (a5d34d4a...). CD crosswalk + provenance + us_block_ladder_2020.npz copied from build-e-base.
+- build_f_chain.sh written (mirrors build_e_chain.sh) and launched DETACHED (nohup, pid in
+  logs/chain.pid): base (3x --asec-h5 spec-less = equal thirds, --ledger-facts for CD assign,
+  crosswalk + block-ladder passed) -> release SPARSE (default path, headline) -> release DENSE
+  (--dense-default-dataset, same checkpoint-root so compile reuses).
+- Logs: _buildf-runtime/logs/{chain.log, base_f.log, release_f_sparse.log, release_f_dense.log}.
+- AGENT RESUME BRIEF: check chain.log; if chain still running, WAIT on it (do not relaunch);
+  when done, execute step 6 (extract BOTH gate tables + calibration metrics vs certified
+  reference loss ~0.044 / within-10% ~94.7%; realized max-weight-ratio; cache-key components)
+  and write the verdict. If base failed, read base_f.log — likely suspects: spec-less 3-year
+  shares behavior, --ledger-facts CD fact coverage through the crosswalk, block-ladder gate.
