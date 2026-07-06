@@ -370,3 +370,14 @@ identified). Sparse = blocked on uncommitted informed-L0. Full report -> populac
 | take-up participation diagnostics | not reached (export gate precedes it) |
 Sparse (8e99d08): 53,527 selected, loss 0.1192, within-10% 50.2%; critical FAILs income tax +19.9%,
 SS +5.3% → blocked on uncommitted informed-L0 (Build G).
+
+### 2026-07-06 ~14:25 ET — CAMPAIGN REPORT POSTED, Build F closed
+- Consolidated report posted: https://github.com/PolicyEngine/populace/issues/299#issuecomment-4894822760
+- All report numbers verified against diagnostics before posting (income tax +19.88%, SS +5.33%,
+  qual dividend -9.7% vs CBO, net capital gain -38.2%, net business +0.1%).
+- Issues: #321 (CHIP, fix landed), #327 (mass-parity mis-reference), #326 (checkpoint solver-config key).
+- VERDICT: NOT certifiable this campaign. Dense parent = 1 mis-referenced gate from clean (#327 remedy
+  identified: reference certified release and/or thread reviewed_exclusions for the 14 PUF cols). Sparse =
+  blocked on uncommitted informed-L0/warm-start (Build G). Certified pool reconstructed faithfully and
+  calibrates to certified quality (dense 0.0416/86.1%). Staging-only; prod untouched.
+- NO further build attempts (per third-strike rule + coordinator direction). Analysis + verdict complete.
