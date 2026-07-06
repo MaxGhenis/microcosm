@@ -62,7 +62,20 @@ FEDERAL (both pins complete, rc=0):
 | Refundable CTC (ACTC) — amount | $21.614B | $21.619B | +0.025% |
 | ACTC — claims | 10.431M | 10.431M | 0.000% |
 **All federal aggregates move < 0.2% — negligible, well-behaved drift.** The +0.19% fed income tax is consistent with the 1.756.x federal base changes (non-Sch-D cap-gain-distribution inclusion, OBBBA clean-energy termination, saver's credit thresholds) roughly offsetting. Supporting: AGI $15.22T, employment income $11.27T, capital gains $231.7B, SNAP $74.7B, TANF $13.5B (all near-identical between pins).
-STATE income tax by state: in-probe section hit an enum-map bug (`state_code` map_to tax_unit fails on strings); FIXED via standalone probe_state_tax.py (aggregate state_income_tax to household, group by household state_code). Chain running (run_state_tax.sh). [results below when landed]
+- [x] 5. Task 3 DONE (federal + state).
+- [x] 7. Triage report assembled + posted to #324.
+
+STATE income tax by state (fixed via standalone probe_state_tax.py — household-level aggregation; 40k subsample, seed 42):
+| state | 1.752.2 | 1.764.0 | delta% | attribution |
+|---|---|---|---|---|
+| ME | $2.698B | $2.713B | +0.55% | 1.756.9 uprating unfreeze (12 files) |
+| NE | $2.826B | $2.827B | +0.04% | 1.756.8 explicit 2026 + 1.756.9 |
+| ND | $0.213B | $0.214B | +0.34% | 1.756.9 uprating unfreeze (5 files) |
+| **NY** | **$43.56B** | **$55.98B** | **+28.51%** | **1.764.1 IT-196 §68 overall-limitation wiring (+1.756.8 phase-out unfreeze)** |
+| OH | $11.14B | $11.16B | +0.15% | 1.756.9 uprating unfreeze (1 file) |
+| RI | $2.476B | $2.477B | +0.03% | 1.756.8/1.756.9 |
+| ALL states | $468.14B | $490.41B | +4.76% | NY dominates |
+**THE headline drift: NY +28.5% (+$12.4B).** NOT the modest uprating effect — traced to **1.764.1** ("wired NY's orphaned itemized-deduction phase-out into IT-196 Line 40 pre-TCJA overall limitation, 26 USC 68 via NY Tax Law 615"). CONFIRMED on-disk: `ny/.../itemized/phase_out/start.yaml` param changed AND NY itemized-deduction variable `.py` sources changed (ny_salt_deduction.py, pre_tcja/*). Directionally correct (NY was omitting the §68 overall limitation → under-taxing high-deduction filers); reduces NY itemized deductions → raises NY taxable income → +28.5% NY tax. Large but LEGITIMATE. The other 5 states = the expected small uprating-unfreeze moves #324 predicted. Federal essentially flat (<0.2%). Full table: out/drift_table.md.
 
 ## Task 1 — register-entry PROPOSALS (lead-gated, NOT committed). Full text: `_buildg-runtime/out/register_proposals.md`
 - **No pin-attributable register entries.** The bump adds zero parity gaps (base frozen; new engine inputs not in the 158-var reference).
@@ -105,3 +118,135 @@ NEW inputs BEYOND SNAP wave (task-4 degenerate-gate candidates): `care_expenses`
 - pe-us pin `>=1.745.0,<2` (all three `[us]` extras); uv.lock incumbent = 1.752.2; PyPI latest = 1.765.3.
 - Parity reference read: 158 vars, incumbent eCPS sha `0a6b961a…` rev `21280dca…`.
 - Launched detached `uv sync --all-packages --extra us` (build-g). Writing PROGRESS + committing.
+
+---
+
+# FINAL TRIAGE REPORT (posted to #324)
+
+## Build G opener — pin-bump validation pass (pe-us 1.752.2 → 1.764.0)
+
+Validation-only pass per this issue. **No build runs, no register commits, no pushes to `main`.** All compute detached; the battery ran against the **reused** Build F base artifact `base-f-20260705/base_populace_us_2024_puf_support.h5` (sha `18833fb6…`, **verified before use**; 3-year ASEC pool → 2× PUF clone = **337,704 hh**). Worktree `build-g` off `origin/main` (HEAD `e179ba5`, which includes #319); runtime scratch in `~/PolicyEngine/_buildg-runtime/`.
+
+### Resolved versions
+- **Incumbent pin (Build F / `uv.lock`):** policyengine-us **1.752.2**, core 3.26.11.
+- **`uv sync --all-packages --extra us` resolves to 1.752.2** — the lock is honored; `uv sync` alone does **not** move the pin (that needs `uv lock --upgrade`). The pin *spec* is `>=1.745.0,<2`.
+- **New-pin candidate: 1.764.0** (this issue's named window ceiling). The spec's live ceiling under `<2` is **1.765.3** (current PyPI latest) — 28 releases shipped in the window; battery targets 1.764.0, 1.765.x-only changes listed separately.
+- Critical-fit run in two isolated venvs, **both pinned to core 3.26.11**, so the only moving part is policyengine-us (clean single-variable drift).
+
+---
+
+### 1. eCPS parity gate (ratchet mode) — **PIN-INVARIANT; zero new gaps from the bump**
+
+The gate compares **input-column** nonzero shares of the (frozen) base against the frozen 158-var incumbent-eCPS reference. Because the base H5 is frozen, candidate shares are pin-invariant; the only pin-sensitive input is the engine input-variable **scope** (841 → 863 vars). None of the 24 new engine inputs are in the frozen reference, so none can create a parity failure.
+
+**Confirmed empirically — ran the actual `parity_gate` at BOTH pins; identical result:**
+
+| | 1.752.2 | 1.764.0 |
+|---|---|---|
+| reference-populated layers | 158 | 158 |
+| register exemptions | 110 | 110 |
+| **unexempted gaps** | **2** | **2** (same two) |
+
+The 2 unexempted gaps are **pre-existing, not pin-induced** — both ACA-family, both populated by the native ACA source stage (`source_stages.json`, #76/#168) which runs *before* the parity gate in the **release**, so Build F's release passed while the **raw base** does not carry them:
+
+| layer | ref share | candidate | in register? |
+|---|---:|---:|---|
+| `takes_up_aca_if_eligible` | 67.1% | 0% | no |
+| `selected_marketplace_plan_benchmark_ratio` | 100% | 0% | no |
+
+The state-income-tax movement this issue anticipated does **not** appear in the input-column parity gate — `state_income_tax` is a computed **output**, not an engine input. It is quantified in §3 (that is where the uprating fix actually shows up).
+
+**Register-entry proposals (PROPOSALS ONLY — lead gates; nothing committed):**
+- **No pin-attributable entries** (the bump adds zero gaps).
+- Two **pre-existing** ACA-family exemptions proposed (reason'd, → #76): exempt `takes_up_aca_if_eligible` and `selected_marketplace_plan_benchmark_ratio` by name, noting they are populated by the native ACA stage before the gate. **Alternative** the lead may prefer: measure candidate shares on the post-ACA-stage frame rather than the raw base, in which case no entry is needed. Flagging the stage-ordering, not deciding it.
+
+---
+
+### 2. Take-up contract assertion (#315) — **PASS, all 13 flags @ 1.764.0**
+
+Ran the engine-asserted take-up contract tests at the new pin: **14/14 pass** (incl. the field-by-field engine-fact check and the "no `model_simulated` flag is seeded" consistency guard).
+
+Per-flag verdict at 1.764.0 (engine facts vs the checked-in contract, built against 1.752.2):
+
+- **13 flags present** — no additions, no removals (no new `takes_up_*` variable appeared).
+- **All 13 remain `data_seeded`** (`default=True`, no formula) — **zero migrated to `model_simulated`**. The model-side take-up migration referenced in #312/#315 still has not landed at 1.764.0.
+- Every asserted engine fact (`entity`, `value_type`, `default`, `engine_class`) matches field-by-field. **No model-side seeding appeared for the data-seeded flags; no default-semantics shift.**
+
+| treatment | flags |
+|---|---|
+| seed | `takes_up_eitc`, `takes_up_tanf_if_eligible` |
+| out_of_scope | `takes_up_snap_if_eligible`, `takes_up_aca_if_eligible` |
+| near_universal | `takes_up_medicare_if_eligible` |
+| rate_unsourced | medicaid, chip, basic_health_program, ssi, dc_ptc, head_start, early_head_start, housing_assistance |
+
+---
+
+### 3. Critical-fit spot checks — pure model drift on the base, BEFORE calibration
+
+Computed on the base at both pins over a **deterministic 40,000-hh subsample** (`Microsimulation.subsample(n=40000, seed=42, quantize_weights=True)`). The full 337,704-hh sim is dominated by pe-us per-household RNG re-seeding (stochastic take-up/imputation), ~7 min *per aggregation*; the fixed-seed subsample draws the **same households at both pins**, so the between-pin delta carries **zero sampling noise**, and weight-quantization keeps aggregates at full-base scale. Percentage drift is scale-stable. (Base is uncalibrated — magnitudes are pre-calibration; the *deltas* are the signal.)
+
+**Federal — negligible, well-behaved drift (all < 0.2%):**
+
+| target | 1.752.2 | 1.764.0 | Δ | Δ% |
+|---|---:|---:|---:|---:|
+| Federal income tax — amount | $2,000.25B | $2,004.04B | +$3.79B | **+0.190%** |
+| Federal income tax — returns (>0) | 122.20M | 122.19M | −0.01M | −0.008% |
+| Taxable Social Security — amount | $466.94B | $467.46B | +$0.51B | **+0.110%** |
+| Taxable Social Security — returns (>0) | 28.069M | 28.079M | +0.010M | +0.036% |
+| EITC — amount | $30.822B | $30.808B | −$0.014B | −0.045% |
+| EITC — returns (>0) | 13.549M | 13.546M | −0.003M | −0.025% |
+| Refundable CTC (ACTC) — amount | $21.614B | $21.619B | +$0.005B | +0.025% |
+| ACTC — claims (>0) | 10.431M | 10.431M | 0.000M | 0.000% |
+
+The +0.19% federal income tax is consistent with the 1.756.x federal-base changes (non-Sch-D cap-gain-distribution inclusion `1.756.2`, OBBBA clean-energy-credit termination `1.756.7`, Saver's Credit thresholds `1.756.6`) roughly offsetting. Supporting aggregates: AGI +0.17%, taxable income +0.21%, SNAP +0.29% (from the SNAP work-requirement changes), employment income / capital gains / TANF flat.
+
+**State income tax by state (the #324-predicted movers) — one material mover:**
+
+| state | 1.752.2 | 1.764.0 | Δ | Δ% | attribution |
+|---|---:|---:|---:|---:|---|
+| ME | $2.698B | $2.713B | +$0.015B | +0.55% | `1.756.9` uprating unfreeze (12 param files) |
+| NE | $2.826B | $2.827B | +$0.001B | +0.04% | `1.756.8` explicit 2026 + `1.756.9` |
+| ND | $0.213B | $0.214B | +$0.001B | +0.34% | `1.756.9` uprating unfreeze (5 files) |
+| **NY** | **$43.56B** | **$55.98B** | **+$12.42B** | **+28.51%** | **`1.764.1` IT-196 §68 overall-limitation wiring** (+ `1.756.8` phase-out unfreeze) |
+| OH | $11.14B | $11.16B | +$0.017B | +0.15% | `1.756.9` uprating unfreeze (1 file) |
+| RI | $2.476B | $2.477B | +$0.001B | +0.03% | `1.756.8`/`1.756.9` |
+| **ALL states** | **$468.14B** | **$490.41B** | **+$22.27B** | **+4.76%** | NY dominates |
+
+**Headline: NY state income tax +28.5% (+$12.4B).** This is *not* the modest uprating effect — traced to **1.764.1**: "Wired New York's orphaned itemized-deduction phase-out parameter into the IT-196 Line 40 pre-TCJA overall limitation (26 U.S.C. 68 via NY Tax Law 615)." Confirmed on-disk: the NY `itemized/phase_out/start.yaml` parameter changed **and** the NY itemized-deduction variable sources changed (`ny_salt_deduction.py`, `pre_tcja/*`). It reduces NY itemized deductions → raises NY taxable income → raises NY tax. **Directionally correct** (NY was omitting the §68 overall limitation, under-taxing high-deduction filers) — a legitimate correctness improvement, but large enough that Build G's calibration starts from a materially different NY (and national state-tax) position than Build F did. The other five states show exactly the small uprating-unfreeze moves this issue anticipated.
+
+I confirmed the `1.756.9` uprating fix mechanistically on-disk (the exact "`uprating:` moved from sibling-of-`values:` to `metadata:`" diff): **30 income-tax parameter files changed across ME/NE/ND/NY/OH/RI** (ME 12, NE 5, ND 5, NY 1, OH 1, RI 6), the balance of the changelog's "33 files / 107 nodes" being RI/NY contrib reforms.
+
+---
+
+### 4. New input surface (1.753–1.764) beyond the SNAP/ABAWD wave
+
+Engine **input variables 841 → 863 (+24 added, −2 removed).** All 24 added default to `False`/`0` and base-F populates **none** (all consume engine defaults) → degenerate-gate (#286) candidates the moment populace targets the owning program.
+
+- **SNAP/ABAWD wave (6, already tracked #248/#249/#250):** `is_snap_abawd_discretionary_exempt`, `is_snap_workfare_participant`, `weekly_snap_work_program_hours`, `has_applied_for_unemployment_compensation`, `is_complying_with_tanf_work_requirements`, `is_in_substance_use_treatment_program` (person-level). This is the SNAP work-requirement input carriage already scoped for Build G.
+- **State childcare CCAP/CCDP enrollment (13, NEW beyond the SNAP wave):** ND/MT/NM/NV enrollment (`*_enrolled`, spm_unit) + provider-type/quality/hours (person, mostly enums). Releases 1.756.0/1.761.0/1.762.0/1.763.0. Low fiscal risk (opt-in, default off → the program simply does not fire); relevant only if populace targets these state childcare programs — then they are #286 candidates.
+- **Local income tax (4, NEW):** `in_yonkers`, `ny_yonkers_nonresident_earnings`, `in_wilmington`, `de_wilmington_nonresident_earnings` (`1.757.0`).
+- **Capital gains (1, NEW):** `schedule_d_capital_gain_distributions` (`1.756.0`) — the one new input that flows into the federal income-tax base. Base carries 0 at both pins (a definitional-consistency item, not a between-pin mover on this base). If populace later imputes cap-gain distributions, carry it **and** the pre-existing `capital_gain_distributions` together.
+- **Removed (2), no action:** `small_area_fair_market_rent`, `safmr_used_for_hcv` — moved from stubbed inputs to parameterized/computed (`1.754.0`); they leave the input scope cleanly.
+
+---
+
+### Go / no-go recommendation
+
+**GO — pin Build G to 1.764.x, with two documented follow-ups.**
+
+The bump is safe and mostly beneficial:
+- **Parity gate: unchanged** — zero new gaps (proven at both pins).
+- **Take-up contract: PASS, all 13 flags** — no model-side seeding appeared, no semantics shifted.
+- **Federal critical-fit: negligible drift** (< 0.2% on every target) — calibration's federal starting point is essentially unchanged.
+- **State critical-fit: the only material mover is NY (+28.5%), and it is a legitimate correctness fix** (the §68 IT-196 overall limitation NY was previously omitting), not a regression. The five other named states move by the small amounts the uprating-placement fix predicts.
+
+Follow-ups the lead should gate, none blocking:
+1. **Expect NY / national state-tax targets to re-seat.** NY state income tax rises ~28% and the national state-income-tax total ~4.8% purely from the model. Build G's calibration and any Build-F-vs-Build-G results comparison must attribute this to `1.764.1`, not to data or weighting changes. If a state-income-tax fiscal target is in the feed, confirm it reflects the post-§68 NY (else calibration will fight a correct model).
+2. **Two pre-existing ACA parity-register gaps** (`takes_up_aca_if_eligible`, `selected_marketplace_plan_benchmark_ratio`) — add reason'd exemptions (→ #76) or measure parity on the post-ACA-stage frame. Independent of the bump; surfaced by this pass.
+3. **New-input watch (not now):** the 13 state-childcare + 4 local-tax + 1 cap-gains-distribution inputs are default-consuming; add to the #286 degenerate-gate watch if/when populace targets those programs. The 6 SNAP/ABAWD inputs are already the scoped Build G SNAP-carriage item.
+
+If the lead prefers to ride the very latest, the same battery should be re-run at **1.765.3** before committing — 1.765.1/1.765.2/1.765.3 add PA/NJ/CO/CA/AZ state-tax fixes not covered here (none touch populace's input surface, but they would move the state critical-fit further).
+
+---
+
+*Battery artifacts (all under `~/PolicyEngine/_buildg-runtime/`, staging/local only — prod HF and latest.json untouched): `probe_pin.py`, `probe_state_tax.py`, `out/probe_{1752,1764}.json`, `out/state_tax_{1752,1764}.json`, `out/parity_scope_{1752,1764}.json`, `out/drift_table.md`, `out/register_proposals.md`. Reproduction: base sha `18833fb6…`, core 3.26.11 both pins, subsample n=40000 seed=42, period 2024. Full working log in `PROGRESS_BUILDG.md` on branch `build-g`.*
