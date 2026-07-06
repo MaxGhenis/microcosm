@@ -381,3 +381,40 @@ SS +5.3% → blocked on uncommitted informed-L0 (Build G).
   blocked on uncommitted informed-L0/warm-start (Build G). Certified pool reconstructed faithfully and
   calibrates to certified quality (dense 0.0416/86.1%). Staging-only; prod untouched.
 - NO further build attempts (per third-strike rule + coordinator direction). Analysis + verdict complete.
+
+### 2026-07-06 ~14:45 ET — ATTEMPT 6 PRE-FLIGHT (dry, no run): the specified change does NOT reach the failing gate
+Coordinator authorized attempt 6 = dense-only, one change: pass --input-mass-reference-h5 at a certified
+artifact so mass-parity compares calibrated-vs-certified. BEFORE launching I traced the wiring and
+simulated the outcome. Two blocking findings — did NOT launch (would waste ~75 min and fail):
+
+**1. --input-mass-reference-h5 does NOT change the failing gate.** Code (build_us_fiscal_refresh_release.py):
+- The gate that FAILED attempt 5 is `_export_input_mass_gate(export_frame, base_frame, ...)` (line 5415),
+  called UNCONDITIONALLY with base_frame; its signature takes NO reference arg.
+- `--input-mass-reference-h5` feeds ONLY `_input_mass_reference_gate` (line 5087), a SEPARATE base-vs-
+  reference check (the #278 base-loss guard). It does not redirect the export gate.
+=> Passing the flag alone: (a) the export-vs-base gate fails IDENTICALLY on the 14 PUF cols, AND (b) it
+   ADDS a new base-vs-reference gate that itself trips (see below) — i.e. "fails on something NEW".
+=> Implementing the verdict (corrected export reference) requires a 1-line CODE change to thread a
+   reference frame into `_export_input_mass_gate` (fallback to base when none) — not a flag.
+
+**2. Even WITH a corrected export reference, it does NOT cleanly pass.** Simulated export-vs-certified
+drift for all 14 cols (export masses = exact values from attempt-5's failure log; certified masses read
+live), tol ±50%, floor $1e9:
+- vs f0af251 (75k): 5 FAIL (mortgage x2 +107/+114%, non_sch_d_cap_gains +550%, rental +96%, ST cap gains
+  +1397%). f0af251 is a Jun-20 different-vintage build w/ negative/tiny masses on some cols => BAD reference.
+- vs live default (57k): 3 FAIL — first_home_mortgage_interest +62.5%, home_mortgage_interest +70.7%,
+  miscellaneous_income -62.9%. Best reference, but still 3 fails.
+
+**3. The mortgage fails are a REAL calibration difference, not a gate artifact.** base-f RAW mortgage
+interest = $336B (already ~+8% vs certified $311B). Cold dense calibration INFLATES it to $531B (+58% vs
+its own base) chasing the JCT deductible_mortgage_interest.revenue_loss target — which it STILL overshoots
++59.7% (tgt $24.8B, est $39.6B). So the +71%-vs-certified mortgage mass reflects the cold calibration
+fitting the mortgage tax-expenditure surface LOOSER than the certified informed-selection support did —
+same class as the sparse income-tax +19.9% overshoot. miscellaneous_income is a small sign-unstable
+residual (base NEGATIVE -$7.9B; certified 57k +$47.4B vs f0af251 +$14.4B) — degenerate for any % check.
+
+**DID NOT LAUNCH attempt 6.** The authorized flag-only change is proven to fail identically + add a new
+failure; the intended corrected-reference (needs a code change) still leaves 3 real fails, 2 of which are
+a genuine calibration overshoot (mortgage tax-expenditure) tied to the same cold-vs-informed-selection gap
+that blocks sparse. Reporting to coordinator for direction rather than burning the run or making an
+unauthorized code change beyond the "exactly one change" scope.
