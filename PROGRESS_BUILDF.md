@@ -260,3 +260,78 @@ Attempt 3 RUNNING (03:45:20Z start; sparse in target compilation as of 00:30 ET)
   derivation skips _M_CHIP_STATE_FIPS with tests (TX general case, CA skip case); sparse adds
   --l2-lambda 0.08 completing the certified lam008 recipe (income-tax miss = default-lambda deviation).
 - Attempt 4 launched 09:58Z detached (chain.pid). Agent: extract gate tables + verdict on completion.
+
+### 2026-07-06 ~13:45 ET — AGENT RESUMED for step 6 (analysis + verdict; NO more build attempts)
+Chain exited. Five attempts done. Attempt 5 (8e99d08, clean room, λ default, dense-first) is the
+diagnostic one. FULL ANALYSIS of the input-mass-parity failure:
+
+**Attempt-5 DENSE (populace-us-2024-buildf-dense-8e99d08-20260706T115009Z):**
+- Calibration EXCELLENT: n_records 337,704, final_loss 0.04159, within-10% 86.13% — BEATS certified
+  f0af251 (0.0423 / 86.4%). initial_loss 0.20665.
+- calibration_diagnostics.json release_gates.passed=True (0 failures); EVERY structural gate PASS:
+  target_profile_coverage, health_input_signal, degenerate_input_signal (#286 — CHIP now clean via
+  #321), base_population_scale, immigration_composition, ecps_parity (#316 ratchet),
+  validation_input_coverage (#278/#279). input_mass_reference = None (no --input-mass-reference-h5).
+- BUT rc=1: the EXPORT-stage gate `_export_input_mass_gate(export_frame, base_frame, ±50%)` fired AFTER
+  diagnostics were written (it evaluates only once an export frame exists — which is why attempts 2-3,
+  dying at CHIP, never reached it). 14 columns flagged, ALL export >> base (gains, not losses):
+  long_term_capital_gains +230.7%, short_term_capital_gains +230.7%, miscellaneous_income +315.6%
+  (base is NEGATIVE -$8.15B -> sign-flip makes % meaningless), non_sch_d_capital_gains +119.7%,
+  tax_exempt_interest +116.9%, qualified_dividend +142.3%, partnership_se_earnings +177.2%,
+  charitable_cash +88.9%, charitable_non_cash +82.6%, rental +80.4%, non_qualified_dividend +64.3%,
+  unemployment +63.3%, home_mortgage_interest +54.1%, first_home_mortgage_interest +51.9%.
+
+**DECISIVE TEST — are these masses WRONG, or is the gate mis-referenced? => GATE MIS-REFERENCED.**
+Compared each flagged column's CALIBRATED national mass to its SOI/CBO national TARGET (not the raw base):
+- qualified_dividend_income: export $320B; CBO qualified_dividend target $354B, est $320B, relerr -9.7%
+  => export mass is HITTING the CBO target (slightly under).
+- capital gains family (LT/ST/non_sch_d): CBO net_capital_gain target $1.291T, est $0.798T, relerr
+  -38.2% => even after +230% vs raw base, capital gains still UNDERSHOOT the CBO target. The gate flags
+  an increase that is genuinely NEEDED and still insufficient.
+- partnership_se_earnings -> CBO net_business_income target $1.916T, est $1.917T, relerr +0.1% => bang on.
+- AGI control: relerr -0.9%.
+So calibration correctly scaled PUF-imputed capital/business/deduction income (which CPS structurally
+under-reports) UP toward SOI/CBO. The ±50%-vs-RAW-BASE band is the wrong reference for exactly the 14
+PUF-imputed columns whose raw pooled-ASEC mass sits far below their fiscal targets.
+
+**Gate provenance confirms mis-application:**
+- `_export_input_mass_gate` docstring: "L0 selection and reweighting optimize the target surface; an
+  untargeted input column can LOSE its mass..." => it is the #278 mass-LOSS guard (sparse zeroing
+  IRA/HSA/pension), built for candidate<<reference. It applies abs(drift)>tol SYMMETRICALLY, so it also
+  fires on calibration GAINS — the opposite of the defect it targets.
+- The gate (input_mass_parity_gate) was ADDED in #279 (44868be), AFTER certified f0af251 (Jun 20) and
+  the live-default lineage. Neither certified manifest records input_mass_parity (only base_population_
+  scale mass_repair, which build-f also passes). The certified 57k live default was built WITHOUT this
+  gate and would ITSELF fail export-vs-base on the same PUF columns (its capital-gains mass is likewise
+  far above raw ASEC). There was NO pre-calibration income-mass alignment step in the certified pipeline.
+- The gate exposes the sanctioned remedy in its message ("add a reviewed exclusion") and its underlying
+  fn takes reviewed_exclusions; `_export_input_mass_gate` just doesn't thread it. There is also an
+  `--allow-input-mass-drift` bypass flag and `--input-mass-relative-tolerance`.
+
+**VERDICT on the 3 options:**
+(a) REVIEWED EXCLUSIONS for the 14 PUF-imputed columns, justified by the export≈SOI/CBO-target evidence
+    above — RECOMMENDED. This is the gate's own designed escape and is correct because the masses are
+    right (they match/undershoot fiscal targets); the gate's raw-base reference is simply the wrong
+    yardstick for calibration-driven upward alignment of under-reported PUF income. Equivalent minimal
+    change: thread reviewed_exclusions through `_export_input_mass_gate` (or set the export gate's
+    reference to a CERTIFIED release via --input-mass-reference-h5 rather than the raw base). NOT
+    --allow-input-mass-drift globally (that would also silence a genuine #278 zeroing).
+(b) base-side income-mass repair reconstruction — REJECTED: no such step exists in the certified
+    pipeline; inventing one would DEVIATE from certified lineage, not match it.
+(c) genuinely wrong masses — REJECTED by the national-target evidence (export matches/undershoots CBO/SOI).
+
+**SPARSE (populace-us-2024-buildf-sparse-8e99d08-20260706T131136Z): NO more runs. BLOCKED, root-caused.**
+- Cold L0 at λ default: selected 53,527 of 337,704; final_loss 0.1192; within-10% 50.2% (matches Build
+  E's 224k sparse 0.125/48.4% — cold-L0 quality, not certified). 2 critical-target FAILS: federal income
+  tax +19.9% (est $2.828T vs $2.359T), Social Security +5.3% (est $1.550T vs $1.471T).
+- The certified 94.7%/λ=0 sparse is a dense POLISH of a FROZEN, pre-selected 57,240 support (live-default
+  manifest: warm_start_calibration from refit-selected-current-surface-a7a77c4, ESS = the paper's 4,726).
+  That informed-L0 selection artifact is NOT in the repo (descends from an ad-hoc run). Cold from-scratch
+  L0 on the raw pool starves and overshoots income tax. => Build F sparse is blocked on the UNCOMMITTED
+  informed-L0 selection machinery. Reconstruction = a Build G item. The certified 57k live default remains
+  the laptop artifact meanwhile.
+- The λ=0.08 experiment (attempt 4, 9e25d54) was a MISREAD of the lam008 run-dir tag: #285's table shows
+  the certified sparse arm ran at PRODUCTION DEFAULTS λ=0, and λ=0.08 produced +258% income tax -> REVERTED.
+
+**No artifact certifiable this campaign.** Dense = 1 gate from clean (mass-parity mis-reference, remedy
+identified). Sparse = blocked on uncommitted informed-L0. Full report -> populace#299.
