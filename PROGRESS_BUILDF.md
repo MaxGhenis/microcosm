@@ -247,3 +247,16 @@ masks feed rows that would re-derive):
   recompiling the target FRAME, only re-running calibration against the trimmed registry.
 
 Attempt 3 RUNNING (03:45:20Z start; sparse in target compilation as of 00:30 ET). Monitor armed.
+
+### 2026-07-06 overnight consolidation (lead) — attempts 2–4
+- Attempt 2 (v5+register-fix): sparse FAILED pre-registered L0 mass-infeasibility at ratio 5.0 (54,093
+  survivors); dense FAILED 20 CHIP zero-support. Attempt 3 (v6+ratio50): sparse cleared L0 but FAILED
+  same 20 CHIP + income-tax critical fit +17.4%; dense FAILED same 20 CHIP.
+- ROOT CAUSE (tri-source targets): removing direct 2024-12 CHIP rows did not remove the targets —
+  (a) surviving 2025-12 rows BACK-CAST onto the 2024 target period; (b) the _with_derived_chip_
+  enrollment_targets fallback re-derives CHIP (combined − medicaid) exactly where direct rows are
+  absent, so deletion ARMS it. Full mechanism on populace#321.
+- Fixes (03cc3d9, 9e25d54): feed v7 (M-CHIP CHIP rows removed at ALL periods, sha 735f326a...),
+  derivation skips _M_CHIP_STATE_FIPS with tests (TX general case, CA skip case); sparse adds
+  --l2-lambda 0.08 completing the certified lam008 recipe (income-tax miss = default-lambda deviation).
+- Attempt 4 launched 09:58Z detached (chain.pid). Agent: extract gate tables + verdict on completion.
