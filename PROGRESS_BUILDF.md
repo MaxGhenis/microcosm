@@ -166,3 +166,54 @@ base_dataset_sha256 (from base-f summary) + reform vector + policyengine_us_vers
   reference loss ~0.044 / within-10% ~94.7%; realized max-weight-ratio; cache-key components)
   and write the verdict. If base failed, read base_f.log — likely suspects: spec-less 3-year
   shares behavior, --ledger-facts CD fact coverage through the crosswalk, block-ladder gate.
+
+### 2026-07-06 ~00:10 ET — AGENT RESUMED as monitor for attempt 3 (do NOT relaunch while running)
+Verified the lead's overnight state independently before waiting on the chain:
+
+**BASE (out/base-f-20260705, sha 18833fb6...) — CERTIFIED LINEAGE CONFIRMED via frame loader:**
+- H5 household rows = 337,704 (NOT the summary's 168,852 — that field is the PRE-CLONE pool count).
+- household_support_channel: asec 168,852 / puf_tax_detail 168,852 (perfect 50/50 clone).
+- person.source_year: 2024=284,250 / 2023=288,530 / 2022=292,266 (the 3-year pool). EXACT match to
+  #285 production dimensions.
+- All 4 #278 leaves present with mass: traditional_ira_contributions_desired (person, nz 8,141),
+  self_employed_pension_contributions_desired (person, nz 1,924), health_savings_account_ald
+  (TAX_UNIT, nz 2,802, $13.8M — lives on tax_unit not person), spm_unit_pre_subsidy_childcare_expenses
+  (spm_unit, nz 21,552, $202.6M).
+- summary gates: weights_audit.passed=True, geography_ladder.gate.passed=True.
+
+**FAILURE MODES (attempts 1-2) confirmed from logs + attempt-2 dense diagnostics:**
+- DENSE attempt-2 diagnostics (v6-less): final_loss 0.04295, within-10% 85.8%, and EVERY structural
+  gate PASSES (target_profile_coverage, health_input_signal, degenerate_input_signal (#286),
+  base_population_scale, immigration_composition, ecps_parity (#316), validation_input_coverage
+  (#278/#279)). The ONLY release_gates failure = "20 positive fiscal targets have zero materialized
+  support" — all 20 are cms_medicaid ...total_chip_enrollment (M-CHIP states incl CA). v6 removes
+  exactly these 20 rows (verified: v5 37,098 -> v6 37,078; the 20 removed are all CHIP; v6 sha
+  9f8edbb9... matches).
+- SPARSE attempt-2: L0 pruned to 54,093 survivors; mass='conserve' infeasible at max_weight_ratio 5.0
+  (the L0 selection starves at the tight ratio). Fix = --max-weight-ratio 50 (my Phase-0 pre-registered
+  fallback; the certified/f0af251 default is 5.0 but Build E also needed 50 at this pool scale).
+
+**CERTIFIED REFERENCE BARS pinned (for the verdict):**
+- SPARSE headline: live default `sparse-l0-refit-57k` default_dataset.final_loss = 0.04401 (~0.044),
+  within-10% ~94.7% (brief). That is a 1,500-epoch dense POLISH of a FROZEN 57,240 support.
+- DENSE parent: f0af251 (75,112) final_loss 0.0423, within-10% 86.4% — build-f dense 0.04295/85.8%
+  already matches this almost exactly (on a fuller 337,704 pool -> stronger support).
+- eCPS parity: pinned per-variable nonzero-share ref from incumbent enhanced_cps_2024.h5 (ratchet;
+  computed once, never recomputed).
+
+**CACHE-KEY components recorded:** base_dataset_sha256=18833fb6... ; reform vector = US_JCT_TAX_
+EXPENDITURE_REFORMS / default reform specs (unchanged on main); policyengine_us 1.752.2 ;
+target_period 2024 ; CD-crosswalk sha (from #205 provenance) ; feed v6 sha 9f8edbb9...
+
+**DEVIATIONS from the pure certified recipe (to flag prominently in the report):**
+1. Feed = v6 (v5 minus the 20 M-CHIP total_chip_enrollment rows). Reason: target-concept mismatch —
+   CMS total_chip_enrollment = M-CHIP+S-CHIP; the model materializes separate-CHIP only, so those 20
+   are structurally un-materializable (issue #170's class). This is a reason'd degenerate-target
+   exclusion, not a quality shortcut. (Follow-up: proper fix is an M-CHIP support/expansion, or split
+   the CMS target into M-CHIP vs S-CHIP components.)
+2. SPARSE max_weight_ratio 50 (not the certified 5.0). Reason: L0 mass='conserve' infeasibility at 5.0
+   on this pool. Pre-registered fallback; documented, NOT iterated. Realized ratio to be read from
+   attempt-3 sparse diagnostics.
+
+Extractor staged: /private/tmp/.../scratchpad/extract_gates.py (both gate tables + calib-vs-cert).
+Monitor armed on chain.log terminal states. WAITING on attempt 3 (sparse calibration long pole).
