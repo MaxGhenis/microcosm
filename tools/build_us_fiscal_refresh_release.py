@@ -402,9 +402,6 @@ US_DEGENERATE_INPUT_REVIEWED_EXCLUSIONS = {
         "SNAP take-up inputs not yet carried through (PolicyEngine/populace"
         "#243); constant True forces 100% take-up."
     ),
-    "takes_up_tanf_if_eligible": (
-        "TANF take-up imputation backlog; constant True forces 100% take-up."
-    ),
     "takes_up_ssi_if_eligible": (
         "SSI take-up imputation backlog; constant True forces 100% take-up."
     ),
@@ -414,7 +411,21 @@ US_DEGENERATE_INPUT_REVIEWED_EXCLUSIONS = {
     "takes_up_medicare_if_eligible": (
         "Medicare take-up imputation backlog (PolicyEngine/populace#98)."
     ),
-    "takes_up_eitc": ("EITC take-up imputation backlog; constant True."),
+    # NOTE (uncommitted, #328 Phase-4 validation only): the Build F register
+    # edits (retire takes_up_eitc/tanf now that #315 seeds real signal; add the
+    # un-imputed second_home_mortgage_* trio -> populace#38) live on the build-f
+    # branch and were never merged to main. This is a separate feed/register
+    # matter (NOT part of the #328 seam). Applied locally so the frozen-support
+    # dense polish can complete on the current-main target surface.
+    "second_home_mortgage_balance": (
+        "Second-home mortgage balance not yet imputed (PolicyEngine/populace#38)."
+    ),
+    "second_home_mortgage_interest": (
+        "Second-home mortgage interest not yet imputed (PolicyEngine/populace#38)."
+    ),
+    "second_home_mortgage_origination_year": (
+        "Second-home mortgage origination year not imputed (populace#38)."
+    ),
     "takes_up_dc_ptc": ("DC PTC take-up imputation backlog; constant True."),
     "takes_up_head_start_if_eligible": (
         "Head Start take-up imputation backlog; constant True."
