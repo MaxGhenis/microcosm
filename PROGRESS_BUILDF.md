@@ -217,3 +217,33 @@ target_period 2024 ; CD-crosswalk sha (from #205 provenance) ; feed v6 sha 9f8ed
 
 Extractor staged: /private/tmp/.../scratchpad/extract_gates.py (both gate tables + calib-vs-cert).
 Monitor armed on chain.log terminal states. WAITING on attempt 3 (sparse calibration long pole).
+
+### 2026-07-06 ~00:30 ET — validated the v6 CHIP fix is sound (attempt 3 should clear dense degenerate gate)
+Traced the degenerate-target mechanism to confirm v6 actually removes the failing targets (not just
+masks feed rows that would re-derive):
+- The 20 failing targets = cms_medicaid ...total_chip_enrollment @2024-12 for exactly the 20 M-CHIP
+  states (ak,ca,dc,hi,il,ky,md,me,mi,mn,nc,nd,ne,nh,nm,oh,ok,sc,vt,wy). These run CHIP as Medicaid
+  expansion => "CHIP enrollment" is counted inside Medicaid; the model materializes SEPARATE-CHIP only
+  => zero support. Correct #170-class diagnosis.
+- CRITICAL check: fiscal_targets._with_derived_chip_enrollment_targets DERIVES total_chip_enrollment
+  from (total_medicaid_chip_enrollment MINUS medicaid_enrollment). If that re-fired, removing feed rows
+  wouldn't help. It does NOT: the derivation keys on target_role=='medicaid_enrollment', but the feed
+  carries 'total_medicaid_enrollment' (0 rows match 'medicaid_enrollment') => the derivation loop finds
+  an empty medicaid dict and appends nothing. So the 20 direct feed rows are the ONLY source of those
+  targets; removing them removes them for good.
+- v6 keeps 32 S-CHIP states @2024-12 (al,ar,az,co,ct,de,fl,ga,...) which DID materialize (the original
+  failure named exactly 20, not 52). So v6 = 20 M-CHIP removed + 32 S-CHIP kept = 52 states, internally
+  consistent. Dense should now pass the degenerate-target gate.
+
+### CACHE-KEY (final, for report)
+- base_dataset_sha256: 18833fb68e60ee74461608d81a5c5ab7d52435e17026d9e3b062d9de18d6871f
+- policyengine_us_version: 1.752.2 ; policyengine_core: 3.26.11
+- target_period: 2024 ; seed: 0
+- congressional_district_vintage_crosswalk_sha256: 383a666631aafd4f584816935ae340960fb3fc127929dccf61d223790a82140b
+- feed v6 sha256: 9f8edbb90c8a86705aa0dbe2ec0ce7c8347a59f9d068f315f58d5aaeaecfd90d (37,078 rows)
+- reform vector: default US_JCT_TAX_EXPENDITURE_REFORMS / load_default_reform_specs (unchanged on main)
+- NOTE: target-frame checkpoint identity is feed-INDEPENDENT by design (base sim values don't depend on
+  which facts you calibrate toward); the feed only sets the target registry. v6-vs-v5 does not require
+  recompiling the target FRAME, only re-running calibration against the trimmed registry.
+
+Attempt 3 RUNNING (03:45:20Z start; sparse in target compilation as of 00:30 ET). Monitor armed.
