@@ -49,6 +49,21 @@ attributions, register-entry proposals, take-up verdict, new-input inventory, go
 - [x] 6. Task 4 — new-input inventory. **engine inputs 841 → 863 (+24 added, −2 removed).** ALL 24 added default to 0/False and base-F populates NONE (all cand_share=0) → all consume engine defaults. Classified below. Removed 2 (`small_area_fair_market_rent`, `safmr_used_for_hcv`) = stubbed→parameterized (1.754.0), not a loss.
 - [ ] 7. Assemble triage report → this file + populace#324 comment. Go/no-go.
 
+## Task 3 — critical-fit RESULTS (40k subsample, both pins, core 3.26.11 fixed)
+FEDERAL (both pins complete, rc=0):
+| target | 1.752.2 | 1.764.0 | delta% |
+|---|---|---|---|
+| Federal income tax — amount | $2,000.25B | $2,004.04B | **+0.190%** |
+| Federal income tax — returns | 122.20M | 122.19M | −0.008% |
+| Taxable Social Security — amount | $466.94B | $467.46B | **+0.110%** |
+| Taxable Social Security — returns | 28.069M | 28.079M | +0.036% |
+| EITC — amount | $30.822B | $30.808B | **−0.045%** |
+| EITC — returns | 13.549M | 13.546M | −0.025% |
+| Refundable CTC (ACTC) — amount | $21.614B | $21.619B | +0.025% |
+| ACTC — claims | 10.431M | 10.431M | 0.000% |
+**All federal aggregates move < 0.2% — negligible, well-behaved drift.** The +0.19% fed income tax is consistent with the 1.756.x federal base changes (non-Sch-D cap-gain-distribution inclusion, OBBBA clean-energy termination, saver's credit thresholds) roughly offsetting. Supporting: AGI $15.22T, employment income $11.27T, capital gains $231.7B, SNAP $74.7B, TANF $13.5B (all near-identical between pins).
+STATE income tax by state: in-probe section hit an enum-map bug (`state_code` map_to tax_unit fails on strings); FIXED via standalone probe_state_tax.py (aggregate state_income_tax to household, group by household state_code). Chain running (run_state_tax.sh). [results below when landed]
+
 ## Task 1 — register-entry PROPOSALS (lead-gated, NOT committed). Full text: `_buildg-runtime/out/register_proposals.md`
 - **No pin-attributable register entries.** The bump adds zero parity gaps (base frozen; new engine inputs not in the 158-var reference).
 - **Surfaced (pre-existing, not pin-induced): 2 unexempted ACA-family gaps** the raw base fails at BOTH pins: `takes_up_aca_if_eligible` (ref 67.1%/cand 0%, NOT in register) + `selected_marketplace_plan_benchmark_ratio` (ref 100%/cand 0%, NOT in register). Root: both are populated by the native ACA source stage (`source_stages.json`, #76/#168) which runs BEFORE the parity gate in the RELEASE — so Build F's release passed while the RAW base does not carry them. The other 10 seed-class take-up flags DO carry #312 register entries; ACA was scoped out of take-up seeding and never given a parity exemption. Proposed reason'd exemptions drafted (issue #76). Alternative: measure candidate on the post-ACA-stage frame instead of the raw base. Lead decides.
