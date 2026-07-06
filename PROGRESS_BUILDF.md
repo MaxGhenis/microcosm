@@ -335,3 +335,38 @@ PUF-imputed columns whose raw pooled-ASEC mass sits far below their fiscal targe
 
 **No artifact certifiable this campaign.** Dense = 1 gate from clean (mass-parity mis-reference, remedy
 identified). Sparse = blocked on uncommitted informed-L0. Full report -> populace#299.
+
+### 2026-07-06 ~14:10 ET — issues filed; writing #299 campaign report
+- populace#327 filed: export input-mass-parity gate references raw base (mis-reference), flags correct
+  calibration GAINS on 14 PUF-imputed cols. Includes export-vs-CBO-target evidence + provenance (#279
+  post-cert) + proposed fix (reference a certified release and/or thread reviewed_exclusions; keep
+  loss/zeroing arm strict; NOT --allow-input-mass-drift). Verdict = option (a).
+- populace#326 filed: calibration-stage cache/checkpoint identity omits solver_config_sha256. Framed
+  accurately: NOT the cause of the Build F finding (clean-room attempt 5 reproduced byte-identical), but
+  the omission nearly misled diagnosis. Corrected my own draft: TargetRegistry.version IS already a
+  content hash (feed changes DO invalidate), and the target-FRAME checkpoint is legitimately solver-
+  independent — so the gap is narrow (calibrated artifacts lack a solver-config hash).
+- #321 (CHIP tri-source) already open with the lead's code fix + tests.
+- CORRECTION logged: my first #326 draft wrongly claimed a feed-collision risk in target_registry_version;
+  read TargetRegistry.version (content hash of canonical spec JSON) and rewrote before filing.
+
+### DENSE near-miss gate table (for report) — attempt 5 (8e99d08), certified 337,704 pool
+| gate | result |
+|---|---|
+| calibration loss | 0.04159 (cert f0af251 dense 0.0423) — BEATS cert |
+| within-10% | 86.13% (cert dense 86.4%) — matches |
+| n_records | 337,704 (candidate = full pool; dense no-L0) |
+| target_profile_coverage | PASS |
+| base_population_scale (334.2M) | PASS |
+| immigration_composition (#266) | PASS |
+| degenerate_input_signal (#286, CHIP via #321) | PASS |
+| validation_input_coverage (#278/#279) | PASS |
+| eCPS parity (ratchet #316) | PASS |
+| health_input_signal | PASS |
+| base weights_audit (#308) | PASS (us_puf_tax_detail_support=design) |
+| base geography_ladder | PASS |
+| input_mass_reference (needs --reference-h5) | not run (None) |
+| EXPORT input_mass_parity (export vs raw base ±50%) | FAIL — 14 PUF cols, all gains → #327 |
+| take-up participation diagnostics | not reached (export gate precedes it) |
+Sparse (8e99d08): 53,527 selected, loss 0.1192, within-10% 50.2%; critical FAILs income tax +19.9%,
+SS +5.3% → blocked on uncommitted informed-L0 (Build G).
