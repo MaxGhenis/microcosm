@@ -49,6 +49,11 @@ attributions, register-entry proposals, take-up verdict, new-input inventory, go
 - [x] 6. Task 4 — new-input inventory. **engine inputs 841 → 863 (+24 added, −2 removed).** ALL 24 added default to 0/False and base-F populates NONE (all cand_share=0) → all consume engine defaults. Classified below. Removed 2 (`small_area_fair_market_rent`, `safmr_used_for_hcv`) = stubbed→parameterized (1.754.0), not a loss.
 - [ ] 7. Assemble triage report → this file + populace#324 comment. Go/no-go.
 
+## Task 1 — register-entry PROPOSALS (lead-gated, NOT committed). Full text: `_buildg-runtime/out/register_proposals.md`
+- **No pin-attributable register entries.** The bump adds zero parity gaps (base frozen; new engine inputs not in the 158-var reference).
+- **Surfaced (pre-existing, not pin-induced): 2 unexempted ACA-family gaps** the raw base fails at BOTH pins: `takes_up_aca_if_eligible` (ref 67.1%/cand 0%, NOT in register) + `selected_marketplace_plan_benchmark_ratio` (ref 100%/cand 0%, NOT in register). Root: both are populated by the native ACA source stage (`source_stages.json`, #76/#168) which runs BEFORE the parity gate in the RELEASE — so Build F's release passed while the RAW base does not carry them. The other 10 seed-class take-up flags DO carry #312 register entries; ACA was scoped out of take-up seeding and never given a parity exemption. Proposed reason'd exemptions drafted (issue #76). Alternative: measure candidate on the post-ACA-stage frame instead of the raw base. Lead decides.
+- Register today = 110 entries (dict-keyed): #38×42, #298×16, #32×15, #312×13, #49×8, #253×7, #242×5, #274×4.
+
 ## Task 4 — new-input inventory (degenerate-gate candidates), classified
 24 new engine INPUT variables at 1.764.0 (all default False/0, none carried by base-F):
 - **SNAP/ABAWD wave (6, KNOWN — #248/#249/#250 already flagged in #324):** `is_snap_abawd_discretionary_exempt` (person), `is_snap_workfare_participant` (person), `weekly_snap_work_program_hours` (person, float), `has_applied_for_unemployment_compensation` (person), `is_complying_with_tanf_work_requirements` (person), `is_in_substance_use_treatment_program` (person). Releases 1.758.0/1.762.0/1.764.0.
