@@ -35,6 +35,7 @@ and on an ambiguous match (one source identity hitting more than one base row).
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
@@ -45,7 +46,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from populace.frame import Frame
+from populace.frame import Frame, WeightKind, Weights
 from populace.frame.units import US_SCHEMA
 
 __all__ = [
@@ -54,8 +55,10 @@ __all__ = [
     "SELECTION_MODES",
     "SelectionReport",
     "SelectionSource",
+    "build_selection_source_manifest_from_h5",
     "load_selection_source_from_h5",
     "load_selection_source_from_manifest",
+    "main",
     "select_frozen_support",
     "write_selection_source_manifest",
 ]
@@ -439,4 +442,111 @@ def load_selection_source_from_manifest(path: str | Path) -> SelectionSource:
         join_key=join_key,
         identities=identities,
         provenance=dict(payload.get("source", {})),
+    )
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _load_us_frame_from_h5(path: Path) -> Frame:
+    """Load a populace US H5 into a Frame (lazy PE-US import, like the release tool)."""
+    from policyengine_us.data import USSingleYearDataset
+
+    dataset = USSingleYearDataset(file_path=str(path))
+    tables = {
+        "person": dataset.person.copy(),
+        "household": dataset.household.copy(),
+        "tax_unit": dataset.tax_unit.copy(),
+        "spm_unit": dataset.spm_unit.copy(),
+        "family": dataset.family.copy(),
+        "marital_unit": dataset.marital_unit.copy(),
+    }
+    weights = tables["household"].pop("household_weight").to_numpy(dtype=np.float64)
+    return Frame(
+        tables,
+        US_SCHEMA,
+        {"household": Weights(weights, WeightKind.CALIBRATED)},
+    )
+
+
+def build_selection_source_manifest_from_h5(
+    source_h5: str | Path,
+    manifest_path: str | Path,
+    *,
+    join_key: Sequence[str] = DEFAULT_SELECTION_JOIN_KEY,
+    repo_id: str | None = None,
+    revision: str | None = None,
+) -> SelectionSource:
+    """Distill a source H5's record set into a committed selection-source manifest.
+
+    The manifest freezes exactly which source records the artifact selected, keyed
+    on their stable identity, plus provenance (the H5 sha256 and, when given, the
+    HF repo/revision) so a build records what the selection descended from.
+    """
+    source_h5 = Path(source_h5)
+    frame = _load_us_frame_from_h5(source_h5)
+    provenance: dict[str, object] = {
+        "kind": "h5",
+        "path": str(source_h5),
+        "sha256": _sha256_file(source_h5),
+    }
+    if repo_id is not None:
+        provenance["repo_id"] = repo_id
+    if revision is not None:
+        provenance["revision"] = revision
+    source = load_selection_source_from_h5(
+        frame, join_key=join_key, provenance=provenance
+    )
+    write_selection_source_manifest(source, manifest_path)
+    return source
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Distill a populace US H5's record set into a committed "
+            "selection-source manifest (populace#328). The manifest names the "
+            "frozen support's stable record identities so the sparse default is "
+            "reproducible without re-downloading the source H5."
+        )
+    )
+    parser.add_argument("--source-h5", required=True, type=Path)
+    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--join-key",
+        default=",".join(DEFAULT_SELECTION_JOIN_KEY),
+        help="Comma-separated stable-identity columns (default: %(default)s).",
+    )
+    parser.add_argument("--repo-id", default=None)
+    parser.add_argument("--revision", default=None)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = _parser().parse_args(argv)
+    join_key = tuple(p.strip() for p in str(args.join_key).split(",") if p.strip())
+    source = build_selection_source_manifest_from_h5(
+        args.source_h5,
+        args.output,
+        join_key=join_key or DEFAULT_SELECTION_JOIN_KEY,
+        repo_id=args.repo_id,
+        revision=args.revision,
+    )
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "n_selected": source.n_identities,
+                "join_key": list(source.join_key),
+                "identities_sha256": source.identities_sha256,
+                "source": dict(source.provenance),
+            },
+            indent=2,
+            sort_keys=True,
+        )
     )
