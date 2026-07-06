@@ -418,3 +418,43 @@ failure; the intended corrected-reference (needs a code change) still leaves 3 r
 a genuine calibration overshoot (mortgage tax-expenditure) tied to the same cold-vs-informed-selection gap
 that blocks sparse. Reporting to coordinator for direction rather than burning the run or making an
 unauthorized code change beyond the "exactly one change" scope.
+
+================================================================================
+## CAMPAIGN CLOSED — 2026-07-06 ~15:05 ET (Option 2 ratified)
+================================================================================
+
+Six attempts. No artifact shipped, BY CHOICE — the gates worked and refused to certify a build
+whose remaining defects are real (not gate artifacts). Verdict: the certified pool was faithfully
+reconstructed and calibrates to certified dense quality; both defaults are blocked on the
+uncommitted informed-L0/warm-start selection layer (#328).
+
+### Issues filed this campaign
+- #321 (CHIP tri-source concept mismatch) — code fix + tests LANDED.
+- #327 (export input-mass-parity gate references raw base) — filed + reference-decision evidence added
+  (use live-default 57k; 11/14 columns vindicated; 3 residuals belong to #328).
+- #326 (calibration-stage identity omits solver_config_sha256) — filed (accurately framed: not the
+  cause here; needed for the #328 warm-start hand-off identity).
+- #328 (Build G: reconstruct informed-L0/warm-start as committed machinery) — filed as the HEADLINE
+  Build G blocker; blocks BOTH sparse (income tax +19.9%) and dense (mortgage tax-expenditure +59.7%).
+- #299 campaign comment: full six-attempt report + attempt-6 pre-flight + option-2 ratification appended.
+
+### REUSABLE ASSET FOR BUILD G (explicit)
+The reconstructed certified base **`out/base-f-20260705/base_populace_us_2024_puf_support.h5`,
+sha256 18833fb68e60ee74461608d81a5c5ab7d52435e17026d9e3b062d9de18d6871f** IS the reusable input:
+- 3-year ASEC pool (2024+2023+2022) equal-thirds, 2x PUF clone, 337,704 hh — the certified lineage,
+  verified (channels 168,852/168,852, all 4 #278 leaves present, base gates pass).
+- It calibrates to certified DENSE quality already (loss 0.0416 / within-10% 86.1%). What #328 must add
+  is only the informed selection + warm-start layer on top; the pool itself does NOT need rebuilding.
+Cache-key: base 18833fb6; pe-us 1.752.2 / core 3.26.11; period 2024; seed 0; CD-crosswalk 383a6666;
+feed v7 735f326a; reform vector = default US_JCT_TAX_EXPENDITURE_REFORMS.
+
+### WORKTREE + RUNTIME LEFT INTACT (do not delete)
+- Worktree: /Users/maxghenis/PolicyEngine/_worktrees/populace-build-f (branch build-f) — LEAVE for Build G.
+- Runtime: /Users/maxghenis/PolicyEngine/_buildf-runtime/ (base H5 in worktree out/, feeds/checkpoints/logs)
+  — LEAVE for Build G. Checkpoint room at checkpoints/build-f is reusable (same solver config).
+- Build E runtime (_builde-runtime) + build-e-base worktree also retained (v5 feed lineage, asec recon).
+
+STAGING-ONLY throughout all six attempts. policyengine/populace-us prod repo, latest.json, and root
+files UNTOUCHED. Publication of the interim certified 57k default remains Max's call.
+
+### STOP. Campaign complete.
