@@ -90,6 +90,11 @@ calibrates far better → it is JOINT balance, not coverage count: ranking by
 marginal selectability over-concentrates income-tax-heavy records; ratio-5.0 +
 mass=conserve cannot rebalance. Selection is combinatorial, not rankable.
 
+## Writeup posted
+populace#346 comment: https://github.com/PolicyEngine/populace/issues/346#issuecomment-4905374475
+(gh --body-file, no @-mentions). Every number verbatim from artifacts + release
+calibration_diagnostics.json.
+
 ## Verdict
 1. Per-record signal (CONFIRMS #346 catch): weight/dense-weight init = chance
    (0.505); contribution-share 0.647; leverage (sum_carrier) = top learned
