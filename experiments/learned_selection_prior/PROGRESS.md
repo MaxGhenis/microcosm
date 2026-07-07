@@ -43,11 +43,19 @@ sum_share_est 0.014518. (weight_used / log_weight_used absent from top-20.)
 Calibration (reliability_base.json): HGB Brier 0.11955, well-calibrated across
 bins; logistic Brier 0.12708, overconfident at the top.
 
-Augmented run (features_augment.npz = base + 7 dense-FINAL-weight cols): standalone
-dense FINAL weight AUC 0.639766 / AP 0.280247 (vs base/initial weight 0.504532)
-— solving concentrates weight by leverage, so the SOLVED weight ~ contribution
-share; but at init time only the base weight (chance) is available. models --tag
-augment: RUNNING.
+Augmented run (features_augment.npz = base + 7 dense-FINAL-weight cols) — DONE:
+| model | roc_auc | pr_auc | precision@57240 |
+|---|---|---|---|
+| HGB augment (base+dense) | 0.797165 | 0.446761 | 0.451555 |
+| Logistic augment | 0.765699 | 0.395509 | 0.417226 |
+Base HGB 0.779541 → augment 0.797165 (+0.0176). Standalone dense FINAL weight
+AUC 0.639766 / AP 0.280247 (vs base/initial weight 0.504532 = chance). The
+SOLVED weight ~ contribution share because solving concentrates weight by
+leverage — but it is a POST-solve quantity, unavailable at init; at init only the
+base weight (chance) exists. Augment top permutation importance: dense_x_sum_carrier
+0.114248, channel_puf 0.018907, state_fips 0.016566, n_targets_touched 0.016164,
+sum_carrier 0.011628 (the marginal gain flows through the leverage interaction,
+not weight level). Augment HGB Brier 0.11615.
 
 ## STEP 04 selections — DONE (positional, household_id-sorted order)
 Tie-break: score desc, ties by ascending index (lexsort). Overlap w/ frozen:
