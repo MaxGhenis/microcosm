@@ -66,8 +66,35 @@ Tie-break: score desc, ties by ascending index (lexsort). Overlap w/ frozen:
 | contrib_share (max-share formula) | 15,575 | 27.2% | 1.61x |
 | random expected | 9,702 | 16.9% | 1.00x |
 
-## STEP 05 fourth arm — RUNNING (direct path, NOT a full release run)
-src/direct_replay_learned_refit.py: DENSE checkpoint HIT → restrict to selection
-→ base-population mass repair to 334.2M → recompile registry (5,521 targets, no
-auto-drop) → calibrate (same dense config). Running learned_hgb then frozen
-(matched control) serially via scripts/05b_direct_refits.sh. Results pending.
+## STEP 05 fourth arm — DONE (direct path, NOT a full release run)
+src/direct_replay_learned_refit.py: DENSE checkpoint HIT → restrict → mass repair
+334.2M → recompile registry (5,521 targets, no auto-drop) → calibrate (dense
+config). Both solves ~5 min each (57,240 records), serial via 05b_direct_refits.sh.
+
+| arm | final_loss | within-10% (5521) | income tax vs SOI | SS vs SSA | ESS |
+|---|---|---|---|---|---|
+| DENSE full pool (recorded) | 0.041393692879 | 0.8616 | +1.23% | +0.05% | 81,206 |
+| FROZEN-sparse (recorded, sparse reg) | 0.029643378840 | 0.8915 | +0.50% | -0.13% | — |
+| **FROZEN-on-dense (my control)** | **0.029589177138** | 0.8890 | +0.67% | -0.02% | 13,637 |
+| **LEARNED-HGB top-K (fourth arm)** | **0.329972962409** | 0.2343 | **+60.88%** | +0.20% | 26,300 |
+| COLD-L0-2026 (recorded) | 0.104231171803 | 0.5540 | +17.83% | +6.20% | — |
+
+FROZEN-on-dense (0.02959) reproduces recorded FROZEN-sparse (0.02964) to 4 sig
+figs on the FULL 5,521-target registry → methodology validated; learned's blow-up
+is real, not an artifact. Learned top-K is WORSE than cold L0.
+
+Mechanism (mechanism_diag.json, pre-solve mass-repaired): learned_hgb income tax
++89.5% (25 uncovered targets) → solver stuck at +60.88%; frozen +44.8% (42
+uncovered) → recovers to +0.67%. Frozen leaves MORE targets uncovered yet
+calibrates far better → it is JOINT balance, not coverage count: ranking by
+marginal selectability over-concentrates income-tax-heavy records; ratio-5.0 +
+mass=conserve cannot rebalance. Selection is combinatorial, not rankable.
+
+## Verdict
+1. Per-record signal (CONFIRMS #346 catch): weight/dense-weight init = chance
+   (0.505); contribution-share 0.647; leverage (sum_carrier) = top learned
+   feature; learned model 0.780. Init by contribution-share/leverage, NOT weight.
+2. Hard top-K by the learned prior does NOT reproduce the frozen edge (0.330 vs
+   0.0296) — the prior is an L0 INITIALIZATION, not a selector; the optimizer's
+   combinatorial balancing is irreplaceable. (informed_init mode not yet wired,
+   so this bounds "prior as replacement," not "prior as warm-start".)
