@@ -1,0 +1,9 @@
+# Large artifacts live under _buildg-runtime (outside the repo); commit pointers, not blobs.
+out/
+artifacts/
+*.h5
+*.npz
+*.npy
+*.parquet
+*.log
+__pycache__/
