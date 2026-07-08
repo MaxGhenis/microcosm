@@ -398,9 +398,6 @@ US_HEALTH_INPUT_NONCONSTANT_COLUMNS = (
 # degenerate column, or one of these becoming non-degenerate, fails the
 # default-valued-columns gate so this list cannot rot.
 US_DEGENERATE_INPUT_REVIEWED_EXCLUSIONS = {
-    "takes_up_tanf_if_eligible": (
-        "TANF take-up imputation backlog; constant True forces 100% take-up."
-    ),
     "takes_up_ssi_if_eligible": (
         "SSI take-up imputation backlog; constant True forces 100% take-up."
     ),
