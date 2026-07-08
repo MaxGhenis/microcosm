@@ -148,3 +148,19 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   zero-support cell), REPLACE with high-AGI misc-ZERO "absorbers" so the solve maxes those for the
   high-income targets instead. Candidates (tiny swaps): rmloss100 (overlap 99.825%, 690 neg kept),
   rmloss300 (99.476%, 490 kept), rmloss600 (98.952%, 190 kept); absorbers high-AGI ($1.1M–$46M) misc=0.
+
+- **Step 4c (loss-swap de-risk — SELECTION FOUND: `rmloss100`).** Batched de-risk of rmloss{100,300,600}
+  (remove top-K big-|misc| neg carriers + high-AGI misc-zero absorbers). ALL land misc IN BAND (removing
+  the maxed big-loss carriers lets the solve HIT the net_loss target ~$13.2B instead of overshooting):
+  | cand | misc | home_mtg | first_home | loss | it% | w10 | zs | overlap |
+  |---|---|---|---|---|---|---|---|---|
+  | **rmloss100** | **+52.88B (+11.55%)** | 406.98B | 406.46B | **0.030694** | +0.623% | 0.8861 | **19** | **99.825%** |
+  | rmloss300 | +52.84B (+11.5%) | 426.5B | 425.2B | 0.031034 | +0.53% | 0.8859 | 21 | 99.476% |
+  | rmloss600 | +52.88B (+11.6%) | 401.5B | 401.1B | 0.030759 | +0.18% | 0.8858 | 21 | 98.952% |
+  **WINNER = rmloss100**: smallest swap (overlap 99.825%, 100 removed/100 added), all 5 export cols in
+  band (misc +11.55%, home_mtg +30.8% [ref 311.126B, band ≤466.69], first_home +30.8% [≤466.26]),
+  final_loss 0.030694 BEATS Build H frozen 0.03091516, income tax +0.623%, within10 0.8861, SS −0.067%,
+  **zero-support = 19 (IDENTICAL to Build H frozen)** → reuse the 19-cell exclusions (revalidated).
+  rmloss300/600 saturate misc at the same level but ADD zero-support cells (21) — no benefit. These are
+  de-risk (5533 registry, direct path) numbers; the release (5514 registry) gives the certifiable gate
+  numbers. Misc export deep in band ($52.9B vs band [23.70,71.10]) → robust to the ~6% de-risk offset.
