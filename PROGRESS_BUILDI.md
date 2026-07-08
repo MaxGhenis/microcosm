@@ -74,3 +74,20 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   diagnostics + input_mass_parity (gate params above). Dispatched a code-exploration agent to map the
   #330 selection seam (manifest read/write, identities_sha256 recipe, `_select_households_by_position`,
   zero-support recompute, mass-repair / registry-recompile helpers).
+
+- **Step 1 (core extracted; canonical bridge; misc structure).** Adapted extract_core to the Build H
+  DENSE checkpoint (`experiments/build_i_reselection/src/extract_core_buildi.py`). **Strike 1**: first
+  build hand-rolled identity tuples using the checkpoint `household_source_id` (household col) for the
+  join field `source_household_id` (a PERSON col reduced "first" per household) → 37,632 unmapped. Fixed
+  by building identities via the module's own `_base_household_key_frame` + `load_selection_source_from_
+  manifest(...).base_selection_mask` (canonical, byte-identical to the release join). rc=0 (27s):
+  registry d71c59514e3a, **A 5533×337704 nnz 17,784,800**, base frame order == checkpoint order,
+  **manifest join n_unmapped=0 n_ambiguous=0 → 57,240 frozen positions == build-g forensic mask
+  (overlap 57,240)**. Saved A/b/final_estimate + core_meta (base_weight, frozen_pos) + export_effval
+  (5 gate cols, per household) + base_identities (canonical, for Step 5 manifest).
+  **misc carrier structure (household-level, verbatim):** pool misc-nonzero **7,526** (pos 5,085 / neg
+  2,441); frozen **1,957** (pos 1,167 / neg 790); addable-outside-frozen **5,569** (pos 3,918 / neg
+  1,651). POSITIVE-misc base-weighted mass: pool **$21.32B**, frozen **$7.42B**, addable **$13.9B**
+  (top-500 addable = $10.78B, top-1000 = $12.54B). Misc export must reach ≥$23.70B (band lower edge;
+  ref $47.4006B ±50%); dense reaches $27.5B. → add the top-N positive-misc carriers frozen lacks, swap
+  out low-leverage misc-zero frozen records, let the solve rebalance.
