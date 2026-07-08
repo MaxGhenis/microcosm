@@ -116,3 +116,22 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   recompile → calibrate dense config), FROZEN control + candidate in ONE load. Reports final_loss/
   within-10%/ESS, income tax(SOI)/SS(SSA), the 5 export-mass columns (Σ w·effval), zero-support cells.
   Frozen control must reproduce misc export $9.54992e9 to validate the export computation.
+
+  **Step 4a (FROZEN control + N1500 — de-risk pipeline VALIDATED, but positive-only fix INSUFFICIENT).**
+  FROZEN control reproduced Build H frozen: final_loss 0.03095 (BH 0.03092), within10 0.8878 (0.8901),
+  income tax +0.66% (=#346 frozen-on-dense +0.67% on the 5533 registry), **19 zero-support cells**, misc
+  export $10.13B (de-risk) vs Build H gate $9.54992B (release) → de-risk reads misc **~6% high** (buffer:
+  release ≈ de-risk × 0.943). N1500: misc $15.58B (−67.1%, STILL OUT), income tax REGRESSED to +1.61%,
+  zero-support 11. Positive-only additions do NOT certify.
+  **MECHANISM (decomposed on saved weights — the load-bearing diagnosis):** misc export column ==
+  net_income_leg − net_loss_leg EXACTLY (`other_income_net_income_amount`==positive misc,
+  `other_income_net_loss_amount`==negative misc; corr 0.9999, ratio 1.0). net_INCOME leg is hit
+  perfectly everywhere ($66.1B, err ~0%); the export is killed by the net_LOSS leg OVERSHOOTING:
+  frozen **$56.0B (+322%** vs target $13.28B), N1500 $50.5B (+280%), dense only $37.9B (+191%).
+  ROOT CAUSE: the sparse frame is **mass-repaired ×5.20**, so the ratio cap (5.0) permits effective
+  weights up to **26× original base**. Frozen has only **790** negative-misc carriers → the solve pushes
+  them to the cap (weight/base ratios up to **25.98×**; top-10 carry 54% of net_loss). Dense has **2,441**
+  neg carriers at ≤5.0× → net_loss only $37.9B. So adding POSITIVE carriers was the wrong lever (income
+  leg already met); **the fix is adding NEGATIVE-misc carriers** to spread the loss representation below
+  the cap. Rebuilt candidates (add-pos/add-neg): neg1651_pos0 (all 2,441 pool neg = dense's neg set;
+  overlap 97.114%), neg1651_pos1000 (95.367%), allmisc (all 7,526 misc carriers; overlap 90.269%).
