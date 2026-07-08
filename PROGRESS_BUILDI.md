@@ -91,3 +91,14 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   (top-500 addable = $10.78B, top-1000 = $12.54B). Misc export must reach ≥$23.70B (band lower edge;
   ref $47.4006B ±50%); dense reaches $27.5B. → add the top-N positive-misc carriers frozen lacks, swap
   out low-leverage misc-zero frozen records, let the solve rebalance.
+
+- **Step 2 (protect-list; `build_protect_list.py`).** Per-target leverage scan (`|v_it|/Σ_j|v_jt|`) +
+  weighted contribution share. **P_structural = 4,122 records** (1.221% of pool) = union of each
+  target's top-1 leverage carrier ∪ records with leverage≥0.5. Only **35/5533 targets have any ≥0.5
+  carrier; 7 are near-sole (≥0.9)** — the pool is overwhelmingly DIFFUSE (substitutable carriers), so
+  frozen certifies on all non-misc targets via substitutes even though 2,542 targets' GLOBAL top-1
+  carrier sits outside frozen. Implication: force in ONLY the misc deficit; remove lowest-max-leverage
+  misc-zero non-dominant frozen records; the diffuse portfolio self-heals under the solve. P_structural∩
+  frozen = 1,580 (removal-protected). contrib_max max 15.5 (thin-tail carrier — the #346 case, protected).
+  misc addable-positive cumulative base mass: N=500 $10.78B, 1000 $12.54B, 1500 $13.22B, 2000 $13.64B
+  (frozen positive-misc base $7.42B; pool $21.32B → dense export $27.5B in-band).
