@@ -164,3 +164,15 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   rmloss300/600 saturate misc at the same level but ADD zero-support cells (21) — no benefit. These are
   de-risk (5533 registry, direct path) numbers; the release (5514 registry) gives the certifiable gate
   numbers. Misc export deep in band ($52.9B vs band [23.70,71.10]) → robust to the ~6% de-risk offset.
+
+- **Step 5 (manifest).** `write_manifest.py` → `_buildi-runtime/inputs/buildi_rmloss100_selection_source.json`
+  (schema_version 1, join_key = default 4-tuple, n_selected 57,240, identities_sha256 **152baca3**…, source
+  provenance = reselection/buildi-warmstart-misc-protect-swap/#359/parent 77363a47). Round-trip via
+  `load_selection_source_from_manifest` + `base_selection_mask`: n_unmapped=0, n_ambiguous=0, join==selection
+  → the release selects EXACTLY this 57,240-record support.
+- **Step 6 (zero-support exclusions recomputed).** rmloss100's de-risk zero-support cells (stripped @2024)
+  == Build H's 19 keys EXACTLY (set diff empty). Wrote `_buildi-runtime/inputs/sparse_zero_support_
+  exclusions_buildi.json` (sha **abb106af**, 19 cells, Build-H key format no-@period) with reasons
+  RECOMPUTED/revalidated on the rmloss100 selection (the misc-only swap leaves the AL-TANF + under-$1-AGI
+  state-tail records untouched → cells stay zero-support; 1 AL TANF + 18 state-AGI taxable-interest
+  amount/returns across al/ct/in/me/ms/ne/nm/ri/wy; zero additions vs Build H frozen).
