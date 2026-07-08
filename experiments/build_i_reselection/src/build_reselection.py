@@ -33,11 +33,14 @@ def log(m): print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--n-add", type=int, required=True)
+    ap.add_argument("--n-add", type=int, default=0, help="top-N positive-misc carriers to add")
+    ap.add_argument("--add-pos", type=int, default=None, help="alias for --n-add")
+    ap.add_argument("--add-neg", type=int, default=0, help="top-N |misc| NEGATIVE carriers to add (loss leg)")
     ap.add_argument("--tag", default=None)
     args = ap.parse_args()
-    N = args.n_add
-    tag = args.tag or f"buildi_N{N}"
+    Npos = args.add_pos if args.add_pos is not None else args.n_add
+    Nneg = args.add_neg
+    tag = args.tag or f"buildi_pos{Npos}_neg{Nneg}"
 
     meta = np.load(CORE / "core_meta.npz", allow_pickle=True)
     eff = np.load(CORE / "export_effval.npz")
@@ -50,20 +53,24 @@ def main():
     max_lev = prot["max_lev_per_record"]
     top1_lev = prot["top1_leverage"]
     top1_carrier = prot["top1_carrier"].astype(np.int64)
-    misc_rank = prot["misc_rank"].astype(np.int64)
+    misc_rank = prot["misc_rank"].astype(np.int64)  # positive-misc addable, ranked by misc desc
 
     in_frozen = np.zeros(n, bool); in_frozen[frozen] = True
     in_P = np.zeros(n, bool); in_P[P] = True
 
-    # ---- additions: top-N positive-misc carriers outside frozen ----
-    add_misc = misc_rank[:N]
-    assert np.all(~in_frozen[add_misc]) and np.all(misc[add_misc] > 0)
+    # ---- additions: top-Npos positive + top-Nneg |misc| negative carriers outside frozen ----
+    add_pos = misc_rank[:Npos]
+    assert np.all(~in_frozen[add_pos]) and (add_pos.size == 0 or np.all(misc[add_pos] > 0))
+    neg_out = np.where((misc < 0) & (~in_frozen))[0]
+    neg_rank = neg_out[np.argsort(-np.abs(misc[neg_out]))]  # by |misc| desc
+    add_neg = neg_rank[:Nneg]
     # near-sole (>=0.9) carriers of any target that frozen lacks — force in for safety
     near_sole_carriers = np.unique(top1_carrier[(top1_lev >= NEAR_SOLE) & (top1_carrier >= 0)])
     add_near_sole = np.array([c for c in near_sole_carriers if not in_frozen[c]], dtype=np.int64)
-    additions = np.unique(np.concatenate([add_misc, add_near_sole]))
+    additions = np.unique(np.concatenate([add_pos, add_neg, add_near_sole]))
     n_add = additions.size
-    log(f"additions: {n_add}  (misc top-{N}={add_misc.size}, near-sole-carriers frozen lacks={add_near_sole.size})")
+    log(f"additions: {n_add}  (pos top-{Npos}={add_pos.size}, neg top-{Nneg}={add_neg.size}, "
+        f"near-sole frozen lacks={add_near_sole.size})")
 
     # ---- removals: lowest max-leverage frozen records, misc-zero, not in P ----
     removable = frozen[(misc[frozen] == 0) & (~in_P[frozen])]
@@ -98,7 +105,7 @@ def main():
 
     np.save(OUT / f"sel_{tag}.npy", new_sel)
     report = {
-        "tag": tag, "n_add_requested": N, "n_add_effective": int(n_add),
+        "tag": tag, "add_pos": int(Npos), "add_neg": int(Nneg), "n_add_effective": int(n_add),
         "n_selected": int(new_sel.size), "overlap_with_frozen": int(overlap),
         "overlap_frac": overlap / K, "entered": int(entered.size), "left": int(left.size),
         "removals_maxlev_min": float(max_lev[removals].min()),
