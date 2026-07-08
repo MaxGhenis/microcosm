@@ -102,3 +102,17 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   frozen = 1,580 (removal-protected). contrib_max max 15.5 (thin-tail carrier — the #346 case, protected).
   misc addable-positive cumulative base mass: N=500 $10.78B, 1000 $12.54B, 1500 $13.22B, 2000 $13.64B
   (frozen positive-misc base $7.42B; pool $21.32B → dense export $27.5B in-band).
+
+- **Step 3 (reselection; `build_reselection.py`).** Warm-start swap from frozen: add top-N positive-misc
+  carriers outside frozen (+4 near-sole ≥0.9-leverage carriers frozen lacked), remove N lowest-max-
+  leverage misc-zero non-P_structural frozen records → hold 57,240. Removed records' max-leverage
+  ≤0.00077 (≪ pool median 0.00241 — most substitutable). Built N∈{1000,1500,2000}:
+  N=1500 → overlap **97.372%**, entered/left 1504, misc-nonzero 1957→**3460**, positive-misc base mass
+  $7.42B→**$20.64B**. (N=1000: 98.246%, →2960, $19.96B; N=2000: 96.499%, →3960, $21.06B.)
+  Anchor heuristic (net misc export ≈ 1.29× positive base mass, from frozen $9.55B/$7.42B and dense
+  $27.5B/$21.32B): N=1500 → ~$26.6B (−44%, matching dense's in-band −42%).
+
+- **Step 4 (de-risk; `derisk_direct_refit.py`).** Direct path (checkpoint HIT, restrict → mass-repair →
+  recompile → calibrate dense config), FROZEN control + candidate in ONE load. Reports final_loss/
+  within-10%/ESS, income tax(SOI)/SS(SSA), the 5 export-mass columns (Σ w·effval), zero-support cells.
+  Frozen control must reproduce misc export $9.54992e9 to validate the export computation.
