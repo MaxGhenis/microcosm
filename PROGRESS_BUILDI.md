@@ -135,3 +135,16 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   leg already met); **the fix is adding NEGATIVE-misc carriers** to spread the loss representation below
   the cap. Rebuilt candidates (add-pos/add-neg): neg1651_pos0 (all 2,441 pool neg = dense's neg set;
   overlap 97.114%), neg1651_pos1000 (95.367%), allmisc (all 7,526 misc carriers; overlap 90.269%).
+
+  **Step 4b (negative-carrier lever REFUTED; loss-carrier mechanism pinned).** Adding negative-misc
+  carriers made it far WORSE: neg1651_pos0 misc **−$48.06B (−201%)**, neg1651_pos1000 −$52.48B (−211%,
+  it +2.70%), allmisc −$62.37B (−232%, it +2.96%, SS −3.80%). Diagnostic on frozen solve: the big-loss
+  carriers are maxed to the **26× cap** yet contribute **~0.0% to any single target** (max_lev 0.005–
+  0.02) — the solve maxes them as convenient high-income records with NO penalty on their misc loss
+  (net_loss target under-weighted). frozen net_loss $56.0B, top-20 carriers = 68%; biggest |misc| =
+  **$4.52M**. So adding neg carriers = more maxed big-loss records = explosion.
+  **CORRECT LEVER (`build_reselection_lossswap.py`):** REMOVE the biggest-|misc| negative carriers
+  (kill the maxed loss mass), keep the small-|misc| ones (retain net_loss-target support → no new
+  zero-support cell), REPLACE with high-AGI misc-ZERO "absorbers" so the solve maxes those for the
+  high-income targets instead. Candidates (tiny swaps): rmloss100 (overlap 99.825%, 690 neg kept),
+  rmloss300 (99.476%, 490 kept), rmloss600 (98.952%, 190 kept); absorbers high-AGI ($1.1M–$46M) misc=0.
