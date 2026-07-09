@@ -215,3 +215,21 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   education/casualty/misc-itemized/childcare → ~$0); lone PRESENT = `traditional_ira_contributions_
   desired` (behavioural takeup INPUT, not the saver's-credit base) — IDENTICAL to Build H; #340 is a
   pre-existing, out-of-scope persistence-scope limitation, NOT a Build I regression.
+
+- **Step 8-VERIFIED (re-verified on the FINISHED 010610Z release; premature-figure guard).** The earlier
+  step-8 figures came from the completed 233711Z run, but per the no-false-positive protocol I re-derived
+  everything from the clean no-watchdog rerun's finished release dir
+  (`…68b7e29-20260709T010610Z`): calibration_diagnostics.json (01:23:07 UTC) + input_mass_parity.json
+  (01:23:23) + artifacts h5 (01:24:18, **stable/not growing**). Re-ran `extract_buildi_gates.py` on it +
+  recomputed export masses on its h5 + checked h5 integrity (household **57,240** rows, person 166,324,
+  tax_unit 79,732). **VERBATIM (identical across all THREE independent runs 220632Z/233711Z/010610Z):**
+  final_loss **0.030833** (BEATS 0.03091516), within-10% 0.8888, n 57,240, ESS 12,303.4, realized_ratio
+  4.993, ALL structural gates PASS, release_gates.passed True, zero-support 0, **export-mass parity
+  passed=True, 0 failures / 35** (reviewed excl estate_income + non_sch_d_capital_gains only). Key fits:
+  income tax +0.22%, SS −0.18%, net cap gain −24.18%, mortgage tax-exp +36.73%; misc net_income leg
+  +0.00%, **net_loss leg −0.01% (HIT)**. Export masses: misc $52.85B +11.5% IN-BAND, home_mtg $398.08B
+  +27.9%, first_home $397.92B +28.0% (both in band), estate $39.22B −60.2% + non_sch_d $134.85B +78.0%
+  (reviewed-excl). Live proc 64859 = the 010610Z python still in the NON-ESSENTIAL reform-validation
+  tail (post-h5); the no-watchdog wrapper (64676) will write sparse.rc on its exit. Diagnostics + h5 are
+  the certification (written before the tail, verified stable) → the verdict does not depend on the tail's
+  rc. Blocking on sparse.rc before posting per protocol.
