@@ -176,3 +176,17 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   RECOMPUTED/revalidated on the rmloss100 selection (the misc-only swap leaves the AL-TANF + under-$1-AGI
   state-tail records untouched → cells stay zero-support; 1 AL TANF + 18 state-AGI taxable-interest
   amount/returns across al/ct/in/me/ms/ne/nm/ri/wy; zero additions vs Build H frozen).
+
+- **Step 7 (sparse release — chunked, supervised).** `_buildi-runtime/buildi_sparse_supervised.sh`:
+  release with `--selection-source-manifest` rmloss100 (152baca3) + `--zero-support-exclusions` Build-I
+  (abb106af) + fresh `--checkpoint-root buildi-sparse`, v8 facts / ref c2065b64 / base 18833fb6 unchanged,
+  `--dense-default-dataset --no-staging`. The release reduces to the 57,240 selection BEFORE ACA (:5309 <
+  :5471) → materialises on the 57k frame (memory-benign, RSS low; free% 71–74, well above the ~57%
+  jetsam threshold) but the batched ACA/reform materialisation on this machine is SLOW (>40 min).
+  First launch (fc7195e) watchdog-killed at 40 min mid-materialisation (healthy). **Gate-directed fix
+  (conductor, 0556426):** the degenerate-input gate (#286) flagged `takes_up_tanf_if_eligible` — the
+  rmloss100 selection makes it NON-degenerate (carries real TANF take-up variation, unlike the frozen
+  constant-True), so its stale `US_DEGENERATE_INPUT_REVIEWED_EXCLUSIONS` entry was removed (the gate's
+  "cannot rot" safety working as designed; a positive selection side effect). Relaunched at 23:37Z (id
+  `populace-us-2024-buildi-sparse-rmloss100-0556426-20260708T233711Z`, watchdog 75 min). Run alive,
+  materialising ACA; blocking on its rc.
