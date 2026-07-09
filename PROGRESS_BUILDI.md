@@ -256,3 +256,18 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   Pinning the exact batched+reform trigger (reform-validation applies zero-variable reforms per JCT target)
   in progress; the certification (gates + export-mass 0/35 + clean H5) is complete and unaffected. Verdict
   pending: CERTIFIABLE-with-tail-bug-caveat (code-side) — file the policyengine-us issue, rerun to manifest.
+
+- **Step 9 (remediation + verdict — DONE).** Filed TWO cross-linked issues: policyengine-us#8975
+  (`md_withheld_income_tax` has no MD-UNKNOWN county guard — traceback + minimal repro + suggested fix)
+  and populace#367 (reform-validation tail derives UNKNOWN county for records whose exported artifact
+  carries valid county_fips — three-way clean-artifact evidence; live default c2065b64 more exposed;
+  `--skip-reform-validation` workaround). Reform-repro confirmed: neutralizing salt/interest/QBI on the
+  FULL frame computes income_tax cleanly → crash is specific to the batched construction.
+  **Manifest-bearing rerun** `populace-us-2024-buildi-sparse-rmloss100-6e8e929-20260709T034135Z`
+  (`--skip-reform-validation`, warm caches ~6.3 min): **rc=0**, byte-identical certification (loss
+  0.03083269, w10 0.8888284, n 57240, zero-support 0, release_gates True, export-mass 0/35), complete
+  `release_manifest.json` **sha256 c2bbe50a…**, exported H5 **sha256 5e2a10b9…**. Posted the #359 verdict
+  (CERTIFIABLE + tail-bug caveat + both issue links, verbatim figures):
+  https://github.com/PolicyEngine/populace/issues/359#issuecomment-4921394077 ; cross-linked from #299:
+  https://github.com/PolicyEngine/populace/issues/299#issuecomment-4921394142 . STAGING/LOCAL ONLY —
+  publication + default-flip remain Max's call.
