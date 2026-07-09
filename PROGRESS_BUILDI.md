@@ -190,3 +190,28 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   "cannot rot" safety working as designed; a positive selection side effect). Relaunched at 23:37Z (id
   `populace-us-2024-buildi-sparse-rmloss100-0556426-20260708T233711Z`, watchdog 75 min). Run alive,
   materialising ACA; blocking on its rc.
+
+- **Step 8 (gates — CERTIFIABLE; attempt 2 233711Z proved it, attempt 3 reproducing clean).** The
+  233711Z run (commit 0556426) PASSED all certification gates and wrote the h5 (373 MB), then was killed
+  (rc=143) by a sleep-drifted watchdog DURING the non-essential reform-validation tail (Build H Step-9
+  pattern; the TANF RuntimeError in the append-log is from a pre-0556426 attempt). Conductor stripped the
+  watchdog (sparse peak RSS memory-benign, free% 64–66 throughout — 2 clean pressure profiles) and
+  launched attempt 3 (68b7e29 — identical release code, warm caches) for a clean rc=0 artifact.
+  **233711Z gate result (verbatim; attempt 3 will reproduce):**
+  final_loss **0.030833** (Build H frozen bar 0.03091516 → BEATS), within-10% 0.8888 (bar 0.8901,
+  −0.13pp), n_records **57,240**, n_nonzero 57,240, ESS 12,303.4, realized_max_ratio 4.993, registry
+  5514/5514, **ALL structural gates PASS** (target_profile, health_input, degenerate_input #286,
+  base_population 334.2M, immigration #266, ecps_parity #316, validation_input_coverage #278/9),
+  release_gates.passed True, **zero-support 0**.
+  **EXPORT-MASS PARITY: PASSED, 0 failures / 35 columns** (ref c2065b64, ±50%, $1B floor; reviewed
+  exclusions estate_income + non_sch_d_capital_gains ONLY). Per-column (gate-faithful, from the h5):
+  `miscellaneous_income` **$52.85B = +11.5% IN-BAND** (Build H frozen −79.9% FAIL → fixed),
+  `home_mortgage_interest` $398.08B **+27.9%** (BH +26.9%), `first_home_mortgage_interest` $397.92B
+  **+28.0%** (BH +27.0%), `estate_income` −60.2% + `non_sch_d_capital_gains` +78.0% (reviewed-excluded).
+  Key fits: fed income tax (SOI) **+0.22%** (BH +0.45% → BEATS), SS −0.18% (=BH), net cap gain −24.18%
+  (BH −26.65%), mortgage tax-exp (JCT) +36.73% (BH +35.48%). **misc net_loss leg now HIT −0.01%** (BH
+  +322% overshoot) and net_income leg +0.00% — the mechanism fix confirmed at release scale.
+  **#340 column check (233711Z h5):** 7/8 never-persisted families ABSENT (tips/overtime/auto-loan/
+  education/casualty/misc-itemized/childcare → ~$0); lone PRESENT = `traditional_ira_contributions_
+  desired` (behavioural takeup INPUT, not the saver's-credit base) — IDENTICAL to Build H; #340 is a
+  pre-existing, out-of-scope persistence-scope limitation, NOT a Build I regression.
