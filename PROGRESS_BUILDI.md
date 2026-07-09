@@ -233,3 +233,26 @@ puf_tax_detail:35053}; clone {0↔asec, 1↔puf_tax_detail}.
   tail (post-h5); the no-watchdog wrapper (64676) will write sparse.rc on its exit. Diagnostics + h5 are
   the certification (written before the tail, verified stable) → the verdict does not depend on the tail's
   rc. Blocking on sparse.rc before posting per protocol.
+
+- **Step 9-DIAGNOSIS (rc=1 tail crash — `gov.local.md.flat_rate.UNKNOWN`).** The clean-rerun (010610Z) tail
+  crashed with rc=1 in the OPTIONAL reform-validation step (2025 period): income_tax → salt_deduction →
+  state_and_local_sales_or_income_tax → `md_withheld_income_tax.py:28` → `p_local.flat_rate[safe_county]`
+  with safe_county="UNKNOWN". release_manifest.json was NOT written (publication blocked). The 2024
+  calibration gates + export-mass + H5 were all written BEFORE the tail and are unaffected.
+  **Diagnosis = CODE-side / tail-only, NOT a Build I artifact defect:**
+  1. The EXPORTED Build I artifact is geographically CLEAN — via the exact tail loader
+     (`USSingleYearDataset(file_path=…)`→`Microsimulation`, release tool line 4691): all **1,091 MD
+     households map to VALID MD counties at BOTH 2024 and 2025; ZERO UNKNOWN counties anywhere** in the
+     57,240; `md_withheld_income_tax@2025` computes fine ($28.13B). The h5 persists valid county_fips for
+     all 24 MD jurisdictions (24001…24510).
+  2. The target-frame checkpoint carries county_fips/state_fips/place_fips; `_dataset_from_frame` preserves
+     county_fips; the FULL-frame reform-validation dataset also computes md_withheld cleanly (0 UNKNOWN).
+  3. `md_withheld_income_tax` has a documented guard for NON-MD counties (`where(in_md, county,
+     "ALLEGANY_COUNTY_MD")`) but NO guard for an MD household whose county derives to UNKNOWN — a code
+     fragility in policyengine-us. `county` default_value is County.UNKNOWN.
+  4. The frozen reference artifact (c2065b64) persists NO county_fips at all (only state_fips), so it is
+     MORE exposed to this, not less; Build H frozen would hit the SAME row — its tail was watchdog-killed
+     before reaching it. So the crash is selection-agnostic and pre-existing.
+  Pinning the exact batched+reform trigger (reform-validation applies zero-variable reforms per JCT target)
+  in progress; the certification (gates + export-mass 0/35 + clean H5) is complete and unaffected. Verdict
+  pending: CERTIFIABLE-with-tail-bug-caveat (code-side) — file the policyengine-us issue, rerun to manifest.
