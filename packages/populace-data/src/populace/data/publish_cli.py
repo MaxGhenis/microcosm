@@ -98,6 +98,17 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--evidence",
+        action="store_true",
+        help=(
+            "Publish at the EVIDENCE tier (populace#506): validate against the "
+            "evidence release contract (which requires a non-empty "
+            "known_failures block) and move latest-evidence.json instead of "
+            "latest.json. Structurally never touches the certified pointer; a "
+            "certified-shape release is refused under this flag."
+        ),
+    )
+    parser.add_argument(
         "--allow-incomplete-reform-validation",
         action="store_true",
         help=(
@@ -139,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         extra_files=tuple(args.extra_file),
         updated_at=args.updated_at,
         update_latest=not args.no_latest,
+        evidence=args.evidence,
     )
     print(json.dumps(pointer, indent=2))
 

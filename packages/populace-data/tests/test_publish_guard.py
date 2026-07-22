@@ -63,3 +63,31 @@ def test_publish_silent_when_staging_recorded(tmp_path, capsys, monkeypatch):
     rc = cli.main([str(tmp_path)])
     assert rc == 0
     assert "no staging telemetry" not in capsys.readouterr().err
+
+
+def _capture_publish(monkeypatch) -> list:
+    import populace.data.publish_cli as cli
+
+    calls: list = []
+
+    def _record(release_dir, repo_id, **kwargs):
+        calls.append((release_dir, repo_id, kwargs))
+        return {"release_id": "r", "updated_at": None}
+
+    monkeypatch.setattr(cli, "publish_release", _record)
+    return calls
+
+
+def test_publish_cli_evidence_flag_wires_the_evidence_tier(tmp_path, monkeypatch):
+    calls = _capture_publish(monkeypatch)
+    rc = main([str(tmp_path), "--evidence"])
+    assert rc == 0
+    assert len(calls) == 1
+    assert calls[0][2]["evidence"] is True
+
+
+def test_publish_cli_defaults_to_the_certified_tier(tmp_path, monkeypatch):
+    calls = _capture_publish(monkeypatch)
+    rc = main([str(tmp_path)])
+    assert rc == 0
+    assert calls[0][2]["evidence"] is False

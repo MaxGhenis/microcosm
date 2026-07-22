@@ -33,30 +33,52 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from populace.data.contract import required_release_files, validate_release_dir
+from populace.data.contract import (
+    EVIDENCE_RELEASE_ID_SEGMENT,
+    required_release_files,
+    validate_evidence_release_dir,
+    validate_release_dir,
+)
 from populace.data.slack import notify_release
 
 __all__ = [
+    "LATEST_EVIDENCE_POINTER_PATH",
     "LATEST_POINTER_PATH",
     "LATEST_POINTER_SCHEMA_VERSION",
+    "RELEASE_TIER_CERTIFIED",
+    "RELEASE_TIER_EVIDENCE",
     "LatestPointer",
+    "latest_evidence_pointer_payload",
     "latest_pointer_payload",
     "publish_release",
     "latest_release",
+    "latest_evidence_release",
 ]
 
 #: Where the pointer lives in the dataset repo. The root, not a release
 #: directory: the pointer is repo state, not release state.
 LATEST_POINTER_PATH = "latest.json"
 
+#: The evidence-tier pointer (populace#506): which evidence release is the
+#: best *current* one. A separate file at the repo root, so certified
+#: consumers reading ``latest.json`` (and the pe.py certification path built
+#: on it) can never pick up an evidence artifact by accident.
+LATEST_EVIDENCE_POINTER_PATH = "latest-evidence.json"
+
 #: Version of the pointer payload itself, so the pointer can evolve without
 #: consumers guessing (the same discipline the release manifest learned).
 LATEST_POINTER_SCHEMA_VERSION = 1
 
+#: Publication tiers (populace#506). Certified is the default everywhere; the
+#: evidence tier is opted into explicitly and carries its tier in the pointer
+#: payload, the release id, and the release manifest.
+RELEASE_TIER_CERTIFIED = "certified"
+RELEASE_TIER_EVIDENCE = "evidence"
+
 
 @dataclass(frozen=True)
 class LatestPointer:
-    """The parsed ``latest.json``: which release is current, and where.
+    """A parsed release pointer: which release is current, and where.
 
     Attributes:
         release_id: The current build id (the ``releases/`` directory name).
@@ -65,11 +87,16 @@ class LatestPointer:
             (``"build_manifest"``, ``"release_manifest"``,
             ``"calibration_diagnostics"``, plus country-specific contract
             files such as US source coverage).
+        tier: The publication tier the pointer names —
+            :data:`RELEASE_TIER_CERTIFIED` for ``latest.json`` (whose payload
+            predates tiers and carries no field), or
+            :data:`RELEASE_TIER_EVIDENCE` for ``latest-evidence.json``.
     """
 
     release_id: str
     updated_at: str
     paths: dict[str, str]
+    tier: str = RELEASE_TIER_CERTIFIED
 
 
 def latest_pointer_payload(release_id: str, *, updated_at: str | None = None) -> dict:
@@ -96,6 +123,21 @@ def latest_pointer_payload(release_id: str, *, updated_at: str | None = None) ->
     }
 
 
+def latest_evidence_pointer_payload(
+    release_id: str, *, updated_at: str | None = None
+) -> dict:
+    """The ``latest-evidence.json`` payload for ``release_id``.
+
+    Mirrors :func:`latest_pointer_payload` exactly, plus a ``tier`` field —
+    so evidence consumers reuse certified pointer tooling, while a reader
+    that lands on the wrong file sees the tier immediately.
+    """
+    return {
+        **latest_pointer_payload(release_id, updated_at=updated_at),
+        "tier": RELEASE_TIER_EVIDENCE,
+    }
+
+
 def _hf_api():
     try:
         from huggingface_hub import HfApi
@@ -119,6 +161,7 @@ def publish_release(
     updated_at: str | None = None,
     update_latest: bool = True,
     notify: bool = True,
+    evidence: bool = False,
 ) -> dict:
     """Upload a release directory and point ``latest.json`` at it.
 
@@ -156,17 +199,30 @@ def publish_release(
             fires when ``update_latest`` is set — a non-default publish moves no
             pointer, so there is no "new latest release" to announce. Set
             ``False`` to suppress it (tests, dry-runs, re-publishes).
+        evidence: Publish at the EVIDENCE tier (populace#506). The release is
+            validated against
+            :func:`~populace.data.contract.validate_evidence_release_dir`
+            instead of the certified contract, and the pointer that moves is
+            ``latest-evidence.json`` — this path is structurally incapable of
+            writing ``latest.json``, so an evidence artifact can never become
+            the certified default or feed pe.py certification. Tag and upload
+            mechanics are otherwise identical. ``update_latest`` then governs
+            the evidence pointer.
 
     Returns:
-        The ``latest.json`` payload that was published.
+        The pointer payload that was published (``latest.json`` shape, plus a
+        ``tier`` field at the evidence tier).
 
     Raises:
-        ReleaseContractError: If the release directory violates the
+        ReleaseContractError: If the release directory violates its tier's
             contract. Nothing is uploaded in that case.
         FileNotFoundError: If an ``extra_files`` entry does not exist.
     """
     release_dir = Path(release_dir)
-    validate_release_dir(release_dir)
+    if evidence:
+        validate_evidence_release_dir(release_dir)
+    else:
+        validate_release_dir(release_dir)
     release_id = release_dir.name
     artifact_root = Path(artifact_root) if artifact_root is not None else None
 
@@ -215,7 +271,10 @@ def publish_release(
 
     if api is None:
         api = _hf_api()
-    payload = latest_pointer_payload(release_id, updated_at=updated_at)
+    if evidence:
+        payload = latest_evidence_pointer_payload(release_id, updated_at=updated_at)
+    else:
+        payload = latest_pointer_payload(release_id, updated_at=updated_at)
     if create_tag and not callable(getattr(api, "create_tag", None)):
         raise TypeError(
             "publish_release requires a Hub backend with create_tag support; "
@@ -239,13 +298,18 @@ def publish_release(
         payload=payload,
         create_tag=create_tag,
         update_latest=update_latest,
+        evidence=evidence,
     )
     # The pointer is live: announce it. Best-effort and coupled to the promotion
     # so every publish path alerts; warn (don't fail) if the webhook is unset.
     # Skip when no pointer moved — a non-default publish is not a new release.
     if notify and update_latest:
+        notify_kwargs: dict = {"warn_if_unset": True}
+        if evidence:
+            # The alert must never read as a certified release announcement.
+            notify_kwargs["tier"] = RELEASE_TIER_EVIDENCE
         notify_release(
-            repo_id, release_id, payload.get("updated_at"), warn_if_unset=True
+            repo_id, release_id, payload.get("updated_at"), **notify_kwargs
         )
     return payload
 
@@ -265,6 +329,7 @@ def _commit_operations(
     filenames: list[str],
     root_artifacts: Mapping[str, str],
     pointer: bytes | None = None,
+    pointer_path: str = LATEST_POINTER_PATH,
 ) -> list:
     try:
         from huggingface_hub import CommitOperationAdd
@@ -292,7 +357,7 @@ def _commit_operations(
     if pointer is not None:
         operations.append(
             CommitOperationAdd(
-                path_in_repo=LATEST_POINTER_PATH,
+                path_in_repo=pointer_path,
                 path_or_fileobj=pointer,
             )
         )
@@ -324,6 +389,7 @@ def _publish_atomic(
     payload: dict,
     create_tag: bool,
     update_latest: bool = True,
+    evidence: bool = False,
 ) -> None:
     staging_branch = f"release-staging/{release_id}"
     main_revision = _repo_revision(api, repo_id=repo_id)
@@ -364,11 +430,16 @@ def _publish_atomic(
         branch=staging_branch,
         repo_type="dataset",
     )
+    # The evidence tier writes ONLY its own pointer file: the certified
+    # ``latest.json`` path never appears in an evidence commit, so no bug in
+    # flag-plumbing can promote an evidence artifact to certified default.
+    tier_label = "evidence release" if evidence else "release"
+    pointer_path = LATEST_EVIDENCE_POINTER_PATH if evidence else LATEST_POINTER_PATH
     if update_latest:
-        message = f"Update latest release to {release_id}"
+        message = f"Update latest {tier_label} to {release_id}"
         pointer = json.dumps(payload, indent=1).encode()
     else:
-        message = f"Publish non-default release {release_id}"
+        message = f"Publish non-default {tier_label} {release_id}"
         pointer = None
     api.create_commit(
         repo_id=repo_id,
@@ -382,6 +453,7 @@ def _publish_atomic(
             filenames=filenames,
             root_artifacts=root_artifacts,
             pointer=pointer,
+            pointer_path=pointer_path,
         ),
     )
 
@@ -531,38 +603,27 @@ def _create_release_tag(api: object, *, repo_id: str, tag: str, revision: str | 
     return create_tag(**kwargs)
 
 
-def latest_release(repo_id: str, *, api=None) -> LatestPointer:
-    """Read ``latest.json`` from a dataset repo: which release is current.
-
-    Args:
-        repo_id: Hub dataset repo, e.g. ``"policyengine/populace-us"``.
-        api: A ``huggingface_hub.HfApi``-shaped object (anything with
-            ``hf_hub_download(repo_id=, filename=, repo_type=)``);
-            constructed lazily when omitted.
-
-    Raises:
-        ValueError: If the pointer is malformed or its schema version is
-            newer than this library understands.
-    """
+def _read_pointer(repo_id: str, api, *, pointer_path: str) -> dict:
+    """Download and structurally validate a release pointer file."""
     if api is None:
         api = _hf_api()
     local = api.hf_hub_download(
-        repo_id=repo_id, filename=LATEST_POINTER_PATH, repo_type="dataset"
+        repo_id=repo_id, filename=pointer_path, repo_type="dataset"
     )
     payload = json.loads(Path(local).read_text())
     schema_version = payload.get("schema_version")
     if schema_version != LATEST_POINTER_SCHEMA_VERSION:
         raise ValueError(
-            f"{LATEST_POINTER_PATH} in {repo_id} has schema_version "
+            f"{pointer_path} in {repo_id} has schema_version "
             f"{schema_version!r}; this populace-data reads version "
             f"{LATEST_POINTER_SCHEMA_VERSION}. Upgrade populace-data."
         )
     release_id = payload.get("release_id")
     if not release_id:
-        raise ValueError(f"{LATEST_POINTER_PATH} in {repo_id} has no 'release_id'.")
+        raise ValueError(f"{pointer_path} in {repo_id} has no 'release_id'.")
     paths = payload.get("paths")
     if not isinstance(paths, dict):
-        raise ValueError(f"{LATEST_POINTER_PATH} in {repo_id} has no 'paths' object.")
+        raise ValueError(f"{pointer_path} in {repo_id} has no 'paths' object.")
     expected_paths = latest_pointer_payload(str(release_id), updated_at="")["paths"]
     observed_paths = {str(key): value for key, value in paths.items()}
     missing_paths = sorted(set(expected_paths) - set(observed_paths))
@@ -574,12 +635,81 @@ def latest_release(repo_id: str, *, api=None) -> LatestPointer:
     )
     if missing_paths or unexpected_paths or malformed_paths:
         raise ValueError(
-            f"{LATEST_POINTER_PATH} in {repo_id} has incomplete paths: "
+            f"{pointer_path} in {repo_id} has incomplete paths: "
             f"missing={missing_paths}, unexpected={unexpected_paths}, "
             f"malformed={malformed_paths}."
         )
+    return payload
+
+
+def latest_release(repo_id: str, *, api=None) -> LatestPointer:
+    """Read ``latest.json`` from a dataset repo: which release is current.
+
+    Args:
+        repo_id: Hub dataset repo, e.g. ``"policyengine/populace-us"``.
+        api: A ``huggingface_hub.HfApi``-shaped object (anything with
+            ``hf_hub_download(repo_id=, filename=, repo_type=)``);
+            constructed lazily when omitted.
+
+    Raises:
+        ValueError: If the pointer is malformed, its schema version is newer
+            than this library understands, or it names a non-certified tier
+            (an evidence payload in ``latest.json`` is a publication bug and
+            must never be consumed as the certified default).
+    """
+    payload = _read_pointer(repo_id, api, pointer_path=LATEST_POINTER_PATH)
+    tier = payload.get("tier")
+    if tier not in (None, RELEASE_TIER_CERTIFIED):
+        raise ValueError(
+            f"{LATEST_POINTER_PATH} in {repo_id} declares tier {tier!r}; the "
+            "certified pointer must never name another tier — evidence "
+            f"releases live at {LATEST_EVIDENCE_POINTER_PATH}."
+        )
     return LatestPointer(
-        release_id=str(release_id),
+        release_id=str(payload["release_id"]),
         updated_at=str(payload.get("updated_at", "")),
-        paths={str(k): str(v) for k, v in paths.items()},
+        paths={str(k): str(v) for k, v in payload["paths"].items()},
+        tier=RELEASE_TIER_CERTIFIED,
+    )
+
+
+def latest_evidence_release(repo_id: str, *, api=None) -> LatestPointer:
+    """Read ``latest-evidence.json``: the best *current* evidence release.
+
+    The evidence-tier sibling of :func:`latest_release` (populace#506) — how
+    consumers discover the best available artifact when no certified release
+    carries it yet. Each evidence publish supersedes the last, so this
+    pointer always names the current one.
+
+    Args:
+        repo_id: Hub dataset repo, e.g. ``"policyengine/populace-us"``.
+        api: A ``huggingface_hub.HfApi``-shaped object (anything with
+            ``hf_hub_download(repo_id=, filename=, repo_type=)``);
+            constructed lazily when omitted.
+
+    Raises:
+        ValueError: If the pointer is malformed, does not declare the
+            evidence tier, or names a release id without the
+            ``-evidence-`` segment.
+    """
+    payload = _read_pointer(repo_id, api, pointer_path=LATEST_EVIDENCE_POINTER_PATH)
+    tier = payload.get("tier")
+    if tier != RELEASE_TIER_EVIDENCE:
+        raise ValueError(
+            f"{LATEST_EVIDENCE_POINTER_PATH} in {repo_id} declares tier "
+            f"{tier!r}; the evidence pointer must declare "
+            f"{RELEASE_TIER_EVIDENCE!r}."
+        )
+    release_id = str(payload["release_id"])
+    if EVIDENCE_RELEASE_ID_SEGMENT not in release_id:
+        raise ValueError(
+            f"{LATEST_EVIDENCE_POINTER_PATH} in {repo_id} names release "
+            f"{release_id!r}, which does not carry the "
+            f"{EVIDENCE_RELEASE_ID_SEGMENT!r} segment."
+        )
+    return LatestPointer(
+        release_id=release_id,
+        updated_at=str(payload.get("updated_at", "")),
+        paths={str(k): str(v) for k, v in payload["paths"].items()},
+        tier=RELEASE_TIER_EVIDENCE,
     )
