@@ -173,8 +173,11 @@ ubia_dispersion:  3045
 
 Version 3 retains version 2's qualification, SSTB, and investment seeds
 `2041`, `2064`, and `2043`. Stream-independence tests mutate each new family
-individually. Existing v1/v2 full-artifact goldens pass unchanged, and the
-host SSTB result is byte-identical between v2 and v3.
+individually. The complete synthetic 15-leaf streams for both v1 and v2 are
+pinned with 13 byte-exact hashes and two libm-sensitive support-mask/tolerance
+goldens per version. Separately, the restricted artifact replay checks
+persisted v3 employer/W-2 diagnostics and v2/v3 REIT/PTP byte identity, while
+the host-classification regression checks v2/v3 SSTB parity.
 
 ## Resource reproduction
 
@@ -197,21 +200,24 @@ employer, and SOI wage/capital resource digests. It is declared in
 `country_package.json`, contains only spec data, and passes the repository's
 executable-key, entrypoint-shaped-string, and incumbent-reference guards.
 
-## Validation
+## Original wiring validation (historic)
 
-The required full-workspace command was:
+The original wiring handoff used this full-workspace command before the
+2026-07-25 adversarial-review remediation:
 
 ```text
 UV_CACHE_DIR=/private/tmp/populace-wt-530-uv-cache \
 UV_OFFLINE=1 UV_NO_SYNC=1 UV_PROJECT_ENVIRONMENT=.venv \
 POPULACE_PUF_2024_H5=/Users/maxghenis/ops/populace-qbi-port/assets/puf_2024.h5 \
-POPULACE_RAW_PUF_2015_CSV=/Users/maxghenis/PolicyEngine/policyengine-us-data/policyengine_us_data/storage/puf_2015.csv \
+POPULACE_RAW_PUF_2015_CSV="<path to the archived US data package's storage>/puf_2015.csv" \
 uv run pytest
 ```
 
-Result: **3,293 passed, 132 skipped, 0 failed** in 121.40 seconds.
+That historical run recorded **3,293 passed, 132 skipped, 0 failed** in
+121.40 seconds. The blocker-remediation verification is a separate later run
+and supersedes this count for the current tip.
 
-Also green:
+That original wiring run also recorded:
 
 - full-workspace `uv run ruff check .`;
 - `ruff format --check` on all nine changed Python files;
