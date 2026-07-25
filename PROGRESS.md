@@ -10,7 +10,10 @@ stack, starting on `qbi-port-530` and propagating each fix through
 ## Current state
 
 - The supervisor's 2026-07-25 review verdict has been read in full.
-- The designated worktree started clean, and the branch ancestry is intact:
+- This resumed lane found the designated worktree on `qbi-v3-wiring` at
+  `6d72411`, with one uncommitted, coherent start on finite-value validation
+  in `qbi_simulation.py`; that edit is being completed in place.
+- The branch ancestry is intact:
   `qbi-port-530` -> `qbi-v2-engine` -> `repeal-validation-298` ->
   `qbi-v2-content` -> `qbi-v3-wiring`.
 - The `qbi-port-530` report restoration is complete. Its
@@ -18,6 +21,7 @@ stack, starting on `qbi-port-530` and propagating each fix through
   shows the reviewed literal first enters on descendant commit `e97c6d3`, so
   it will be scrubbed when that content-layer version enters the worktree.
 - The base and repeal fixes are merged through `qbi-v2-content`.
+- `qbi-v2-content` is merged into `qbi-v3-wiring` at `6d72411`.
 - Repeal-benchmark failures are now row-contained and cannot abort payload
   construction; a deliberately failing first entry and succeeding second
   entry prove continuation.
@@ -45,12 +49,15 @@ stack, starting on `qbi-port-530` and propagating each fix through
   `705b528`.
 - Scrubbed the descendant QBI 530 report path and swept the whole report in
   `b045eea`.
+- Merged the updated `qbi-v2-content` into `qbi-v3-wiring` in `6d72411`.
+- Re-read the original remediation specification and adversarial-review log
+  after resumption; independent verification of fixes 1-3 is in progress.
 
 ## Current next
 
-- Merge `qbi-v2-content` into `qbi-v3-wiring`.
-- Add finite-v3 validation plus complete v1/v2 stream regression coverage,
-  then scrub and correct the v3 wiring report.
+- Complete finite-v3 validation and its NaN-corruption reproductions.
+- Add complete v1/v2 stream regression coverage with committed v2 goldens.
+- Scrub and correct the v3 wiring report, then close the fixes 1-3 audit.
 - Run the full tip suite and the incumbent guard from the prescribed plain
   worktree outside `.claude`, then record commit/evidence mappings.
 
