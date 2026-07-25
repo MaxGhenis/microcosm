@@ -243,20 +243,43 @@ def test_repeal_benchmark_null_benchmark_has_no_relative_gap(monkeypatch):
     assert row["relative_gap"] is None
 
 
-def test_repeal_benchmark_simulation_status_never_changes_release_gate_flag():
-    spec = repeal_revenue_benchmark_specs(period=2026)[0]
+def test_repeal_benchmark_error_is_contained_and_later_rows_continue(monkeypatch):
+    specs = repeal_revenue_benchmark_specs(period=2026)[:2]
+    monkeypatch.setattr(
+        ReformValidationSpec,
+        "build_reform",
+        lambda self: self.id,
+    )
+    simulation_calls = []
+
+    def simulate(reform):
+        simulation_calls.append(reform)
+        if reform == specs[0].id:
+            raise RuntimeError("deliberate repeal failure")
+        return _FakeSim({"income_tax": 100.0 if reform is None else 125.0})
+
     payload = reform_validation_payload(
         (),
         period=2026,
-        simulate=None,
-        repeal_benchmarks=(spec,),
+        simulate=simulate,
+        repeal_benchmarks=specs,
     )
     table = payload["repeal_revenue_benchmarks"]
     assert table["diagnostic_only"] is True
-    assert table["simulated"] is False
-    assert table["rows"][0]["modeled_revenue_delta"] is None
+    assert table["simulated"] is True
+    assert simulation_calls == [None, specs[0].id, specs[1].id]
+
+    error_row, succeeding_row = table["rows"]
+    assert error_row["status"] == "error"
+    assert error_row["message"] == "RuntimeError: deliberate repeal failure"
+    assert error_row["baseline_total"] is None
+    assert error_row["reform_total"] is None
+    assert error_row["modeled_revenue_delta"] is None
+    assert error_row["relative_gap"] is None
+    assert succeeding_row["modeled_revenue_delta"] == pytest.approx(25.0)
+
     # This pre-existing field drives the publish guard. Repeal diagnostics are
-    # intentionally excluded so their absence cannot fail or gate a release.
+    # intentionally excluded so their failure cannot fail or gate a release.
     assert payload["out_of_sample_simulated"] is True
 
 

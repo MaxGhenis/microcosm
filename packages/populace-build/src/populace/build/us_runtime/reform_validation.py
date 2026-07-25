@@ -18,7 +18,9 @@ apart:
 * **component repeal revenue** — standing independent neutralizations from
   ``repeal_revenue_benchmarks.json``. These are simulated even when an amount
   target for the same component is in-sample, and are published as a separate,
-  explicitly diagnostics-only table with signed relative gaps.
+  explicitly diagnostics-only table with signed relative gaps. A build,
+  simulation, or calculation failure is contained in that component's row so
+  the diagnostic cannot abort release payload construction.
 
 The simulation is isolated behind an injected ``simulate`` callable so the
 payload assembly is unit-testable without policyengine-us; the default factory
@@ -1143,7 +1145,16 @@ def reform_validation_payload(
 
     repeal_rows: list[dict[str, Any]] = []
     for spec in repeal_benchmarks:
-        effect, base_total, reform_total = simulated_effect(spec)
+        error_message: str | None = None
+        try:
+            effect, base_total, reform_total = simulated_effect(spec)
+        except Exception as error:
+            # This table is explicitly diagnostics-only. Reform construction,
+            # engine setup, and calculation failures belong to the affected
+            # row and must never escape to the release caller or prevent later
+            # repeal benchmarks from running.
+            effect = base_total = reform_total = None
+            error_message = f"{type(error).__name__}: {error}"
         benchmark = spec.jct_score
         row: dict[str, Any] = {
             "id": spec.id,
@@ -1164,6 +1175,9 @@ def reform_validation_payload(
             row["neutralized_variable"] = spec.neutralized_variable
         else:
             row["parameter_changes"] = spec.parameter_changes
+        if error_message is not None:
+            row["status"] = "error"
+            row["message"] = error_message
         repeal_rows.append(row)
 
     # populace#456: the shared baseline simulation has served every reform row
