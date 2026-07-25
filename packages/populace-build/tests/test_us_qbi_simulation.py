@@ -690,103 +690,209 @@ def test_raw_puf_e_codes_normalize_to_the_engine_contract() -> None:
     )
 
 
-def test_v1_has_golden_seeded_streams_for_all_fifteen_outputs() -> None:
-    expected_hashes = {
-        "estate_income_would_be_qualified": (
-            "7bf4a0ef4e6916f874c23efc606672d61f0f0ccd83058893c6beff1a50a567c1"
-        ),
-        "farm_operations_income_would_be_qualified": (
-            "dc46524410fb5d428d8a512398e4b83bac03c4dbd416c9a7174d01b8519f1c87"
-        ),
-        "farm_rent_income_would_be_qualified": (
-            "8e985d09548b8c18d28ba706a75dd8877b9e210b8b69a95cd13fbd65795f495b"
-        ),
-        "partnership_s_corp_income_would_be_qualified": (
-            "318f8f7a0e55a809b35bb19fa55889b27f0614f1bffdbae2ce213d1ed38daf38"
-        ),
-        "rental_income_would_be_qualified": (
-            "e9d52b86fe42edc3d6935c6a5ea6501cd1fb3ce6bd3d2451671d60131e8cdc66"
-        ),
-        "self_employment_income_would_be_qualified": (
-            "bd503d852bd08747790229cc537ad70b99c9c7fe6757ebc135fc116351db14eb"
-        ),
-        "sstb_self_employment_income_would_be_qualified": (
-            "affa2ccb6317960490062d31722782f839f6a96a9cf2244f80b02761b6b84de3"
-        ),
-        "business_is_sstb": (
-            "aa6b310d2670457604de88303bd67a49a7d0e905ec0784cca74168e78e5159fc"
-        ),
-        "qualified_bdc_income": (
-            "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
-        ),
-        "sstb_self_employment_income_before_lsr": (
-            "ccb21860777bc6982536880d454e1f18bd920d1491c4a4ef8c372b636428ee3e"
-        ),
-        "sstb_unadjusted_basis_qualified_property": (
-            "b656cd1c0b58ea012cbd8a28b830abef3f15a26d42dd0c823e1b595a38413eef"
-        ),
-        "sstb_w2_wages_from_qualified_business": (
-            "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
-        ),
-        "w2_wages_from_qualified_business": (
-            "687685c48717d9f174b885a0d2623dfbb8d99b1a39f456a9a04f7a7913752fdf"
-        ),
+@pytest.mark.parametrize(
+    "qbi_simulation_version",
+    (QBI_SIMULATION_VERSION, QBI_SIMULATION_V2),
+)
+def test_v1_and_v2_have_full_golden_seeded_streams(
+    qbi_simulation_version: int,
+) -> None:
+    expected_hashes_by_version = {
+        QBI_SIMULATION_VERSION: {
+            "estate_income_would_be_qualified": (
+                "7bf4a0ef4e6916f874c23efc606672d61f0f0ccd83058893c6beff1a50a567c1"
+            ),
+            "farm_operations_income_would_be_qualified": (
+                "dc46524410fb5d428d8a512398e4b83bac03c4dbd416c9a7174d01b8519f1c87"
+            ),
+            "farm_rent_income_would_be_qualified": (
+                "8e985d09548b8c18d28ba706a75dd8877b9e210b8b69a95cd13fbd65795f495b"
+            ),
+            "partnership_s_corp_income_would_be_qualified": (
+                "318f8f7a0e55a809b35bb19fa55889b27f0614f1bffdbae2ce213d1ed38daf38"
+            ),
+            "rental_income_would_be_qualified": (
+                "e9d52b86fe42edc3d6935c6a5ea6501cd1fb3ce6bd3d2451671d60131e8cdc66"
+            ),
+            "self_employment_income_would_be_qualified": (
+                "bd503d852bd08747790229cc537ad70b99c9c7fe6757ebc135fc116351db14eb"
+            ),
+            "sstb_self_employment_income_would_be_qualified": (
+                "affa2ccb6317960490062d31722782f839f6a96a9cf2244f80b02761b6b84de3"
+            ),
+            "business_is_sstb": (
+                "aa6b310d2670457604de88303bd67a49a7d0e905ec0784cca74168e78e5159fc"
+            ),
+            "qualified_bdc_income": (
+                "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+            ),
+            "sstb_self_employment_income_before_lsr": (
+                "ccb21860777bc6982536880d454e1f18bd920d1491c4a4ef8c372b636428ee3e"
+            ),
+            "sstb_unadjusted_basis_qualified_property": (
+                "b656cd1c0b58ea012cbd8a28b830abef3f15a26d42dd0c823e1b595a38413eef"
+            ),
+            "sstb_w2_wages_from_qualified_business": (
+                "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+            ),
+            "w2_wages_from_qualified_business": (
+                "687685c48717d9f174b885a0d2623dfbb8d99b1a39f456a9a04f7a7913752fdf"
+            ),
+        },
+        QBI_SIMULATION_V2: {
+            "estate_income_would_be_qualified": (
+                "0e67cd088126a3a524c678cbe33e5d85f7a910b11ba41e76d4a55ee4420cf064"
+            ),
+            "farm_operations_income_would_be_qualified": (
+                "78e0a09724303d47d1bf30269bdc96ab01faa01e9a3fa5dcab6abd3fe1ae77e3"
+            ),
+            "farm_rent_income_would_be_qualified": (
+                "9af4ca139bff903f9479538bd26ea2bd03394d739795f4870fe7017d100b670b"
+            ),
+            "partnership_s_corp_income_would_be_qualified": (
+                "6f79a5922ae59c177cde123fa817b241d0e26b43d235e5a8c00eba32fb9965a3"
+            ),
+            "rental_income_would_be_qualified": (
+                "d2de095d4e6fbf572ca86dd3a7b223acc9e111637c01b5f4a46fa88578e18612"
+            ),
+            "self_employment_income_would_be_qualified": (
+                "bacde9edcb7d2155f076e75884ff86d9f7975047923946d10686a959a65f5651"
+            ),
+            "sstb_self_employment_income_would_be_qualified": (
+                "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+            ),
+            "business_is_sstb": (
+                "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+            ),
+            "qualified_bdc_income": (
+                "2f5985af1820ac69e1d8b88bf8ea73bb1639109570a9fd02cd169060486952f0"
+            ),
+            "sstb_self_employment_income_before_lsr": (
+                "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+            ),
+            "sstb_unadjusted_basis_qualified_property": (
+                "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+            ),
+            "sstb_w2_wages_from_qualified_business": (
+                "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+            ),
+            "w2_wages_from_qualified_business": (
+                "f7490964e2fa3b21c384bc6304a424261ab86fc2aa240cb6468d2e2cb2a0ca95"
+            ),
+        },
     }
-    inputs = QbiSimulationInputs.from_puf_arrays(_synthetic_sources())
-    outputs = simulate_qbi_inputs(
-        inputs,
-        assumptions=load_qbi_simulation_assumptions(QBI_SIMULATION_VERSION),
-        qbi_simulation_version=QBI_SIMULATION_VERSION,
-    )
 
     # Beta and lognormal draws route through libm, whose last-ulp rounding
     # differs across platforms; these two leaves get value-based goldens with
     # tolerance while every flag/linear leaf stays byte-exact.
-    libm_sensitive_expected: dict[str, dict[int, float]] = {
-        "qualified_reit_and_ptp_income": {
-            2: 37.66626208631762,
-            12: 103.79383958799434,
-            16: 233.53102781186632,
-            26: 28.33837225431461,
-            28: 211.32889926679022,
-            30: 80.87751309669761,
-            32: 111.54473324411704,
-            36: 520.9426655795415,
-            38: 694.8521547117064,
-            48: 899.592629035168,
-            50: 236.78819258966882,
-            54: 990.4968932479194,
-            62: 1361.5004139746575,
+    libm_sensitive_expected_by_version: dict[
+        int,
+        dict[str, dict[int, float]],
+    ] = {
+        QBI_SIMULATION_VERSION: {
+            "qualified_reit_and_ptp_income": {
+                2: 37.66626208631762,
+                12: 103.79383958799434,
+                16: 233.53102781186632,
+                26: 28.33837225431461,
+                28: 211.32889926679022,
+                30: 80.87751309669761,
+                32: 111.54473324411704,
+                36: 520.9426655795415,
+                38: 694.8521547117064,
+                48: 899.592629035168,
+                50: 236.78819258966882,
+                54: 990.4968932479194,
+                62: 1361.5004139746575,
+            },
+            "unadjusted_basis_qualified_property": {
+                0: 30518.054316323058,
+                4: 86945.18129450442,
+                5: 31569.609596577146,
+                6: 40689.834303024974,
+                8: 14465.183779022262,
+                10: 24328.436608781318,
+                15: 14165.063201140407,
+                16: 248840.89983255556,
+                20: 52988.84715631746,
+                27: 79734.50293313447,
+                32: 168466.50112907932,
+                35: 20541.337464914657,
+                36: 760501.1618940977,
+                40: 384821.58411189757,
+                48: 523570.5769025755,
+                50: 68223.48718574771,
+                52: 832480.8658452359,
+                54: 361472.420883897,
+                55: 18378.210763760664,
+                56: 29930.640951148995,
+            },
         },
-        "unadjusted_basis_qualified_property": {
-            0: 30518.054316323058,
-            4: 86945.18129450442,
-            5: 31569.609596577146,
-            6: 40689.834303024974,
-            8: 14465.183779022262,
-            10: 24328.436608781318,
-            15: 14165.063201140407,
-            16: 248840.89983255556,
-            20: 52988.84715631746,
-            27: 79734.50293313447,
-            32: 168466.50112907932,
-            35: 20541.337464914657,
-            36: 760501.1618940977,
-            40: 384821.58411189757,
-            48: 523570.5769025755,
-            50: 68223.48718574771,
-            52: 832480.8658452359,
-            54: 361472.420883897,
-            55: 18378.210763760664,
-            56: 29930.640951148995,
+        QBI_SIMULATION_V2: {
+            "qualified_reit_and_ptp_income": {
+                2: 21.751152351621762,
+                8: 109.0412253491029,
+                12: 813.5008456955427,
+                18: 344.7512301655234,
+                20: 213.78537629375143,
+                24: 258.42159213990755,
+                26: 117.36535854634445,
+                44: 213.69762504384883,
+                46: 119.64653030426359,
+                56: 419.0232283634317,
+                58: 347.48294847438444,
+            },
+            "unadjusted_basis_qualified_property": {
+                3: 2528.4024089596437,
+                4: 29935.0220720156,
+                5: 5856.840911100745,
+                6: 74426.92171901323,
+                8: 9512.587756928293,
+                10: 1006.6437041898565,
+                15: 28834.37650983584,
+                16: 168033.58042892945,
+                20: 12154.117373533649,
+                25: 108229.9240436484,
+                32: 39235.91981022937,
+                35: 6453.94851818,
+                36: 372676.52505099034,
+                40: 39111.5811871244,
+                44: 106148.18051271953,
+                48: 193709.90290402845,
+                50: 17545.07262431494,
+                54: 181451.42751906096,
+                55: 128711.14790224955,
+                56: 420824.3006003382,
+                60: 260486.49001525634,
+                63: 196533.03160042636,
+            },
         },
     }
 
+    expected_hashes = expected_hashes_by_version[qbi_simulation_version]
+    libm_sensitive_expected = libm_sensitive_expected_by_version[qbi_simulation_version]
+    assert len(expected_hashes) == 13
+    assert len(libm_sensitive_expected) == 2
+    assert set(expected_hashes).isdisjoint(libm_sensitive_expected)
+    assert set(expected_hashes) | set(libm_sensitive_expected) == set(
+        US_QBI_OUTPUT_COLUMNS
+    )
+
+    inputs = QbiSimulationInputs.from_puf_arrays(_synthetic_sources())
+    outputs = simulate_qbi_inputs(
+        inputs,
+        assumptions=load_qbi_simulation_assumptions(qbi_simulation_version),
+        qbi_simulation_version=qbi_simulation_version,
+        sstb_crosswalk=(
+            _synthetic_sstb_crosswalk_payload()
+            if qbi_simulation_version == QBI_SIMULATION_V2
+            else None
+        ),
+    )
+
     assert tuple(outputs) == US_QBI_OUTPUT_COLUMNS
     assert {
-        column: _sha256(np.asarray(values))
-        for column, values in outputs.items()
-        if column in expected_hashes
+        column: _sha256(np.asarray(outputs[column])) for column in expected_hashes
     } == expected_hashes
     for column, sparse_expected in libm_sensitive_expected.items():
         expected = np.zeros(64, dtype=np.float64)
