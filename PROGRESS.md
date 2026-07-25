@@ -2,48 +2,51 @@
 
 ## Current task
 
-The active ledger for the repeal-revenue validation surface is
-`PROGRESS_REPEAL_VALIDATION.md`. This branch starts from local
-`qbi-v2-engine` HEAD `807141e` and remains offline.
+Close the adjudicated adversarial-review blockers across the #530 branch
+stack, starting on `qbi-port-530` and propagating each fix through
+`qbi-v3-wiring`. The work remains offline in
+`.claude/worktrees/populace-wt-530`; no push or PR operation is in scope.
 
 ## Current state
 
-- Branch `repeal-validation-298` created in the dedicated
-  `.claude/worktrees/populace-wt-530` worktree.
-- The reform-validation contracts and release hook are mapped; implementation
-  and all required verification for the diagnostics-only runner table are
-  complete.
+- The supervisor's 2026-07-25 review verdict has been read in full.
+- The designated worktree started clean, and the branch ancestry is intact:
+  `qbi-port-530` -> `qbi-v2-engine` -> `repeal-validation-298` ->
+  `qbi-v2-content` -> `qbi-v3-wiring`.
+- The `qbi-port-530` report restoration is complete. Its
+  `FINAL_REPORT_QBI_530.md` contains no forbidden incumbent literal; history
+  shows the reviewed literal first enters on descendant commit `e97c6d3`, so
+  it will be scrubbed when that content-layer version enters the worktree.
+- The base fixes are merged into `qbi-v2-engine`; propagation into
+  `repeal-validation-298` is being completed before the behavior fix.
 
 ## Current done
 
-- Verified the requested branch point and clean starting worktree.
-- Confirmed GitNexus MCP tools are unavailable and selected local source
-  tracing as the documented fallback.
-- Located the diagnostics path:
-  `us_runtime/reform_validation.py` -> `_write_reform_validation()` ->
-  release `reform_validation.json`.
-- Confirmed repeal rows must always use independent simulations, never
-  calibration estimates, and must remain outside release gates.
-- Added the declared eight-row repeal benchmark resource and manifest entry,
-  with provisional JCX-45-25 transcriptions and null tips/overtime
-  placeholders.
-- Added strict loader/schema checks and proved every neutralization exists in
-  the pinned 1.764.6 variable registry.
-- Added schema-v2 `repeal_revenue_benchmarks` output with explicit
-  `diagnostic_only`/`simulated` metadata, per-row modeled deltas and signed
-  relative gaps, and no gate field or threshold.
-- Wired the family into `_write_reform_validation()` on the freshly exported
-  release H5 and proved skipped repeal diagnostics do not change the existing
-  publication-guard flag.
-- Added the required towncrier fragment and tightened optional metadata types
-  so malformed JSON fails at load time rather than during simulation.
-- Full workspace pytest passed: 3,434 passed, 58 skipped, 6 warnings.
-- Wrote the complete handoff to `FINAL_REPORT_REPEAL_VALIDATION.md`.
+- Confirmed the exact target worktree and clean starting state.
+- Read `AGENTS.md`, `CLAUDE.md`, and the adjudicated review log.
+- Confirmed the required layer branches and their current ancestor chain.
+- Restored `FINAL_REPORT.md` byte-for-byte from `c09f6db` in commit
+  `a49e3f5`.
+- Swept all of `FINAL_REPORT_QBI_530.md` on this layer for every forbidden
+  incumbent spelling; the result is clean.
+- Merged the updated `qbi-port-530` into `qbi-v2-engine` in `f65fd0e`.
 
 ## Current next
 
-- Supervisor: re-verify the provisional JCX-45-25 values and component scope,
-  coordinate the schema-v2 dashboard reader, then push/open the PR.
+- Implement repeal-entry exception containment on `repeal-validation-298`,
+  replace the vacuous simulator test, historicize the report claim, and add
+  the behavior-fix towncrier fragment.
+- Propagate through content/wiring and add finite-v3 validation plus complete
+  v1/v2 stream regression coverage; scrub the descendant report literals as
+  each affected report enters the worktree.
+- Run the full tip suite and the incumbent guard from the prescribed plain
+  worktree outside `.claude`, then record commit/evidence mappings.
+
+## Historical progress
+
+The completed repeal-validation handoff remains in
+`PROGRESS_REPEAL_VALIDATION.md`. The remaining sections are a prior task's
+journal retained for branch history.
 
 ## State
 
