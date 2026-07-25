@@ -1,5 +1,40 @@
 # Progress
 
+## Current task
+
+Close the adjudicated adversarial-review blockers across the #530 branch
+stack, starting on `qbi-port-530` and propagating each fix through
+`qbi-v3-wiring`. The work remains offline in
+`.claude/worktrees/populace-wt-530`; no push or PR operation is in scope.
+
+## Current state
+
+- The supervisor's 2026-07-25 review verdict has been read in full.
+- The designated worktree started clean, and the branch ancestry is intact:
+  `qbi-port-530` -> `qbi-v2-engine` -> `repeal-validation-298` ->
+  `qbi-v2-content` -> `qbi-v3-wiring`.
+- Work is beginning on `qbi-port-530`; no blocker fix has been applied yet.
+
+## Current done
+
+- Confirmed the exact target worktree and clean starting state.
+- Read `AGENTS.md`, `CLAUDE.md`, and the adjudicated review log.
+- Confirmed the required layer branches and their current ancestor chain.
+
+## Current next
+
+- Restore main's unrelated `FINAL_REPORT.md` and scrub the retired incumbent
+  package literal from `FINAL_REPORT_QBI_530.md`.
+- Propagate upward and implement repeal-entry exception containment.
+- Propagate through content/wiring and add finite-v3 validation plus complete
+  v1/v2 stream regression coverage.
+- Run the full tip suite and the incumbent guard from the prescribed plain
+  worktree outside `.claude`, then record commit/evidence mappings.
+
+## Historical progress
+
+The remaining sections are a prior task's journal retained for branch history.
+
 ## State
 
 Populace #516 whole-row donor outlier screen is complete on
