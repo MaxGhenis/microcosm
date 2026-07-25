@@ -2,43 +2,65 @@
 
 ## Current task
 
-The active ledger for the QBI v3 wiring work is
-`PROGRESS_QBI_V3_WIRING.md`. Branch `qbi-v3-wiring` combines the completed
-`qbi-v2-content` engine/content lane with the completed `qbi-v3-evidence`
-resource lane and remains offline.
+Close the adjudicated adversarial-review blockers across the #530 branch
+stack, starting on `qbi-port-530` and propagating each fix through
+`qbi-v3-wiring`. The work remains offline in
+`.claude/worktrees/populace-wt-530`; no push or PR operation is in scope.
 
 ## Current state
 
-- The prescribed sibling merge is committed in
-  `.claude/worktrees/populace-wt-530`.
-- The version-3 assumptions builder, persisted calibration, runtime/host
-  wiring, diagnostics, and final report are complete. Full-workspace pytest,
-  Ruff, repository contracts, reproducibility, and offline wheel checks pass.
+- The supervisor's 2026-07-25 review verdict has been read in full.
+- The designated worktree started clean, and the branch ancestry is intact:
+  `qbi-port-530` -> `qbi-v2-engine` -> `repeal-validation-298` ->
+  `qbi-v2-content` -> `qbi-v3-wiring`.
+- The `qbi-port-530` report restoration is complete. Its
+  `FINAL_REPORT_QBI_530.md` contains no forbidden incumbent literal; history
+  shows the reviewed literal first enters on descendant commit `e97c6d3`, so
+  it will be scrubbed when that content-layer version enters the worktree.
+- The base and repeal fixes are merged through `qbi-v2-content`.
+- Repeal-benchmark failures are now row-contained and cannot abort payload
+  construction; a deliberately failing first entry and succeeding second
+  entry prove continuation.
+- The QBI 530 report version introduced on the content layer is free of every
+  forbidden incumbent-package spelling.
 
 ## Current done
 
-- Created `qbi-v3-wiring` from `qbi-v2-content`.
-- Merged the evidence branch; the only conflict was the expected adjacency in
-  this shared journal, resolved by retaining both dedicated sibling ledgers.
-- The completed sibling histories remain in `PROGRESS_QBI_V2_CONTENT.md` and
-  `PROGRESS_QBI_V3_EVIDENCE.md`.
-- Completed the read-only architecture and evidence inventory, including the
-  byte-identity boundary for all existing random streams.
-- Emitted the reproducible full-artifact assumptions resource, wired the five
-  new independent v3 streams, and added unit, host-parity, synthetic, and
-  restricted replay coverage.
-- Completed the full-workspace run with 3,293 passes, 132 skips, and zero
-  failures; completed Ruff, formatting, spec-only, manifest, incumbent,
-  entrypoint, reproducibility, and wheel checks.
-- Recorded the complete handoff in `FINAL_REPORT_QBI_V3_WIRING.md`.
+- Confirmed the exact target worktree and clean starting state.
+- Read `AGENTS.md`, `CLAUDE.md`, and the adjudicated review log.
+- Confirmed the required layer branches and their current ancestor chain.
+- Restored `FINAL_REPORT.md` byte-for-byte from `c09f6db` in commit
+  `a49e3f5`.
+- Swept all of `FINAL_REPORT_QBI_530.md` on this layer for every forbidden
+  incumbent spelling; the result is clean.
+- Merged the updated `qbi-port-530` into `qbi-v2-engine` in `f65fd0e`.
+- Merged the updated `qbi-v2-engine` into `repeal-validation-298` in
+  `b77f29c`.
+- Contained per-entry repeal build, simulation, and calculation exceptions,
+  replaced the vacuous missing-simulator test, historicized the original
+  non-blocking claim, and added the behavior fragment in `a88a3c5`.
+- Focused reform-validation pytest passes; Ruff check and format check pass on
+  the touched Python files.
+- Merged the updated `repeal-validation-298` into `qbi-v2-content` in
+  `705b528`.
+- Scrubbed the descendant QBI 530 report path and swept the whole report in
+  `b045eea`.
 
 ## Current next
 
-- Supervisor pushes `qbi-v3-wiring` and opens the pull request.
+- Merge `qbi-v2-content` into `qbi-v3-wiring`.
+- Add finite-v3 validation plus complete v1/v2 stream regression coverage,
+  then scrub and correct the v3 wiring report.
+- Run the full tip suite and the incumbent guard from the prescribed plain
+  worktree outside `.claude`, then record commit/evidence mappings.
 
 ## Historical progress
 
-The remaining sections are prior-lane records retained for branch history.
+The completed QBI v3 wiring/evidence, QBI v2 content, and repeal-validation
+handoffs remain in `PROGRESS_QBI_V3_WIRING.md`,
+`PROGRESS_QBI_V3_EVIDENCE.md`, `PROGRESS_QBI_V2_CONTENT.md`, and
+`PROGRESS_REPEAL_VALIDATION.md`. The remaining sections are a prior task's
+journal retained for branch history.
 
 ## State
 
