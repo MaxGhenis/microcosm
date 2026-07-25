@@ -56,6 +56,15 @@ gate. Its `simulated` status is separate from the pre-existing
 `out_of_sample_simulated` publication-guard field, so missing repeal diagnostics
 cannot block publication.
 
+**Correction (2026-07-25):** At the original handoff, the non-blocking claim
+was supported only by a `simulate=None` check; a repeal reform-build,
+simulation, or calculation exception could still escape payload assembly and
+abort the release caller. The pre-merge correction now contains each such
+failure in its repeal row with `status: "error"` and an exception message,
+then continues constructing the payload. A deliberately raising simulator
+regression, including a succeeding subsequent row, is now the basis for the
+non-blocking claim.
+
 ## Exact payload shape
 
 `REFORM_VALIDATION_SCHEMA_VERSION` is now 2. Existing `reforms` rows remain

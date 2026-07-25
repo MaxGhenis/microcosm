@@ -2,55 +2,59 @@
 
 ## Current task
 
-The active ledger for the QBI v2 content work is
-`PROGRESS_QBI_V2_CONTENT.md`. Branch `qbi-v2-content` starts from local
-`repeal-validation-298` HEAD `e45f797` and remains offline.
+Close the adjudicated adversarial-review blockers across the #530 branch
+stack, starting on `qbi-port-530` and propagating each fix through
+`qbi-v3-wiring`. The work remains offline in
+`.claude/worktrees/populace-wt-530`; no push or PR operation is in scope.
 
 ## Current state
 
-- Branch `qbi-v2-content` created in the dedicated
-  `.claude/worktrees/populace-wt-530` worktree.
-- The adjudicated live SSTB crosswalk is packaged and wired occupation-first.
-  Evidence-anchored qualification, passive SSTB, REIT/PTP, and BDC content is
-  implemented and fully validated.
+- The supervisor's 2026-07-25 review verdict has been read in full.
+- The designated worktree started clean, and the branch ancestry is intact:
+  `qbi-port-530` -> `qbi-v2-engine` -> `repeal-validation-298` ->
+  `qbi-v2-content` -> `qbi-v3-wiring`.
+- The `qbi-port-530` report restoration is complete. Its
+  `FINAL_REPORT_QBI_530.md` contains no forbidden incumbent literal; history
+  shows the reviewed literal first enters on descendant commit `e97c6d3`, so
+  it will be scrubbed when that content-layer version enters the worktree.
+- The base fixes are merged through `repeal-validation-298`.
+- Repeal-benchmark failures are now row-contained and cannot abort payload
+  construction; a deliberately failing first entry and succeeding second
+  entry prove continuation.
 
 ## Current done
 
-- Verified the requested branch point and clean starting worktree.
-- Read the repository instructions and the full adjudicated evidence base:
-  SSTB crosswalk, published Section 199A statistics, SCF business variables,
-  and SOI industry tables.
-- Recorded the binding probability tiers, occupation-primary wiring,
-  passive-prior anchors, REIT/PTP diagnostic band, and qualification content
-  requirements without adding unsupported facts.
-- Added the live 2017-industry/2018-occupation resource with 128 mapped codes,
-  21 explicit non-SSTB documentation rows, per-code probabilities, and
-  provisional de-minimis bases for all 62 ambiguous entries.
-- Updated the loader and host transform for `status: live`, zero-prefixed
-  codes, per-code probabilities, industry-first fallback, and unmapped p=0.
-- Preserved the packaged placeholder fail-closed path and added schema, tier,
-  code-format, documentation, and real-crosswalk end-to-end tests.
-- Focused QBI/crosswalk/spec tests and Ruff pass.
-- Replaced the partnership/S-corporation derived flag with the adjudicated
-  0.90 prior and returned that flag to the v2 QRF target set.
-- Derived passive priors as 58.24/221.00 = 0.2635 -> 0.264 below the coarse
-  threshold and 37.54/221.00 = 0.1699 -> 0.170 above it; documented JCT's
-  120.81/216.08 = 55.91% upper-band materiality without misusing it as a rate.
-- Anchored REIT/PTP to Pub 4801's $21.07B income / $4.20B component and JCT's
-  $2.90B comparison component. The fixed-seed replay is $20.943037789B
-  (0.993974x); the provisional diagnostic band is [0.3x, 3x].
-- Retained the v1 BDC scale with an explicit no-published-anchor note; its
-  replay is $0.143270890B.
-- Added the QBI v2 content changelog. Country-package, US-plan/incumbent,
-  source-runtime, and base-builder contract suites pass.
-- Full offline workspace validation passes: 3,260 tests passed, 132 skipped,
-  and zero failed. Full `ruff check` and changed-file format checks pass.
-- Replaced the prior engine-scaffold output with the final content report in
-  `FINAL_REPORT_QBI_530.md`; no binding adjudication remains unimplemented.
+- Confirmed the exact target worktree and clean starting state.
+- Read `AGENTS.md`, `CLAUDE.md`, and the adjudicated review log.
+- Confirmed the required layer branches and their current ancestor chain.
+- Restored `FINAL_REPORT.md` byte-for-byte from `c09f6db` in commit
+  `a49e3f5`.
+- Swept all of `FINAL_REPORT_QBI_530.md` on this layer for every forbidden
+  incumbent spelling; the result is clean.
+- Merged the updated `qbi-port-530` into `qbi-v2-engine` in `f65fd0e`.
+- Merged the updated `qbi-v2-engine` into `repeal-validation-298` in
+  `b77f29c`.
+- Contained per-entry repeal build, simulation, and calculation exceptions,
+  replaced the vacuous missing-simulator test, historicized the original
+  non-blocking claim, and added the behavior fragment in `a88a3c5`.
+- Focused reform-validation pytest passes; Ruff check and format check pass on
+  the touched Python files.
 
 ## Current next
 
-- Supervisor push and PR handling; no network action was taken locally.
+- Merge `repeal-validation-298` into `qbi-v2-content`, scrub the QBI 530
+  report literal when its descendant version enters, and then propagate into
+  `qbi-v3-wiring`.
+- Add finite-v3 validation plus complete v1/v2 stream regression coverage;
+  scrub and correct the v3 wiring report.
+- Run the full tip suite and the incumbent guard from the prescribed plain
+  worktree outside `.claude`, then record commit/evidence mappings.
+
+## Historical progress
+
+The completed QBI v2 content and repeal-validation handoffs remain in
+`PROGRESS_QBI_V2_CONTENT.md` and `PROGRESS_REPEAL_VALIDATION.md`. The
+remaining sections are a prior task's journal retained for branch history.
 
 ## State
 
