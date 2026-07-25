@@ -2850,6 +2850,160 @@ def _optional_string(value: Any, label: str) -> str | None:
     return _string(value, label)
 
 
+def _validate_v3_finite_values(label: str, values: Sequence[float]) -> None:
+    """Reject non-finite public v3 dataclass inputs with a field-level error."""
+
+    try:
+        all_finite = all(np.isfinite(value) for value in values)
+    except TypeError as error:
+        raise ValueError(f"QBI v3 {label} must be finite numbers.") from error
+    if not all_finite:
+        raise ValueError(f"QBI v3 {label} must be finite.")
+
+
+def _validate_v3_finite_assumption_values(
+    assumptions: QbiSimulationAssumptionsV3,
+) -> None:
+    """Require every v3 float field to be finite except the AGI sentinels."""
+
+    for derivation in assumptions.qualification_derivations:
+        if derivation.prior_probability is not None:
+            _validate_v3_finite_values(
+                f"qualification prior for {derivation.source!r}",
+                (derivation.prior_probability,),
+            )
+
+    classification = assumptions.sstb_classification
+    _validate_v3_finite_values(
+        "ambiguous SSTB prior",
+        (classification.ambiguous_prior,),
+    )
+    bands = classification.passive_passthrough_sstb_prior_by_agi
+    for index, band in enumerate(bands):
+        _validate_v3_finite_values(
+            f"passive SSTB AGI prior {band.label!r}",
+            (band.probability,),
+        )
+        # The first lower and last upper endpoints are deliberate -inf/+inf
+        # all-AGI sentinels. Every other endpoint must be an ordinary float.
+        interior_endpoints = (() if index == 0 else (band.lower,)) + (
+            () if index == len(bands) - 1 else (band.upper,)
+        )
+        _validate_v3_finite_values(
+            f"passive SSTB AGI band {band.label!r} interior endpoints",
+            interior_endpoints,
+        )
+
+    _validate_v3_finite_values(
+        "passthrough entity probabilities",
+        (
+            assumptions.partnership_probability,
+            assumptions.s_corporation_probability,
+        ),
+    )
+    _validate_v3_finite_values(
+        "overall zero-employee values",
+        (
+            assumptions.overall_zero_employee_target,
+            assumptions.expected_overall_zero_employee_share,
+        ),
+    )
+    _validate_v3_finite_values(
+        "margin probabilities",
+        assumptions.margin_probabilities,
+    )
+
+    for form in assumptions.forms:
+        form_label = form.legal_form
+        _validate_v3_finite_values(
+            f"{form_label} receipts metadata",
+            (
+                form.eligible_receipts_thousands,
+                form.all_industry_receipts_thousands,
+                form.receipts_coverage,
+            ),
+        )
+        for component in form.industry_components:
+            _validate_v3_finite_values(
+                f"{form_label} industry component {component.industry_key!r}",
+                (
+                    component.probability,
+                    component.wage_share,
+                    component.ubia_intensity,
+                ),
+            )
+        _validate_v3_finite_values(
+            f"{form_label} employer base probabilities",
+            form.employer_base_probabilities,
+        )
+        _validate_v3_finite_values(
+            f"{form_label} zero-employee values",
+            (
+                form.zero_employee_target,
+                form.expected_zero_employee_share,
+            ),
+        )
+        _validate_v3_finite_values(
+            f"{form_label} employer log-odds shift",
+            (form.employer_log_odds_shift,),
+        )
+        _validate_v3_finite_values(
+            f"{form_label} margin quantiles",
+            form.margin_quantiles,
+        )
+        _validate_v3_finite_values(
+            f"{form_label} UBIA dispersion metadata",
+            (
+                form.ubia_log_intensity_sd,
+                form.ubia_effective_industry_count,
+                form.ubia_sigma,
+            ),
+        )
+
+    _validate_v3_finite_values(
+        "W-2 plausibility band",
+        (
+            assumptions.wage_plausibility_band.lower_dollars,
+            assumptions.wage_plausibility_band.upper_dollars,
+        ),
+    )
+    for name, anchor in (
+        ("REIT/PTP", assumptions.reit_ptp_anchor),
+        ("BDC", assumptions.bdc_anchor),
+    ):
+        anchor_values = [
+            value
+            for value in (
+                anchor.published_income_dollars,
+                anchor.published_component_dollars,
+                anchor.comparison_component_2022_dollars,
+            )
+            if value is not None
+        ]
+        if anchor.replay_factor_band is not None:
+            anchor_values.extend(anchor.replay_factor_band)
+        _validate_v3_finite_values(f"{name} aggregate anchor", anchor_values)
+
+    for name, exposures in (
+        ("REIT/PTP", assumptions.reit_ptp_exposures),
+        ("BDC", assumptions.bdc_exposures),
+    ):
+        for exposure in exposures:
+            _validate_v3_finite_values(
+                f"{name} receipt probability for {exposure.source!r}",
+                (exposure.probability_of_receiving,),
+            )
+            _validate_v3_finite_values(
+                f"{name} beta parameters for {exposure.source!r}",
+                (
+                    exposure.beta.beta_a,
+                    exposure.beta.beta_b,
+                    exposure.beta.scale,
+                    exposure.beta.shift,
+                ),
+            )
+
+
 def _validate_v3_assumptions(assumptions: QbiSimulationAssumptionsV3) -> None:
     if assumptions.schema_version != 3:
         raise ValueError(
@@ -2895,6 +3049,7 @@ def _validate_v3_assumptions(assumptions: QbiSimulationAssumptionsV3) -> None:
             "QBI v3 must retain the exact v2 qualification, SSTB, and "
             "investment family seeds."
         )
+    _validate_v3_finite_assumption_values(assumptions)
 
     derivation_sources = tuple(
         derivation.source for derivation in assumptions.qualification_derivations

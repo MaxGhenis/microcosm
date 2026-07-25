@@ -500,6 +500,57 @@ def test_v2_w2_and_ubia_family_seeds_are_independent() -> None:
     )
 
 
+def test_v3_rejects_nan_margins_before_they_zero_business_outputs() -> None:
+    inputs = QbiSimulationInputs.from_puf_arrays(_synthetic_sources())
+    assumptions = load_qbi_simulation_assumptions(QBI_SIMULATION_V3)
+    baseline = simulate_qbi_v3_wage_capital(inputs, assumptions=assumptions)
+
+    # Without finite validation, np.interp propagates these NaNs and the
+    # receipts divide silently writes zeros, collapsing W-2 wages and UBIA.
+    assert np.any(baseline.receipts > 0.0)
+    assert np.any(baseline.w2_wages > 0.0)
+    assert np.any(baseline.ubia > 0.0)
+    invalid = replace(
+        assumptions,
+        forms=tuple(
+            replace(
+                form,
+                margin_quantiles=(float("nan"),) * len(form.margin_quantiles),
+            )
+            for form in assumptions.forms
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="sole_proprietorship margin quantiles must be finite",
+    ):
+        invalid.validate()
+
+
+def test_v3_rejects_nan_employer_shifts_before_they_remove_all_employers() -> None:
+    inputs = QbiSimulationInputs.from_puf_arrays(_synthetic_sources())
+    assumptions = load_qbi_simulation_assumptions(QBI_SIMULATION_V3)
+    baseline = simulate_qbi_v3_wage_capital(inputs, assumptions=assumptions)
+
+    # Without finite validation, every NaN probability loses its comparison
+    # with the seeded draw and silently selects no employers.
+    assert np.any(baseline.has_employees)
+    invalid = replace(
+        assumptions,
+        forms=tuple(
+            replace(form, employer_log_odds_shift=float("nan"))
+            for form in assumptions.forms
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="sole_proprietorship employer log-odds shift must be finite",
+    ):
+        invalid.validate()
+
+
 def test_v3_new_family_streams_are_independent() -> None:
     arrays = {
         name: np.tile(values, 64) for name, values in _synthetic_sources().items()
