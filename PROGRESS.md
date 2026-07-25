@@ -33,6 +33,9 @@ stack, starting on `qbi-port-530` and propagating each fix through
 - Every ordinary v3 float field is now checked for finiteness before any
   simulation stream is consumed. The required AGI `-inf`/`+inf` outer
   sentinels remain valid.
+- The synthetic v1/v2 isolation contract now covers every public output leaf
+  for both versions with 13 byte-exact hashes and two support-mask/tolerance
+  goldens per version.
 
 ## Current done
 
@@ -65,13 +68,16 @@ stack, starting on `qbi-port-530` and propagating each fix through
   required behavior fragment in `adfad66`.
 - Made both pre-fix NaN corruptions executable regressions, then asserted the
   restored validator rejects the same direct caller objects in `ae5196f`.
-- The complete QBI simulation test module passes (23 passed, 2 skipped);
-  Ruff check and format check pass on the validation step's Python files.
+- Added and independently captured the complete v2 15-leaf golden surface,
+  retained v1's complete golden surface, and made both assert exhaustive
+  public-column coverage in `a9b042e`.
+- The complete QBI simulation test module passes (24 passed, 2 skipped);
+  Ruff check and format check pass on the touched Python files.
 
 ## Current next
 
-- Add complete v1/v2 stream regression coverage with committed v2 goldens.
-- Scrub and correct the v3 wiring report, then close the fixes 1-3 audit.
+- Scrub the v3 wiring report and replace its full-artifact overclaim with the
+  exact complete-synthetic-stream and restricted-replay evidence.
 - Run the full tip suite and the incumbent guard from the prescribed plain
   worktree outside `.claude`, then record commit/evidence mappings.
 
