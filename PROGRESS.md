@@ -17,10 +17,12 @@ stack, starting on `qbi-port-530` and propagating each fix through
   `FINAL_REPORT_QBI_530.md` contains no forbidden incumbent literal; history
   shows the reviewed literal first enters on descendant commit `e97c6d3`, so
   it will be scrubbed when that content-layer version enters the worktree.
-- The base fixes are merged through `repeal-validation-298`.
+- The base and repeal fixes are merged through `qbi-v2-content`.
 - Repeal-benchmark failures are now row-contained and cannot abort payload
   construction; a deliberately failing first entry and succeeding second
   entry prove continuation.
+- The QBI 530 report version introduced on the content layer is free of every
+  forbidden incumbent-package spelling.
 
 ## Current done
 
@@ -39,14 +41,16 @@ stack, starting on `qbi-port-530` and propagating each fix through
   non-blocking claim, and added the behavior fragment in `a88a3c5`.
 - Focused reform-validation pytest passes; Ruff check and format check pass on
   the touched Python files.
+- Merged the updated `repeal-validation-298` into `qbi-v2-content` in
+  `705b528`.
+- Scrubbed the descendant QBI 530 report path and swept the whole report in
+  `b045eea`.
 
 ## Current next
 
-- Merge `repeal-validation-298` into `qbi-v2-content`, scrub the QBI 530
-  report literal when its descendant version enters, and then propagate into
-  `qbi-v3-wiring`.
-- Add finite-v3 validation plus complete v1/v2 stream regression coverage;
-  scrub and correct the v3 wiring report.
+- Merge `qbi-v2-content` into `qbi-v3-wiring`.
+- Add finite-v3 validation plus complete v1/v2 stream regression coverage,
+  then scrub and correct the v3 wiring report.
 - Run the full tip suite and the incumbent guard from the prescribed plain
   worktree outside `.claude`, then record commit/evidence mappings.
 
