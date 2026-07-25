@@ -130,7 +130,7 @@ Final full-workspace command:
 UV_CACHE_DIR=/private/tmp/populace-wt-530-uv-cache \
 UV_OFFLINE=1 UV_NO_SYNC=1 UV_PROJECT_ENVIRONMENT=.venv \
 POPULACE_PUF_2024_H5=/Users/maxghenis/ops/populace-qbi-port/assets/puf_2024.h5 \
-POPULACE_RAW_PUF_2015_CSV=/Users/maxghenis/PolicyEngine/policyengine-us-data/policyengine_us_data/storage/puf_2015.csv \
+POPULACE_RAW_PUF_2015_CSV=<path to the archived US data package's storage>/puf_2015.csv \
 uv run pytest
 ```
 
