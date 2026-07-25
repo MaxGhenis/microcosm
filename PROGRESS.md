@@ -17,8 +17,10 @@ stack, starting on `qbi-port-530` and propagating each fix through
   `FINAL_REPORT_QBI_530.md` contains no forbidden incumbent literal; history
   shows the reviewed literal first enters on descendant commit `e97c6d3`, so
   it will be scrubbed when that content-layer version enters the worktree.
-- The base fixes are merged into `qbi-v2-engine`; propagation into
-  `repeal-validation-298` is being completed before the behavior fix.
+- The base fixes are merged through `repeal-validation-298`.
+- Repeal-benchmark failures are now row-contained and cannot abort payload
+  construction; a deliberately failing first entry and succeeding second
+  entry prove continuation.
 
 ## Current done
 
@@ -30,15 +32,21 @@ stack, starting on `qbi-port-530` and propagating each fix through
 - Swept all of `FINAL_REPORT_QBI_530.md` on this layer for every forbidden
   incumbent spelling; the result is clean.
 - Merged the updated `qbi-port-530` into `qbi-v2-engine` in `f65fd0e`.
+- Merged the updated `qbi-v2-engine` into `repeal-validation-298` in
+  `b77f29c`.
+- Contained per-entry repeal build, simulation, and calculation exceptions,
+  replaced the vacuous missing-simulator test, historicized the original
+  non-blocking claim, and added the behavior fragment in `a88a3c5`.
+- Focused reform-validation pytest passes; Ruff check and format check pass on
+  the touched Python files.
 
 ## Current next
 
-- Implement repeal-entry exception containment on `repeal-validation-298`,
-  replace the vacuous simulator test, historicize the report claim, and add
-  the behavior-fix towncrier fragment.
-- Propagate through content/wiring and add finite-v3 validation plus complete
-  v1/v2 stream regression coverage; scrub the descendant report literals as
-  each affected report enters the worktree.
+- Merge `repeal-validation-298` into `qbi-v2-content`, scrub the QBI 530
+  report literal when its descendant version enters, and then propagate into
+  `qbi-v3-wiring`.
+- Add finite-v3 validation plus complete v1/v2 stream regression coverage;
+  scrub and correct the v3 wiring report.
 - Run the full tip suite and the incumbent guard from the prescribed plain
   worktree outside `.claude`, then record commit/evidence mappings.
 
