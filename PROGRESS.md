@@ -36,6 +36,9 @@ stack, starting on `qbi-port-530` and propagating each fix through
 - The synthetic v1/v2 isolation contract now covers every public output leaf
   for both versions with 13 byte-exact hashes and two support-mask/tolerance
   goldens per version.
+- `FINAL_REPORT_QBI_V3_WIRING.md` contains no forbidden incumbent-package
+  literal and now distinguishes complete synthetic v1/v2 stream goldens from
+  the restricted artifact replay and host-SSTB parity checks.
 
 ## Current done
 
@@ -71,15 +74,17 @@ stack, starting on `qbi-port-530` and propagating each fix through
 - Added and independently captured the complete v2 15-leaf golden surface,
   retained v1's complete golden surface, and made both assert exhaustive
   public-column coverage in `a9b042e`.
+- Scrubbed the v3 wiring report, corrected its unsupported full-artifact
+  golden claim, and historicized its pre-remediation suite count in `c7e51bc`.
 - The complete QBI simulation test module passes (24 passed, 2 skipped);
   Ruff check and format check pass on the touched Python files.
 
 ## Current next
 
-- Scrub the v3 wiring report and replace its full-artifact overclaim with the
-  exact complete-synthetic-stream and restricted-replay evidence.
-- Run the full tip suite and the incumbent guard from the prescribed plain
-  worktree outside `.claude`, then record commit/evidence mappings.
+- Run focused contract checks, Ruff, the full tip suite, and the incumbent
+  guard from the prescribed plain worktree outside `.claude`.
+- Record final verification evidence and the finding-to-commit mapping in the
+  output report.
 
 ## Historical progress
 
