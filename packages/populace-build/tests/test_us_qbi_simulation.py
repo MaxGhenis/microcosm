@@ -20,6 +20,7 @@ from populace.build.us_runtime.qbi_simulation import (
     QBI_SIMULATION_V2,
     QBI_SIMULATION_V3,
     QBI_SIMULATION_VERSION,
+    QbiSimulationAssumptionsV3,
     QbiSimulationInputs,
     load_qbi_simulation_assumptions,
     load_sstb_crosswalk,
@@ -500,16 +501,11 @@ def test_v2_w2_and_ubia_family_seeds_are_independent() -> None:
     )
 
 
-def test_v3_rejects_nan_margins_before_they_zero_business_outputs() -> None:
+def test_v3_rejects_nan_margins_before_they_zero_business_outputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     inputs = QbiSimulationInputs.from_puf_arrays(_synthetic_sources())
     assumptions = load_qbi_simulation_assumptions(QBI_SIMULATION_V3)
-    baseline = simulate_qbi_v3_wage_capital(inputs, assumptions=assumptions)
-
-    # Without finite validation, np.interp propagates these NaNs and the
-    # receipts divide silently writes zeros, collapsing W-2 wages and UBIA.
-    assert np.any(baseline.receipts > 0.0)
-    assert np.any(baseline.w2_wages > 0.0)
-    assert np.any(baseline.ubia > 0.0)
     invalid = replace(
         assumptions,
         forms=tuple(
@@ -521,6 +517,21 @@ def test_v3_rejects_nan_margins_before_they_zero_business_outputs() -> None:
         ),
     )
 
+    # Re-enact the pre-fix public call by bypassing only validation: np.interp
+    # propagates NaNs and the receipts divide silently writes zeros, collapsing
+    # every downstream business output despite positive QBI.
+    with monkeypatch.context() as unchecked:
+        unchecked.setattr(
+            QbiSimulationAssumptionsV3,
+            "validate",
+            lambda _assumptions: None,
+        )
+        corrupted = simulate_qbi_v3_wage_capital(inputs, assumptions=invalid)
+    assert np.any(corrupted.positive_qbi)
+    assert not np.any(corrupted.receipts)
+    assert not np.any(corrupted.w2_wages)
+    assert not np.any(corrupted.ubia)
+
     with pytest.raises(
         ValueError,
         match="sole_proprietorship margin quantiles must be finite",
@@ -528,14 +539,11 @@ def test_v3_rejects_nan_margins_before_they_zero_business_outputs() -> None:
         invalid.validate()
 
 
-def test_v3_rejects_nan_employer_shifts_before_they_remove_all_employers() -> None:
+def test_v3_rejects_nan_employer_shifts_before_they_remove_all_employers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     inputs = QbiSimulationInputs.from_puf_arrays(_synthetic_sources())
     assumptions = load_qbi_simulation_assumptions(QBI_SIMULATION_V3)
-    baseline = simulate_qbi_v3_wage_capital(inputs, assumptions=assumptions)
-
-    # Without finite validation, every NaN probability loses its comparison
-    # with the seeded draw and silently selects no employers.
-    assert np.any(baseline.has_employees)
     invalid = replace(
         assumptions,
         forms=tuple(
@@ -543,6 +551,21 @@ def test_v3_rejects_nan_employer_shifts_before_they_remove_all_employers() -> No
             for form in assumptions.forms
         ),
     )
+
+    # Re-enact the pre-fix public call: every NaN employer probability loses
+    # its comparison with the seeded draw and silently selects no employers.
+    with monkeypatch.context() as unchecked:
+        unchecked.setattr(
+            QbiSimulationAssumptionsV3,
+            "validate",
+            lambda _assumptions: None,
+        )
+        corrupted = simulate_qbi_v3_wage_capital(inputs, assumptions=invalid)
+    assert np.any(corrupted.positive_qbi)
+    assert np.any(corrupted.receipts)
+    assert np.any(corrupted.ubia)
+    assert not np.any(corrupted.has_employees)
+    assert not np.any(corrupted.w2_wages)
 
     with pytest.raises(
         ValueError,
