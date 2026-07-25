@@ -13,21 +13,28 @@ stack, starting on `qbi-port-530` and propagating each fix through
 - The designated worktree started clean, and the branch ancestry is intact:
   `qbi-port-530` -> `qbi-v2-engine` -> `repeal-validation-298` ->
   `qbi-v2-content` -> `qbi-v3-wiring`.
-- Work is beginning on `qbi-port-530`; no blocker fix has been applied yet.
+- The `qbi-port-530` report restoration is complete. Its
+  `FINAL_REPORT_QBI_530.md` contains no forbidden incumbent literal; history
+  shows the reviewed literal first enters on descendant commit `e97c6d3`, so
+  it will be scrubbed when that content-layer version enters the worktree.
 
 ## Current done
 
 - Confirmed the exact target worktree and clean starting state.
 - Read `AGENTS.md`, `CLAUDE.md`, and the adjudicated review log.
 - Confirmed the required layer branches and their current ancestor chain.
+- Restored `FINAL_REPORT.md` byte-for-byte from `c09f6db` in commit
+  `a49e3f5`.
+- Swept all of `FINAL_REPORT_QBI_530.md` on this layer for every forbidden
+  incumbent spelling; the result is clean.
 
 ## Current next
 
-- Restore main's unrelated `FINAL_REPORT.md` and scrub the retired incumbent
-  package literal from `FINAL_REPORT_QBI_530.md`.
-- Propagate upward and implement repeal-entry exception containment.
+- Propagate `qbi-port-530` through `qbi-v2-engine`, then implement repeal-entry
+  exception containment on `repeal-validation-298`.
 - Propagate through content/wiring and add finite-v3 validation plus complete
-  v1/v2 stream regression coverage.
+  v1/v2 stream regression coverage; scrub the descendant report literals as
+  each affected report enters the worktree.
 - Run the full tip suite and the incumbent guard from the prescribed plain
   worktree outside `.claude`, then record commit/evidence mappings.
 
