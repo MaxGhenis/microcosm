@@ -27,6 +27,12 @@ stack, starting on `qbi-port-530` and propagating each fix through
   entry prove continuation.
 - The QBI 530 report version introduced on the content layer is free of every
   forbidden incumbent-package spelling.
+- Items 1-3 have been independently re-audited against branch blobs, commit
+  ancestry, implementation, regression coverage, and report corrections; no
+  functional gap remains.
+- Every ordinary v3 float field is now checked for finiteness before any
+  simulation stream is consumed. The required AGI `-inf`/`+inf` outer
+  sentinels remain valid.
 
 ## Current done
 
@@ -51,11 +57,19 @@ stack, starting on `qbi-port-530` and propagating each fix through
   `b045eea`.
 - Merged the updated `qbi-v2-content` into `qbi-v3-wiring` in `6d72411`.
 - Re-read the original remediation specification and adversarial-review log
-  after resumption; independent verification of fixes 1-3 is in progress.
+  after resumption.
+- Verified the exact #462 `FINAL_REPORT.md` blob, the clean QBI-530 report,
+  repeal exception-row continuation behavior, dated report correction,
+  behavior fragment, and propagation ancestry for fixes 1-3.
+- Added exhaustive finite checks for v3's nested public float surface and the
+  required behavior fragment in `adfad66`.
+- Made both pre-fix NaN corruptions executable regressions, then asserted the
+  restored validator rejects the same direct caller objects in `ae5196f`.
+- The complete QBI simulation test module passes (23 passed, 2 skipped);
+  Ruff check and format check pass on the validation step's Python files.
 
 ## Current next
 
-- Complete finite-v3 validation and its NaN-corruption reproductions.
 - Add complete v1/v2 stream regression coverage with committed v2 goldens.
 - Scrub and correct the v3 wiring report, then close the fixes 1-3 audit.
 - Run the full tip suite and the incumbent guard from the prescribed plain
