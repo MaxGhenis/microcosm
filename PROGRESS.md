@@ -1,13 +1,46 @@
 # Progress
 
-## Current task
+## State
+
+The Sabelhaus crosswalk memo is in progress on
+`sabelhaus-crosswalk-memo`, forked locally from the clean
+`qbi-v3-wiring` tip at `cfbf6330`. Work is offline. The outbound deliverable
+will be assembled only from the user-designated on-disk artifacts and written
+to `~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md`.
+
+## Done
+
+- Read the repository guidance in `CLAUDE.md`.
+- Verified the source worktree, branch tip, and clean starting state.
+- Verified all three research-factsheet paths and the designated QBI source
+  worktree are present on disk.
+- Created the isolated local branch `sabelhaus-crosswalk-memo` from
+  `qbi-v3-wiring`; no network, push, email, or publication action is in scope.
+- Historicized the preceding QBI remediation journal headings below so their
+  state language cannot be mistaken for this task's live state.
+
+## Next
+
+- Extract and reconcile the taxonomy, PUF lineage, SSTB codes and tier logic,
+  published aggregates, SCF/SOI sourcing, and benchmark figures.
+- Draft and audit the single self-contained memo, including the required
+  five-line section-to-artifact source summary.
+- Write the audited memo to the required output path and record final checks.
+
+## Historical QBI remediation journal (superseded 2026-08-12)
+
+The following “current” headings described the earlier QBI remediation task
+when written. They are retained verbatim except for heading labels and are not
+the current state or next actions for the Sabelhaus memo.
+
+## Historical task
 
 Close the adjudicated adversarial-review blockers across the #530 branch
 stack, starting on `qbi-port-530` and propagating each fix through
 `qbi-v3-wiring`. The work remains offline in
 `.claude/worktrees/populace-wt-530`; no push or PR operation is in scope.
 
-## Current state
+## Historical state
 
 - The supervisor's 2026-07-25 review verdict has been read in full.
 - This resumed lane found the designated worktree on `qbi-v3-wiring` at
@@ -40,7 +73,7 @@ stack, starting on `qbi-port-530` and propagating each fix through
   literal and now distinguishes complete synthetic v1/v2 stream goldens from
   the restricted artifact replay and host-SSTB parity checks.
 
-## Current done
+## Historical done
 
 - Confirmed the exact target worktree and clean starting state.
 - Read `AGENTS.md`, `CLAUDE.md`, and the adjudicated review log.
@@ -79,7 +112,7 @@ stack, starting on `qbi-port-530` and propagating each fix through
 - The complete QBI simulation test module passes (24 passed, 2 skipped);
   Ruff check and format check pass on the touched Python files.
 
-## Current next
+## Historical next
 
 - Run focused contract checks, Ruff, the full tip suite, and the incumbent
   guard from the prescribed plain worktree outside `.claude`.
