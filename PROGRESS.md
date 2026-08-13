@@ -2,12 +2,13 @@
 
 ## State
 
-The Sabelhaus crosswalk memo is drafted on `sabelhaus-crosswalk-memo`, forked
-locally from the clean `qbi-v3-wiring` tip at `cfbf6330`. Work is offline. The
-committed source copy is `sabelhaus-crosswalk-memo.md`; the managed filesystem
-has so far rejected writes to the requested external
-`~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md` path. Exact contract and
-claim-by-claim checks remain before final delivery.
+The Sabelhaus crosswalk memo content is complete and independently audited on
+`sabelhaus-crosswalk-memo`, forked locally from the clean `qbi-v3-wiring` tip
+at `cfbf6330`. Work remained offline. The verified, committed source copy is
+`sabelhaus-crosswalk-memo.md`. Both patch delivery and a non-destructive copy
+to `~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md` were rejected by the
+managed filesystem because that required output directory is outside the
+writable workspace.
 
 ## Done
 
@@ -32,10 +33,11 @@ claim-by-claim checks remain before final delivery.
 - Extracted the Pub 1304, Pub 4801, and JCT table totals and threshold split,
   plus the SCF employer/legal-form variables and SOI wage/UBIA table sources.
 - Reconciled the benchmark figures. The HT2 source has the intended TY2022 QBI
-  total under `A04475`/`N04475`; the local target package instead maps QBI to
-  `A03270`/`N03270`. This is a source-line mapping defect, not a numeric
-  value-scale defect. No issue identifier is present in the designated
-  artifacts.
+  total under `A04475`/`N04475`, while `A03270`/`N03270` contain a different
+  line. The preserved fix removes the misaligned direct QBI targets but does
+  not retain the earlier target-package extract. This is a source-line mapping
+  defect, not a numeric value-scale defect. No separate issue identifier is
+  present in the designated artifacts.
 - Recorded an evidence limit for the taxonomy table: the designated QBI
   artifacts directly support QBID qualification and SSTB classification but
   do not themselves mention SECA, Additional Medicare Tax, or NIIT. Those
@@ -49,13 +51,21 @@ claim-by-claim checks remain before final delivery.
 - Tried the required external output path with the repository patch mechanism;
   the managed workspace denied the out-of-project write, so an identical
   committed source copy is being retained for verification and delivery.
+- Independently audited the taxonomy/PUF, SSTB, and publications/sourcing
+  sections and corrected every concrete overclaim found.
+- Mechanically verified all seven taxonomy rows, the exact 15-leaf contract,
+  all 53 clear-SSTB code/title pairs, the 4/20/24 ambiguous-tier counts, the
+  required published totals, and exactly five artifact-summary entries.
+- Confirmed `git diff --check` passes and the memo contains no sales language
+  or prohibited positioning term.
+- Attempted a final non-destructive copy after confirming the target file did
+  not exist; the sandbox returned `Operation not permitted`.
 
 ## Next
 
-- Audit the memo against the exact seven-row taxonomy, 15-leaf contract,
-  53-code clear-SSTB list, publication totals, and five-summary-line contract.
-- Attempt final copy delivery to the requested external path, record the
-  managed-filesystem result, and commit the completed verification journal.
+- Copy the committed `sabelhaus-crosswalk-memo.md` to
+  `~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md` from a process with
+  write access to `~/ops`; no content work remains.
 
 ## Historical QBI remediation journal (superseded 2026-08-12)
 
