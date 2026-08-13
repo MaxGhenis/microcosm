@@ -2,12 +2,12 @@
 
 ## State
 
-The Sabelhaus crosswalk memo evidence extraction is complete on
-`sabelhaus-crosswalk-memo`, forked locally from the clean
-`qbi-v3-wiring` tip at `cfbf6330`. Work is offline. The outbound deliverable
-will be assembled only from the user-designated on-disk artifacts and written
-to `~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md`. Drafting and a
-claim-by-claim source audit remain.
+The Sabelhaus crosswalk memo is drafted on `sabelhaus-crosswalk-memo`, forked
+locally from the clean `qbi-v3-wiring` tip at `cfbf6330`. Work is offline. The
+committed source copy is `sabelhaus-crosswalk-memo.md`; the managed filesystem
+has so far rejected writes to the requested external
+`~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md` path. Exact contract and
+claim-by-claim checks remain before final delivery.
 
 ## Done
 
@@ -41,13 +41,21 @@ claim-by-claim source audit remain.
   do not themselves mention SECA, Additional Medicare Tax, or NIIT. Those
   columns must be labeled as engine-formula treatment, not source-data
   classification.
+- Drafted the self-contained memo with all five requested sections and the
+  five-line artifact summary.
+- Preserved the meeting's tax-treatment axes while labeling the three
+  unsupported treatment details as engine-owned instead of inventing legal
+  yes/no classifications.
+- Tried the required external output path with the repository patch mechanism;
+  the managed workspace denied the out-of-project write, so an identical
+  committed source copy is being retained for verification and delivery.
 
 ## Next
 
-- Draft and audit the single self-contained memo, including the required
-  five-line section-to-artifact source summary.
-- Write the audited memo to the required output path, verify the exact 53-code
-  and five-summary-line contracts, and record final checks.
+- Audit the memo against the exact seven-row taxonomy, 15-leaf contract,
+  53-code clear-SSTB list, publication totals, and five-summary-line contract.
+- Attempt final copy delivery to the requested external path, record the
+  managed-filesystem result, and commit the completed verification journal.
 
 ## Historical QBI remediation journal (superseded 2026-08-12)
 
