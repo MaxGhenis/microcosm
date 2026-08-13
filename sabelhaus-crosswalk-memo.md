@@ -28,7 +28,7 @@ The PUF lineage below distinguishes the source concept from what is physically p
 | SSTB self-employment | No independent E-code; routed from the `E00900` total | No physical SSTB split; populace constructs `sstb_self_employment_income_before_lsr` from the host SSTB classification |
 | Partnership and S corporation | `E26270` in release 1.8.0 | One combined `partnership_s_corp_income` array; the current donor uses it as the partnership fallback and sets the S-corporation fallback to zero |
 | Rental | `E25850 - E25860` | Derived `rental_income` |
-| Farm operations | `E02100` is the raw Schedule F lineage recognized by the QBI source normalizer | No `farm_operations_income` array. The physical `farm_income` array is `T27800`, a distinct Schedule J concept, and is not a substitute |
+| Farm operations | No direct E-code lineage is supplied by the audited processed PUF; `E02100` appears only inside its obsolete W-2 proxy | No `farm_operations_income` array. The physical `farm_income` array is `T27800`, a distinct Schedule J concept, and is not a substitute |
 | Farm rent | `E27200` | Direct `farm_rent_income` |
 | Estate | `E26390 - E26400` | Derived `estate_income` |
 
@@ -52,7 +52,7 @@ The current Section 199A contract has exactly 15 person-level leaves:
 
 The exact HDF supplies none of that surface authoritatively. Fourteen names are absent. The fifteenth, `w2_wages_from_qualified_business`, is an obsolete deterministic proxy, `0.16 * max(0, E00900 + E26270 + E02100 + E27200)`, rather than the versioned QBI model. The historically observed complete 15-leaf “PUF” was created later by a retired loader that opened the file read-write, simulated or replaced leaves, and stamped version 1. Populace reads the pinned bytes directly and therefore constructs the surface explicitly.
 
-The current construction first derives or draws qualification flags from the seven source concepts, classifies positive Schedule C income using the census-to-Section 1.199A-5 crosswalk, and uses the provisional AGI-band prior only for passive-only partnership/S-corporation or estate income. It then constructs employer presence and business form from SCF shapes, W-2 wage and UBIA intensities from SOI industry tables, and level/form targets from JCT. Version 1 remains the production default; versions 2 and 3 are explicit opt-ins pending review.
+The current construction first derives or draws qualification flags from the seven source concepts, classifies positive Schedule C income using the census-to-Section 1.199A-5 crosswalk, and uses the provisional AGI-band prior only for passive-only partnership/S-corporation or estate income. It then takes employer-presence and profit-margin shapes from SCF, W-2 wage and UBIA intensities from SOI industry tables, and latent-form shares and aggregate levels from JCT. Version 1 remains the production default; versions 2 and 3 are explicit opt-ins pending review.
 
 | Construction evidence | Fields used | Role and limitation |
 |---|---|---|
@@ -64,7 +64,7 @@ The current construction first derives or draws qualification flags from the sev
 
 ## SSTB crosswalk excerpt
 
-The live `sstb_crosswalk_v1.json` contains 53 occupation codes classified `clear_sstb`, each with probability 1 and a per-code regulatory rationale. This is the complete clear list:
+The live `sstb_crosswalk_v1.json` contains 53 occupation codes classified `clear_sstb`, each with probability 1 and a per-code regulatory rationale. These clear rows are not provisional. This is the complete clear list:
 
 | Section 1.199A-5 field | 2018 Census occupation codes and titles |
 |---|---|
@@ -112,11 +112,11 @@ These publications answer the July question about whether SOI publishes QBI aggr
 | $500,000 under $1 million | 1,101,063 | $21.08 billion |
 | $1 million or more, summed from the published classes | 610,564 | $92.19 billion |
 
-The $1 million-or-more group is 2.3 percent of claimants and 43.0 percent of deduction dollars. The all-return amount is the published value in thousands of dollars converted to billions; AGI-class amounts above are rounded to two decimals.
+The $1 million-or-more group is 2.3 percent of claimants and 43.0 percent of deduction dollars. The all-return amount is the published value in thousands of dollars converted to billions; AGI-class amounts above are rounded to two decimals. SOI identifies the counts and amounts as estimates from its sample, not administrative-population counts.
 
 ### SOI Publication 4801, TY2023
 
-[Publication 4801, revision June 2026](https://www.irs.gov/pub/irs-pdf/p4801.pdf), reports 42,284,606 Forms 8995, of which 40,243,872 were e-filed, and 4,101,411 Forms 8995-A. These are form counts, not counts of positive deductions: line 15 reports 26,551,995 positive QBID computations, close to the Publication 1304 claimant count. Publication 4801 does not publish separate deduction amounts for the two forms.
+[Publication 4801, revision June 2026](https://www.irs.gov/pub/irs-pdf/p4801.pdf), reports 42,284,606 Forms 8995, of which 40,243,872 were e-filed, and 4,101,411 Forms 8995-A. These are form counts, not counts of positive deductions: line 15 has 26,551,995 entries, close to the Publication 1304 claimant count. Publication 4801 does not publish separate deduction amounts for the two forms.
 
 | Form 8995 line | Published frequency | Published amount |
 |---|---:|---:|
@@ -144,7 +144,7 @@ The report's narrative describes approximately 8.5 percent of claimants as above
 
 | JCT table | Additional 2022 split | Count | Deduction | Share of deduction |
 |---|---|---:|---:|---:|
-| Table 5 | Businesses with zero employees | 17.054 million | $76.0 billion | 35.7% |
+| Table 5 | Businesses with zero employees (84.2% of businesses) | 17.054 million | $76.0 billion | 35.7% |
 | Table 6 | Estates and trusts | 0.183 million | $5.1 billion | 2.4% |
 | Table 6 | Partnerships | 2.059 million | $36.0 billion | 16.9% |
 | Table 6 | S corporations | 3.129 million | $112.7 billion | 52.9% |
