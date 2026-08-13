@@ -2,11 +2,12 @@
 
 ## State
 
-The Sabelhaus crosswalk memo is in progress on
+The Sabelhaus crosswalk memo evidence extraction is complete on
 `sabelhaus-crosswalk-memo`, forked locally from the clean
 `qbi-v3-wiring` tip at `cfbf6330`. Work is offline. The outbound deliverable
 will be assembled only from the user-designated on-disk artifacts and written
-to `~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md`.
+to `~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md`. Drafting and a
+claim-by-claim source audit remain.
 
 ## Done
 
@@ -18,14 +19,35 @@ to `~/ops/populace-qbi-port/sabelhaus-crosswalk-memo.md`.
   `qbi-v3-wiring`; no network, push, email, or publication action is in scope.
 - Historicized the preceding QBI remediation journal headings below so their
   state language cannot be mistaken for this task's live state.
+- Extracted the seven person-level business-income concepts, their PUF
+  lineages, the exact 15-leaf Section 199A contract, and the engine/data
+  ownership boundary.
+- Reconciled the physical processed-PUF audit: only the obsolete deterministic
+  `w2_wages_from_qualified_business` proxy is physically present; the other 14
+  current QBI leaves are absent, and the historical complete surface was a
+  loader mutation.
+- Enumerated and independently counted the 53 clear-SSTB occupation codes and
+  the 0.10/0.20/0.30 provisional ambiguous-code tiers, including the
+  industry-first future seam and current occupation fallback.
+- Extracted the Pub 1304, Pub 4801, and JCT table totals and threshold split,
+  plus the SCF employer/legal-form variables and SOI wage/UBIA table sources.
+- Reconciled the benchmark figures. The HT2 source has the intended TY2022 QBI
+  total under `A04475`/`N04475`; the local target package instead maps QBI to
+  `A03270`/`N03270`. This is a source-line mapping defect, not a numeric
+  value-scale defect. No issue identifier is present in the designated
+  artifacts.
+- Recorded an evidence limit for the taxonomy table: the designated QBI
+  artifacts directly support QBID qualification and SSTB classification but
+  do not themselves mention SECA, Additional Medicare Tax, or NIIT. Those
+  columns must be labeled as engine-formula treatment, not source-data
+  classification.
 
 ## Next
 
-- Extract and reconcile the taxonomy, PUF lineage, SSTB codes and tier logic,
-  published aggregates, SCF/SOI sourcing, and benchmark figures.
 - Draft and audit the single self-contained memo, including the required
   five-line section-to-artifact source summary.
-- Write the audited memo to the required output path and record final checks.
+- Write the audited memo to the required output path, verify the exact 53-code
+  and five-summary-line contracts, and record final checks.
 
 ## Historical QBI remediation journal (superseded 2026-08-12)
 
