@@ -682,7 +682,7 @@ POOL_DEFERRED_TRANSFER_STATUS = "deferred_pending_source_donor"
 """Pool-stage-only deferrals for source inputs whose donors are out of scope.
 
 These remain hard release requirements and remain in the legacy ACS transfer
-declaration. The raw-only increment-2 pool has only its six pinned inputs, so
+declaration. The raw-only increment-2 pool has only its seven pinned inputs, so
 it cannot honestly manufacture the SCF/SIPP asset surface. It instead carries
 typed all-null columns and a receipt; engine defaults may be used only on the
 disposable SSI agreement view, whose default fills are separately receipted.

@@ -3,7 +3,7 @@
 
 The default production path is the stacked pipeline:
 
-``stack -> gap-fill -> PUF pass + tail -> late DAG -> derive -> seed -> simulate -> gates``.
+``stack -> block geography -> gap-fill -> PUF pass + tail -> late DAG -> derive -> seed -> simulate -> gates``.
 
 Both survey arms use one composition-preserving ``--sample-fraction``; PUF
 donors always remain full. The terminal completeness gate plus by-origin

@@ -16,6 +16,8 @@ set -euo pipefail
 : "${PUF_SHA:?}"
 : "${PUF_CSV:?}"
 : "${PUF_CSV_SHA:?}"
+: "${BLOCK_LADDER_NPZ:?}"
+: "${BLOCK_LADDER_SHA:?}"
 : "${OUT:?}"
 
 env \
@@ -37,4 +39,6 @@ env \
   --puf-h5-sha256 "${PUF_SHA}" \
   --puf-source-year-csv "${PUF_CSV}" \
   --puf-source-year-csv-sha256 "${PUF_CSV_SHA}" \
+  --block-ladder-artifact "${BLOCK_LADDER_NPZ}" \
+  --block-ladder-artifact-sha256 "${BLOCK_LADDER_SHA}" \
   --out "${OUT}"

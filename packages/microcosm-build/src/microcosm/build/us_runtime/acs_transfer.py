@@ -111,10 +111,11 @@ ACS_NATIVE_PERSON_INPUTS = frozenset(
     }
 )
 
-# Geography must remain native to the ACS spine. Drawing a donor block, tract,
-# county, or district would sever the PUMS state/PUMA geography the second
-# spine exists to preserve. ``state_fips`` is already mapped natively, but is
-# listed here too so a malformed recipient can never make it a transfer target.
+# Block-first geography is constructed before this transfer: the ACS block is
+# drawn within its observed PUMA, and every coarser geography is derived from
+# that block. These outputs are predictors where declared, never transfer
+# targets. ``state_fips`` is listed too so a malformed recipient cannot make it
+# a transfer target.
 ACS_DEFERRED_GEOGRAPHY_INPUTS = frozenset(
     {
         "block_geoid",

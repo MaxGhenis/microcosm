@@ -8,6 +8,8 @@
 - Implementing the 2026-08-15 block-first ruling: one population-weighted 2020
   tabulation-block draw at spine construction, followed only by deterministic
   geography derivations, before cross-spine gap fill.
+- Implementation and final unit/contract verification are complete; no
+  pipeline build was run.
 - No network, pipeline build, push, `PROGRESS.md`, or other root-journal use.
 
 ## Done
@@ -39,10 +41,49 @@
 - Added the schema-v2 geography lineage section and its shape contract test,
   plus the two optional geography predictors and their channel caveats in the
   spec, before runtime implementation.
+- Implemented the schema-v2 block ladder and block-first assignment. The
+  construction uses sorted seeded draw groups, samples by block population,
+  derives all nine geography columns from the selected block, self-checks ACS
+  PUMA equality, and records a live-validated receipt.
+- Added the schema-v2 ladder as the seventh hash-pinned stacked input and bound
+  the operator, seed, artifact schema, channel universes, derivations, and
+  vintages in stacked authority v11 and checkpoint identity. The retiring
+  legacy route does not require or consume this new input.
+- Regenerated only the national input artifact from the local primary-source
+  cache (not a pipeline build):
+  `build/us/us_block_ladder_2020.npz` (19,098,512 bytes), SHA-256
+  `1b288ba60368a17fd008524972b066b0b6ef1435261c863415bdde425c514e6c`.
+  It contains 5,769,942 populated blocks, 2,462 PUMAs, and population
+  331,449,281. Its summary JSON SHA-256 is
+  `e8a632a51fa07a22f6b6abf6f14fdbc5d105143ed8cfc73dd34ea0382b1c1ba7`.
+  The tract-to-PUMA relationship input used during regeneration re-verified at
+  SHA-256 `5262f460b2c8dbe86b00549e916317b1791fdc595c9af72ab18f6f6a67040531`.
+- Added a fail-closed schema-v3 ASEC checkpoint assertion: any `GTCO` or other
+  county-named field is refused until a dedicated checkpoint-schema change
+  can bind identified-county semantics and replace the state-only fallback.
+- The opt-in national validation test passed exactly against the supplied
+  PUMA ladder: every `(PUMA, CD119)` overlap population and every PUMA total
+  matches the block-first aggregation.
+- Added `puma` and `county_fips` as optional person/group ACS-transfer
+  predictors through the existing availability-pattern machinery; group
+  geography is carried as a constant rather than summed.
+- Updated the stacked smoke invocation and operator-ordering/PUMA-ladder docs
+  for the seventh input, schema/authority versions, and the validation-only
+  role of the legacy PUMA overlap ladder.
+- Final combined unit/contract run passed for ACS transfer, ASEC checkpoint,
+  stacked spine, block ladder/source/overlap, H5/tool integration,
+  spine-blindness, PUF support, `test_us_plan.py`, and
+  `test_imputation_lineage_spec.py`. The normal offline run skipped only the
+  opt-in national overlap case; a separate hash-pinned invocation ran that
+  case and passed (`1 passed in 2.76s`).
+- `uv run ruff check .`, `bash -n tools/us_stacked_pool_smoke.sh.example`, and
+  `git diff --check` passed. A final read-only requirements audit found no
+  blocking issue.
 
 ## Next
 
-- Implement schema-v2 block ladder, block-first construction, authority/input
-  identity binding, optional geography predictors, and focused tests.
-- Run the required unit/contract test surface and Ruff, add changelog, commit
-  locally, and leave the tree clean.
+- Owner: use the regenerated ignored schema-v2 artifact and its exact SHA-256
+  above for stacked execution; the originally supplied schema-v1 artifact is
+  intentionally refused because it lacks the aligned PUMA rung.
+- Owner: push the local branch and open the PR. No lane implementation work or
+  pipeline build remains.

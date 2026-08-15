@@ -6,7 +6,13 @@ analogue of the UK output-area ladder (microcosm #354) and a sibling of the US
 block ladder (`geography_ladder.py`): one national dataset, filterable at any
 grain, never per-area files (microcosm #275).
 
-## What it does
+## What the legacy assignment API does
+
+The overlap tables remain the validation oracle for the default stacked
+block-first geography stage. The assignment API below is retained for legacy
+callers; stacked construction now samples one block within each ACS record's
+observed PUMA (or within state for ASEC under raw-checkpoint schema v3), then
+derives every other geography from that block.
 
 - An **ACS-spine** record already carries its `puma`; the ladder keeps it.
 - An **ASEC-spine** record knows only `state_fips`; the ladder draws a PUMA
@@ -68,11 +74,10 @@ National build (all 51 states): **2,462 PUMAs**, **331,449,281 people** (the
 2020 apportionment population, conserved exactly), **436** congressional
 districts, **3,143** counties, 83,848 tract overlaps.
 
-## Wire-up (documented, not rewired)
+## Runtime role
 
 The runtime — `load_us_puma_ladder` → `assign_us_puma_ladder` (or
-`with_household_us_puma_ladder`) → `us_puma_ladder_gate` — is the drop-in for
-the ACS/ASEC spine's geography stage. Wiring it behind the country-spec
-geography-spine schema (a PUMA-anchored spine method, and reading the built
-artifact from the release bundle) is the follow-up, kept out of this change to
-stay reviewable — the same posture #354 took for the UK ladder.
+`with_household_us_puma_ladder`) → `us_puma_ladder_gate` — remains available
+to legacy callers. The default stacked path uses `geography_ladder.py` for
+block-first assignment and tests its implied `(PUMA, CD119)` populations
+exactly against this artifact's overlap tables.
