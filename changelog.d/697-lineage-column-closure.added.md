@@ -1,0 +1,1 @@
+Add exact-one lineage coverage for every US pool artifact column, including measured/native, take-up, receipt, structural, and geography classes, with an inventory generator and dashboard coverage data.
