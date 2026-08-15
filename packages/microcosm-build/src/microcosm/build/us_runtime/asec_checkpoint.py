@@ -176,6 +176,10 @@ def load_asec_raw_stage_checkpoint(
         loaded.frame,
         label=f"ASEC raw-stage checkpoint {checkpoint_path}",
     )
+    _assert_raw_stage_identified_county_absent(
+        loaded.frame,
+        path=checkpoint_path,
+    )
     _validate_raw_stage_source_columns(loaded.frame, path=checkpoint_path)
     source_construction_identity = FrameIdentity.from_payload(
         metadata["source_construction_identity"],
@@ -198,6 +202,31 @@ def load_asec_raw_stage_checkpoint(
         in_place=True,
     )
     return frame, metadata
+
+
+def _assert_raw_stage_identified_county_absent(
+    frame: Frame,
+    *,
+    path: Path,
+) -> None:
+    """Keep schema-v3 ASEC geography on the declared state-only fallback."""
+
+    identified_county_columns = sorted(
+        f"{entity}.{column}"
+        for entity in frame.entities
+        for column in frame.table(entity).columns
+        if str(column).casefold() == "gtco"
+        or "county" in str(column).casefold()
+    )
+    if identified_county_columns:
+        raise ValueError(
+            f"ASEC raw-stage checkpoint {path} schema v"
+            f"{ASEC_RAW_STAGE_SCHEMA_VERSION} unexpectedly carries "
+            "identified-county column(s): "
+            f"{identified_county_columns}. The block-first ASEC draw must "
+            "remain state-only until a dedicated checkpoint-schema change "
+            "adds and binds identified county."
+        )
 
 
 def _validate_outer_stage_binding(

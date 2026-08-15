@@ -246,6 +246,27 @@ def test_loads_operator_untouched_raw_stage_checkpoint(tmp_path: Path) -> None:
                 assert dtype == CANONICAL_STRING_DTYPE, (entity, column)
 
 
+@pytest.mark.parametrize("column", ("GTCO", "raw_county_code"))
+def test_raw_loader_rejects_identified_county_until_schema_change(
+    tmp_path: Path,
+    column: str,
+) -> None:
+    source = _raw_us_frame()
+    tables = {entity: source.table(entity).copy() for entity in source.entities}
+    tables["household"][column] = [1, 3]
+    with_county = Frame(
+        tables,
+        source.schema,
+        {entity: source.weights_for(entity) for entity in source.weighted_entities},
+        source.strata,
+    )
+    path = tmp_path / f"raw-with-{column}.checkpoint.h5"
+    _write_checkpoint(path, with_county, metadata=_raw_binding(with_county))
+
+    with pytest.raises(ValueError, match=r"schema v3.*identified-county"):
+        load_asec_raw_stage_checkpoint(path)
+
+
 @pytest.mark.parametrize(
     "column",
     ("ED_VAL", "LKWEEKS", "PAW_TYP", "PERIDNUM", "source_year"),
