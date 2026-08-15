@@ -235,18 +235,29 @@ def test_assemble_us_block_ladder_round_trips_through_the_loader(tmp_path) -> No
     from microcosm.build.us_runtime import load_us_block_ladder
 
     metadata = {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "us_block_ladder",
         "block_vintage": "2020_tabulation_blocks",
         "sampling_basis": "population",
         "layers": {
-            layer: {"vintage": "test", "source": "test source"}
-            for layer in ("congressional_district", "sldu", "sldl", "place", "cbsa")
+            "puma": {"vintage": "2020_puma", "source": "test source"},
+            "congressional_district": {
+                "vintage": "119th_congress",
+                "source": "test source",
+            },
+            "sldu": {"vintage": "2020_baf", "source": "test source"},
+            "sldl": {"vintage": "2020_baf", "source": "test source"},
+            "place": {"vintage": "2020_census", "source": "test source"},
+            "cbsa": {
+                "vintage": "omb_2023_delineations",
+                "source": "test source",
+            },
         },
     }
     payload = assemble_us_block_ladder(
         block_population={100010401001000: 20, 360010001001000: 30},
         cd_by_block={100010401001000: 1000, 360010001001000: 3620},
+        tract_to_puma={10001040100: 1000100, 36001000100: 3600100},
         sldu_by_block={100010401001000: "001"},
         sldl_by_block={},
         place_by_block={360010001001000: 51000},
@@ -260,6 +271,7 @@ def test_assemble_us_block_ladder_round_trips_through_the_loader(tmp_path) -> No
 
     assert ladder.block_geoid.tolist() == [100010401001000, 360010001001000]
     assert ladder.population.tolist() == [20.0, 30.0]
+    assert ladder.puma.tolist() == [1000100, 3600100]
     assert ladder.sldu.tolist() == ["001", ""]
     assert ladder.place_fips.tolist() == [0, 51000]
     assert ladder.cbsa_code.tolist() == [0, 10580]
@@ -273,6 +285,21 @@ def test_assemble_refuses_populated_block_without_a_district() -> None:
         assemble_us_block_ladder(
             block_population={100010401001000: 20},
             cd_by_block={},
+            tract_to_puma={10001040100: 1000100},
+            sldu_by_block={},
+            sldl_by_block={},
+            place_by_block={},
+            cbsa_by_county={},
+            metadata={},
+        )
+
+
+def test_assemble_refuses_populated_block_without_a_puma() -> None:
+    with pytest.raises(ValueError, match="tract absent from the tract-to-PUMA"):
+        assemble_us_block_ladder(
+            block_population={100010401001000: 20},
+            cd_by_block={100010401001000: 1000},
+            tract_to_puma={},
             sldu_by_block={},
             sldl_by_block={},
             place_by_block={},

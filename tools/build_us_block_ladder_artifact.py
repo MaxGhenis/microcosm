@@ -1,12 +1,13 @@
 """Build the US block-ladder artifact from primary Census/OMB sources.
 
 Downloads (with a local cache) the 2020 P.L. 94-171 geographic headers
-(block populations), the 119th Congressional District block equivalency
-file, the 2020 Block Assignment Files (SLDU/SLDL/INCPLACE_CDP), and the OMB
-CBSA delineation workbook; joins them at 2020-tabulation-block grain; and
-writes one national NPZ artifact whose embedded metadata records a vintage
-and source per derived layer (``vintage_policy: error`` — the loader refuses
-an artifact missing any of them). No per-area files, the standing rule.
+(block populations), the 2020 tract-to-PUMA relationship, the 119th
+Congressional District block equivalency file, the 2020 Block Assignment
+Files (SLDU/SLDL/INCPLACE_CDP), and the OMB CBSA delineation workbook; joins
+them at 2020-tabulation-block grain; and writes one national NPZ artifact
+whose embedded metadata records a vintage and source per derived layer
+(``vintage_policy: error`` — the loader refuses an artifact missing any of
+them). No per-area files, the standing rule.
 
 The artifact is self-checked by loading it back through
 ``microcosm.build.us_runtime.load_us_block_ladder`` before the summary is
@@ -45,6 +46,14 @@ from microcosm.build.us_runtime.block_ladder_sources import (
     parse_national_cd_bef,
     parse_pl_geo_blocks,
 )
+from microcosm.build.us_runtime.puma_ladder_sources import (
+    parse_tract_to_puma_relationship,
+)
+
+TRACT_TO_PUMA_URL = (
+    "https://www2.census.gov/geo/docs/maps-data/data/rel2020/"
+    "2020_Census_Tract_to_2020_PUMA.txt"
+)
 
 CD119_BEF_URL = (
     "https://www2.census.gov/programs-surveys/decennial/rdo/mapping-files/"
@@ -65,6 +74,11 @@ CBSA_DELINEATIONS_URL = (
 )
 
 LAYER_VINTAGES = {
+    "puma": {
+        "vintage": "2020_puma",
+        "source": "Census 2020 Census Tract to 2020 PUMA relationship file",
+        "url": TRACT_TO_PUMA_URL,
+    },
     "congressional_district": {
         "vintage": "119th_congress",
         "source": "Census 119th Congressional District BEF (NationalCD119.txt)",
@@ -174,6 +188,11 @@ def _optional_baf_layer(archive_path: Path, member: str) -> list[str] | None:
     return _zip_member_lines(archive_path, member)
 
 
+def _text_lines(path: Path) -> list[str]:
+    with path.open(encoding="utf-8-sig") as stream:
+        return stream.readlines()
+
+
 def _cbsa_rows(workbook_path: Path):
     try:
         import openpyxl
@@ -198,8 +217,20 @@ def main(argv: list[str] | None = None) -> None:
         if unknown:
             raise SystemExit(f"Unknown state FIPS in --states: {sorted(unknown)}")
     _log(f"Building US block ladder for {len(states)} state(s)")
+    allowed_state_fips = frozenset(fips for fips, _, _ in states)
 
     source_files: dict[str, dict[str, str]] = {}
+
+    tract_puma_txt = _download(TRACT_TO_PUMA_URL, args.cache_dir)
+    source_files["tract_to_puma"] = {
+        "path": str(tract_puma_txt),
+        "sha256": _sha256(tract_puma_txt),
+    }
+    _log("  parsing tract-to-PUMA relationship")
+    tract_to_puma = parse_tract_to_puma_relationship(
+        _text_lines(tract_puma_txt), allowed_state_fips=allowed_state_fips
+    )
+    _log(f"  tract-to-PUMA: {len(tract_to_puma):,} tracts")
 
     cd_zip = _download(CD119_BEF_URL, args.cache_dir)
     source_files["cd119_bef"] = {"path": str(cd_zip), "sha256": _sha256(cd_zip)}
@@ -263,7 +294,7 @@ def main(argv: list[str] | None = None) -> None:
                 target.update(parse_baf_district_file(lines, label=member))
 
     metadata = {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "us_block_ladder",
         "block_vintage": "2020_tabulation_blocks",
         "sampling_basis": "population",
@@ -278,6 +309,7 @@ def main(argv: list[str] | None = None) -> None:
     payload = assemble_us_block_ladder(
         block_population=block_population,
         cd_by_block=cd_by_block,
+        tract_to_puma=tract_to_puma,
         sldu_by_block=sldu_by_block,
         sldl_by_block=sldl_by_block,
         place_by_block=place_by_block,
@@ -293,6 +325,7 @@ def main(argv: list[str] | None = None) -> None:
         "output_sha256": _sha256(args.out),
         "blocks": int(len(ladder)),
         "population": int(ladder.population.sum()),
+        "pumas": int(np.unique(ladder.puma).size),
         "congressional_districts": int(
             np.unique(ladder.congressional_district_geoid).size
         ),

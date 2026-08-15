@@ -22,6 +22,8 @@ Sources and their formats (verified against the published files):
   state against the summary-level 040 state row).
 - OMB CBSA delineations (``list1_2023.xlsx``): county → CBSA rows keyed by
   the FIPS state + county code columns.
+- 2020 Census Tract to 2020 PUMA relationship: tract → PUMA, parsed by
+  :func:`microcosm.build.us_runtime.puma_ladder_sources.parse_tract_to_puma_relationship`.
 """
 
 from __future__ import annotations
@@ -343,6 +345,7 @@ def assemble_us_block_ladder(
     *,
     block_population: Mapping[int, int],
     cd_by_block: Mapping[int, int],
+    tract_to_puma: Mapping[int, int],
     sldu_by_block: Mapping[int, str],
     sldl_by_block: Mapping[int, str],
     place_by_block: Mapping[int, int],
@@ -351,10 +354,11 @@ def assemble_us_block_ladder(
 ) -> dict[str, np.ndarray]:
     """Join the parsed sources into the ladder artifact's NPZ payload.
 
-    Every populated block must have a congressional district — a populated
-    block the CD BEF does not cover is a source defect, not a skippable row.
-    SLD and place maps may legitimately not cover a block (states without a
-    layer); absent entries mean unassigned.
+    Every populated block must have both a congressional district and a 2020
+    PUMA (through its structural tract prefix). A missing relationship is a
+    source defect, not a skippable row. SLD and place maps may legitimately
+    not cover a block (states without a layer); absent entries mean
+    unassigned.
     """
 
     blocks = np.asarray(sorted(block_population), dtype=np.int64)
@@ -365,8 +369,21 @@ def assemble_us_block_ladder(
             f"{len(missing_cd)} populated block(s) have no congressional "
             f"district in the CD BEF; examples: {examples}."
         )
+    missing_puma = [
+        block for block in blocks.tolist() if block // 10**4 not in tract_to_puma
+    ]
+    if missing_puma:
+        examples = [f"{block:015d}" for block in missing_puma[:5]]
+        raise ValueError(
+            f"{len(missing_puma)} populated block(s) have a tract absent from "
+            f"the tract-to-PUMA relationship file; examples: {examples}."
+        )
     population = np.asarray(
         [block_population[block] for block in blocks.tolist()], dtype=np.int64
+    )
+    puma = np.asarray(
+        [tract_to_puma[block // 10**4] for block in blocks.tolist()],
+        dtype=np.int64,
     )
     cd = np.asarray([cd_by_block[block] for block in blocks.tolist()], dtype=np.int64)
     sldu = np.asarray(
@@ -385,6 +402,7 @@ def assemble_us_block_ladder(
     return {
         "block_geoid": blocks,
         "population": population,
+        "puma": puma,
         "congressional_district_geoid": cd,
         "sldu": sldu,
         "sldl": sldl,
