@@ -58,6 +58,48 @@ def _person(
         "AGEP": 40,
         "SEX": 1,
         "MAR": 1,
+        "SCH": 1,
+        "SCHG": None,
+        "SCHL": 21,
+        "DDRS": 2,
+        "DEAR": 2,
+        "DEYE": 2,
+        "DOUT": 2,
+        "DPHY": 2,
+        "DREM": 2,
+        "DIS": 2,
+        "MIL": 4,
+        "MLPA": None,
+        "MLPB": None,
+        "MLPCD": None,
+        "MLPE": None,
+        "MLPFG": None,
+        "MLPHJ": None,
+        "MLPIK": None,
+        "VPSP": None,
+        "DRAT": None,
+        "DRATX": None,
+        "HINS1": 1,
+        "HINS2": 2,
+        "HINS3": 2,
+        "HINS4": 2,
+        "HINS5": 2,
+        "HINS6": 2,
+        "HINS7": 2,
+        "HICOV": 1,
+        "PRIVCOV": 1,
+        "PUBCOV": 2,
+        "ESR": 1,
+        "COW": 1,
+        "WKHP": 40,
+        "WKL": 1,
+        "WKWN": 52,
+        "WRK": 1,
+        "NATIVITY": 1,
+        "ENG": None,
+        "CIT": 1,
+        "POBP": 6,
+        "YOEP": None,
         "ADJINC": 1_000_000,
         "WAGP": 50_000,
         "SEMP": 0,
@@ -94,7 +136,26 @@ def _source(tmp_path: Path) -> AcsPumsSource:
         person_zip,
         {
             "psam_pusa.csv": [
-                _person("2024HU0000002", 1, 20, MAR=4, WAGP=30_000),
+                _person(
+                    "2024HU0000002",
+                    1,
+                    20,
+                    MAR=4,
+                    WAGP=30_000,
+                    MIL=2,
+                    MLPA=1,
+                    MLPB=1,
+                    MLPCD=1,
+                    MLPE=1,
+                    MLPFG=1,
+                    MLPHJ=1,
+                    MLPIK=1,
+                    VPSP=1,
+                    DRAT=3,
+                    DRATX=1,
+                    HINS5=1,
+                    HINS6=1,
+                ),
                 _person(
                     "2024HU0000001",
                     1,
@@ -111,6 +172,11 @@ def _source(tmp_path: Path) -> AcsPumsSource:
                     AGEP=40,
                     SEX=2,
                     WAGP=45_000,
+                    NATIVITY=2,
+                    ENG=1,
+                    CIT=4,
+                    POBP=207,
+                    YOEP=2010,
                 ),
                 _person(
                     "2024HU0000001",
@@ -118,6 +184,15 @@ def _source(tmp_path: Path) -> AcsPumsSource:
                     25,
                     AGEP=10,
                     MAR=5,
+                    SCH=2,
+                    SCHG=10,
+                    SCHL=10,
+                    ESR=None,
+                    COW=None,
+                    WKHP=None,
+                    WKL=None,
+                    WKWN=None,
+                    WRK=None,
                     WAGP=None,
                 ),
             ],
@@ -192,7 +267,10 @@ def test_load_acs_pums_tables_streams_all_csv_members_and_keeps_native_blanks(
         "2024HU0000001",
         "2024HU0000002",
     ]
-    assert pd.isna(tables["person"].loc[2, "WAGP"])
+    for column in ("WAGP", "COW", "WKHP", "WKL", "WKWN", "WRK", "DRAT"):
+        assert pd.isna(tables["person"].loc[2, column])
+    assert pd.isna(tables["person"].loc[0, "ENG"])
+    assert pd.isna(tables["person"].loc[0, "YOEP"])
     assert metadata["vacant_household_rows_dropped"] == 1
     assert metadata["household_csv_members"] == ["psam_husa.csv", "psam_husb.csv"]
     assert metadata["person_csv_members"] == ["psam_pusa.csv", "psam_pusb.csv"]
@@ -220,6 +298,59 @@ def test_build_acs_pums_unit_frame_preserves_lineage_geography_and_weights(
     assert frame.weights_for("household").values.tolist() == [10.0, 20.0]
     assert "SERIALNO" not in frame.table("person")
     person = frame.table("person")
+    declared_predictors = {
+        "SCH",
+        "SCHG",
+        "SCHL",
+        "DDRS",
+        "DEAR",
+        "DEYE",
+        "DOUT",
+        "DPHY",
+        "DREM",
+        "DIS",
+        "MIL",
+        "MLPA",
+        "MLPB",
+        "MLPCD",
+        "MLPE",
+        "MLPFG",
+        "MLPHJ",
+        "MLPIK",
+        "VPSP",
+        "DRAT",
+        "DRATX",
+        "HINS1",
+        "HINS2",
+        "HINS3",
+        "HINS4",
+        "HINS5",
+        "HINS6",
+        "HINS7",
+        "HICOV",
+        "PRIVCOV",
+        "PUBCOV",
+        "ESR",
+        "COW",
+        "WKHP",
+        "WKL",
+        "WKWN",
+        "WRK",
+        "NATIVITY",
+        "ENG",
+        "CIT",
+        "POBP",
+        "YOEP",
+    }
+    assert declared_predictors <= set(person.columns)
+    assert person.loc[3, ["MIL", "VPSP", "DRAT", "DRATX"]].tolist() == [
+        2,
+        1,
+        3,
+        1,
+    ]
+    assert person.loc[3, ["HINS5", "HINS6"]].tolist() == [1, 1]
+    assert pd.isna(person.loc[2, "WKHP"])
     assert person["source_household_id"].tolist() == [1, 1, 1, 2]
     assert person["source_person_id"].tolist() == ["1", "2", "3", "1"]
     assert person["source_row_id"].tolist() == [0, 1, 2, 3]
@@ -365,6 +496,18 @@ def test_load_acs_pums_tables_requires_native_structure_columns(
     )
 
     with pytest.raises(ValueError, match="RELSHIPP"):
+        load_acs_pums_tables(source)
+
+
+def test_load_acs_pums_tables_requires_declared_predictor_columns(
+    tmp_path: Path,
+) -> None:
+    source = _source(tmp_path)
+    person = _person("2024HU0000001", 1, 20)
+    person.pop("HINS6")
+    _write_csv_zip(source.person_zip, {"psam_pusa.csv": [person]})
+
+    with pytest.raises(ValueError, match="HINS6"):
         load_acs_pums_tables(source)
 
 
