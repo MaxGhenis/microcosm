@@ -497,6 +497,10 @@ def _write_ready_pool(tmp_path: Path, *, stacked: bool = False) -> Path:
                     transition_authority["sha256"]
                 ),
                 "terminal_gates": agreement_gate,
+                "block_ladder": {"schema_version": 2},
+                "block_first_geography": {
+                    "operator": "assign_us_block_first_geography"
+                },
                 "operator_order": list(US_STACKED_POOL_OPERATOR_ORDER),
                 "stage_receipts": {
                     "impute": {
@@ -1130,6 +1134,8 @@ def test_ready_stacked_pool_cannot_be_stripped_into_legacy_shape(
         "sampling",
         "clone_attachment",
         "input_pins_digest",
+        "block_ladder",
+        "block_first_geography",
         "late_producer_transition_authority_sha256",
         "stack_manifest",
         "terminal_gates",

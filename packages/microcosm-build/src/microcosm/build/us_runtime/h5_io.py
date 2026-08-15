@@ -112,6 +112,8 @@ _STACKED_ONLY_MANIFEST_FIELDS = frozenset(
         "sampling",
         "clone_attachment",
         "input_pins_digest",
+        "block_ladder",
+        "block_first_geography",
         "late_producer_transition_authority_sha256",
         "stack_manifest",
         "terminal_gates",
@@ -122,6 +124,8 @@ _REQUIRED_STACKED_MANIFEST_FIELDS = frozenset(
         "pipeline",
         "operator_order",
         "stage_receipts",
+        "block_ladder",
+        "block_first_geography",
     }
 )
 

@@ -31,6 +31,8 @@ validity-domain receipt, not a relaxed tolerance. Example (the committed
      --acs-household-zip "$ACS_H_ZIP" --acs-household-zip-sha256 "$ACS_H_SHA" \\
      --acs-person-zip "$ACS_P_ZIP" --acs-person-zip-sha256 "$ACS_P_SHA" \\
      --acs-rent-h5 "$RENT_H5" --acs-rent-h5-sha256 "$RENT_SHA" \\
+     --block-ladder-artifact "$BLOCK_LADDER" \\
+     --block-ladder-artifact-sha256 "$BLOCK_LADDER_SHA" \\
      --puf-h5 "$PUF_H5" --puf-h5-sha256 "$PUF_SHA" \\
      --puf-source-year-csv "$PUF_CSV" \\
      --puf-source-year-csv-sha256 "$PUF_CSV_SHA" --out "$OUT"
@@ -91,6 +93,12 @@ from microcosm.build.us_runtime.acs_transfer import (
 from microcosm.build.us_runtime.acs_transfer_bank import AcsTransferTargetBankStore
 from microcosm.build.us_runtime.asec_checkpoint import (
     load_asec_raw_stage_checkpoint,
+)
+from microcosm.build.us_runtime.geography_ladder import (
+    US_BLOCK_FIRST_GEOGRAPHY_RECEIPT_KEY,
+    UsBlockLadder,
+    load_us_block_ladder,
+    with_household_us_block_first_geography,
 )
 from microcosm.build.us_runtime.h5_io import (
     US_MULTISPINE_AGREEMENT_DIAGNOSTICS_ARTIFACT_KIND,
@@ -365,6 +373,7 @@ class _LoadedInputs:
     acs_build: Mapping[str, object]
     acs_native_inputs: Mapping[str, Mapping[str, Any]]
     puf_donor_build: Mapping[str, object]
+    block_ladder: UsBlockLadder | None = None
 
 
 def _sha256_argument(value: str) -> str:
@@ -476,6 +485,19 @@ def _parser() -> argparse.ArgumentParser:
         required=True,
         type=_sha256_argument,
         help="Expected SHA-256 of --puf-source-year-csv.",
+    )
+    parser.add_argument(
+        "--block-ladder-artifact",
+        type=Path,
+        help=(
+            "Local schema-v2 2020 block ladder used for block-first geography "
+            "construction."
+        ),
+    )
+    parser.add_argument(
+        "--block-ladder-artifact-sha256",
+        type=_sha256_argument,
+        help="Expected SHA-256 of --block-ladder-artifact.",
     )
     parser.add_argument(
         "--out",
@@ -689,8 +711,13 @@ def _verify_acs_file(
 def _verify_inputs(
     args: argparse.Namespace,
     outputs: PoolBuildOutputs,
+    *,
+    include_block_ladder: bool = False,
 ) -> tuple[dict[str, _VerifiedInput], AcsSourceManifest]:
-    source_paths = _configured_source_paths(args)
+    source_paths = _configured_source_paths(
+        args,
+        include_block_ladder=include_block_ladder,
+    )
     _validate_checkpoint_path_layout(outputs, source_paths=source_paths)
 
     output_paths = {
@@ -743,13 +770,23 @@ def _verify_inputs(
             args.puf_source_year_csv_sha256,
         ),
     }
+    if include_block_ladder:
+        verified["block_ladder"] = _verify_file(
+            "US block ladder",
+            args.block_ladder_artifact,
+            args.block_ladder_artifact_sha256,
+        )
     return verified, acs_source_manifest
 
 
-def _configured_source_paths(args: argparse.Namespace) -> set[Path]:
-    """Resolve the six immutable input locations without opening them."""
+def _configured_source_paths(
+    args: argparse.Namespace,
+    *,
+    include_block_ladder: bool = False,
+) -> set[Path]:
+    """Resolve immutable input locations without opening them."""
 
-    return {
+    paths = {
         Path(args.asec_raw_stage_h5).resolve(),
         Path(args.acs_household_zip).resolve(),
         Path(args.acs_person_zip).resolve(),
@@ -757,6 +794,9 @@ def _configured_source_paths(args: argparse.Namespace) -> set[Path]:
         Path(args.puf_h5).resolve(),
         Path(args.puf_source_year_csv).resolve(),
     }
+    if include_block_ladder:
+        paths.add(Path(args.block_ladder_artifact).resolve())
+    return paths
 
 
 def _validate_checkpoint_path_layout(
@@ -814,6 +854,7 @@ def _load_inputs(
     args: argparse.Namespace,
     *,
     acs_source_manifest: AcsSourceManifest,
+    include_block_ladder: bool = False,
 ) -> _LoadedInputs:
     asec, asec_raw_stage_checkpoint = load_asec_raw_stage_checkpoint(
         args.asec_raw_stage_h5
@@ -827,6 +868,11 @@ def _load_inputs(
     mapped_acs = map_acs_native_inputs(acs_frame)
     acs_rent_donor = load_acs_2022_rent_donor(args.acs_rent_h5)
     puf_donor, donor_build = _load_puf_donor(args)
+    block_ladder = (
+        load_us_block_ladder(args.block_ladder_artifact)
+        if include_block_ladder
+        else None
+    )
     return _LoadedInputs(
         asec=asec,
         acs=mapped_acs.frame,
@@ -836,6 +882,7 @@ def _load_inputs(
         acs_build=acs_build,
         acs_native_inputs=mapped_acs.native_inputs,
         puf_donor_build=donor_build,
+        block_ladder=block_ladder,
     )
 
 
@@ -852,7 +899,7 @@ def _load_puf_donor(
 
 
 def _loaded_input_receipts(loaded: _LoadedInputs) -> dict[str, object]:
-    return {
+    receipts: dict[str, object] = {
         "asec_raw_stage_checkpoint": loaded.asec_raw_stage_checkpoint,
         "acs_pums_build": loaded.acs_build,
         "acs_native_inputs": loaded.acs_native_inputs,
@@ -862,6 +909,16 @@ def _loaded_input_receipts(loaded: _LoadedInputs) -> dict[str, object]:
             "build_receipt": loaded.puf_donor_build,
         },
     }
+    if loaded.block_ladder is not None:
+        receipts["block_ladder"] = {
+            "kind": loaded.block_ladder.metadata["kind"],
+            "schema_version": loaded.block_ladder.metadata["schema_version"],
+            "blocks": len(loaded.block_ladder),
+            "population": int(loaded.block_ladder.population.sum()),
+            "sampling_basis": loaded.block_ladder.metadata["sampling_basis"],
+            "layer_vintages": loaded.block_ladder.layer_vintages,
+        }
+    return receipts
 
 
 def _validate_resumed_puf_donor(
@@ -1036,8 +1093,29 @@ def _configured_input_pins_digest(args: argparse.Namespace) -> str:
         "asec_raw_stage": args.asec_raw_stage_h5_sha256,
         "processed_puf": args.puf_h5_sha256,
         "puf_source_year": args.puf_source_year_csv_sha256,
+        "block_ladder": args.block_ladder_artifact_sha256,
     }
     return hashlib.sha256(_canonical_json_bytes(payload)).hexdigest()
+
+
+def _require_stacked_block_ladder(args: argparse.Namespace) -> None:
+    """Require the seventh pinned input only on the default stacked route."""
+
+    missing = [
+        option
+        for option, value in (
+            ("--block-ladder-artifact", args.block_ladder_artifact),
+            (
+                "--block-ladder-artifact-sha256",
+                args.block_ladder_artifact_sha256,
+            ),
+        )
+        if value is None
+    ]
+    if missing:
+        raise ValueError(
+            "stacked block-first geography requires " + " and ".join(missing) + "."
+        )
 
 
 def _stacked_checkpoint_base_identity(
@@ -3418,6 +3496,14 @@ def _stacked_manifest_payload(
     puf_donor_receipt = input_receipts.get("puf_donor")
     if not isinstance(puf_donor_receipt, Mapping):
         raise ValueError("Stacked pool input receipts have no PUF donor object.")
+    block_ladder_receipt = input_receipts.get("block_ladder")
+    if not isinstance(block_ladder_receipt, Mapping):
+        raise ValueError("Stacked pool input receipts have no block-ladder object.")
+    geography_receipt = result.frame.metadata.get(
+        US_BLOCK_FIRST_GEOGRAPHY_RECEIPT_KEY
+    )
+    if not isinstance(geography_receipt, Mapping):
+        raise ValueError("Stacked pool frame has no block-first geography receipt.")
     gates = _stacked_gate_payload(result)
     stack_manifest = _json_ready(result.stack_receipt)
     return {
@@ -3462,6 +3548,8 @@ def _stacked_manifest_payload(
         "acs_pums_build": input_receipts.get("acs_pums_build"),
         "acs_native_inputs": input_receipts.get("acs_native_inputs"),
         "puf_donor": dict(puf_donor_receipt),
+        "block_ladder": dict(block_ladder_receipt),
+        "block_first_geography": _json_ready(geography_receipt),
         "stack_manifest": stack_manifest,
         "assembly_receipt": result.assembly_receipt,
         "assembly_contract": {
@@ -4169,6 +4257,7 @@ def _main_stacked(args: argparse.Namespace) -> int:
     try:
         code_pin = _git_code_pin()
         predecessor = _logbook_predecessor(args)
+        _require_stacked_block_ladder(args)
         state.input_pins_digest = _configured_input_pins_digest(args)
         logbook_seed = _validate_stacked_seed(
             args.sample_seed,
@@ -4194,7 +4283,11 @@ def _main_stacked(args: argparse.Namespace) -> int:
             _canonical_json_bytes(configured_identity)
         ).hexdigest()
         _append_phase(state, "configured")
-        verified_inputs, acs_source_manifest = _verify_inputs(args, outputs)
+        verified_inputs, acs_source_manifest = _verify_inputs(
+            args,
+            outputs,
+            include_block_ladder=True,
+        )
         state.input_pins_digest = _input_pins_digest(verified_inputs)
         _append_phase(state, "inputs_verified")
         stacked_checkpoint_root = _stacked_checkpoint_root(
@@ -4209,7 +4302,10 @@ def _main_stacked(args: argparse.Namespace) -> int:
         )
         _validate_checkpoint_path_layout(
             outputs,
-            source_paths=_configured_source_paths(args),
+            source_paths=_configured_source_paths(
+                args,
+                include_block_ladder=True,
+            ),
         )
         checkpoint_identity = _discover_stacked_checkpoint_identity(
             outputs.checkpoint_root,
@@ -4264,7 +4360,11 @@ def _main_stacked(args: argparse.Namespace) -> int:
                     _append_phase(state, "resume_donors_loaded")
 
         if resume is None:
-            loaded = _load_inputs(args, acs_source_manifest=acs_source_manifest)
+            loaded = _load_inputs(
+                args,
+                acs_source_manifest=acs_source_manifest,
+                include_block_ladder=True,
+            )
             _append_phase(state, "sources_loaded")
             assert_operator_free_source_frame(
                 loaded.asec,
@@ -4281,7 +4381,16 @@ def _main_stacked(args: argparse.Namespace) -> int:
                 sample_fraction=args.sample_fraction,
                 sample_seed=args.sample_seed,
             )
-            stack_frame = stack.frame
+            if loaded.block_ladder is None:  # pragma: no cover - loader contract
+                raise AssertionError("Stacked input loading omitted the block ladder.")
+            block_ladder_pin = verified_inputs["block_ladder"]
+            stack_frame = with_household_us_block_first_geography(
+                stack.frame,
+                loaded.block_ladder,
+                seed=POOL_RANDOM_SEED,
+                ladder_artifact_sha256=block_ladder_pin.actual_sha256,
+            )
+            _append_phase(state, "block_first_geography_assigned")
             stack_receipt = stack.receipt
             puf_donor = loaded.puf_donor
             acs_rent_donor = loaded.acs_rent_donor

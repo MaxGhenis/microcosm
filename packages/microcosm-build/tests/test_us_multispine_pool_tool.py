@@ -486,6 +486,7 @@ def _verified_inputs_fixture(pool_tool: ModuleType, root: Path):
             "acs_rent_donor",
             "processed_puf",
             "puf_source_year",
+            "block_ladder",
         ),
         start=1,
     ):
@@ -881,6 +882,7 @@ def _stacked_main_argv(
         "acs-rent-h5",
         "puf-h5",
         "puf-source-year-csv",
+        "block-ladder-artifact",
     ):
         arguments.extend([f"--{option}", str(tmp_path / option)])
         arguments.extend([f"--{option}-sha256", "1" * 64])
@@ -1271,6 +1273,30 @@ def _install_stacked_entrypoint_stubs(
     verified = _verified_inputs_fixture(pool_tool, tmp_path / "pins")
     source_manifest = pool_tool.load_acs_source_manifest()
     puf_donor = pd.DataFrame({"fixture": np.arange(7)})
+    block_ladder = pool_tool.UsBlockLadder(
+        block_geoid=np.asarray([100_010_001_001_001], dtype=np.int64),
+        population=np.asarray([1.0]),
+        puma=np.asarray([1_000_001], dtype=np.int64),
+        congressional_district_geoid=np.asarray([1_000], dtype=np.int64),
+        sldu=np.asarray(["001"]),
+        sldl=np.asarray(["001"]),
+        place_fips=np.asarray([1], dtype=np.int64),
+        cbsa_code=np.asarray([1], dtype=np.int64),
+        metadata={
+            "kind": "us_block_ladder",
+            "schema_version": 2,
+            "sampling_basis": "population",
+            "block_vintage": "2020_tabulation_blocks",
+            "layers": {
+                "puma": {"vintage": "2020_puma"},
+                "congressional_district": {"vintage": "119th_congress"},
+                "sldu": {"vintage": "2020_baf"},
+                "sldl": {"vintage": "2020_baf"},
+                "place": {"vintage": "2020_census"},
+                "cbsa": {"vintage": "omb_2023_delineations"},
+            },
+        },
+    )
     loaded = pool_tool._LoadedInputs(
         asec=_many_household_source_frame(),
         acs=_many_household_source_frame(measured_offset=1_000.0),
@@ -1280,16 +1306,17 @@ def _install_stacked_entrypoint_stubs(
         acs_build={"artifact": "fixture-acs-build"},
         acs_native_inputs={},
         puf_donor_build={"artifact": "fixture-puf-build"},
+        block_ladder=block_ladder,
     )
     monkeypatch.setattr(
         pool_tool,
         "_verify_inputs",
-        lambda _args, _outputs: (verified, source_manifest),
+        lambda _args, _outputs, **_kwargs: (verified, source_manifest),
     )
     monkeypatch.setattr(
         pool_tool,
         "_load_inputs",
-        lambda _args, *, acs_source_manifest: loaded,
+        lambda _args, *, acs_source_manifest, **_kwargs: loaded,
     )
     monkeypatch.setattr(
         pool_tool,
@@ -1310,6 +1337,38 @@ def _install_stacked_entrypoint_stubs(
         return real_stack(*args, **kwargs)
 
     monkeypatch.setattr(pool_tool, "assemble_stacked_spine", stack)
+
+    def assign_geography(frame, ladder, *, seed, ladder_artifact_sha256):
+        order.append("geography")
+        assert ladder is block_ladder
+        assert seed == pool_tool.POOL_RANDOM_SEED
+        assert ladder_artifact_sha256 == verified["block_ladder"].actual_sha256
+        tables = {entity: frame.table(entity) for entity in frame.entities}
+        for link_name in frame.links:
+            tables[link_name] = frame.link(link_name)
+        return Frame(
+            tables,
+            frame.schema,
+            {
+                entity: frame.weights_for(entity)
+                for entity in frame.weighted_entities
+            },
+            frame.strata,
+            mass_log=frame.mass_log,
+            metadata={
+                **frame.metadata,
+                pool_tool.US_BLOCK_FIRST_GEOGRAPHY_RECEIPT_KEY: {
+                    "fixture": True,
+                    "ladder_artifact_sha256": ladder_artifact_sha256,
+                },
+            },
+        )
+
+    monkeypatch.setattr(
+        pool_tool,
+        "with_household_us_block_first_geography",
+        assign_geography,
+    )
 
     real_build_stacked_pool = pool_tool.build_stacked_pool
 
@@ -1670,12 +1729,20 @@ def test_stacked_tool_entrypoint_fixture_e2e_emits_one_logbook_row_at_every_term
     assert "f001-s578-asec1-acs1" in row.build_id
     assert full_puf_rows == 7
     if terminal == "error":
-        assert order == ["stack", "build_stacked_pool", "prepare", "gap", "puf"]
+        assert order == [
+            "stack",
+            "geography",
+            "build_stacked_pool",
+            "prepare",
+            "gap",
+            "puf",
+        ]
         assert row.gate_verdicts["pipeline_error"]["verdict"] == "error"
         assert row.artifact_location is None
     else:
         assert order == [
             "stack",
+            "geography",
             "build_stacked_pool",
             "prepare",
             "gap",
@@ -1710,6 +1777,11 @@ def test_stacked_tool_entrypoint_fixture_e2e_emits_one_logbook_row_at_every_term
         assert manifest["pool_h5"]["materializer_version"] == (
             pool_tool.US_MULTISPINE_POOL_H5_MATERIALIZER_VERSION
         )
+        assert manifest["provenance_pins"]["block_ladder"]["actual_sha256"] == (
+            manifest["block_first_geography"]["ladder_artifact_sha256"]
+        )
+        assert manifest["block_ladder"]["schema_version"] == 2
+        assert manifest["block_first_geography"]["fixture"] is True
         with pd.HDFStore(manifest["pool_h5"]["path"], mode="r") as store:
             h5_metadata = json.loads(str(store["_populace_staging_metadata"].iloc[0]))
         assert h5_metadata["materializer_version"] == (
@@ -1753,6 +1825,7 @@ def test_stacked_tool_entrypoint_fixture_e2e_emits_one_logbook_row_at_every_term
             )
         assert manifest["operator_order"] == [
             "assemble_stacked_spine",
+            "assign_us_block_first_geography",
             "prepare_multispine_source_inputs_for_clone",
             "gap_fill_stacked_spine",
             "run_stacked_late_producer_dag",
@@ -1800,6 +1873,7 @@ def test_stacked_entrypoint_rejects_noncanonical_post_puf_transfer_receipt(
 
     assert order == [
         "stack",
+        "geography",
         "build_stacked_pool",
         "prepare",
         "gap",
@@ -2162,6 +2236,7 @@ def test_stacked_checkpoint_identity_binds_both_scale_controls_and_manifest(
 
     def identity(
         *,
+        pins=verified,
         stack=base_stack,
         sample_fraction: float = 0.10,
         sample_seed: int = 578,
@@ -2169,7 +2244,7 @@ def test_stacked_checkpoint_identity_binds_both_scale_controls_and_manifest(
         clone_seed: int = 578,
     ) -> dict[str, object]:
         return pool_tool._stacked_checkpoint_base_identity(
-            verified,
+            pins,
             stack_receipt=stack.receipt,
             sample_fraction=sample_fraction,
             sample_seed=sample_seed,
@@ -2193,8 +2268,15 @@ def test_stacked_checkpoint_identity_binds_both_scale_controls_and_manifest(
     mutated_receipt = copy.deepcopy(dict(base_stack.receipt))
     mutated_receipt["survey_samples"]["acs"]["selected_household_ids_sha256"] = "f" * 64
     mutated_stack = SimpleNamespace(receipt=mutated_receipt)
+    changed_block_pin = replace(
+        verified["block_ladder"],
+        expected_sha256="0" * 64,
+        actual_sha256="0" * 64,
+    )
+    changed_pins = {**verified, "block_ladder": changed_block_pin}
     identities = {
         "base": identity(),
+        "block_ladder_input": identity(pins=changed_pins),
         "sample_fraction": identity(
             stack=fraction_stack,
             sample_fraction=0.01,
@@ -2386,9 +2468,10 @@ def test_stacked_checkpoint_identity_binds_v11_semantic_contracts(
     current = identity()
     pool_code = current["pool_code"]
     assert current["materializer_version"] == 11
-    assert current["stacked_authority"]["version"] == 10
+    assert current["stacked_authority"]["version"] == 11
     assert pool_code["operator_order"] == [
         "assemble_stacked_spine",
+        "assign_us_block_first_geography",
         "prepare_multispine_source_inputs_for_clone",
         "gap_fill_stacked_spine",
         "run_stacked_late_producer_dag",
@@ -2957,6 +3040,7 @@ def test_stacked_entrypoint_resumes_each_checkpoint_boundary(
 
     assert cold_order == [
         "stack",
+        "geography",
         "build_stacked_pool",
         "prepare",
         "gap",
@@ -3230,7 +3314,7 @@ def test_legacy_entrypoint_publication_matches_origin_main_golden(
     outputs = pool_tool._output_paths(output, checkpoint_root=checkpoint_root)
     manifest = pool_tool._read_json_object(outputs.manifest)
     diagnostics = pool_tool._read_json_object(outputs.agreement_diagnostics)
-    assert pool_tool.POOL_MANIFEST_SCHEMA_VERSION == 8
+    assert pool_tool.POOL_MANIFEST_SCHEMA_VERSION == 9
     assert pool_tool.POOL_STAGE_CHECKPOINT_MATERIALIZER_VERSION == 7
     assert manifest["schema_version"] == 4
     assert diagnostics["schema_version"] == 4
@@ -3290,7 +3374,7 @@ def test_main_dispatches_only_to_the_selected_pipeline(
     assert calls == (["legacy"] if legacy else ["stacked"])
 
 
-def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
+def test_parser_exposes_seven_pinned_inputs_out_and_checkpoint_root(
     pool_tool: ModuleType,
 ) -> None:
     parser = pool_tool._parser()
@@ -3304,6 +3388,7 @@ def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
         ("acs_rent_h5", "acs_rent_h5_sha256"),
         ("puf_h5", "puf_h5_sha256"),
         ("puf_source_year_csv", "puf_source_year_csv_sha256"),
+        ("block_ladder_artifact", "block_ladder_artifact_sha256"),
     )
     expected_destinations = {destination for pair in pairs for destination in pair} | {
         "logbook_prev_row_digest",
@@ -3328,8 +3413,12 @@ def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
             "legacy_two_spine",
             "sample_fraction",
             "sample_seed",
+            "block_ladder_artifact",
+            "block_ladder_artifact_sha256",
         }
     )
+    assert not actions["block_ladder_artifact"].required
+    assert not actions["block_ladder_artifact_sha256"].required
     assert not actions["checkpoint_root"].required
     assert actions["out"].option_strings == ["--out"]
     assert actions["checkpoint_root"].option_strings == ["--checkpoint-root"]
@@ -3354,6 +3443,28 @@ def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
         for option in option_names
         for forbidden in ("tolerance", "target", "per-target")
     )
+
+
+@pytest.mark.parametrize(
+    ("path", "sha256", "missing_option"),
+    [
+        (None, "a" * 64, "--block-ladder-artifact"),
+        (Path("ladder.npz"), None, "--block-ladder-artifact-sha256"),
+    ],
+)
+def test_stacked_route_requires_both_block_ladder_pin_arguments(
+    pool_tool: ModuleType,
+    path: Path | None,
+    sha256: str | None,
+    missing_option: str,
+) -> None:
+    args = SimpleNamespace(
+        block_ladder_artifact=path,
+        block_ladder_artifact_sha256=sha256,
+    )
+
+    with pytest.raises(ValueError, match=missing_option):
+        pool_tool._require_stacked_block_ladder(args)
 
 
 def test_pool_tool_structurally_accepts_only_the_raw_stage_loader(
@@ -3815,6 +3926,7 @@ def test_sha_mismatch_refuses_before_loading_or_writing(
         "acs-rent-h5": tmp_path / "rent.h5",
         "puf-h5": tmp_path / "puf.h5",
         "puf-source-year-csv": tmp_path / "puf.csv",
+        "block-ladder-artifact": tmp_path / "block-ladder.npz",
     }
     for path in source_paths.values():
         path.write_bytes(b"fixture input")
