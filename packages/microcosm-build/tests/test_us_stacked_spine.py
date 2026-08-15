@@ -39,7 +39,13 @@ from microcosm.build.serialization_dtypes import CANONICAL_STRING_DTYPE
 from microcosm.build.us_runtime.acs_income_universe import (
     apply_acs_pums_earnings_universe_zeros,
 )
-from microcosm.build.us_runtime.acs_transfer import AcsTransferResult
+from microcosm.build.us_runtime.acs_transfer import (
+    ACS_GROUP_TRANSFER_PREDICTORS,
+    ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
+    ACS_PERSON_TRANSFER_PREDICTORS,
+    AcsPredictorSet,
+    AcsTransferResult,
+)
 from microcosm.build.us_runtime.acs_transfer_bank import AcsTransferTargetBankStore
 from microcosm.build.us_runtime.late_producer_dag import (
     ProducerContract,
@@ -1626,6 +1632,32 @@ _CANONICAL_RENT_ABSENCE_RULE = GapFillAbsenceRule(
 )
 
 
+_TEST_PERSON_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_PERSON_TRANSFER_PREDICTORS,
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 4, 5, 6)
+    ),
+)
+_TEST_PUF_PERSON_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_PERSON_TRANSFER_PREDICTORS,
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 5, 6)
+    ),
+)
+_TEST_HOUSING_PREDICTOR_SET = AcsPredictorSet(
+    required=(
+        *ACS_PERSON_TRANSFER_PREDICTORS,
+        *ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[-2:],
+    ),
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 4)
+    ),
+)
+_TEST_GROUP_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_GROUP_TRANSFER_PREDICTORS,
+)
+
+
 _GAP_FILL_TEST_PLAN = (
     GapFillDirection(
         name="asec_survey_to_acs",
@@ -1637,12 +1669,19 @@ _GAP_FILL_TEST_PLAN = (
                 "model_required_boolean": ("is_disabled",),
             }
         },
+        predictor_sets={
+            "person": {
+                "model_required_numeric": _TEST_PERSON_PREDICTOR_SET,
+                "model_required_boolean": _TEST_PERSON_PREDICTOR_SET,
+            }
+        },
     ),
     GapFillDirection(
         name="asec_housing_to_acs",
         recipient_channel="acs",
         donor_channel="asec",
         target_families={"person": {"housing": ("pre_subsidy_rent",)}},
+        predictor_sets={"person": {"housing": _TEST_HOUSING_PREDICTOR_SET}},
         recipient_absence_rules=(_CANONICAL_RENT_ABSENCE_RULE,),
     ),
 )
@@ -2515,6 +2554,24 @@ def test_gap_fill_plan_covers_declared_families_exactly() -> None:
     assert early_keys | late_keys == full_keys
 
 
+def test_gap_fill_direction_refuses_predictor_source_target_leakage() -> None:
+    with pytest.raises(ValueError, match="target-bearing predictor source"):
+        GapFillDirection(
+            name="fixture",
+            recipient_channel="acs",
+            donor_channel="asec",
+            target_families={"person": {"fixture": ("employment_income_before_lsr",)}},
+            predictor_sets={
+                "person": {
+                    "fixture": AcsPredictorSet(
+                        required=ACS_PERSON_TRANSFER_PREDICTORS,
+                        optional=("__acs_transfer_employment_income",),
+                    )
+                }
+            },
+        )
+
+
 def test_every_declared_direction_producer_precedes_its_activation_check() -> None:
     receipt = stacked_gap_fill_producer_schedule_receipt()
     assert receipt["status"] == "all_producers_precede_activation"
@@ -2970,6 +3027,13 @@ def test_gap_fill_activation_authority_rejects_nonlive_declared_channel(
             recipient_channel=recipient_channel,
             donor_channel=donor_channel,
             target_families={"person": {"complete": ("age",)}},
+            predictor_sets={
+                "person": {
+                    "complete": AcsPredictorSet(
+                        required=("is_female", "__acs_transfer_state_fips")
+                    )
+                }
+            },
         ),
     )
 
@@ -3021,8 +3085,28 @@ def _post_puf_transfer_fixture() -> Frame:
         np.asarray([True, False]),
         int(source_producer_rows.sum()),
     )
+    # The real late entry has completed early gap-fill and the primary PUF
+    # pass. Materialize that fixture-sized tax-shaped predictor surface here.
+    for column in (
+        "employment_income_before_lsr",
+        "self_employment_income_before_lsr",
+        "taxable_interest_income",
+        "qualified_dividend_income",
+        "non_qualified_dividend_income",
+    ):
+        person[column] = pd.to_numeric(person[column], errors="raise").fillna(0.0)
+    person["short_term_capital_gains"] = np.resize(
+        np.asarray([0.0, 10.0, -5.0]),
+        len(person),
+    )
+    person["long_term_capital_gains_before_response"] = np.resize(
+        np.asarray([0.0, 25.0, 100.0]),
+        len(person),
+    )
     tables = {entity: attached.table(entity) for entity in attached.entities}
     tables["person"] = person
+    tables["tax_unit"] = tables["tax_unit"].copy()
+    tables["tax_unit"]["filing_status_input"] = "SINGLE"
     return Frame(
         tables,
         attached.schema,
@@ -3316,19 +3400,24 @@ def _fill_late_contract_surface(
     )
 
 
-def test_canonical_transfer_rejects_nonfinite_optional_numeric_as_invalid() -> None:
+def test_canonical_transfer_rejects_nonfinite_required_numeric_as_invalid() -> None:
     contract = stacked_spine_module.CANONICAL_US_LATE_PRODUCER_REGISTRY[
         "transfer:person/adult_care"
     ]
+    group = next(
+        group
+        for group in stacked_spine_module.CANONICAL_US_LATE_TRANSFER_GROUPS
+        if group.name == contract.name
+    )
     complete = _fill_late_contract_surface(
         _post_puf_transfer_fixture(),
         contracts=(contract,),
         include_outputs=False,
     )
-    person = complete.table("person").copy()
-    person.loc[person.index[0], "employment_income_before_lsr"] = np.inf
+    tax_unit = complete.table("tax_unit").copy()
+    tax_unit.loc[tax_unit.index[0], "employment_income"] = np.inf
     tables = {entity: complete.table(entity) for entity in complete.entities}
-    tables["person"] = person
+    tables["tax_unit"] = tax_unit
     poisoned = Frame(
         tables,
         complete.schema,
@@ -3337,15 +3426,28 @@ def test_canonical_transfer_rejects_nonfinite_optional_numeric_as_invalid() -> N
         mass_log=complete.mass_log,
         metadata=complete.metadata,
     )
+    resources = stacked_spine_module._late_transfer_resource_receipts(
+        group_name=group.name,
+        entity=group.entity,
+        family=group.family,
+        targets=group.targets,
+        seed=0,
+        n_estimators=100,
+        max_targets_per_fit=(
+            stacked_spine_module.DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT
+        ),
+        target_bank=None,
+    )
     requirement = next(
         item
         for item in contract.inputs
-        if item.column == "@effective:optional_employment_income"
+        if item.column == "@effective:employment_income"
     )
 
     unfilled, invalid = stacked_spine_module._late_input_readiness_rows(
         poisoned,
         contract,
+        available_input_receipts=resources,
     )
     absence = stacked_spine_module._late_declared_absence_receipts(
         contract,
@@ -3355,12 +3457,13 @@ def test_canonical_transfer_rejects_nonfinite_optional_numeric_as_invalid() -> N
 
     assert unfilled[requirement] == 0
     assert invalid[requirement] == 1
-    assert requirement.tolerated_absence_receipts[0] not in absence
+    assert requirement.tolerated_absence_receipts == ()
+    assert absence == {}
     with pytest.raises(
         ValueError,
         match=(
             r"(?s)transfer:person/adult_care.*"
-            r"person\.@effective:optional_employment_income.*1 invalid.*"
+            r"tax_unit\.@effective:employment_income.*1 invalid.*"
             r"post_clone_input_surface"
         ),
     ):
@@ -4135,8 +4238,14 @@ def test_late_transfer_resources_bind_all_callback_controls() -> None:
         acs_transfer_module.acs_transfer_execution_contract_identity(
             targets=group.targets,
             derive_schedule_d=False,
+            predictor_sets=(
+                stacked_spine_module.declared_stacked_post_puf_predictor_sets(
+                    group.target_families
+                )
+            ),
         )
     )
+    assert model["transfer_execution_contract"]["schema_version"] == 3
     assert model["transfer_execution_contract"]["post_transfer_structure"][
         "schedule_d_capital_gain_distributions"
     ] == {
@@ -4147,6 +4256,13 @@ def test_late_transfer_resources_bind_all_callback_controls() -> None:
         "preserve_preexisting_nonnull": True,
         "share_asset": None,
     }
+
+
+def test_late_predictor_sets_refuse_an_undeclared_family() -> None:
+    with pytest.raises(ValueError, match="No stacked post-PUF predictor set"):
+        stacked_spine_module.declared_stacked_post_puf_predictor_sets(
+            {"person": {"not_declared": ("fixture_target",)}}
+        )
 
 
 def test_late_transfer_refuses_a_stale_bound_execution_contract(
@@ -4160,10 +4276,24 @@ def test_late_transfer_refuses_a_stale_bound_execution_contract(
     bound = acs_transfer_module.acs_transfer_execution_contract_identity(
         targets=group.targets,
         derive_schedule_d=False,
+        predictor_sets=stacked_spine_module.declared_stacked_post_puf_predictor_sets(
+            group.target_families
+        ),
     )
-    changed_codes = dict(acs_transfer_module._TENURE_CODES)
-    changed_codes["OWN"] = 9.0
-    monkeypatch.setattr(acs_transfer_module, "_TENURE_CODES", changed_codes)
+    projection_identity = (
+        acs_transfer_module.puf_tax_detail_predictor_projection_identity
+    )
+
+    def changed_projection_identity() -> dict[str, object]:
+        changed = projection_identity()
+        changed["version"] = 999
+        return changed
+
+    monkeypatch.setattr(
+        acs_transfer_module,
+        "puf_tax_detail_predictor_projection_identity",
+        changed_projection_identity,
+    )
 
     with pytest.raises(
         ValueError,
@@ -4173,6 +4303,11 @@ def test_late_transfer_refuses_a_stale_bound_execution_contract(
             _post_puf_transfer_fixture(),
             _post_puf_transfer_fixture(),
             target_families=group.target_families,
+            predictor_sets=(
+                stacked_spine_module.declared_stacked_post_puf_predictor_sets(
+                    group.target_families
+                )
+            ),
             donor_spine=stacked_spine_module.ASEC_PUF_DONOR_SPINE,
             donor_channel=None,
             derive_schedule_d=False,
@@ -4807,6 +4942,11 @@ def _run_real_late_executor_fixture(
             acs_transfer_module.acs_transfer_execution_contract_identity(
                 targets=group.targets,
                 derive_schedule_d=False,
+                predictor_sets=(
+                    stacked_spine_module.declared_stacked_post_puf_predictor_sets(
+                        group.target_families
+                    )
+                ),
             )
         )
         transfer_result = AcsTransferResult(
@@ -5376,6 +5516,9 @@ def test_post_puf_transfer_preserves_complete_asec_source_producers() -> None:
     assert receipt["imputed_rows"] == int((~producer_rows).sum())
     assert receipt["unmodeled_rows"] == 0
     assert receipt["residual_null_rows"] == 0
+    assert result.transfer_result.imputed_inputs[0].predictors == tuple(
+        stacked_spine_module.PUF_TAX_DETAIL_DEFAULT_PREDICTORS
+    )
 
 
 @pytest.mark.parametrize(
@@ -6961,7 +7104,7 @@ def test_self_digested_partial_authority_cannot_forge_production_identity() -> N
         GateReport((result,)).to_manifest()
 
 
-@pytest.mark.parametrize("stale_version", (1, 2, 3, 4, 5, 6, 7, 8, 9))
+@pytest.mark.parametrize("stale_version", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 def test_self_consistent_stale_stacked_authority_versions_are_rejected(
     stale_version: int,
 ) -> None:
@@ -6981,7 +7124,7 @@ def test_self_consistent_stale_stacked_authority_versions_are_rejected(
     )
     stale_receipt = stacked_spine_module._authority_receipt(stale)
 
-    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 10
+    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 11
     assert stale_receipt["version"] == stale_version
     assert stale_receipt["integrity_valid"] is True
     assert stale_receipt["digest_matches_declared"] is True
@@ -7000,7 +7143,7 @@ def test_stacked_authority_binds_import_validated_late_producer_schedule() -> No
     receipt = stacked_spine_module.stacked_spine_authority_receipt()
     component = receipt["components"]["late_producer_schedule"]
 
-    assert receipt["version"] == 10
+    assert receipt["version"] == 11
     assert component["producer_count"] == 38
     assert component["schedule_sha256"] == (
         stacked_spine_module.CANONICAL_US_LATE_PRODUCER_SCHEDULE.sha256
@@ -8233,12 +8376,23 @@ _E2E_GAP_FILL_PLAN = (
                 "puf_tax_itemization": ("health_savings_account_ald",),
             },
         },
+        predictor_sets={
+            "person": {
+                "puf_tax_itemization": _TEST_PUF_PERSON_PREDICTOR_SET,
+                "model_required_numeric": _TEST_PERSON_PREDICTOR_SET,
+                "model_required_boolean": _TEST_PERSON_PREDICTOR_SET,
+            },
+            "tax_unit": {
+                "puf_tax_itemization": _TEST_GROUP_PREDICTOR_SET,
+            },
+        },
     ),
     GapFillDirection(
         name="asec_housing_to_acs",
         recipient_channel="acs",
         donor_channel="asec",
         target_families={"person": {"housing": ("pre_subsidy_rent",)}},
+        predictor_sets={"person": {"housing": _TEST_HOUSING_PREDICTOR_SET}},
         recipient_absence_rules=(_CANONICAL_RENT_ABSENCE_RULE,),
     ),
 )

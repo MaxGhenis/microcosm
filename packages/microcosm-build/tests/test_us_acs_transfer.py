@@ -20,7 +20,9 @@ from microcosm.build.us_runtime.acs_transfer import (
     ACS_NATIVE_PERSON_INPUTS,
     ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
     ACS_PERSON_TRANSFER_PREDICTORS,
+    AcsPredictorSet,
     AcsTransferResult,
+    declared_acs_transfer_predictor_sets,
     declared_acs_transfer_target_families,
     default_acs_transfer_target_families,
     transfer_acs_inputs,
@@ -28,6 +30,7 @@ from microcosm.build.us_runtime.acs_transfer import (
 from microcosm.build.us_runtime.acs_transfer_bank import (
     AcsTransferTargetBankStore,
 )
+from microcosm.build.us_runtime.cps_carried import CPS_CARRIED_PERSON_PREDICTORS
 from microcosm.build.us_runtime.puf_support import clone_us_frame_for_puf_support
 from microcosm.build.us_runtime.spine_assembly import assemble_spines
 from microcosm.frame import US_SCHEMA, EntitySchema, Frame, WeightKind, Weights
@@ -740,6 +743,854 @@ def test_declared_families_are_independent_of_release_coverage_surface() -> None
     )
     assert "has_esi" in production_declared["person"]["model_required_boolean"]
     assert "receives_wic" in production_declared["person"]["model_required_boolean"]
+
+
+def test_declared_boolean_predictors_use_eligibility_and_target_chaining() -> None:
+    target_families = {
+        "person": {
+            "model_required_boolean": (
+                "is_blind",
+                "is_disabled",
+                "has_champva_health_coverage_at_interview",
+            ),
+            "model_required_numeric": ("veterans_benefits",),
+        }
+    }
+
+    predictor_sets = declared_acs_transfer_predictor_sets(target_families)["person"]
+    boolean = predictor_sets["model_required_boolean"]
+    numeric = predictor_sets["model_required_numeric"]
+
+    assert "__acs_transfer_is_veteran_or_active_military" in boolean.optional
+    assert "__acs_transfer_household_has_veteran_or_active_military" in boolean.optional
+    assert "__acs_transfer_has_medicare_coverage" in boolean.optional
+    assert "__acs_transfer_usual_hours_worked" in boolean.optional
+    assert boolean != numeric
+    assert "__acs_transfer_is_disabled" not in (
+        *boolean.required,
+        *boolean.optional,
+    )
+    assert not {
+        "__acs_transfer_difficulty_dressing_or_bathing",
+        "__acs_transfer_difficulty_hearing",
+        "__acs_transfer_difficulty_seeing",
+        "__acs_transfer_difficulty_doing_errands",
+        "__acs_transfer_difficulty_walking_or_climbing_stairs",
+        "__acs_transfer_difficulty_remembering_or_making_decisions",
+    }.intersection(boolean.optional)
+
+    from microcosm.build.us_runtime.multispine_pool import (
+        pool_pre_clone_gap_fill_target_families,
+    )
+
+    chained_targets = pool_pre_clone_gap_fill_target_families()["person"][
+        "model_required_boolean"
+    ]
+    assert chained_targets[:3] == (
+        "is_blind",
+        "is_disabled",
+        "has_champva_health_coverage_at_interview",
+    )
+
+    identity = acs_transfer_module.acs_transfer_execution_contract_identity(
+        predictor_sets={"person": predictor_sets}
+    )
+    assert identity["schema_version"] == 3
+    assert identity["availability_pattern_encoding"] == {
+        "dtype": "uint64",
+        "max_optional_predictors": 64,
+    }
+    assert identity["donor_direct_components"] == {
+        "__acs_transfer_employment_income": ["employment_income_before_lsr"],
+        "__acs_transfer_self_employment_income": ["self_employment_income_before_lsr"],
+    }
+    assert identity["target_leakage_policy"] == {
+        "version": 1,
+        "exact_match": "strip_internal_acs_transfer_prefix_then_compare",
+        "source_component_match": (
+            "refuse targets used by direct or combined donor predictor sources"
+        ),
+        "group_projection_covered": True,
+    }
+    assert identity["family_predictor_sets"]["person"]["model_required_boolean"] == {
+        "required": list(boolean.required),
+        "optional": list(boolean.optional),
+    }
+    expanded = identity["expanded_person_predictor_mappings"]
+    assert expanded["version"] == 2
+    assert expanded["recipient_raw_row_scope"] == {
+        "canonical_surface_present": (
+            "any_reviewed_canonical_predictor_value_blocks_all_raw_decoding"
+        ),
+        "canonical_surface_empty": "decode_reviewed_raw_recipient_columns",
+    }
+    assert set(expanded["features"]) == set(
+        acs_transfer_module._CANONICAL_PERSON_FEATURE_COLUMNS
+    )
+    legacy_identity = acs_transfer_module.acs_transfer_execution_contract_identity()
+    assert legacy_identity["schema_version"] == 2
+    assert "family_predictor_sets" not in legacy_identity
+    assert "donor_direct_components" not in legacy_identity
+    assert "target_leakage_policy" not in legacy_identity
+    assert "expanded_person_predictor_mappings" not in legacy_identity
+
+
+def test_expanded_person_predictor_registry_matches_the_cps_carry_surface() -> None:
+    canonical = acs_transfer_module._CANONICAL_PERSON_FEATURE_COLUMNS
+    numeric = acs_transfer_module._ACS_NUMERIC_PERSON_FEATURE_SOURCES
+    binary = acs_transfer_module._ACS_BINARY_PERSON_FEATURE_SOURCES
+    household_count = "__acs_transfer_household_person_count"
+    household_veteran = "__acs_transfer_household_has_veteran_or_active_military"
+
+    assert frozenset(canonical.values()) == CPS_CARRIED_PERSON_PREDICTORS
+    assert set(canonical) == set(numeric) | set(binary) | {
+        household_count,
+        household_veteran,
+    }
+    assert not set(numeric).intersection(binary)
+
+    identity = acs_transfer_module._expanded_person_predictor_mapping_identity()
+    features = identity["features"]
+    for feature, canonical_column in canonical.items():
+        assert features[feature]["donor_canonical_column"] == canonical_column
+    assert features["__acs_transfer_marital_status_code"]["recipient"]["source"] == (
+        "MAR"
+    )
+    assert features["__acs_transfer_relationship_code"]["recipient"] == {
+        "source": "A_EXPRRP",
+        "codec": "reviewed_code_identity_preserve_blank",
+        "valid_codes": [
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            5.0,
+            7.0,
+            8.0,
+            9.0,
+            10.0,
+            11.0,
+            12.0,
+            13.0,
+            14.0,
+        ],
+    }
+    assert features["__acs_transfer_is_veteran_or_active_military"]["recipient"] == {
+        "source": "MIL",
+        "codec": "reviewed_binary_codes_preserve_blank",
+        "true_codes": [1.0, 2.0],
+        "false_codes": [3.0, 4.0],
+    }
+    assert features[household_veteran]["recipient"] == {
+        "source": "MIL",
+        "person_codec": "reviewed_binary_codes_preserve_blank",
+        "true_codes": [1.0, 2.0],
+        "false_codes": [3.0, 4.0],
+        "household_codec": (
+            "three_valued_household_any_true_else_all_known_false_else_missing"
+        ),
+    }
+
+
+def test_household_veteran_predictor_matches_raw_and_canonical_surfaces() -> None:
+    feature = "__acs_transfer_household_has_veteran_or_active_military"
+    donor_person_values = [0.0, 1.0, 0.0, 0.0, 0.0, np.nan, 1.0, np.nan]
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {"is_veteran_or_active_military": donor_person_values},
+    )
+    raw_recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {"MIL": [4.0, 1.0, 4.0, 4.0, np.nan, 4.0]},
+    )
+    canonical_recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            "is_veteran_or_active_military": [
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                np.nan,
+                0.0,
+            ]
+        },
+    )
+    predictor_set = AcsPredictorSet(
+        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        optional=(feature,),
+    )
+
+    raw_surface = acs_transfer_module._person_feature_surface(
+        donor,
+        raw_recipient,
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+    canonical_surface = acs_transfer_module._person_feature_surface(
+        donor,
+        canonical_recipient,
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+
+    np.testing.assert_array_equal(
+        raw_surface.donor[feature].to_numpy(),
+        [1.0, 1.0, 0.0, 0.0, np.nan, np.nan, 1.0, 1.0],
+    )
+    expected_recipient = [1.0, 1.0, 0.0, np.nan, np.nan, np.nan]
+    np.testing.assert_array_equal(
+        raw_surface.recipient[feature].to_numpy(),
+        expected_recipient,
+    )
+    np.testing.assert_array_equal(
+        canonical_surface.recipient[feature].to_numpy(),
+        expected_recipient,
+    )
+
+
+def test_household_veteran_predictor_isolates_mixed_survey_codecs() -> None:
+    feature = "__acs_transfer_household_has_veteran_or_active_military"
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {"is_veteran_or_active_military": [False, True] * 4},
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            "person_support_channel": ["asec", "asec", "acs", "acs", "acs", "acs"],
+            "is_veteran_or_active_military": [
+                0.0,
+                1.0,
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+            ],
+            # Raw codes beside canonical values are intentionally invalid
+            # under ACS MIL semantics. Canonical presence must keep those rows
+            # from crossing the raw boundary without consulting source origin.
+            "MIL": [0.0, 0.0, 4.0, 4.0, np.nan, 4.0],
+        },
+    )
+    predictor_set = AcsPredictorSet(
+        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        optional=(feature,),
+    )
+
+    surface = acs_transfer_module._person_feature_surface(
+        donor,
+        recipient,
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+
+    np.testing.assert_array_equal(
+        surface.recipient[feature].to_numpy(),
+        [1.0, 1.0, 0.0, np.nan, np.nan, np.nan],
+    )
+
+
+def test_raw_acs_fallback_requires_an_empty_canonical_row_surface() -> None:
+    feature = "__acs_transfer_is_veteran_or_active_military"
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            "person_support_channel": ["asec", "acs", "acs", "acs", "acs", "acs"],
+            "is_veteran_or_active_military": [np.nan] * 6,
+            # The ASEC row's veteran carry is legitimately NIU. Another carry
+            # still proves that the row is governed by the canonical surface.
+            "household_person_count": [2.0, np.nan, np.nan, np.nan, np.nan, np.nan],
+            # Zero is a CPS MIL value and invalid under the ACS service codec.
+            # It must stay untouched; rows with no canonical surface still use
+            # the reviewed ACS mapping.
+            "MIL": [0.0, 1.0, 4.0, 4.0, np.nan, 4.0],
+        },
+    )
+
+    values = acs_transfer_module._canonical_or_acs_person_feature(
+        recipient,
+        feature=feature,
+        role="recipient",
+    )
+
+    assert values is not None
+    np.testing.assert_array_equal(
+        values.to_numpy(),
+        [np.nan, 1.0, 0.0, 0.0, np.nan, 0.0],
+    )
+
+
+@pytest.mark.parametrize(
+    ("feature", "canonical_column", "raw_source", "raw_values", "expected"),
+    (
+        (
+            "__acs_transfer_marital_status_code",
+            "marital_status_code",
+            "MAR",
+            [1, 2, np.nan, 3, 4, 5],
+            [1, 2, np.nan, 3, 4, 5],
+        ),
+        (
+            "__acs_transfer_relationship_code",
+            "relationship_code",
+            "A_EXPRRP",
+            [1, 4, np.nan, 5, 13, 14],
+            [1, 4, np.nan, 5, 13, 14],
+        ),
+        (
+            "__acs_transfer_household_person_count",
+            "household_person_count",
+            None,
+            None,
+            [2, 2, 1, 3, 3, 3],
+        ),
+        (
+            "__acs_transfer_is_veteran_or_active_military",
+            "is_veteran_or_active_military",
+            "MIL",
+            [1, 3, np.nan, 2, 4, 1],
+            [1, 0, np.nan, 1, 0, 1],
+        ),
+        *(
+            (
+                feature,
+                canonical_column,
+                raw_source,
+                [1, 2, np.nan, 1, 2, 1],
+                [1, 0, np.nan, 1, 0, 1],
+            )
+            for feature, canonical_column, raw_source in (
+                (
+                    "__acs_transfer_difficulty_dressing_or_bathing",
+                    "difficulty_dressing_or_bathing",
+                    "DDRS",
+                ),
+                (
+                    "__acs_transfer_difficulty_hearing",
+                    "difficulty_hearing",
+                    "DEAR",
+                ),
+                (
+                    "__acs_transfer_difficulty_seeing",
+                    "difficulty_seeing",
+                    "DEYE",
+                ),
+                (
+                    "__acs_transfer_difficulty_doing_errands",
+                    "difficulty_doing_errands",
+                    "DOUT",
+                ),
+                (
+                    "__acs_transfer_difficulty_walking_or_climbing_stairs",
+                    "difficulty_walking_or_climbing_stairs",
+                    "DPHY",
+                ),
+                (
+                    "__acs_transfer_difficulty_remembering_or_making_decisions",
+                    "difficulty_remembering_or_making_decisions",
+                    "DREM",
+                ),
+            )
+        ),
+        (
+            "__acs_transfer_usual_hours_worked",
+            "usual_hours_worked",
+            "WKHP",
+            [40, 20, np.nan, 0, 35, 99],
+            [40, 20, np.nan, 0, 35, 99],
+        ),
+        (
+            "__acs_transfer_weeks_worked",
+            "weeks_worked_predictor",
+            "WKWN",
+            [52, 26, np.nan, 1, 40, 50],
+            [52, 26, np.nan, 1, 40, 50],
+        ),
+        (
+            "__acs_transfer_is_self_employed_worker",
+            "is_self_employed_worker",
+            "COW",
+            [6, 1, np.nan, 7, 9, 8],
+            [1, 0, np.nan, 1, 0, 0],
+        ),
+        (
+            "__acs_transfer_has_medicare_coverage",
+            "has_medicare_coverage",
+            "HINS3",
+            [1, 2, np.nan, 1, 2, 1],
+            [1, 0, np.nan, 1, 0, 1],
+        ),
+        (
+            "__acs_transfer_is_foreign_born",
+            "is_foreign_born",
+            "NATIVITY",
+            [2, 1, np.nan, 2, 1, 2],
+            [1, 0, np.nan, 1, 0, 1],
+        ),
+    ),
+)
+def test_expanded_person_predictors_map_both_survey_surfaces(
+    feature: str,
+    canonical_column: str,
+    raw_source: str | None,
+    raw_values: list[float] | None,
+    expected: list[float],
+) -> None:
+    donor_values = [*expected, *expected[:2]]
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {canonical_column: donor_values},
+    )
+    recipient_columns = {} if raw_source is None else {raw_source: raw_values}
+    recipient = _with_columns(_recipient_frame(), "person", recipient_columns)
+    predictor_set = AcsPredictorSet(
+        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        optional=(feature,),
+    )
+
+    surface = acs_transfer_module._person_feature_surface(
+        donor,
+        recipient,
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+
+    np.testing.assert_array_equal(surface.donor[feature].to_numpy(), donor_values)
+    np.testing.assert_array_equal(surface.recipient[feature].to_numpy(), expected)
+
+
+@pytest.mark.parametrize(
+    ("feature", "canonical_column", "bad_value", "valid_value"),
+    (
+        (
+            "__acs_transfer_difficulty_hearing",
+            "difficulty_hearing",
+            2.0,
+            0.0,
+        ),
+        ("__acs_transfer_marital_status_code", "marital_status_code", 6.0, 1.0),
+        ("__acs_transfer_relationship_code", "relationship_code", 6.0, 1.0),
+        (
+            "__acs_transfer_household_person_count",
+            "household_person_count",
+            0.0,
+            1.0,
+        ),
+        (
+            "__acs_transfer_household_person_count",
+            "household_person_count",
+            1.5,
+            1.0,
+        ),
+        ("__acs_transfer_usual_hours_worked", "usual_hours_worked", -1.0, 0.0),
+        ("__acs_transfer_weeks_worked", "weeks_worked_predictor", 53.0, 0.0),
+        ("__acs_transfer_weeks_worked", "weeks_worked_predictor", 26.5, 0.0),
+    ),
+)
+def test_expanded_person_predictors_refuse_invalid_canonical_values(
+    feature: str,
+    canonical_column: str,
+    bad_value: float,
+    valid_value: float,
+) -> None:
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {canonical_column: [bad_value, *([valid_value] * 7)]},
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=rf"canonical predictor {canonical_column!r}.*unsupported value",
+    ):
+        acs_transfer_module._canonical_or_acs_person_feature(
+            donor,
+            feature=feature,
+            role="donor",
+        )
+
+
+def test_expanded_relationship_predictor_refuses_invalid_raw_acs_code() -> None:
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {"A_EXPRRP": [1.0, 4.0, 6.0, 5.0, 13.0, 14.0]},
+    )
+
+    with pytest.raises(ValueError, match=r"A_EXPRRP.*unsupported code/value"):
+        acs_transfer_module._canonical_or_acs_person_feature(
+            recipient,
+            feature="__acs_transfer_relationship_code",
+            role="recipient",
+        )
+
+
+def test_explicit_transfer_contract_refuses_expanded_mapping_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    families = {"person": {"fixture": ("qualified_dividend_income",)}}
+    predictor_sets = {
+        "person": {
+            "fixture": AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_is_veteran_or_active_military",),
+            )
+        }
+    }
+    bound = acs_transfer_module.acs_transfer_execution_contract_identity(
+        targets=("qualified_dividend_income",),
+        predictor_sets=predictor_sets,
+    )
+    original = acs_transfer_module._expanded_person_predictor_mapping_identity
+
+    def changed_mapping() -> dict[str, object]:
+        changed = original()
+        changed["version"] = 999
+        return changed
+
+    monkeypatch.setattr(
+        acs_transfer_module,
+        "_expanded_person_predictor_mapping_identity",
+        changed_mapping,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="runtime execution contract differs from its bound input",
+    ):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families=families,
+            predictor_sets=predictor_sets,
+            donor_channel=None,
+            execution_contract=bound,
+        )
+
+
+def test_explicit_transfer_contract_refuses_cps_donor_mapping_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    families = {"person": {"fixture": ("qualified_dividend_income",)}}
+    predictor_sets = {
+        "person": {
+            "fixture": AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_is_veteran_or_active_military",),
+            )
+        }
+    }
+    bound = acs_transfer_module.acs_transfer_execution_contract_identity(
+        targets=("qualified_dividend_income",),
+        predictor_sets=predictor_sets,
+    )
+    original = acs_transfer_module.cps_carried_predictor_mapping_identity
+
+    def changed_donor_mapping() -> dict[str, object]:
+        changed = original()
+        changed["version"] = 999
+        return changed
+
+    monkeypatch.setattr(
+        acs_transfer_module,
+        "cps_carried_predictor_mapping_identity",
+        changed_donor_mapping,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="runtime execution contract differs from its bound input",
+    ):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families=families,
+            predictor_sets=predictor_sets,
+            donor_channel=None,
+            execution_contract=bound,
+        )
+
+
+def test_availability_patterns_retain_optional_predictors_above_bit_15() -> None:
+    optional = tuple(f"optional_{index:02d}" for index in range(18))
+    recipient = pd.DataFrame(
+        {
+            "required": [1.0, 1.0],
+            **{column: [1.0, 1.0] for column in optional[:-1]},
+            optional[-1]: [np.nan, 1.0],
+        }
+    )
+    surface = acs_transfer_module._FeatureSurface(
+        donor=recipient.copy(),
+        recipient=recipient,
+        required=("required",),
+        optional=optional,
+    )
+
+    patterns = acs_transfer_module._availability_patterns(
+        surface,
+        eligible=np.asarray([True, True]),
+    )
+
+    assert len(patterns) == 2
+    assert patterns[0][0] == optional[:-1]
+    assert patterns[0][1].tolist() == [0]
+    assert patterns[1][0] == optional
+    assert patterns[1][1].tolist() == [1]
+
+
+def test_explicit_per_family_sets_select_distinct_mapped_predictors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {
+            "is_blind": [False, False, False, False, True, False, False, False],
+            # CPS MIL is a coverage flag, not the ACS military-service code.
+            # The donor must use only the canonical carried counterpart below.
+            "MIL": [2] * 8,
+            "is_veteran_or_active_military": [
+                True,
+                False,
+                True,
+                False,
+                True,
+                False,
+                True,
+                False,
+            ],
+            "has_medicare_coverage": [
+                False,
+                False,
+                False,
+                False,
+                True,
+                True,
+                False,
+                False,
+            ],
+        },
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            # The live recipient is mixed-origin. Reviewed canonical values
+            # must take precedence over same-named raw CPS MIL/HINS3 codes;
+            # transfer may not consult source origin to make that choice.
+            "person_support_channel": ["asec", "asec", "acs", "acs", "acs", "acs"],
+            "is_veteran_or_active_military": [0.0, 0.0, np.nan, np.nan, np.nan, np.nan],
+            "has_medicare_coverage": [0.0, 0.0, np.nan, np.nan, np.nan, np.nan],
+            "MIL": [0, 2, 1, 4, 2, 3],
+            "HINS3": [0, 0, 2, 1, 1, 2],
+        },
+    )
+    families = {
+        "person": {
+            "veteran_conditioned": ("qualified_dividend_income",),
+            "coverage_conditioned": ("is_blind",),
+        }
+    }
+    predictor_sets = {
+        "person": {
+            "veteran_conditioned": AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_is_veteran_or_active_military",),
+            ),
+            "coverage_conditioned": AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_has_medicare_coverage",),
+            ),
+        }
+    }
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    _MeanQRF.calls = []
+
+    result = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families=families,
+        predictor_sets=predictor_sets,
+        donor_channel=None,
+        n_estimators=1,
+    )
+
+    predictors_by_target = {
+        call["targets"].columns[0]: call["predictors"] for call in _MeanQRF.calls
+    }
+    assert predictors_by_target["qualified_dividend_income"] == (
+        *ACS_PERSON_TRANSFER_PREDICTORS,
+        "__acs_transfer_is_veteran_or_active_military",
+    )
+    assert predictors_by_target["is_blind"] == (
+        *ACS_PERSON_TRANSFER_PREDICTORS,
+        "__acs_transfer_has_medicare_coverage",
+    )
+    provenance = {item.column: item for item in result.imputed_inputs}
+    assert (
+        provenance["qualified_dividend_income"].predictors
+        != provenance["is_blind"].predictors
+    )
+
+
+def test_explicit_predictor_set_refuses_donor_raw_acs_name_without_canonical() -> None:
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {"MIL": [2] * 8},
+    )
+    family = {"person": {"fixture": ("qualified_dividend_income",)}}
+    predictor_sets = {
+        "person": {
+            "fixture": AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_is_veteran_or_active_military",),
+            )
+        }
+    }
+
+    with pytest.raises(ValueError, match="unmapped optional.*veteran"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            donor,
+            target_families=family,
+            predictor_sets=predictor_sets,
+            donor_channel=None,
+            n_estimators=1,
+        )
+
+
+def test_explicit_predictor_set_requires_donor_recipient_column_parity() -> None:
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {"is_veteran_or_active_military": [True, False] * 4},
+    )
+    family = {"person": {"fixture": ("qualified_dividend_income",)}}
+    predictor_sets = {
+        "person": {
+            "fixture": AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_is_veteran_or_active_military",),
+            )
+        }
+    }
+
+    with pytest.raises(ValueError, match="unmapped optional.*veteran"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            donor,
+            target_families=family,
+            predictor_sets=predictor_sets,
+            donor_channel=None,
+            n_estimators=1,
+        )
+
+
+def test_explicit_predictor_set_refuses_unregistered_feature() -> None:
+    family = {"person": {"fixture": ("qualified_dividend_income",)}}
+    predictor_sets = {
+        "person": {
+            "fixture": AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_not_registered",),
+            )
+        }
+    }
+
+    with pytest.raises(ValueError, match="unmapped optional.*not_registered"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families=family,
+            predictor_sets=predictor_sets,
+            donor_channel=None,
+            n_estimators=1,
+        )
+
+
+def test_explicit_predictor_sets_refuse_missing_family_declaration() -> None:
+    with pytest.raises(ValueError, match=r"missing=.*person.*fixture"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families={"person": {"fixture": ("qualified_dividend_income",)}},
+            predictor_sets={},
+            donor_channel=None,
+            n_estimators=1,
+        )
+
+
+@pytest.mark.parametrize("entity", ("person", "spm_unit"))
+def test_declared_predictor_sets_refuse_an_unknown_family(entity: str) -> None:
+    with pytest.raises(ValueError, match=rf"No ACS predictor set.*{entity}/unknown"):
+        declared_acs_transfer_predictor_sets({entity: {"unknown": ("fixture_target",)}})
+
+
+def test_explicit_predictor_set_refuses_target_leakage() -> None:
+    family = {"person": {"fixture": ("qualified_dividend_income",)}}
+    predictor_sets = {
+        "person": {
+            "fixture": AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_qualified_dividend_income",),
+            )
+        }
+    }
+
+    with pytest.raises(ValueError, match="uses its target.*base predictors"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families=family,
+            predictor_sets=predictor_sets,
+            donor_channel=None,
+            n_estimators=1,
+        )
+
+
+@pytest.mark.parametrize(
+    ("predictor", "target"),
+    (
+        (
+            "__acs_transfer_interest_dividend_rental_income",
+            "qualified_dividend_income",
+        ),
+        (
+            "__acs_transfer_employment_income",
+            "employment_income_before_lsr",
+        ),
+    ),
+)
+def test_explicit_predictor_set_refuses_source_component_target_leakage(
+    predictor: str,
+    target: str,
+) -> None:
+    with pytest.raises(ValueError, match="target-bearing predictor source"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families={"person": {"fixture": (target,)}},
+            predictor_sets={
+                "person": {
+                    "fixture": AcsPredictorSet(
+                        required=ACS_PERSON_TRANSFER_PREDICTORS,
+                        optional=(predictor,),
+                    )
+                }
+            },
+            donor_channel=None,
+            n_estimators=1,
+        )
 
 
 def test_declared_plan_carries_the_23_stage_base_surface() -> None:
@@ -1464,6 +2315,8 @@ def test_group_required_predictors_preserve_missing_state_for_masking() -> None:
         recipient,
         entity="tax_unit",
         targets=("first_home_mortgage_balance",),
+        predictor_set=AcsPredictorSet(required=ACS_GROUP_TRANSFER_PREDICTORS),
+        require_all_predictors=True,
     )
     complete = acs_transfer_module._complete_predictor_mask(
         surface.recipient,

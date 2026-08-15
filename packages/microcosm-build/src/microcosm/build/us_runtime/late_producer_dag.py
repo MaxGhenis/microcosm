@@ -108,13 +108,11 @@ class ProducerInput:
                 "ProducerInput.alternatives require nonempty tuples of "
                 "ProducerInputColumn values."
             )
+        # Alternative order is semantic: callbacks inspect the first available
+        # spelling, and lineage renders the remainder as fallbacks.  Sort only
+        # the columns within each all-of option, whose order is immaterial.
         canonical_alternatives = tuple(
-            sorted(
-                {tuple(sorted(set(option))) for option in alternatives},
-                key=lambda option: tuple(
-                    (item.entity, item.column, item.value_kind) for item in option
-                ),
-            )
+            dict.fromkeys(tuple(sorted(set(option))) for option in alternatives)
         )
         object.__setattr__(self, "alternatives", canonical_alternatives)
 

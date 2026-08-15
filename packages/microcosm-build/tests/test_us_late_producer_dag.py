@@ -38,6 +38,7 @@ from microcosm.build.us_runtime.puf_capital_gains_tail import (
 from microcosm.build.us_runtime.puf_support import (
     PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
+    puf_tax_detail_predictor_projection_identity,
 )
 from microcosm.build.us_runtime.us_late_overlap_ownership import (
     US_LATE_OVERLAP_OWNERSHIP_TARGETS,
@@ -784,7 +785,7 @@ def test_canonical_us_late_schedule_is_import_validated_and_byte_stable() -> Non
 
     assert reconstructed == CANONICAL_US_LATE_PRODUCER_SCHEDULE
     receipt = us_late_producer_schedule_receipt()
-    assert receipt["schema_version"] == 16
+    assert receipt["schema_version"] == 17
     assert receipt["execution_receipt_contract"] == {
         "version": 3,
         "row_binding": (
@@ -875,7 +876,7 @@ def test_acs_earnings_universe_declares_every_receipt_affecting_input() -> None:
     }
 
 
-def test_every_transfer_declares_predictors_and_optional_absence_receipts() -> None:
+def test_every_transfer_declares_the_tax_shaped_predictor_surface() -> None:
     primary_inputs = {
         item.column
         for item in CANONICAL_US_LATE_PRODUCER_REGISTRY[
@@ -888,26 +889,229 @@ def test_every_transfer_declares_predictors_and_optional_absence_receipts() -> N
         "@effective:primary_puf_execution_config",
     } <= primary_inputs
 
+    predictor_inputs = {
+        "@effective:filing_status",
+        "@effective:tax_unit_person_count",
+        "@effective:employment_income",
+        "@effective:self_employment_income",
+        "@effective:taxable_interest_income",
+        "@effective:dividend_income",
+        "@effective:short_term_capital_gains",
+        "@effective:long_term_capital_gains",
+    }
     for group in CANONICAL_US_LATE_TRANSFER_GROUPS:
         contract = CANONICAL_US_LATE_PRODUCER_REGISTRY[group.name]
         effective_inputs = {
             item.column: item for item in contract.inputs if item.column.startswith("@")
         }
         assert {
-            "@effective:age",
-            "@effective:is_female",
-            "@effective:state_fips",
+            *predictor_inputs,
             "@effective:resolved_person_weight",
             "@effective:resolved_target_weight",
-            "@effective:optional_investment_income",
             "@effective:late_transfer_model_config",
             "@effective:late_transfer_target_bank",
         } <= set(effective_inputs)
-        assert effective_inputs[
-            "@effective:optional_investment_income"
-        ].tolerated_absence_receipts == (
-            f"optional_input:{group.name}:optional_investment_income",
+        assert all(
+            effective_inputs[name].tolerated_absence_receipts == ()
+            for name in predictor_inputs
         )
+
+
+def _physical_alternative_surface(
+    requirement: object,
+) -> tuple[tuple[tuple[str, ...], ...], ...]:
+    alternatives = requirement.alternatives
+    return tuple(
+        tuple(
+            sorted(
+                (column.entity, column.column, column.value_kind)
+                for column in alternative
+            )
+        )
+        for alternative in alternatives
+    )
+
+
+def _receipt_alternative_surface(
+    requirement: dict[str, object],
+) -> tuple[tuple[tuple[str, ...], ...], ...]:
+    alternatives = requirement["alternatives"]
+    assert isinstance(alternatives, list)
+    return tuple(
+        tuple(
+            sorted(
+                (
+                    str(column["entity"]),
+                    str(column["column"]),
+                    str(column["value_kind"]),
+                )
+                for column in alternative
+            )
+        )
+        for alternative in alternatives
+    )
+
+
+def _expected_late_puf_predictor_alternatives() -> dict[
+    str, tuple[tuple[tuple[str, ...], ...], ...]
+]:
+    def one(
+        entity: str,
+        column: str,
+        value_kind: str = "finite_numeric",
+    ) -> tuple[tuple[str, ...], ...]:
+        return ((entity, column, value_kind),)
+
+    return {
+        "filing_status": (
+            one("tax_unit", "filing_status_input", "non_null"),
+            one("tax_unit", "filing_status", "non_null"),
+        ),
+        "tax_unit_person_count": (
+            tuple(
+                sorted(
+                    (
+                        ("person", "person_tax_unit_id", "non_null"),
+                        ("tax_unit", "tax_unit_id", "non_null"),
+                    )
+                )
+            ),
+        ),
+        "employment_income": (
+            one("tax_unit", "employment_income"),
+            one("person", "employment_income_before_lsr"),
+        ),
+        "self_employment_income": (
+            one("tax_unit", "self_employment_income"),
+            one("person", "self_employment_income_before_lsr"),
+        ),
+        "taxable_interest_income": (
+            one("tax_unit", "taxable_interest_income"),
+            one("person", "taxable_interest_income"),
+        ),
+        "dividend_income": (
+            one("tax_unit", "dividend_income"),
+            one("person", "dividend_income"),
+            tuple(
+                sorted(
+                    (
+                        ("person", "non_qualified_dividend_income", "finite_numeric"),
+                        ("person", "qualified_dividend_income", "finite_numeric"),
+                    )
+                )
+            ),
+        ),
+        "short_term_capital_gains": (
+            one("tax_unit", "short_term_capital_gains"),
+            one("person", "short_term_capital_gains"),
+        ),
+        "long_term_capital_gains": (
+            one("tax_unit", "long_term_capital_gains"),
+            one("person", "long_term_capital_gains"),
+            one("person", "long_term_capital_gains_before_response"),
+        ),
+    }
+
+
+def _projection_alternative_surface() -> dict[
+    str, tuple[tuple[tuple[str, ...], ...], ...]
+]:
+    sources = puf_tax_detail_predictor_projection_identity()["predictor_sources"]
+    assert isinstance(sources, dict)
+    result: dict[str, tuple[tuple[tuple[str, ...], ...], ...]] = {}
+    for predictor, declaration in sources.items():
+        assert isinstance(declaration, dict)
+        label = predictor.removeprefix("puf_predictor_")
+        if label == "filing_status_code":
+            label = "filing_status"
+        alternatives: list[tuple[tuple[str, ...], ...]] = []
+        if "tax_unit_precedence" in declaration:
+            alternatives.extend(
+                (("tax_unit", column, "non_null"),)
+                for column in declaration["tax_unit_precedence"]
+            )
+        elif "derived_from" in declaration:
+            alternatives.append(
+                tuple(
+                    sorted(
+                        (*source.split(".", maxsplit=1), "non_null")
+                        for source in declaration["derived_from"]
+                    )
+                )
+            )
+        else:
+            if "tax_unit" in declaration:
+                alternatives.append(
+                    tuple(
+                        ("tax_unit", column, "finite_numeric")
+                        for column in declaration["tax_unit"]
+                    )
+                )
+            if "person" in declaration:
+                alternatives.append(
+                    tuple(
+                        ("person", column, "finite_numeric")
+                        for column in declaration["person"]
+                    )
+                )
+            alternatives.extend(
+                tuple(("person", column, "finite_numeric") for column in alternative)
+                for alternative in declaration.get("person_precedence", ())
+            )
+        result[label] = tuple(
+            tuple(sorted(alternative)) for alternative in alternatives
+        )
+    return result
+
+
+def test_late_transfer_inventories_match_projection_physical_sources() -> None:
+    expected = _expected_late_puf_predictor_alternatives()
+    assert _projection_alternative_surface() == expected
+
+    for group in CANONICAL_US_LATE_TRANSFER_GROUPS:
+        inventory = US_LATE_TRANSFER_INPUT_INVENTORIES[group.name]
+        requirements = {
+            requirement.label: _physical_alternative_surface(requirement)
+            for requirement in inventory.requirements
+            if requirement.label in expected
+        }
+        assert requirements == expected
+
+        contract_inputs = {
+            item.column.removeprefix("@effective:"): item
+            for item in CANONICAL_US_LATE_PRODUCER_REGISTRY[group.name].inputs
+            if item.column.startswith("@effective:")
+            and item.column.removeprefix("@effective:") in expected
+        }
+        assert {
+            label: _physical_alternative_surface(item)
+            for label, item in contract_inputs.items()
+        } == expected
+        assert all(
+            item.required_scope == "whole_pool" for item in contract_inputs.values()
+        )
+        assert all(
+            not item.tolerated_absence_receipts for item in contract_inputs.values()
+        )
+
+
+def test_late_transfer_predictor_alternatives_are_receipt_bound() -> None:
+    expected = _expected_late_puf_predictor_alternatives()
+    receipt = us_late_producer_schedule_receipt()
+    inventories = {
+        inventory["operator"]: inventory
+        for inventory in receipt["transfer_input_inventories"]
+    }
+    assert set(inventories) == {
+        group.name for group in CANONICAL_US_LATE_TRANSFER_GROUPS
+    }
+    for group in CANONICAL_US_LATE_TRANSFER_GROUPS:
+        requirements = {
+            requirement["label"]: _receipt_alternative_surface(requirement)
+            for requirement in inventories[group.name]["requirements"]
+            if requirement["label"] in expected
+        }
+        assert requirements == expected
 
 
 def test_every_transfer_declares_complete_cross_grain_validation_surface() -> None:
@@ -1097,7 +1301,7 @@ def test_production_registry_preserves_finite_numeric_input_kinds() -> None:
         ),
         (
             transfer_producer_name("person", "adult_care"),
-            "@effective:optional_employment_income",
+            "@effective:employment_income",
             "person",
             "employment_income_before_lsr",
         ),
@@ -1173,9 +1377,12 @@ def test_source_contracts_match_strict_runtime_input_semantics() -> None:
 
 def test_transfer_numeric_predictor_alternatives_are_all_finite() -> None:
     numeric_requirements = {
-        "@effective:optional_social_security_income",
-        "@effective:optional_retirement_income",
-        "@effective:optional_investment_income",
+        "@effective:employment_income",
+        "@effective:self_employment_income",
+        "@effective:taxable_interest_income",
+        "@effective:dividend_income",
+        "@effective:short_term_capital_gains",
+        "@effective:long_term_capital_gains",
     }
     for group in CANONICAL_US_LATE_TRANSFER_GROUPS:
         contract = CANONICAL_US_LATE_PRODUCER_REGISTRY[group.name]

@@ -28,6 +28,7 @@ from microcosm.build.us_runtime.acs_income_universe import (
 from microcosm.build.us_runtime.acs_transfer import (
     declared_acs_transfer_target_families,
 )
+from microcosm.build.us_runtime.cps_carried import CPS_CARRIED_PERSON_PREDICTORS
 from microcosm.build.us_runtime.multispine_pool import (
     POOL_CHECKPOINT_STAGE_ORDER,
     POOL_DEFERRED_TRANSFER_INPUTS,
@@ -2043,6 +2044,11 @@ def _assert_pool_transfer_produced_encodings(
                 frame,
                 entity=entity,
                 targets=targets,
+                predictor_set=acs_transfer_module._legacy_predictor_set(
+                    entity=entity,
+                    targets=targets,
+                ),
+                require_all_predictors=False,
             )
             predictors = (*surface.required, *surface.optional)
             for feature_frame in (surface.donor, surface.recipient):
@@ -3461,6 +3467,11 @@ def test_every_source_operator_output_has_a_pool_owner() -> None:
         for columns in multispine_pool_module._FORMULA_OWNED_SOURCE_OUTPUTS.values()
         for column in columns
     }
+    source_predictors = {
+        column
+        for columns in multispine_pool_module._SOURCE_PREDICTOR_OUTPUTS.values()
+        for column in columns
+    }
     seeded = {
         program.variable
         for program in load_take_up_contract().programs
@@ -3472,7 +3483,9 @@ def test_every_source_operator_output_has_a_pool_owner() -> None:
         family = multispine_pool_module._SOURCE_OPERATOR_FAMILIES[operator_name]
         for columns in PRE_ASSEMBLY_OPERATOR_OUTPUT_FAMILIES[family].values():
             for column in columns:
-                if column not in transferred | native | formula_owned | seeded:
+                if column not in (
+                    transferred | native | formula_owned | source_predictors | seeded
+                ):
                     unowned.append(f"{family}.{column}")
     assert not unowned
 
@@ -3613,6 +3626,24 @@ def test_predictor_prep_fills_cps_rows_without_overwriting_acs_native() -> None:
     asec_person["A_SEX"] = [1, 2]
     asec_person["OI_VAL"] = [0.0, 25.0]
     asec_person["OI_OFF"] = [0, 20]
+    asec_person["A_EXPRRP"] = [1, 5]
+    asec_person["A_MARITL"] = [1, 7]
+    asec_person["PEAFEVER"] = [1, 2]
+    asec_person["A_MJOCC"] = [0, 0]
+    asec_person["HRSWK"] = [40, 0]
+    asec_person["WKSWORK"] = [52, 0]
+    asec_person["MCARE"] = [2, 1]
+    asec_person["PEIO1COW"] = [6, 1]
+    asec_person["PRCITSHP"] = [1, 4]
+    for source in (
+        "PEDISDRS",
+        "PEDISEAR",
+        "PEDISEYE",
+        "PEDISOUT",
+        "PEDISPHY",
+        "PEDISREM",
+    ):
+        asec_person[source] = [2, 1]
     asec_tables["person"] = asec_person
     asec = Frame(
         asec_tables,
@@ -3650,6 +3681,11 @@ def test_predictor_prep_fills_cps_rows_without_overwriting_acs_native() -> None:
         False,
         True,
     ]
+    assert person.loc[cps, "is_veteran_or_active_military"].tolist() == [1.0, 0.0]
+    predictor_columns = sorted(CPS_CARRIED_PERSON_PREDICTORS)
+    assert set(predictor_columns) <= set(person)
+    assert person.loc[cps, predictor_columns].notna().all().all()
+    assert person.loc[~cps, predictor_columns].isna().all().all()
     assert result.receipt["operator_order"] == ["derive_us_cps_carried_inputs"]
 
 

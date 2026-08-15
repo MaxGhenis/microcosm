@@ -99,6 +99,8 @@ __all__ = [
     "us_late_producer_schedule_receipt",
 ]
 
+# v17 binds every late-transfer model to the eight tax-shaped PUF predictor
+# requirements and retires the stale shared ACS demographic input inventory.
 # v16 declares person.s_corp_income as a whole-pool primary-PUF output: its
 # certified combined-source semantics are carried by partnership_income, while
 # the separate S-corporation leaf is an exact-zero universe. v15 content-binds
@@ -123,7 +125,7 @@ __all__ = [
 # cardinalities across each execution row, binds source-receipt outputs to the
 # callback receipt, and requires the primary callback to report the exact
 # resources it consumed. Receipt v2 introduced exact virtual-resource payloads.
-US_LATE_PRODUCER_REGISTRY_SCHEMA_VERSION = 16
+US_LATE_PRODUCER_REGISTRY_SCHEMA_VERSION = 17
 US_LATE_PRODUCER_RECEIPT_SCHEMA_VERSION = 3
 US_LATE_PRODUCER_TRANSITION_AUTHORITY_VERSION = 1
 US_LATE_PRODUCER_TRANSITION_AUTHORITY_KEY = "us_late_producer_transition_authority"
@@ -230,14 +232,10 @@ class EffectiveInputRequirement:
                 f"Effective input {self.label!r} alternatives require "
                 "ScopedInput values."
             )
-        canonical = tuple(
-            sorted(
-                (tuple(sorted(set(option))) for option in alternatives),
-                key=lambda option: tuple(
-                    (item.entity, item.column, item.value_kind) for item in option
-                ),
-            )
-        )
+        # Preserve outer order because it is the callback's physical-source
+        # precedence.  Only the members of an all-of alternative are
+        # canonicalized; their order carries no meaning.
+        canonical = tuple(tuple(sorted(set(option))) for option in alternatives)
         if len(set(canonical)) != len(canonical):
             raise ValueError(f"Effective input {self.label!r} repeats an alternative.")
         object.__setattr__(self, "alternatives", canonical)
@@ -1119,6 +1117,122 @@ US_LATE_PRIMARY_PUF_INPUT_INVENTORY = _inventory(
     ),
 )
 
+_LATE_TRANSFER_PUF_PREDICTOR_LABELS = (
+    "filing_status",
+    "tax_unit_person_count",
+    "employment_income",
+    "self_employment_income",
+    "taxable_interest_income",
+    "dividend_income",
+    "short_term_capital_gains",
+    "long_term_capital_gains",
+)
+_LATE_TRANSFER_PUF_PREDICTOR_REQUIREMENTS = (
+    _requirement(
+        "filing_status",
+        (_column("tax_unit", "filing_status_input"),),
+        (_column("tax_unit", "filing_status"),),
+    ),
+    _requirement(
+        "tax_unit_person_count",
+        (
+            _column("person", "person_tax_unit_id"),
+            _column("tax_unit", "tax_unit_id"),
+        ),
+    ),
+    _requirement(
+        "employment_income",
+        (
+            _column(
+                "tax_unit",
+                "employment_income",
+                value_kind="finite_numeric",
+            ),
+        ),
+        (
+            _column(
+                "person",
+                "employment_income_before_lsr",
+                value_kind="finite_numeric",
+            ),
+        ),
+    ),
+    _requirement(
+        "self_employment_income",
+        (
+            _column(
+                "tax_unit",
+                "self_employment_income",
+                value_kind="finite_numeric",
+            ),
+        ),
+        (
+            _column(
+                "person",
+                "self_employment_income_before_lsr",
+                value_kind="finite_numeric",
+            ),
+        ),
+    ),
+    _requirement(
+        "taxable_interest_income",
+        (
+            _column(
+                "tax_unit",
+                "taxable_interest_income",
+                value_kind="finite_numeric",
+            ),
+        ),
+        (
+            _column(
+                "person",
+                "taxable_interest_income",
+                value_kind="finite_numeric",
+            ),
+        ),
+    ),
+    _requirement(
+        "dividend_income",
+        (_column("tax_unit", "dividend_income", value_kind="finite_numeric"),),
+        (_column("person", "dividend_income", value_kind="finite_numeric"),),
+        (
+            _column("person", "qualified_dividend_income", value_kind="finite_numeric"),
+            _column(
+                "person",
+                "non_qualified_dividend_income",
+                value_kind="finite_numeric",
+            ),
+        ),
+    ),
+    _requirement(
+        "short_term_capital_gains",
+        (_column("tax_unit", "short_term_capital_gains", value_kind="finite_numeric"),),
+        (_column("person", "short_term_capital_gains", value_kind="finite_numeric"),),
+    ),
+    _requirement(
+        "long_term_capital_gains",
+        (_column("tax_unit", "long_term_capital_gains", value_kind="finite_numeric"),),
+        (_column("person", "long_term_capital_gains", value_kind="finite_numeric"),),
+        (
+            _column(
+                "person",
+                "long_term_capital_gains_before_response",
+                value_kind="finite_numeric",
+            ),
+        ),
+    ),
+)
+if (
+    tuple(
+        requirement.label for requirement in _LATE_TRANSFER_PUF_PREDICTOR_REQUIREMENTS
+    )
+    != _LATE_TRANSFER_PUF_PREDICTOR_LABELS
+):
+    raise RuntimeError(
+        "Late-transfer PUF predictor requirements drifted from the bound "
+        "eight-predictor surface."
+    )
+
 
 US_LATE_ACS_EARNINGS_UNIVERSE_INPUT_INVENTORY = _inventory(
     US_LATE_ACS_EARNINGS_UNIVERSE_STAGE,
@@ -1192,121 +1306,7 @@ def _transfer_input_inventory(group: TransferProducerGroup) -> SourceInputInvent
         group.name,
         *structural,
         *post_transfer_structure,
-        _single("age", "person", "age", value_kind="finite_numeric"),
-        _single(
-            "is_female",
-            "person",
-            "is_female",
-            value_kind="finite_numeric",
-        ),
-        _requirement(
-            "state_fips",
-            (_column("person", "state_fips", value_kind="finite_numeric"),),
-            (
-                _column("person", "person_household_id", value_kind="finite_numeric"),
-                _column("household", "household_id", value_kind="finite_numeric"),
-                _column("household", "state_fips", value_kind="finite_numeric"),
-            ),
-        ),
-        _single(
-            "optional_employment_income",
-            "person",
-            "employment_income_before_lsr",
-            optional=True,
-            value_kind="finite_numeric",
-        ),
-        _single(
-            "optional_self_employment_income",
-            "person",
-            "self_employment_income_before_lsr",
-            optional=True,
-            value_kind="finite_numeric",
-        ),
-        _requirement(
-            "optional_social_security_income",
-            (
-                _column(
-                    "person", "social_security_retirement", value_kind="finite_numeric"
-                ),
-                _column(
-                    "person", "social_security_disability", value_kind="finite_numeric"
-                ),
-                _column(
-                    "person", "social_security_dependents", value_kind="finite_numeric"
-                ),
-                _column(
-                    "person", "social_security_survivors", value_kind="finite_numeric"
-                ),
-            ),
-            (
-                _column(
-                    "person", "acs_social_security_income", value_kind="finite_numeric"
-                ),
-            ),
-            optional=True,
-        ),
-        _requirement(
-            "optional_retirement_income",
-            (
-                _column(
-                    "person",
-                    "taxable_private_pension_income",
-                    value_kind="finite_numeric",
-                ),
-                _column(
-                    "person",
-                    "tax_exempt_private_pension_income",
-                    value_kind="finite_numeric",
-                ),
-                _column(
-                    "person", "taxable_ira_distributions", value_kind="finite_numeric"
-                ),
-            ),
-            (_column("person", "acs_retirement_income", value_kind="finite_numeric"),),
-            optional=True,
-        ),
-        _requirement(
-            "optional_investment_income",
-            (
-                _column(
-                    "person", "taxable_interest_income", value_kind="finite_numeric"
-                ),
-                _column(
-                    "person", "tax_exempt_interest_income", value_kind="finite_numeric"
-                ),
-                _column(
-                    "person", "qualified_dividend_income", value_kind="finite_numeric"
-                ),
-                _column(
-                    "person",
-                    "non_qualified_dividend_income",
-                    value_kind="finite_numeric",
-                ),
-                _column("person", "rental_income", value_kind="finite_numeric"),
-                _column("person", "estate_income", value_kind="finite_numeric"),
-            ),
-            (
-                _column(
-                    "person",
-                    "acs_interest_dividend_rental_income",
-                    value_kind="finite_numeric",
-                ),
-            ),
-            optional=True,
-        ),
-        _requirement(
-            "optional_household_head",
-            (_column("person", "is_household_head", value_kind="finite_numeric"),),
-            (_column("person", "A_EXPRRP", value_kind="finite_numeric"),),
-            (_column("person", "A_LINENO", value_kind="finite_numeric"),),
-            optional=True,
-        ),
-        _requirement(
-            "optional_tenure",
-            (_column("person", "tenure_type"),),
-            (_column("spm_unit", "spm_unit_tenure_type"),),
-            optional=True,
-        ),
+        *_LATE_TRANSFER_PUF_PREDICTOR_REQUIREMENTS,
     )
 
 

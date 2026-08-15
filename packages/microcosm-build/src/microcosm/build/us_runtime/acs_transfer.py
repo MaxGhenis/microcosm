@@ -34,10 +34,18 @@ from microcosm.build.serialization_dtypes import canonicalize_frame_string_dtype
 from microcosm.build.us_runtime.capital_gain_distributions import (
     capital_gain_distribution_shares_asset_identity,
 )
+from microcosm.build.us_runtime.cps_carried import (
+    CPS_RELATIONSHIP_PREDICTOR_CODES,
+    cps_carried_predictor_mapping_identity,
+    validate_cps_carried_person_predictors,
+)
 from microcosm.build.us_runtime.puf_support import (
     PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
+    PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
+    puf_tax_detail_predictor_projection_identity,
+    puf_tax_detail_predictor_surface,
     resolve_formula_owned_outputs,
 )
 from microcosm.build.us_runtime.support_provenance import (
@@ -58,6 +66,7 @@ __all__ = [
     "ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS",
     "ACS_PERSON_TRANSFER_PREDICTORS",
     "ASEC_PUF_DONOR_SPINE",
+    "AcsPredictorSet",
     "AcsImputedInput",
     "AcsTransferBankPatternStep",
     "AcsTransferPattern",
@@ -65,10 +74,13 @@ __all__ = [
     "AcsTransferTargetBank",
     "AcsTransferTargetCheckpoint",
     "TargetFamilies",
+    "PredictorSets",
     "acs_transfer_donor_requirements",
     "acs_transfer_execution_contract_identity",
+    "assert_acs_predictor_set_has_no_target_leakage",
     "assert_acs_transfer_targets_are_input_leaves",
     "declared_acs_transfer_target_families",
+    "declared_acs_transfer_predictor_sets",
     "default_acs_transfer_target_families",
     "ACS_DERIVED_TRANSFER_INPUTS",
     "derive_acs_schedule_d_capital_gain_distributions",
@@ -153,6 +165,27 @@ _INVESTMENT_FEATURE = "__acs_transfer_interest_dividend_rental_income"
 _HEAD_FEATURE = "__acs_transfer_is_household_head"
 _TENURE_FEATURE = "__acs_transfer_tenure_code"
 
+_MARITAL_STATUS_FEATURE = "__acs_transfer_marital_status_code"
+_RELATIONSHIP_FEATURE = "__acs_transfer_relationship_code"
+_HOUSEHOLD_PERSON_COUNT_FEATURE = "__acs_transfer_household_person_count"
+_VETERAN_OR_ACTIVE_MILITARY_FEATURE = "__acs_transfer_is_veteran_or_active_military"
+_HOUSEHOLD_VETERAN_OR_ACTIVE_MILITARY_FEATURE = (
+    "__acs_transfer_household_has_veteran_or_active_military"
+)
+_DIFFICULTY_DRESSING_FEATURE = "__acs_transfer_difficulty_dressing_or_bathing"
+_DIFFICULTY_HEARING_FEATURE = "__acs_transfer_difficulty_hearing"
+_DIFFICULTY_SEEING_FEATURE = "__acs_transfer_difficulty_seeing"
+_DIFFICULTY_ERRANDS_FEATURE = "__acs_transfer_difficulty_doing_errands"
+_DIFFICULTY_WALKING_FEATURE = "__acs_transfer_difficulty_walking_or_climbing_stairs"
+_DIFFICULTY_COGNITIVE_FEATURE = (
+    "__acs_transfer_difficulty_remembering_or_making_decisions"
+)
+_USUAL_HOURS_WORKED_FEATURE = "__acs_transfer_usual_hours_worked"
+_WEEKS_WORKED_FEATURE = "__acs_transfer_weeks_worked"
+_SELF_EMPLOYED_WORKER_FEATURE = "__acs_transfer_is_self_employed_worker"
+_MEDICARE_COVERAGE_FEATURE = "__acs_transfer_has_medicare_coverage"
+_FOREIGN_BORN_FEATURE = "__acs_transfer_is_foreign_born"
+
 ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS: tuple[str, ...] = (
     _EMPLOYMENT_FEATURE,
     _SELF_EMPLOYMENT_FEATURE,
@@ -161,6 +194,46 @@ ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS: tuple[str, ...] = (
     _INVESTMENT_FEATURE,
     _HEAD_FEATURE,
     _TENURE_FEATURE,
+)
+
+_EARNED_INCOME_PREDICTORS = ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[:2]
+_SOCIAL_SECURITY_INCOME_PREDICTORS = (_SOCIAL_SECURITY_FEATURE,)
+_RETIREMENT_INCOME_PREDICTORS = (_RETIREMENT_FEATURE,)
+_INVESTMENT_INCOME_PREDICTORS = (_INVESTMENT_FEATURE,)
+
+_HOUSEHOLD_STRUCTURE_PREDICTORS = (
+    _MARITAL_STATUS_FEATURE,
+    _RELATIONSHIP_FEATURE,
+    _HOUSEHOLD_PERSON_COUNT_FEATURE,
+)
+_HOUSING_CONTEXT_PREDICTORS = (_HEAD_FEATURE, _TENURE_FEATURE)
+_VETERAN_VA_PREDICTORS = (
+    _VETERAN_OR_ACTIVE_MILITARY_FEATURE,
+    _HOUSEHOLD_VETERAN_OR_ACTIVE_MILITARY_FEATURE,
+)
+_DISABILITY_PREDICTORS = (
+    _DIFFICULTY_DRESSING_FEATURE,
+    _DIFFICULTY_HEARING_FEATURE,
+    _DIFFICULTY_SEEING_FEATURE,
+    _DIFFICULTY_ERRANDS_FEATURE,
+    _DIFFICULTY_WALKING_FEATURE,
+    _DIFFICULTY_COGNITIVE_FEATURE,
+)
+_EDUCATION_WORK_PREDICTORS = (
+    _USUAL_HOURS_WORKED_FEATURE,
+    _WEEKS_WORKED_FEATURE,
+    _SELF_EMPLOYED_WORKER_FEATURE,
+)
+_OWN_COVERAGE_PREDICTORS = (_MEDICARE_COVERAGE_FEATURE,)
+_NATIVITY_PREDICTORS = (_FOREIGN_BORN_FEATURE,)
+_PERSON_OPTIONAL_PREDICTOR_UNIVERSE = (
+    *ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
+    *_HOUSEHOLD_STRUCTURE_PREDICTORS,
+    *_VETERAN_VA_PREDICTORS,
+    *_DISABILITY_PREDICTORS,
+    *_EDUCATION_WORK_PREDICTORS,
+    *_OWN_COVERAGE_PREDICTORS,
+    *_NATIVITY_PREDICTORS,
 )
 
 _GROUP_PERSON_COUNT = "__acs_transfer_person_count"
@@ -183,6 +256,10 @@ _GROUP_OPTIONAL_NAMES: Mapping[str, str] = {
     _TENURE_FEATURE: "__acs_transfer_group_tenure_code",
 }
 
+_DONOR_DIRECT_COMPONENTS: Mapping[str, tuple[str, ...]] = {
+    _EMPLOYMENT_FEATURE: ("employment_income_before_lsr",),
+    _SELF_EMPLOYMENT_FEATURE: ("self_employment_income_before_lsr",),
+}
 _DONOR_COMBINED_COMPONENTS: Mapping[str, tuple[str, ...]] = {
     _SOCIAL_SECURITY_FEATURE: (
         "social_security_retirement",
@@ -224,12 +301,17 @@ _TENURE_CODES: Mapping[str, float] = {
     "RENTED": 3.0,
     "RENTER": 3.0,
 }
+_AVAILABILITY_PATTERN_DTYPE = np.uint64
+_AVAILABILITY_PATTERN_MAX_OPTIONAL_PREDICTORS = np.iinfo(
+    _AVAILABILITY_PATTERN_DTYPE
+).bits
 
 
 def acs_transfer_execution_contract_identity(
     *,
     targets: Sequence[str] | None = None,
     derive_schedule_d: bool = True,
+    predictor_sets: PredictorSets | None = None,
 ) -> dict[str, object]:
     """Bind the complete runtime predictor and target-codec contract."""
 
@@ -239,11 +321,46 @@ def acs_transfer_execution_contract_identity(
     )
     adult_care_enabled = _ADULT_CARE_EXPENSE in requested_targets
     payload: dict[str, object] = {
-        "schema_version": 2,
+        "schema_version": 2 if predictor_sets is None else 3,
         "person_required_predictors": list(ACS_PERSON_TRANSFER_PREDICTORS),
         "person_optional_predictors": list(ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS),
         "group_required_predictors": list(ACS_GROUP_TRANSFER_PREDICTORS),
         "group_optional_names": dict(sorted(_GROUP_OPTIONAL_NAMES.items())),
+        **(
+            {}
+            if predictor_sets is None
+            else {
+                "family_predictor_sets": {
+                    entity: {
+                        family: {
+                            "required": list(predictor_set.required),
+                            "optional": list(predictor_set.optional),
+                        }
+                        for family, predictor_set in sorted(families.items())
+                    }
+                    for entity, families in sorted(predictor_sets.items())
+                },
+                "availability_pattern_encoding": {
+                    "dtype": np.dtype(_AVAILABILITY_PATTERN_DTYPE).name,
+                    "max_optional_predictors": (
+                        _AVAILABILITY_PATTERN_MAX_OPTIONAL_PREDICTORS
+                    ),
+                },
+                "donor_direct_components": {
+                    feature: list(columns)
+                    for feature, columns in sorted(_DONOR_DIRECT_COMPONENTS.items())
+                },
+                "target_leakage_policy": {
+                    "version": 1,
+                    "exact_match": ("strip_internal_acs_transfer_prefix_then_compare"),
+                    "source_component_match": (
+                        "refuse targets used by direct or combined donor "
+                        "predictor sources"
+                    ),
+                    "group_projection_covered": True,
+                },
+            }
+        ),
         "donor_combined_components": {
             feature: list(columns)
             for feature, columns in sorted(_DONOR_COMBINED_COMPONENTS.items())
@@ -289,6 +406,24 @@ def acs_transfer_execution_contract_identity(
             },
         },
     }
+    if predictor_sets is not None and any(
+        predictor in PUF_TAX_DETAIL_DEFAULT_PREDICTORS
+        for families in predictor_sets.values()
+        for predictor_set in families.values()
+        for predictor in (*predictor_set.required, *predictor_set.optional)
+    ):
+        payload["puf_tax_detail_predictor_projection"] = (
+            puf_tax_detail_predictor_projection_identity()
+        )
+    if predictor_sets is not None and any(
+        predictor in _CANONICAL_PERSON_FEATURE_COLUMNS
+        for families in predictor_sets.values()
+        for predictor_set in families.values()
+        for predictor in (*predictor_set.required, *predictor_set.optional)
+    ):
+        payload["expanded_person_predictor_mappings"] = (
+            _expanded_person_predictor_mapping_identity()
+        )
     payload["sha256"] = hashlib.sha256(
         json.dumps(
             payload,
@@ -301,6 +436,251 @@ def acs_transfer_execution_contract_identity(
 
 
 type TargetFamilies = Mapping[str, Mapping[str, Sequence[str]]]
+
+
+@dataclass(frozen=True)
+class AcsPredictorSet:
+    """One family's ordered required and row-optional transfer features."""
+
+    required: tuple[str, ...]
+    optional: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        required = tuple(self.required)
+        optional = tuple(self.optional)
+        names = (*required, *optional)
+        if not required:
+            raise ValueError(
+                "ACS predictor sets require at least one required feature."
+            )
+        bad = [name for name in names if not isinstance(name, str) or not name.strip()]
+        if bad:
+            raise ValueError(
+                f"ACS predictor sets contain invalid feature names: {bad}."
+            )
+        duplicates = sorted({name for name in names if names.count(name) > 1})
+        if duplicates:
+            raise ValueError(f"ACS predictor sets repeat feature(s): {duplicates}.")
+        object.__setattr__(self, "required", required)
+        object.__setattr__(self, "optional", optional)
+
+
+type PredictorSets = Mapping[str, Mapping[str, AcsPredictorSet]]
+
+
+def _predictor_source_components() -> dict[str, tuple[str, ...]]:
+    """Return donor source leaves under every internal/public feature name."""
+
+    result: dict[str, tuple[str, ...]] = {}
+    source_mappings = {
+        **_DONOR_DIRECT_COMPONENTS,
+        **_DONOR_COMBINED_COMPONENTS,
+    }
+    for feature, components in source_mappings.items():
+        public_feature = feature.removeprefix("__acs_transfer_")
+        group_feature = _GROUP_OPTIONAL_NAMES[feature]
+        public_group_feature = group_feature.removeprefix("__acs_transfer_")
+        for name in (feature, public_feature, group_feature, public_group_feature):
+            result[name] = components
+    return result
+
+
+def assert_acs_predictor_set_has_no_target_leakage(
+    predictor_set: AcsPredictorSet,
+    targets: Sequence[str],
+    *,
+    context: str,
+) -> None:
+    """Refuse direct or aggregate-mediated target leakage in one family."""
+
+    target_names = set(targets)
+    predictors = (*predictor_set.required, *predictor_set.optional)
+    exact = sorted(
+        target_names & {name.removeprefix("__acs_transfer_") for name in predictors}
+    )
+    if exact:
+        raise ValueError(f"{context} uses its target(s) as base predictors: {exact}.")
+
+    source_components = _predictor_source_components()
+    mediated = {
+        name.removeprefix("__acs_transfer_"): sorted(
+            target_names.intersection(source_components.get(name, ()))
+        )
+        for name in predictors
+        if target_names.intersection(source_components.get(name, ()))
+    }
+    if mediated:
+        raise ValueError(
+            f"{context} uses target-bearing predictor source(s): {mediated}."
+        )
+
+
+def _predictor_set(
+    *,
+    required: Sequence[str] = ACS_PERSON_TRANSFER_PREDICTORS,
+    optional_blocks: Sequence[Sequence[str]] = (),
+) -> AcsPredictorSet:
+    return AcsPredictorSet(
+        required=tuple(required),
+        optional=tuple(predictor for block in optional_blocks for predictor in block),
+    )
+
+
+_PERSON_FAMILY_PREDICTOR_SETS: Mapping[str, AcsPredictorSet] = {
+    "puf_tax_itemization": _predictor_set(
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _HOUSEHOLD_STRUCTURE_PREDICTORS,
+            _HOUSING_CONTEXT_PREDICTORS,
+            _DISABILITY_PREDICTORS,
+            _EDUCATION_WORK_PREDICTORS,
+            _OWN_COVERAGE_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        )
+    ),
+    "model_required_numeric": _predictor_set(
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _SOCIAL_SECURITY_INCOME_PREDICTORS,
+            _INVESTMENT_INCOME_PREDICTORS,
+            _HOUSEHOLD_STRUCTURE_PREDICTORS,
+            _HOUSING_CONTEXT_PREDICTORS,
+            _VETERAN_VA_PREDICTORS,
+            _DISABILITY_PREDICTORS,
+            _EDUCATION_WORK_PREDICTORS,
+            _OWN_COVERAGE_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        )
+    ),
+    # Disability targets lead the first bounded chain. Their subsequent draws
+    # condition participation siblings without leaking target-equivalent raw
+    # disability items into the family's base predictor set.
+    "model_required_boolean": _predictor_set(
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _SOCIAL_SECURITY_INCOME_PREDICTORS,
+            _RETIREMENT_INCOME_PREDICTORS,
+            _INVESTMENT_INCOME_PREDICTORS,
+            _HOUSEHOLD_STRUCTURE_PREDICTORS,
+            _HOUSING_CONTEXT_PREDICTORS,
+            _VETERAN_VA_PREDICTORS,
+            _EDUCATION_WORK_PREDICTORS,
+            _OWN_COVERAGE_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        )
+    ),
+    "model_required_discrete": _predictor_set(
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _SOCIAL_SECURITY_INCOME_PREDICTORS,
+            _RETIREMENT_INCOME_PREDICTORS,
+            _INVESTMENT_INCOME_PREDICTORS,
+            _HOUSEHOLD_STRUCTURE_PREDICTORS,
+            _HOUSING_CONTEXT_PREDICTORS,
+            _EDUCATION_WORK_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        )
+    ),
+    "source_operator_cps_carried": _predictor_set(
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _SOCIAL_SECURITY_INCOME_PREDICTORS,
+            _RETIREMENT_INCOME_PREDICTORS,
+            _INVESTMENT_INCOME_PREDICTORS,
+            _HOUSEHOLD_STRUCTURE_PREDICTORS,
+            _EDUCATION_WORK_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        )
+    ),
+    "source_operator_hours_worked": _predictor_set(
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _SOCIAL_SECURITY_INCOME_PREDICTORS,
+            _RETIREMENT_INCOME_PREDICTORS,
+            _INVESTMENT_INCOME_PREDICTORS,
+            _HOUSEHOLD_STRUCTURE_PREDICTORS,
+            _HOUSING_CONTEXT_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        )
+    ),
+    "source_operator_prior_year_income": _predictor_set(
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _SOCIAL_SECURITY_INCOME_PREDICTORS,
+            _RETIREMENT_INCOME_PREDICTORS,
+            _INVESTMENT_INCOME_PREDICTORS,
+            _HOUSEHOLD_STRUCTURE_PREDICTORS,
+            _HOUSING_CONTEXT_PREDICTORS,
+            _EDUCATION_WORK_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        )
+    ),
+    "source_operator_relationship_inputs": _predictor_set(
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _SOCIAL_SECURITY_INCOME_PREDICTORS,
+            _RETIREMENT_INCOME_PREDICTORS,
+            _INVESTMENT_INCOME_PREDICTORS,
+            _EDUCATION_WORK_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        )
+    ),
+    "housing": _predictor_set(
+        required=(*ACS_PERSON_TRANSFER_PREDICTORS, *_HOUSING_CONTEXT_PREDICTORS),
+        optional_blocks=(
+            _EARNED_INCOME_PREDICTORS,
+            _SOCIAL_SECURITY_INCOME_PREDICTORS,
+            _RETIREMENT_INCOME_PREDICTORS,
+            _INVESTMENT_INCOME_PREDICTORS,
+            _HOUSEHOLD_STRUCTURE_PREDICTORS,
+            _NATIVITY_PREDICTORS,
+        ),
+    ),
+}
+
+_GROUP_FAMILY_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_GROUP_TRANSFER_PREDICTORS,
+    optional=tuple(_GROUP_OPTIONAL_NAMES.values()),
+)
+_GROUP_FAMILY_PREDICTOR_SETS: Mapping[tuple[str, str], AcsPredictorSet] = {
+    ("spm_unit", family): _GROUP_FAMILY_PREDICTOR_SET
+    for family in (
+        "benefit_participation",
+        "model_required_boolean",
+        "model_required_numeric",
+        "source_operator_housing_inputs",
+    )
+}
+
+
+def declared_acs_transfer_predictor_sets(
+    target_families: TargetFamilies,
+) -> dict[str, dict[str, AcsPredictorSet]]:
+    """Resolve the reviewed per-family predictor declaration, failing closed."""
+
+    resolved: dict[str, dict[str, AcsPredictorSet]] = {}
+    for entity, families in target_families.items():
+        for family in families:
+            if entity == "person":
+                predictor_set = _PERSON_FAMILY_PREDICTOR_SETS.get(family)
+                if predictor_set is None:
+                    raise ValueError(
+                        f"No ACS predictor set is declared for {entity}/{family}."
+                    )
+            else:
+                predictor_set = _GROUP_FAMILY_PREDICTOR_SETS.get((entity, family))
+                if predictor_set is None:
+                    raise ValueError(
+                        f"No ACS predictor set is declared for {entity}/{family}."
+                    )
+            assert_acs_predictor_set_has_no_target_leakage(
+                predictor_set,
+                families[family],
+                context=f"ACS transfer family {entity}/{family}",
+            )
+            resolved.setdefault(entity, {})[family] = predictor_set
+    return resolved
+
 
 # The production QRF surface is an ACS-transfer contract, not the release
 # export-coverage contract.  Runtime-owned leaves (take-up draws, immigration,
@@ -882,6 +1262,7 @@ def transfer_acs_inputs(
     donor: Frame,
     *,
     target_families: TargetFamilies | None = None,
+    predictor_sets: PredictorSets | None = None,
     donor_spine: str = ASEC_PUF_DONOR_SPINE,
     donor_channel: str | None = ACS_DONOR_CHANNEL_AUTO,
     seed: int = 0,
@@ -893,7 +1274,9 @@ def transfer_acs_inputs(
 ) -> AcsTransferResult:
     """Impute requested missing leaves from ``donor`` onto ``recipient``.
 
-    ``target_families`` is an ``entity -> family -> targets`` mapping. Each
+    ``target_families`` is an ``entity -> family -> targets`` mapping and
+    ``predictor_sets`` is the parallel per-family declaration. Explicit sets
+    fail closed when a family or active predictor column is missing. Each
     family is split into recipient optional-predictor availability patterns.
     Every pattern gets a separately seeded QRF fit on donor rows complete for
     every family target and finite for exactly the predictors that pattern
@@ -930,14 +1313,24 @@ def transfer_acs_inputs(
     deferred_inputs = (
         tuple(sorted(ACS_DEFERRED_GEOGRAPHY_INPUTS)) if default_plan else ()
     )
-    requested = _normalize_target_families(
+    requested_unbounded = _normalize_target_families(
         target_families
         if target_families is not None
         else default_acs_transfer_target_families(donor),
         recipient=recipient,
     )
+    explicit_predictor_sets = predictor_sets is not None
+    resolved_predictor_sets = _normalize_predictor_sets(
+        predictor_sets,
+        families=requested_unbounded,
+    )
+    predictor_by_target = {
+        (entity, target): resolved_predictor_sets[entity][family]
+        for entity, family, targets in requested_unbounded
+        for target in targets
+    }
     requested = _split_large_target_families(
-        requested,
+        requested_unbounded,
         max_targets_per_fit=max_targets_per_fit,
     )
     if not requested:
@@ -955,6 +1348,7 @@ def transfer_acs_inputs(
     resolved_execution_contract = acs_transfer_execution_contract_identity(
         targets=all_targets,
         derive_schedule_d=derive_schedule_d,
+        predictor_sets=(resolved_predictor_sets if explicit_predictor_sets else None),
     )
     if execution_contract is not None and dict(execution_contract) != (
         resolved_execution_contract
@@ -990,6 +1384,14 @@ def transfer_acs_inputs(
     bank_target_indexes = {key: index for index, key in enumerate(ordered_bank_targets)}
 
     for entity, family, targets in active:
+        family_predictor_sets = {
+            predictor_by_target[(entity, target)] for target in targets
+        }
+        if len(family_predictor_sets) != 1:  # pragma: no cover - normalized above
+            raise AssertionError(
+                f"ACS transfer batch {entity}/{family} spans predictor sets."
+            )
+        family_predictor_set = next(iter(family_predictor_sets))
         recipient_table = recipient.table(entity)
         target_missing = {
             target: (
@@ -1006,6 +1408,8 @@ def transfer_acs_inputs(
                 entity=entity,
                 family=family,
                 targets=targets,
+                predictor_set=family_predictor_set,
+                require_all_predictors=explicit_predictor_sets,
                 target_missing=target_missing,
                 seed=seed,
                 n_estimators=n_estimators,
@@ -1017,6 +1421,8 @@ def transfer_acs_inputs(
                 entity=entity,
                 family=family,
                 targets=targets,
+                predictor_set=family_predictor_set,
+                require_all_predictors=explicit_predictor_sets,
                 target_missing=target_missing,
                 seed=seed,
                 n_estimators=n_estimators,
@@ -1251,6 +1657,8 @@ def _fit_family_patterns(
     entity: str,
     family: str,
     targets: tuple[str, ...],
+    predictor_set: AcsPredictorSet,
+    require_all_predictors: bool,
     target_missing: Mapping[str, np.ndarray],
     seed: int,
     n_estimators: int,
@@ -1274,6 +1682,8 @@ def _fit_family_patterns(
         recipient,
         entity=entity,
         targets=targets,
+        predictor_set=predictor_set,
+        require_all_predictors=require_all_predictors,
     )
     overlap = sorted(set(surface.required).intersection(targets))
     if overlap:
@@ -1415,6 +1825,8 @@ def _fit_family_patterns_banked(
     entity: str,
     family: str,
     targets: tuple[str, ...],
+    predictor_set: AcsPredictorSet,
+    require_all_predictors: bool,
     target_missing: Mapping[str, np.ndarray],
     seed: int,
     n_estimators: int,
@@ -1451,6 +1863,8 @@ def _fit_family_patterns_banked(
         recipient,
         entity=entity,
         targets=targets,
+        predictor_set=predictor_set,
+        require_all_predictors=require_all_predictors,
     )
     overlap = sorted(set(surface.required).intersection(targets))
     if overlap:
@@ -1794,10 +2208,16 @@ def _availability_patterns(
     *,
     eligible: np.ndarray,
 ) -> list[tuple[tuple[str, ...], np.ndarray]]:
-    codes = np.zeros(len(surface.recipient), dtype=np.uint16)
+    if len(surface.optional) > _AVAILABILITY_PATTERN_MAX_OPTIONAL_PREDICTORS:
+        raise ValueError(
+            "ACS transfer availability-pattern encoding supports at most "
+            f"{_AVAILABILITY_PATTERN_MAX_OPTIONAL_PREDICTORS} optional "
+            f"predictors, got {len(surface.optional)}."
+        )
+    codes = np.zeros(len(surface.recipient), dtype=_AVAILABILITY_PATTERN_DTYPE)
     for bit, predictor in enumerate(surface.optional):
         observed = np.isfinite(_as_float_array(surface.recipient[predictor]))
-        codes |= observed.astype(np.uint16) << bit
+        codes |= observed.astype(_AVAILABILITY_PATTERN_DTYPE) << np.uint64(bit)
 
     patterns: list[tuple[tuple[str, ...], np.ndarray]] = []
     for code in np.unique(codes[eligible]):
@@ -1817,50 +2237,146 @@ def _transfer_feature_surface(
     *,
     entity: str,
     targets: Sequence[str],
+    predictor_set: AcsPredictorSet,
+    require_all_predictors: bool,
 ) -> _FeatureSurface:
-    if entity == donor.schema.person_entity:
-        surface = _person_feature_surface(donor, recipient)
+    predictor_names = (*predictor_set.required, *predictor_set.optional)
+    puf_predictors = set(PUF_TAX_DETAIL_DEFAULT_PREDICTORS)
+    if set(predictor_names) & puf_predictors:
+        unknown = sorted(set(predictor_names) - puf_predictors)
+        if unknown:
+            raise ValueError(
+                "PUF tax-detail predictor sets cannot mix predictor universes; "
+                f"non-PUF feature(s): {unknown}."
+            )
+        surface = _puf_tax_detail_feature_surface(
+            donor,
+            recipient,
+            entity=entity,
+            predictor_set=predictor_set,
+        )
+    elif entity == donor.schema.person_entity:
+        surface = _person_feature_surface(
+            donor,
+            recipient,
+            predictor_set=predictor_set,
+            require_all_predictors=require_all_predictors,
+        )
     else:
-        surface = _group_feature_surface(donor, recipient, entity=entity)
+        surface = _group_feature_surface(
+            donor,
+            recipient,
+            entity=entity,
+            predictor_set=predictor_set,
+            require_all_predictors=require_all_predictors,
+        )
 
     housing = bool(_HOUSING_TRANSFER_TARGETS.intersection(targets))
     if not housing:
         return surface
     if entity != donor.schema.person_entity:
         raise ValueError("pre_subsidy_rent must be transferred on the person entity.")
-    mandatory = (_HEAD_FEATURE, _TENURE_FEATURE)
-    missing = [name for name in mandatory if name not in surface.optional]
+    missing = [
+        name for name in _HOUSING_CONTEXT_PREDICTORS if name not in surface.required
+    ]
     if missing:
         raise ValueError(
-            "pre_subsidy_rent transfer requires head and tenure predictors on "
-            f"both donor and recipient; missing temporary feature(s): {missing}."
+            "pre_subsidy_rent transfer requires head and tenure as required "
+            f"predictors; missing feature(s): {missing}."
         )
+    return surface
+
+
+def _puf_tax_detail_feature_surface(
+    donor: Frame,
+    recipient: Frame,
+    *,
+    entity: str,
+    predictor_set: AcsPredictorSet,
+) -> _FeatureSurface:
+    """Build the explicit late-transfer PUF predictor surface."""
+
+    predictors = (*predictor_set.required, *predictor_set.optional)
+    donor_features = puf_tax_detail_predictor_surface(
+        donor,
+        entity=entity,
+        predictors=predictors,
+    )
+    recipient_features = puf_tax_detail_predictor_surface(
+        recipient,
+        entity=entity,
+        predictors=predictors,
+    )
+    _validate_optional_numeric_frame(
+        donor_features,
+        context=f"PUF tax-detail donor predictors for {entity!r}",
+    )
+    _validate_optional_numeric_frame(
+        recipient_features,
+        context=f"PUF tax-detail recipient predictors for {entity!r}",
+    )
     return _FeatureSurface(
-        donor=surface.donor,
-        recipient=surface.recipient,
-        required=(*surface.required, *mandatory),
-        optional=tuple(name for name in surface.optional if name not in mandatory),
+        donor=donor_features,
+        recipient=recipient_features,
+        required=predictor_set.required,
+        optional=predictor_set.optional,
     )
 
 
-def _person_feature_surface(donor: Frame, recipient: Frame) -> _FeatureSurface:
+def _person_feature_surface(
+    donor: Frame,
+    recipient: Frame,
+    *,
+    predictor_set: AcsPredictorSet,
+    require_all_predictors: bool,
+) -> _FeatureSurface:
     donor_required = _required_person_features(donor, role="donor")
     recipient_required = _required_person_features(recipient, role="recipient")
-    donor_optional = _person_optional_features(donor, role="donor")
-    recipient_optional = _person_optional_features(recipient, role="recipient")
+    expanded_features = tuple(
+        name
+        for name in (*predictor_set.required, *predictor_set.optional)
+        if name in _CANONICAL_PERSON_FEATURE_COLUMNS
+    )
+    donor_optional = _person_optional_features(
+        donor,
+        role="donor",
+        expanded_features=expanded_features,
+    )
+    recipient_optional = _person_optional_features(
+        recipient,
+        role="recipient",
+        expanded_features=expanded_features,
+    )
+    donor_all = pd.concat([donor_required, donor_optional], axis=1)
+    recipient_all = pd.concat([recipient_required, recipient_optional], axis=1)
+    required = predictor_set.required
+    missing_required = sorted(
+        name for name in required if name not in donor_all or name not in recipient_all
+    )
+    if missing_required:
+        raise ValueError(
+            "ACS transfer person predictor set has unmapped required feature(s): "
+            f"{missing_required}."
+        )
+    missing_optional = sorted(
+        name
+        for name in predictor_set.optional
+        if name not in donor_all or name not in recipient_all
+    )
+    if require_all_predictors and missing_optional:
+        raise ValueError(
+            "ACS transfer person predictor set has unmapped optional feature(s): "
+            f"{missing_optional}."
+        )
     optional = tuple(
         name
-        for name in ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS
-        if name in donor_optional and name in recipient_optional
+        for name in predictor_set.optional
+        if name in donor_all and name in recipient_all
     )
     return _FeatureSurface(
-        donor=pd.concat(
-            [donor_required, donor_optional.loc[:, list(optional)]], axis=1
-        ),
-        recipient=pd.concat(
-            [recipient_required, recipient_optional.loc[:, list(optional)]], axis=1
-        ),
-        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        donor=donor_all.loc[:, [*required, *optional]],
+        recipient=recipient_all.loc[:, [*required, *optional]],
+        required=required,
         optional=optional,
     )
 
@@ -1888,15 +2404,16 @@ def _required_person_features(frame: Frame, *, role: str) -> pd.DataFrame:
     return result
 
 
-def _person_optional_features(frame: Frame, *, role: str) -> pd.DataFrame:
+def _person_optional_features(
+    frame: Frame,
+    *,
+    role: str,
+    expanded_features: Sequence[str] = (),
+) -> pd.DataFrame:
     person = frame.table(frame.schema.person_entity)
     result = pd.DataFrame(index=person.index)
 
-    direct = {
-        _EMPLOYMENT_FEATURE: "employment_income_before_lsr",
-        _SELF_EMPLOYMENT_FEATURE: "self_employment_income_before_lsr",
-    }
-    for feature, source in direct.items():
+    for feature, (source,) in _DONOR_DIRECT_COMPONENTS.items():
         values = _person_column(frame, source)
         if values is not None:
             result[feature] = values.to_numpy()
@@ -1919,11 +2436,403 @@ def _person_optional_features(frame: Frame, *, role: str) -> pd.DataFrame:
     if tenure is not None:
         result[_TENURE_FEATURE] = tenure.to_numpy()
 
+    for feature in expanded_features:
+        values = _canonical_or_acs_person_feature(
+            frame,
+            feature=feature,
+            role=role,
+        )
+        if values is not None:
+            result[feature] = values.to_numpy()
+
     _validate_optional_numeric_frame(
         result,
         context=f"ACS transfer {role} optional person predictors",
     )
     return result
+
+
+_CANONICAL_PERSON_FEATURE_COLUMNS: Mapping[str, str] = {
+    _MARITAL_STATUS_FEATURE: "marital_status_code",
+    _RELATIONSHIP_FEATURE: "relationship_code",
+    _HOUSEHOLD_PERSON_COUNT_FEATURE: "household_person_count",
+    _VETERAN_OR_ACTIVE_MILITARY_FEATURE: "is_veteran_or_active_military",
+    _HOUSEHOLD_VETERAN_OR_ACTIVE_MILITARY_FEATURE: ("is_veteran_or_active_military"),
+    _DIFFICULTY_DRESSING_FEATURE: "difficulty_dressing_or_bathing",
+    _DIFFICULTY_HEARING_FEATURE: "difficulty_hearing",
+    _DIFFICULTY_SEEING_FEATURE: "difficulty_seeing",
+    _DIFFICULTY_ERRANDS_FEATURE: "difficulty_doing_errands",
+    _DIFFICULTY_WALKING_FEATURE: "difficulty_walking_or_climbing_stairs",
+    _DIFFICULTY_COGNITIVE_FEATURE: ("difficulty_remembering_or_making_decisions"),
+    _USUAL_HOURS_WORKED_FEATURE: "usual_hours_worked",
+    _WEEKS_WORKED_FEATURE: "weeks_worked_predictor",
+    _SELF_EMPLOYED_WORKER_FEATURE: "is_self_employed_worker",
+    _MEDICARE_COVERAGE_FEATURE: "has_medicare_coverage",
+    _FOREIGN_BORN_FEATURE: "is_foreign_born",
+}
+
+_ACS_BINARY_PERSON_FEATURE_SOURCES: Mapping[
+    str, tuple[str, frozenset[float], frozenset[float]]
+] = {
+    _VETERAN_OR_ACTIVE_MILITARY_FEATURE: (
+        "MIL",
+        frozenset({1.0, 2.0}),
+        frozenset({3.0, 4.0}),
+    ),
+    _DIFFICULTY_DRESSING_FEATURE: (
+        "DDRS",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_HEARING_FEATURE: (
+        "DEAR",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_SEEING_FEATURE: (
+        "DEYE",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_ERRANDS_FEATURE: (
+        "DOUT",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_WALKING_FEATURE: (
+        "DPHY",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_COGNITIVE_FEATURE: (
+        "DREM",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _SELF_EMPLOYED_WORKER_FEATURE: (
+        "COW",
+        frozenset({6.0, 7.0}),
+        frozenset({1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 9.0}),
+    ),
+    _MEDICARE_COVERAGE_FEATURE: (
+        "HINS3",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _FOREIGN_BORN_FEATURE: (
+        "NATIVITY",
+        frozenset({2.0}),
+        frozenset({1.0}),
+    ),
+}
+
+_ACS_NUMERIC_PERSON_FEATURE_SOURCES: Mapping[str, str] = {
+    _MARITAL_STATUS_FEATURE: "MAR",
+    _RELATIONSHIP_FEATURE: "A_EXPRRP",
+    _USUAL_HOURS_WORKED_FEATURE: "WKHP",
+    _WEEKS_WORKED_FEATURE: "WKWN",
+}
+
+
+def _expanded_person_predictor_mapping_identity() -> dict[str, object]:
+    """Bind every reviewed donor/recipient feature mapping and raw codec."""
+
+    mapped = (
+        set(_ACS_NUMERIC_PERSON_FEATURE_SOURCES)
+        | set(_ACS_BINARY_PERSON_FEATURE_SOURCES)
+        | {
+            _HOUSEHOLD_PERSON_COUNT_FEATURE,
+            _HOUSEHOLD_VETERAN_OR_ACTIVE_MILITARY_FEATURE,
+        }
+    )
+    declared = set(_CANONICAL_PERSON_FEATURE_COLUMNS)
+    if mapped != declared:  # pragma: no cover - import-local closed registry
+        raise RuntimeError(
+            "Expanded ACS person predictor mapping registry drifted: "
+            f"missing={sorted(declared - mapped)}, extra={sorted(mapped - declared)}."
+        )
+
+    features: dict[str, object] = {}
+    for feature, canonical_column in sorted(_CANONICAL_PERSON_FEATURE_COLUMNS.items()):
+        mapping: dict[str, object] = {
+            "donor_canonical_column": canonical_column,
+        }
+        if feature == _HOUSEHOLD_PERSON_COUNT_FEATURE:
+            mapping["recipient"] = {
+                "source": "person_household_id",
+                "codec": "household_group_size_sort_false",
+            }
+        elif feature == _HOUSEHOLD_VETERAN_OR_ACTIVE_MILITARY_FEATURE:
+            mapping["donor"] = {
+                "source": _CANONICAL_PERSON_FEATURE_COLUMNS[
+                    _VETERAN_OR_ACTIVE_MILITARY_FEATURE
+                ],
+                "codec": (
+                    "three_valued_household_any_true_else_all_known_false_else_missing"
+                ),
+            }
+            source, true_codes, false_codes = _ACS_BINARY_PERSON_FEATURE_SOURCES[
+                _VETERAN_OR_ACTIVE_MILITARY_FEATURE
+            ]
+            mapping["recipient"] = {
+                "source": source,
+                "person_codec": "reviewed_binary_codes_preserve_blank",
+                "true_codes": sorted(true_codes),
+                "false_codes": sorted(false_codes),
+                "household_codec": (
+                    "three_valued_household_any_true_else_all_known_false_else_missing"
+                ),
+            }
+        elif feature in _ACS_NUMERIC_PERSON_FEATURE_SOURCES:
+            source = _ACS_NUMERIC_PERSON_FEATURE_SOURCES[feature]
+            if feature == _MARITAL_STATUS_FEATURE:
+                recipient_mapping: dict[str, object] = {
+                    "source": source,
+                    "codec": "reviewed_code_identity_preserve_blank",
+                    "valid_codes": [1.0, 2.0, 3.0, 4.0, 5.0],
+                }
+            elif feature == _RELATIONSHIP_FEATURE:
+                recipient_mapping = {
+                    "source": source,
+                    "codec": "reviewed_code_identity_preserve_blank",
+                    "valid_codes": sorted(CPS_RELATIONSHIP_PREDICTOR_CODES),
+                }
+            elif feature == _USUAL_HOURS_WORKED_FEATURE:
+                recipient_mapping = {
+                    "source": source,
+                    "codec": "finite_numeric_nonnegative_preserve_blank",
+                }
+            elif feature == _WEEKS_WORKED_FEATURE:
+                recipient_mapping = {
+                    "source": source,
+                    "codec": "integer_0_52_preserve_blank",
+                }
+            else:  # pragma: no cover - closed numeric registry above
+                raise AssertionError(f"Unknown numeric ACS feature {feature!r}.")
+            mapping["recipient"] = recipient_mapping
+        else:
+            source, true_codes, false_codes = _ACS_BINARY_PERSON_FEATURE_SOURCES[
+                feature
+            ]
+            mapping["recipient"] = {
+                "source": source,
+                "codec": "reviewed_binary_codes_preserve_blank",
+                "true_codes": sorted(true_codes),
+                "false_codes": sorted(false_codes),
+            }
+        features[feature] = mapping
+    return {
+        "version": 2,
+        "donor_canonical_mapping": cps_carried_predictor_mapping_identity(),
+        "recipient_raw_row_scope": {
+            "canonical_surface_present": (
+                "any_reviewed_canonical_predictor_value_blocks_all_raw_decoding"
+            ),
+            "canonical_surface_empty": "decode_reviewed_raw_recipient_columns",
+        },
+        "features": features,
+    }
+
+
+def _canonical_or_acs_person_feature(
+    frame: Frame,
+    *,
+    feature: str,
+    role: str,
+) -> pd.Series | None:
+    person = frame.table(frame.schema.person_entity)
+    if feature == _HOUSEHOLD_VETERAN_OR_ACTIVE_MILITARY_FEATURE:
+        person_values = _canonical_or_acs_person_feature(
+            frame,
+            feature=_VETERAN_OR_ACTIVE_MILITARY_FEATURE,
+            role=role,
+        )
+        if person_values is None:
+            return None
+        return _household_any_person_feature(
+            frame,
+            person_values,
+            feature=feature,
+        )
+    canonical_column = _CANONICAL_PERSON_FEATURE_COLUMNS[feature]
+    validate_cps_carried_person_predictors(
+        person,
+        columns=(canonical_column,),
+        context="ACS transfer",
+    )
+    canonical = _person_column(frame, canonical_column)
+    # Several CPS/ASEC raw columns share names with ACS PUMS columns but not
+    # meanings (notably CPS MIL coverage versus ACS MIL service status).
+    # Donors therefore use only the reviewed canonical carried surface. On a
+    # recipient, any reviewed canonical predictor makes that row's whole
+    # carried surface authoritative; raw PUMS values are decoded only for rows
+    # whose entire canonical surface is empty. This keeps the operator
+    # source-spine blind while still exposing native ACS predictors.
+    acs = (
+        _acs_person_feature(
+            frame,
+            feature=feature,
+            selected=~_canonical_person_predictor_surface_present(person),
+        )
+        if role == "recipient"
+        else None
+    )
+    if canonical is None:
+        return None if acs is None else acs.rename(feature)
+    canonical = canonical.rename(feature)
+    if acs is None:
+        return canonical
+    return canonical.combine_first(acs).rename(feature).reindex(person.index)
+
+
+def _canonical_person_predictor_surface_present(person: pd.DataFrame) -> np.ndarray:
+    """Return rows governed by any reviewed canonical carried predictor."""
+
+    canonical_columns = tuple(
+        sorted(set(_CANONICAL_PERSON_FEATURE_COLUMNS.values()).intersection(person))
+    )
+    if not canonical_columns:
+        return np.zeros(len(person), dtype=bool)
+    validate_cps_carried_person_predictors(
+        person,
+        columns=canonical_columns,
+        context="ACS transfer",
+    )
+    canonical = person.loc[:, list(canonical_columns)].apply(
+        pd.to_numeric,
+        errors="coerce",
+    )
+    return canonical.notna().any(axis=1).to_numpy(dtype=bool)
+
+
+def _household_any_person_feature(
+    frame: Frame,
+    person_values: pd.Series,
+    *,
+    feature: str,
+) -> pd.Series:
+    """Broadcast a three-valued household ``any`` from person indicators."""
+
+    person = frame.table(frame.schema.person_entity)
+    membership_column = frame.schema.membership_column("household")
+    if membership_column not in person:
+        raise ValueError(
+            "ACS transfer household veteran predictor requires person household "
+            f"membership column {membership_column!r}."
+        )
+    values = _as_float_array(person_values.reindex(person.index))
+    finite = np.isfinite(values)
+    invalid = finite & ~np.isin(values, [0.0, 1.0])
+    if invalid.any():
+        bad = sorted(set(values[invalid].tolist()))
+        raise ValueError(
+            "ACS transfer household veteran predictor requires boolean person "
+            f"indicators; unsupported value(s): {bad}."
+        )
+
+    grouped = pd.DataFrame(
+        {
+            "household_id": person[membership_column].to_numpy(copy=True),
+            "known": finite,
+            "positive": values == 1.0,
+        },
+        index=person.index,
+    ).groupby("household_id", sort=False)
+    any_positive = grouped["positive"].transform("any").to_numpy(dtype=bool)
+    all_known = grouped["known"].transform("all").to_numpy(dtype=bool)
+    result = np.where(any_positive, 1.0, np.where(all_known, 0.0, np.nan))
+    return pd.Series(result, index=person.index, name=feature)
+
+
+def _acs_person_feature(
+    frame: Frame,
+    *,
+    feature: str,
+    selected: np.ndarray,
+) -> pd.Series | None:
+    person = frame.table(frame.schema.person_entity)
+    selected = np.asarray(selected, dtype=bool)
+    if selected.ndim != 1 or len(selected) != len(person):
+        raise ValueError("ACS recipient predictor selection is not person-aligned.")
+    if feature == _HOUSEHOLD_PERSON_COUNT_FEATURE:
+        values = (
+            person.groupby("person_household_id", sort=False)["person_household_id"]
+            .transform("size")
+            .to_numpy(dtype=np.float64)
+        )
+        values[~selected] = np.nan
+        return pd.Series(values, index=person.index, name=feature)
+
+    numeric_source = _ACS_NUMERIC_PERSON_FEATURE_SOURCES.get(feature)
+    if numeric_source is not None:
+        if numeric_source not in person:
+            return None
+        values = _numeric_source(
+            person.loc[selected, numeric_source],
+            context=f"person predictor {numeric_source}",
+        )
+        _validate_raw_expanded_person_feature(
+            values,
+            feature=feature,
+            source=numeric_source,
+        )
+        expanded = np.full(len(person), np.nan, dtype=np.float64)
+        expanded[selected] = values
+        return pd.Series(expanded, index=person.index, name=feature)
+
+    binary = _ACS_BINARY_PERSON_FEATURE_SOURCES.get(feature)
+    if binary is None:  # pragma: no cover - closed feature registry above
+        raise AssertionError(f"Unknown ACS person feature {feature!r}.")
+    source, true_codes, false_codes = binary
+    if source not in person:
+        return None
+    raw = _numeric_source(
+        person.loc[selected, source],
+        context=f"person predictor {source}",
+    )
+    observed = np.isfinite(raw)
+    invalid = observed & ~np.isin(raw, [*true_codes, *false_codes])
+    if invalid.any():
+        bad = sorted(set(raw[invalid].tolist()))
+        raise ValueError(
+            f"ACS transfer person predictor {source!r} contains unsupported "
+            f"code(s): {bad}."
+        )
+    selected_values = np.full(len(raw), np.nan, dtype=np.float64)
+    selected_values[observed] = np.isin(raw[observed], list(true_codes)).astype(
+        np.float64
+    )
+    values = np.full(len(person), np.nan, dtype=np.float64)
+    values[selected] = selected_values
+    return pd.Series(values, index=person.index, name=feature)
+
+
+def _validate_raw_expanded_person_feature(
+    values: np.ndarray,
+    *,
+    feature: str,
+    source: str,
+) -> None:
+    """Validate reviewed raw numeric domains before canonical projection."""
+
+    observed = np.isfinite(values)
+    if feature == _MARITAL_STATUS_FEATURE:
+        valid = np.isin(values, [1.0, 2.0, 3.0, 4.0, 5.0])
+    elif feature == _RELATIONSHIP_FEATURE:
+        valid = np.isin(values, list(CPS_RELATIONSHIP_PREDICTOR_CODES))
+    elif feature == _USUAL_HOURS_WORKED_FEATURE:
+        valid = values >= 0.0
+    elif feature == _WEEKS_WORKED_FEATURE:
+        valid = (values >= 0.0) & (values <= 52.0) & np.equal(values, np.floor(values))
+    else:  # pragma: no cover - closed numeric registry above
+        raise AssertionError(f"Unhandled raw ACS person feature {feature!r}.")
+    invalid = observed & ~valid
+    if invalid.any():
+        bad = sorted(set(values[invalid].tolist()))
+        raise ValueError(
+            f"ACS transfer person predictor {source!r} contains unsupported "
+            f"code/value(s): {bad}."
+        )
 
 
 def _person_column(frame: Frame, column: str) -> pd.Series | None:
@@ -2044,6 +2953,8 @@ def _group_feature_surface(
     recipient: Frame,
     *,
     entity: str,
+    predictor_set: AcsPredictorSet,
+    require_all_predictors: bool,
 ) -> _FeatureSurface:
     donor_required = _required_group_features(donor, entity=entity, role="donor")
     recipient_required = _required_group_features(
@@ -2066,12 +2977,37 @@ def _group_feature_surface(
         entity=entity,
         person_features=recipient_person_optional.loc[:, list(person_optional)],
     )
-    optional = tuple(_GROUP_OPTIONAL_NAMES[name] for name in person_optional)
+    donor_all = pd.concat([donor_required, donor_optional], axis=1)
+    recipient_all = pd.concat([recipient_required, recipient_optional], axis=1)
+    required = predictor_set.required
+    missing_required = sorted(
+        name for name in required if name not in donor_all or name not in recipient_all
+    )
+    if missing_required:
+        raise ValueError(
+            f"ACS transfer {entity} predictor set has unmapped required "
+            f"feature(s): {missing_required}."
+        )
+    missing_optional = sorted(
+        name
+        for name in predictor_set.optional
+        if name not in donor_all or name not in recipient_all
+    )
+    if require_all_predictors and missing_optional:
+        raise ValueError(
+            f"ACS transfer {entity} predictor set has unmapped optional "
+            f"feature(s): {missing_optional}."
+        )
+    selected_optional = tuple(
+        name
+        for name in predictor_set.optional
+        if name in donor_all and name in recipient_all
+    )
     return _FeatureSurface(
-        donor=pd.concat([donor_required, donor_optional], axis=1),
-        recipient=pd.concat([recipient_required, recipient_optional], axis=1),
-        required=ACS_GROUP_TRANSFER_PREDICTORS,
-        optional=optional,
+        donor=donor_all.loc[:, [*required, *selected_optional]],
+        recipient=recipient_all.loc[:, [*required, *selected_optional]],
+        required=required,
+        optional=selected_optional,
     )
 
 
@@ -2333,6 +3269,79 @@ def _normalize_target_families(
             if targets:
                 normalized.append((entity, family, targets))
     return normalized
+
+
+def _legacy_predictor_set(
+    *,
+    entity: str,
+    targets: Sequence[str],
+) -> AcsPredictorSet:
+    """Preserve the historical library default for callers without a set."""
+
+    if entity == "person":
+        required = ACS_PERSON_TRANSFER_PREDICTORS
+        optional = ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS
+        if _HOUSING_TRANSFER_TARGETS.intersection(targets):
+            required = (*required, *_HOUSING_CONTEXT_PREDICTORS)
+            optional = tuple(
+                name for name in optional if name not in _HOUSING_CONTEXT_PREDICTORS
+            )
+        return AcsPredictorSet(required=required, optional=optional)
+    return _GROUP_FAMILY_PREDICTOR_SET
+
+
+def _normalize_predictor_sets(
+    predictor_sets: PredictorSets | None,
+    *,
+    families: Sequence[tuple[str, str, tuple[str, ...]]],
+) -> dict[str, dict[str, AcsPredictorSet]]:
+    expected = {(entity, family) for entity, family, _targets in families}
+    targets_by_family = {
+        (entity, family): targets for entity, family, targets in families
+    }
+    if predictor_sets is None:
+        resolved: dict[str, dict[str, AcsPredictorSet]] = {}
+        for entity, family, targets in families:
+            resolved.setdefault(entity, {})[family] = _legacy_predictor_set(
+                entity=entity,
+                targets=targets,
+            )
+        return resolved
+    if not isinstance(predictor_sets, Mapping):
+        raise TypeError("predictor_sets must map entity names to family mappings.")
+
+    observed: set[tuple[str, str]] = set()
+    for entity, entity_sets in predictor_sets.items():
+        if not isinstance(entity, str) or not entity.strip():
+            raise ValueError(f"predictor_sets has invalid entity name {entity!r}.")
+        if not isinstance(entity_sets, Mapping):
+            raise TypeError(f"predictor_sets[{entity!r}] must be a family mapping.")
+        for family in entity_sets:
+            if not isinstance(family, str) or not family.strip():
+                raise ValueError(
+                    f"predictor_sets[{entity!r}] has invalid family name {family!r}."
+                )
+            observed.add((entity, family))
+    if observed != expected:
+        raise ValueError(
+            "predictor_sets must declare exactly the requested families; "
+            f"missing={sorted(expected - observed)}, extra={sorted(observed - expected)}."
+        )
+
+    resolved = {}
+    for entity, family in sorted(expected):
+        predictor_set = predictor_sets[entity][family]
+        if not isinstance(predictor_set, AcsPredictorSet):
+            raise TypeError(
+                f"predictor_sets[{entity!r}][{family!r}] must be an AcsPredictorSet."
+            )
+        assert_acs_predictor_set_has_no_target_leakage(
+            predictor_set,
+            targets_by_family[(entity, family)],
+            context=f"ACS transfer family {entity}/{family}",
+        )
+        resolved.setdefault(entity, {})[family] = predictor_set
+    return resolved
 
 
 def _split_large_target_families(

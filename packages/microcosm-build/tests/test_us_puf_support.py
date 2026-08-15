@@ -12,10 +12,12 @@ from microcosm.build.us_runtime import (
     BASE_ASEC_SUPPORT_CHANNEL,
     CPS_CARRIED_FORMULA_OWNED_COLUMNS,
     CPS_CARRIED_PERSON_INPUTS,
+    CPS_CARRIED_PERSON_PREDICTORS,
     CPS_CARRIED_SPM_UNIT_INPUTS,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
     US_PUF_DONOR_MORTGAGE_OUTLIER_CEILING,
     clone_us_frame_for_puf_support,
+    cps_carried_predictor_mapping_identity,
     derive_us_cps_carried_inputs,
     impute_us_puf_tax_detail_support,
     puf_tax_unit_donor_from_arrays,
@@ -27,9 +29,12 @@ from microcosm.build.us_runtime import (
 from microcosm.build.us_runtime.puf_support import (
     _PUF_TAX_DETAIL_SIGNED_MASS_CALIBRATED_PERSON_OUTPUTS,
     PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
+    PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
     PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS,
     assert_formula_owned_blocklist_current,
+    puf_tax_detail_predictor_projection_identity,
+    puf_tax_detail_predictor_surface,
     resolve_formula_owned_outputs,
 )
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
@@ -168,7 +173,22 @@ def _raw_asec_predictor_frame() -> Frame:
                     [10000, 10000, 20000], dtype="int64"
                 ),
                 "A_AGE": [65, 40, 61],
+                "A_EXPRRP": [1, 4, 5],
+                "A_MARITL": [1, 4, 7],
+                "A_MJOCC": [0, 0, 11],
                 "A_SEX": [1, 2, 2],
+                "HRSWK": [20, 40, 0],
+                "MCARE": [1, 2, 2],
+                "PEDISDRS": [2, 1, 2],
+                "PEDISEAR": [1, 2, 2],
+                "PEDISEYE": [2, 2, 1],
+                "PEDISOUT": [2, 1, 2],
+                "PEDISPHY": [1, 2, 1],
+                "PEDISREM": [2, 1, 1],
+                "PEAFEVER": [2, 1, 2],
+                "PEIO1COW": [1, 6, 7],
+                "PRCITSHP": [1, 4, 5],
+                "WKSWORK": [52, 26, 0],
                 "WSAL_VAL": [100.0, 200.0, 0.0],
                 "SEMP_VAL": [10.0, 0.0, 30.0],
                 "INT_VAL": [1_000.0, 0.0, 200.0],
@@ -1127,6 +1147,378 @@ def test_cps_carried_derivations_create_leaf_inputs_not_aggregates() -> None:
     assert "receives_wic" in CPS_CARRIED_PERSON_INPUTS
     assert person["receives_wic"].tolist() == [False, True, False]
     assert pd.api.types.is_bool_dtype(person["receives_wic"])
+
+
+def test_cps_carried_derives_canonical_person_predictors() -> None:
+    person = derive_us_cps_carried_inputs(_raw_asec_predictor_frame()).table("person")
+    expected = {
+        "difficulty_doing_errands": [0.0, 1.0, 0.0],
+        "difficulty_dressing_or_bathing": [0.0, 1.0, 0.0],
+        "difficulty_hearing": [1.0, 0.0, 0.0],
+        "difficulty_remembering_or_making_decisions": [0.0, 1.0, 1.0],
+        "difficulty_seeing": [0.0, 0.0, 1.0],
+        "difficulty_walking_or_climbing_stairs": [1.0, 0.0, 1.0],
+        "has_medicare_coverage": [1.0, 0.0, 0.0],
+        "household_person_count": [2.0, 2.0, 1.0],
+        "is_foreign_born": [0.0, 1.0, 1.0],
+        "is_self_employed_worker": [0.0, 1.0, 1.0],
+        "is_veteran_or_active_military": [0.0, 1.0, 1.0],
+        "marital_status_code": [1.0, 2.0, 5.0],
+        "relationship_code": [1.0, 4.0, 5.0],
+        "usual_hours_worked": [20.0, 40.0, 0.0],
+        "weeks_worked_predictor": [52.0, 26.0, 0.0],
+    }
+
+    assert CPS_CARRIED_PERSON_PREDICTORS == frozenset(expected)
+    for column, values in expected.items():
+        assert person[column].dtype == np.dtype("float64")
+        np.testing.assert_array_equal(person[column].to_numpy(), values)
+
+
+def test_cps_carried_predictor_identity_binds_raw_sources_and_codecs() -> None:
+    identity = cps_carried_predictor_mapping_identity()
+    predictors = identity["predictors"]
+
+    assert identity["version"] == 2
+    assert len(identity["sha256"]) == 64
+    assert set(predictors) == CPS_CARRIED_PERSON_PREDICTORS
+    assert identity["preexisting_value_policy"] == (
+        "preserve_after_canonical_domain_validation"
+    )
+    canonical = identity["canonical_validation"]
+    assert set(canonical) == CPS_CARRIED_PERSON_PREDICTORS
+    assert canonical["household_person_count"] == {
+        "domain": "positive_integer",
+        "missing": "allowed",
+    }
+    assert canonical["weeks_worked_predictor"] == {
+        "domain": "integer_0_52",
+        "missing": "allowed",
+    }
+    assert canonical["is_veteran_or_active_military"] == {
+        "domain": "binary_0_1",
+        "missing": "allowed",
+    }
+    assert predictors["marital_status_code"] == {
+        "source": "A_MARITL",
+        "codec": "reviewed_code_recode_preserve_blank",
+        "recode": {
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 2.0,
+            "5": 3.0,
+            "6": 4.0,
+            "7": 5.0,
+        },
+    }
+    assert predictors["is_veteran_or_active_military"] == {
+        "sources": {
+            "A_MJOCC": {
+                "true_codes": [11.0],
+                "false_codes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                "missing_codes": [],
+            },
+            "PEAFEVER": {
+                "true_codes": [1.0],
+                "false_codes": [2.0],
+                "missing_codes": [-1.0],
+            },
+        },
+        "codec": "three_valued_any_true_else_all_known_false_else_missing",
+    }
+    assert predictors["weeks_worked_predictor"] == {
+        "source": "WKSWORK",
+        "codec": "finite_numeric_clip_0_52_preserve_blank",
+    }
+    assert predictors["relationship_code"] == {
+        "source": "A_EXPRRP",
+        "codec": "reviewed_code_identity_preserve_blank",
+        "valid_codes": [
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            5.0,
+            7.0,
+            8.0,
+            9.0,
+            10.0,
+            11.0,
+            12.0,
+            13.0,
+            14.0,
+        ],
+    }
+    assert predictors["difficulty_hearing"] == {
+        "source": "PEDISEAR",
+        "codec": "reviewed_binary_codes_preserve_blank",
+        "true_codes": [1.0],
+        "false_codes": [2.0],
+        "missing_codes": [-1.0],
+    }
+
+
+def test_late_puf_predictor_surface_projects_tax_units_across_grains() -> None:
+    frame = derive_us_cps_carried_inputs(_raw_asec_predictor_frame())
+    predictors = PUF_TAX_DETAIL_DEFAULT_PREDICTORS
+
+    tax_unit = puf_tax_detail_predictor_surface(
+        frame,
+        entity="tax_unit",
+        predictors=predictors,
+    )
+    person = puf_tax_detail_predictor_surface(
+        frame,
+        entity="person",
+        predictors=predictors,
+    )
+    np.testing.assert_array_equal(person.iloc[0].to_numpy(), tax_unit.iloc[0])
+    np.testing.assert_array_equal(person.iloc[1].to_numpy(), tax_unit.iloc[0])
+    np.testing.assert_array_equal(person.iloc[2].to_numpy(), tax_unit.iloc[1])
+
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["person"].loc[:, "person_spm_unit_id"] = 100
+    tables["spm_unit"] = tables["spm_unit"].iloc[[0]].copy()
+    combined = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+    )
+    spm_unit = puf_tax_detail_predictor_surface(
+        combined,
+        entity="spm_unit",
+        predictors=predictors,
+    )
+    np.testing.assert_array_equal(spm_unit.iloc[0].to_numpy(), tax_unit.iloc[0])
+
+    identity = puf_tax_detail_predictor_projection_identity()
+    assert identity["group_projection"] == {
+        "selection": "tax unit of the first person row in each group",
+        "ordering": "stable person table row order",
+        "null_policy": "selected tax-unit missingness is preserved",
+    }
+    assert len(identity["sha256"]) == 64
+
+
+def test_cps_carried_person_predictors_preserve_raw_blanks_as_nan() -> None:
+    frame = _raw_asec_predictor_frame()
+    person = frame.table("person")
+    raw_sources = (
+        "A_EXPRRP",
+        "A_MARITL",
+        "HRSWK",
+        "MCARE",
+        "PEDISDRS",
+        "PEDISEAR",
+        "PEDISEYE",
+        "PEDISOUT",
+        "PEDISPHY",
+        "PEDISREM",
+        "PEIO1COW",
+        "PRCITSHP",
+        "WKSWORK",
+    )
+    for index, source in enumerate(raw_sources):
+        values = person[source].astype(object)
+        values.iloc[1] = "" if index % 2 else pd.NA
+        person[source] = values
+    # Three-valued OR: a known positive survives an unknown peer source, while
+    # an otherwise unresolved pair stays missing.
+    person["PEAFEVER"] = pd.Series([1, pd.NA, 2], dtype="object")
+    person["A_MJOCC"] = pd.Series([pd.NA, "", 11], dtype="object")
+
+    derived = derive_us_cps_carried_inputs(frame).table("person")
+
+    source_derived = CPS_CARRIED_PERSON_PREDICTORS - {"household_person_count"}
+    assert derived.loc[1, list(source_derived)].isna().all()
+    assert derived["household_person_count"].tolist() == [2.0, 2.0, 1.0]
+    assert derived["is_veteran_or_active_military"].iloc[0] == 1.0
+    assert derived["is_veteran_or_active_military"].iloc[2] == 1.0
+
+
+def test_cps_carried_person_predictors_preserve_niu_codes_as_nan() -> None:
+    frame = _raw_asec_predictor_frame()
+    person = frame.table("person")
+    disability_sources = (
+        "PEDISDRS",
+        "PEDISEAR",
+        "PEDISEYE",
+        "PEDISOUT",
+        "PEDISPHY",
+        "PEDISREM",
+    )
+    for source in disability_sources:
+        person[source] = [-1, 1, 2]
+    person["PEIO1COW"] = [0, 6, 1]
+    person["PEAFEVER"] = [-1, 1, 2]
+    person["A_MJOCC"] = [0, 0, 0]
+
+    derived = derive_us_cps_carried_inputs(frame).table("person")
+
+    disability_outputs = {
+        "difficulty_dressing_or_bathing",
+        "difficulty_hearing",
+        "difficulty_seeing",
+        "difficulty_doing_errands",
+        "difficulty_walking_or_climbing_stairs",
+        "difficulty_remembering_or_making_decisions",
+    }
+    for output in disability_outputs:
+        assert pd.isna(derived.loc[0, output])
+        assert derived.loc[1:, output].tolist() == [1.0, 0.0]
+    assert pd.isna(derived.loc[0, "is_self_employed_worker"])
+    assert derived.loc[1:, "is_self_employed_worker"].tolist() == [1.0, 0.0]
+    assert pd.isna(derived.loc[0, "is_veteran_or_active_military"])
+    assert derived.loc[1:, "is_veteran_or_active_military"].tolist() == [1.0, 0.0]
+
+
+def test_cps_carried_person_predictors_normalize_hours_like_the_hours_stage() -> None:
+    frame = _raw_asec_predictor_frame()
+    person = frame.table("person")
+    person["HRSWK"] = [-1, 40, 99]
+    person["WKSWORK"] = [99, 26, -1]
+
+    derived = derive_us_cps_carried_inputs(frame).table("person")
+
+    assert derived["usual_hours_worked"].tolist() == [0.0, 40.0, 99.0]
+    assert derived["weeks_worked_predictor"].tolist() == [52.0, 26.0, 0.0]
+
+
+@pytest.mark.parametrize(
+    ("source", "bad_value", "message"),
+    (
+        ("HRSWK", "not-a-number", "non-numeric"),
+        ("WKSWORK", np.inf, "infinite"),
+    ),
+)
+def test_cps_carried_person_predictors_refuse_malformed_raw_values(
+    source: str,
+    bad_value: object,
+    message: str,
+) -> None:
+    frame = _raw_asec_predictor_frame()
+    person = frame.table("person")
+    person[source] = person[source].astype(object)
+    person.loc[1, source] = bad_value
+
+    with pytest.raises(ValueError, match=rf"{source!r}.*{message}"):
+        derive_us_cps_carried_inputs(frame)
+
+
+@pytest.mark.parametrize(
+    ("source", "bad_code"),
+    (
+        ("PEDISDRS", 0),
+        ("PEIO1COW", 9),
+        ("MCARE", 3),
+        ("PRCITSHP", 0),
+        ("PEAFEVER", 0),
+        ("A_MJOCC", 12),
+        ("A_EXPRRP", 6),
+    ),
+)
+def test_cps_carried_person_predictors_refuse_unsupported_codes(
+    source: str,
+    bad_code: int,
+) -> None:
+    frame = _raw_asec_predictor_frame()
+    frame.table("person").loc[1, source] = bad_code
+
+    with pytest.raises(ValueError, match=rf"{source}.*unsupported code"):
+        derive_us_cps_carried_inputs(frame)
+
+
+def test_cps_carried_person_predictors_preserve_existing_columns() -> None:
+    frame = _raw_asec_predictor_frame()
+    person = frame.table("person")
+    binary = CPS_CARRIED_PERSON_PREDICTORS - {
+        "household_person_count",
+        "marital_status_code",
+        "relationship_code",
+        "usual_hours_worked",
+        "weeks_worked_predictor",
+    }
+    expected: dict[str, list[float]] = {column: [0.0, 1.0, np.nan] for column in binary}
+    expected.update(
+        {
+            "household_person_count": [2.0, 2.0, 1.0],
+            "marital_status_code": [1.0, 3.0, 5.0],
+            "relationship_code": [1.0, 13.0, 14.0],
+            "usual_hours_worked": [0.0, 40.0, 99.0],
+            "weeks_worked_predictor": [0.0, 26.0, 52.0],
+        }
+    )
+    for column, values in expected.items():
+        person[column] = values
+
+    derived = derive_us_cps_carried_inputs(frame).table("person")
+
+    for column, values in expected.items():
+        np.testing.assert_array_equal(derived[column].to_numpy(), values)
+
+
+@pytest.mark.parametrize(
+    ("column", "bad_value"),
+    (
+        ("difficulty_hearing", 2.0),
+        ("marital_status_code", 6.0),
+        ("relationship_code", 6.0),
+        ("household_person_count", 0.0),
+        ("household_person_count", 1.5),
+        ("usual_hours_worked", -1.0),
+        ("weeks_worked_predictor", 53.0),
+        ("weeks_worked_predictor", 26.5),
+    ),
+)
+def test_cps_carried_refuses_invalid_existing_canonical_predictors(
+    column: str,
+    bad_value: float,
+) -> None:
+    frame = _raw_asec_predictor_frame()
+    frame.table("person")[column] = [bad_value, np.nan, np.nan]
+
+    with pytest.raises(
+        ValueError,
+        match=rf"canonical predictor {column!r}.*unsupported value",
+    ):
+        derive_us_cps_carried_inputs(frame)
+
+
+def test_cps_carried_person_predictors_require_their_raw_sources() -> None:
+    frame = _raw_asec_predictor_frame()
+    raw_sources = {
+        "A_EXPRRP",
+        "A_MARITL",
+        "A_MJOCC",
+        "HRSWK",
+        "MCARE",
+        "PEDISDRS",
+        "PEDISEAR",
+        "PEDISEYE",
+        "PEDISOUT",
+        "PEDISPHY",
+        "PEDISREM",
+        "PEAFEVER",
+        "PEIO1COW",
+        "PRCITSHP",
+        "WKSWORK",
+    }
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["person"] = tables["person"].drop(columns=sorted(raw_sources))
+    without_sources = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+    )
+
+    derived = derive_us_cps_carried_inputs(without_sources).table("person")
+
+    assert CPS_CARRIED_PERSON_PREDICTORS.intersection(derived) == {
+        "household_person_count"
+    }
 
 
 def test_cps_carried_derives_reported_enrollment_by_spm_unit() -> None:

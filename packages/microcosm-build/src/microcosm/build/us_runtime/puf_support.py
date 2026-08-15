@@ -77,6 +77,8 @@ __all__ = [
     "impute_us_puf_tax_detail_support",
     "puf_tax_detail_clone_mask",
     "puf_recipient_predictor_universe_receipt",
+    "puf_tax_detail_predictor_projection_identity",
+    "puf_tax_detail_predictor_surface",
     "puf_tax_detail_tail_bound_quantiles_identity",
     "puf_tax_unit_donor_from_arrays",
     "prepare_us_puf_tax_detail_chain_inputs",
@@ -2686,6 +2688,141 @@ def puf_recipient_predictor_universe_receipt(
         person_outputs=tuple(person_outputs),
     )
     return json.loads(json.dumps(receipt))
+
+
+def puf_tax_detail_predictor_projection_identity() -> dict[str, object]:
+    """Return the bound cross-grain semantics of the late PUF predictor set."""
+
+    payload: dict[str, object] = {
+        "version": 1,
+        "source_grain": "tax_unit",
+        "source_grain_resolution": (
+            "reject ambiguous tax-unit/person sources; otherwise prefer the "
+            "sole observed grain"
+        ),
+        "predictor_sources": {
+            "puf_predictor_filing_status_code": {
+                "tax_unit_precedence": ["filing_status_input", "filing_status"],
+                "codes": dict(sorted(_FILING_STATUS_CODES.items())),
+            },
+            "puf_predictor_tax_unit_person_count": {
+                "derived_from": ["person.person_tax_unit_id", "tax_unit.tax_unit_id"]
+            },
+            "puf_predictor_employment_income": {
+                "tax_unit": ["employment_income"],
+                "person": list(_PREDICTOR_LEAF_ALIASES["employment_income"]),
+            },
+            "puf_predictor_self_employment_income": {
+                "tax_unit": ["self_employment_income"],
+                "person": list(_PREDICTOR_LEAF_ALIASES["self_employment_income"]),
+            },
+            "puf_predictor_taxable_interest_income": {
+                "tax_unit": ["taxable_interest_income"],
+                "person": ["taxable_interest_income"],
+            },
+            "puf_predictor_dividend_income": {
+                "tax_unit": ["dividend_income"],
+                "person_precedence": [
+                    ["dividend_income"],
+                    ["non_qualified_dividend_income", "qualified_dividend_income"],
+                ],
+            },
+            "puf_predictor_short_term_capital_gains": {
+                "tax_unit": ["short_term_capital_gains"],
+                "person": ["short_term_capital_gains"],
+            },
+            "puf_predictor_long_term_capital_gains": {
+                "tax_unit": ["long_term_capital_gains"],
+                "person_precedence": [
+                    ["long_term_capital_gains"],
+                    list(_PREDICTOR_LEAF_ALIASES["long_term_capital_gains"]),
+                ],
+            },
+        },
+        "tax_unit_projection": "identity",
+        "person_projection": "broadcast_by_person_tax_unit_id",
+        "group_projection": {
+            "selection": "tax unit of the first person row in each group",
+            "ordering": "stable person table row order",
+            "null_policy": "selected tax-unit missingness is preserved",
+        },
+    }
+    payload["sha256"] = _receipt_sha256(payload)
+    return payload
+
+
+def puf_tax_detail_predictor_surface(
+    frame: Frame,
+    *,
+    entity: str,
+    predictors: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
+) -> pd.DataFrame:
+    """Project the reviewed tax-unit predictor tuple to one transfer entity.
+
+    The canonical PUF predictors are derived from their live tax-unit/person
+    sources without materializing model-only columns on ``frame``. Person rows
+    inherit their tax unit's values. Because tax units and other group grains
+    are not nested, group entities use the tax unit of their first person row
+    rather than double-counting a cross-cutting tax unit. Missingness survives
+    every projection.
+    """
+
+    predictors = tuple(predictors)
+    unknown = sorted(set(predictors) - set(PUF_TAX_DETAIL_DEFAULT_PREDICTORS))
+    if unknown:
+        raise ValueError(f"Unknown PUF tax-detail predictor(s): {unknown}.")
+    if entity not in frame.entities:
+        raise ValueError(
+            f"PUF tax-detail predictor projection names unknown entity {entity!r}."
+        )
+
+    tax_unit = frame.table("tax_unit")
+    person = frame.table(frame.schema.person_entity)
+    source_plans = {
+        predictor: _strict_predictor_source_plan(
+            predictor,
+            tax_unit=tax_unit,
+            person=person,
+        )
+        for predictor in predictors
+    }
+    tax_unit_features = _tax_unit_feature_frame(
+        frame,
+        predictors,
+        preserve_nulls=True,
+        source_plans=source_plans,
+    )
+    tax_unit_id_column = frame.schema.entity_id_column("tax_unit")
+    lookup = tax_unit_features.set_axis(
+        tax_unit[tax_unit_id_column].to_numpy(copy=True),
+        axis="index",
+    )
+
+    target = frame.table(entity)
+    if entity == "tax_unit":
+        return tax_unit_features.set_axis(target.index, axis="index")
+
+    if entity == frame.schema.person_entity:
+        result = pd.DataFrame(index=target.index)
+        tax_unit_ids = target[frame.schema.membership_column("tax_unit")]
+        for predictor in predictors:
+            result[predictor] = tax_unit_ids.map(lookup[predictor]).to_numpy()
+        return result
+
+    membership_column = frame.schema.membership_column(entity)
+    entity_id_column = frame.schema.entity_id_column(entity)
+    first_members = person.loc[
+        :, [membership_column, frame.schema.membership_column("tax_unit")]
+    ].drop_duplicates(subset=[membership_column], keep="first")
+    selected_tax_units = first_members.set_index(membership_column)[
+        frame.schema.membership_column("tax_unit")
+    ]
+    result = pd.DataFrame(index=target[entity_id_column])
+    for predictor in predictors:
+        result[predictor] = (
+            selected_tax_units.map(lookup[predictor]).reindex(result.index).to_numpy()
+        )
+    return result.set_axis(target.index, axis="index")
 
 
 def _strict_recipient_predictor_surface(
