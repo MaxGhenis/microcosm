@@ -1688,11 +1688,12 @@ _GAP_FILL_ASEC_TO_ACS = "asec_survey_to_acs"
 _GAP_FILL_ASEC_HOUSING_TO_ACS = "asec_housing_to_acs"
 _GAP_FILL_HOUSING_FAMILY = "housing"
 _STACKED_AUTHORITY_ID = "us_stacked_spine_authority"
-# v10 binds the primary-PUF whole-pool output-universe declaration. v9 bound
+# v11 binds block-first geography construction before cross-spine gap-fill.
+# v10 bound the primary-PUF whole-pool output-universe declaration. v9 bound
 # the content-hashed execution/transition-authority schema in addition to the
 # import-validated producer/input DAG. Version 8 named the graph but did not
 # authenticate its live input/output transition.
-_STACKED_AUTHORITY_VERSION = 10
+_STACKED_AUTHORITY_VERSION = 11
 _CANONICAL_AUTHORITY_FORM = "CANONICAL"
 _NONCANONICAL_AUTHORITY_FORM = "NON-CANONICAL"
 _PRE_CLONE_PREPARATION_STAGE = "prepare_multispine_source_inputs_for_clone"
@@ -1933,6 +1934,63 @@ def _freeze_authority_payload(value: object) -> object:
     )
 
 
+_CANONICAL_STACKED_GEOGRAPHY_CONSTRUCTION = _freeze_authority_payload(
+    {
+        "operator": "assign_us_block_first_geography",
+        "stage": "spine_construction_before_gap_fill",
+        "seed": POOL_RANDOM_SEED,
+        "sampling": "population",
+        "artifact_input": {
+            "role": "block_ladder",
+            "schema_version": 2,
+        },
+        "channels": {
+            ACS_STACKED_SUPPORT_CHANNEL: {"draw_universe": "observed_puma"},
+            BASE_ASEC_SUPPORT_CHANNEL: {"draw_universe": "state"},
+        },
+        "derived_columns": {
+            "block_geoid": {
+                "derivation": "population_weighted_block_draw",
+                "vintage": "2020_tabulation_blocks",
+            },
+            "tract_geoid": {
+                "derivation": "block_geoid_prefix_11",
+                "vintage": "2020_census",
+            },
+            "county_fips": {
+                "derivation": "block_geoid_prefix_5",
+                "vintage": "2020_census",
+            },
+            "puma": {
+                "derivation": "tract_to_puma_relationship",
+                "vintage": "2020_puma",
+            },
+            "congressional_district_geoid": {
+                "derivation": "block_equivalency_lookup",
+                "vintage": "119th_congress",
+            },
+            "place_fips": {
+                "derivation": "block_crosswalk_lookup",
+                "vintage": "2020_census",
+            },
+            "sldu": {
+                "derivation": "block_crosswalk_lookup",
+                "vintage": "2020_baf",
+            },
+            "sldl": {
+                "derivation": "block_crosswalk_lookup",
+                "vintage": "2020_baf",
+            },
+            "cbsa_code": {
+                "derivation": "block_crosswalk_lookup",
+                "vintage": "omb_2023_delineations",
+            },
+        },
+        "acs_self_check": "derived_puma_equals_observed_puma",
+    }
+)
+
+
 @dataclass(frozen=True)
 class _StackedAuthority:
     """One digest-carrying, deeply immutable stacked-spine authority bundle."""
@@ -1947,6 +2005,7 @@ class _StackedAuthority:
     metric_registry: Mapping[tuple[str, str, str, int], str]
     joint_metric_registry: Mapping[tuple[str, str, tuple[str, ...], int], str]
     support_profile: _BatterySupportProfile
+    geography_construction: Mapping[str, object]
     puf_capital_gains_tail_support_contract: Mapping[str, object]
     late_producer_schedule: Mapping[str, object]
     declared_component_sha256: Mapping[str, str]
@@ -1996,6 +2055,15 @@ class _StackedAuthority:
             raise TypeError(
                 "Stacked authority support_profile must be a _BatterySupportProfile."
             )
+        if not isinstance(self.geography_construction, Mapping):
+            raise TypeError(
+                "Stacked authority geography construction must be a mapping."
+            )
+        object.__setattr__(
+            self,
+            "geography_construction",
+            _freeze_authority_payload(self.geography_construction),
+        )
         if not isinstance(self.puf_capital_gains_tail_support_contract, Mapping):
             raise TypeError(
                 "Stacked authority capital-gains-tail support contract must be "
@@ -2023,6 +2091,7 @@ class _StackedAuthority:
             "metric_registry",
             "joint_metric_registry",
             "support_profile",
+            "geography_construction",
             "puf_capital_gains_tail_support_contract",
             "late_producer_schedule",
         }:
@@ -2318,6 +2387,7 @@ def _authority_component_payloads(
     metric_registry: Mapping[tuple[str, str, str, int], str],
     joint_metric_registry: Mapping[tuple[str, str, tuple[str, ...], int], str],
     support_profile: _BatterySupportProfile,
+    geography_construction: Mapping[str, object],
     puf_capital_gains_tail_support_contract: Mapping[str, object],
     late_producer_schedule: Mapping[str, object],
 ) -> dict[str, object]:
@@ -2339,6 +2409,7 @@ def _authority_component_payloads(
         "metric_registry": _metric_registry_payload(metric_registry),
         "joint_metric_registry": _joint_metric_registry_payload(joint_metric_registry),
         "support_profile": _support_profile_payload(support_profile),
+        "geography_construction": _json_ready(geography_construction),
         "puf_capital_gains_tail_support_contract": _json_ready(
             puf_capital_gains_tail_support_contract
         ),
@@ -2369,6 +2440,7 @@ def _authority_live_digests(
         metric_registry=authority.metric_registry,
         joint_metric_registry=authority.joint_metric_registry,
         support_profile=authority.support_profile,
+        geography_construction=authority.geography_construction,
         puf_capital_gains_tail_support_contract=(
             authority.puf_capital_gains_tail_support_contract
         ),
@@ -2398,6 +2470,7 @@ def _make_stacked_authority(
     declared_surface: TargetFamilies,
     metric_registry: Mapping[tuple[str, str, str, int], str],
     support_profile: _BatterySupportProfile,
+    geography_construction: Mapping[str, object],
     declared_form: str,
     puf_capital_gains_tail_support_contract: Mapping[str, object] | None = None,
     late_producer_schedule: Mapping[str, object] | None = None,
@@ -2419,6 +2492,11 @@ def _make_stacked_authority(
     frozen_joint_registry = _freeze_joint_metric_registry(
         {} if joint_metric_registry is None else joint_metric_registry
     )
+    frozen_geography_construction = _freeze_authority_payload(
+        geography_construction
+    )
+    if not isinstance(frozen_geography_construction, Mapping):
+        raise TypeError("Geography construction authority must be a mapping.")
     frozen_tail_support_contract = _freeze_authority_payload(
         puf_capital_gains_tail_support_contract_identity()
         if puf_capital_gains_tail_support_contract is None
@@ -2442,6 +2520,7 @@ def _make_stacked_authority(
         metric_registry=frozen_registry,
         joint_metric_registry=frozen_joint_registry,
         support_profile=support_profile,
+        geography_construction=frozen_geography_construction,
         puf_capital_gains_tail_support_contract=frozen_tail_support_contract,
         late_producer_schedule=frozen_late_producer_schedule,
     )
@@ -2466,6 +2545,7 @@ def _make_stacked_authority(
         metric_registry=frozen_registry,
         joint_metric_registry=frozen_joint_registry,
         support_profile=support_profile,
+        geography_construction=frozen_geography_construction,
         puf_capital_gains_tail_support_contract=frozen_tail_support_contract,
         late_producer_schedule=frozen_late_producer_schedule,
         declared_component_sha256=(
@@ -3081,6 +3161,7 @@ _CANONICAL_STACKED_AUTHORITY = _make_stacked_authority(
     metric_registry=_CANONICAL_ORIGIN_BATTERY_METRIC_REGISTRY_ANCHOR,
     joint_metric_registry=_CANONICAL_ORIGIN_BATTERY_JOINT_METRIC_REGISTRY_ANCHOR,
     support_profile=_CANONICAL_ORIGIN_BATTERY_SUPPORT_PROFILE_ANCHOR,
+    geography_construction=_CANONICAL_STACKED_GEOGRAPHY_CONSTRUCTION,
     declared_form=_CANONICAL_AUTHORITY_FORM,
 )
 _CANONICAL_STACKED_AUTHORITY_ANCHOR = _CANONICAL_STACKED_AUTHORITY
@@ -3140,6 +3221,7 @@ def _production_stacked_authority(
         metric_registry=_BATTERY_METRIC_REGISTRY,
         joint_metric_registry=_BATTERY_JOINT_METRIC_REGISTRY,
         support_profile=_BATTERY_SUPPORT_PROFILE,
+        geography_construction=_canonical_authority.geography_construction,
         late_producer_schedule=live_late_producer_schedule,
         declared_form=_CANONICAL_AUTHORITY_FORM,
         declared_component_sha256=_canonical_authority.declared_component_sha256,
@@ -3191,6 +3273,7 @@ def _make_test_stacked_authority(
     joint_metric_registry: Mapping[tuple[str, str, tuple[str, ...], int], str]
     | None = None,
     support_profile: _BatterySupportProfile | None = None,
+    geography_construction: Mapping[str, object] | None = None,
 ) -> _StackedAuthority:
     """Explicit test-only seam; every receipt is marked non-canonical."""
 
@@ -3250,6 +3333,11 @@ def _make_test_stacked_authority(
             CANONICAL_ORIGIN_BATTERY_SUPPORT_PROFILE
             if support_profile is None
             else support_profile
+        ),
+        geography_construction=(
+            _CANONICAL_STACKED_GEOGRAPHY_CONSTRUCTION
+            if geography_construction is None
+            else geography_construction
         ),
         declared_form=_NONCANONICAL_AUTHORITY_FORM,
     )
@@ -3375,6 +3463,7 @@ def _authority_receipt(
         and integrity
     )
     support = _support_profile_payload(authority.support_profile)
+    geography_construction = _json_ready(authority.geography_construction)
     components: dict[str, dict[str, object]] = {
         "gap_fill_plan": {
             "sha256": live_components["gap_fill_plan"],
@@ -3430,6 +3519,16 @@ def _authority_receipt(
             "sha256": live_components["support_profile"],
             "declared_sha256": authority.declared_component_sha256["support_profile"],
             "digest_matches_declared": component_integrity["support_profile"],
+        },
+        "geography_construction": {
+            **geography_construction,
+            "sha256": live_components["geography_construction"],
+            "declared_sha256": authority.declared_component_sha256[
+                "geography_construction"
+            ],
+            "digest_matches_declared": component_integrity[
+                "geography_construction"
+            ],
         },
         "puf_capital_gains_tail_support_contract": {
             "identity": _json_ready(authority.puf_capital_gains_tail_support_contract),
@@ -3598,6 +3697,7 @@ def _authority_validation_failures(
         ("metric_registry", "metric registry"),
         ("joint_metric_registry", "joint metric registry"),
         ("support_profile", "support profile"),
+        ("geography_construction", "geography construction"),
         (
             "puf_capital_gains_tail_support_contract",
             "PUF capital-gains-tail support contract",

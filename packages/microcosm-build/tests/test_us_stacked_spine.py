@@ -6941,6 +6941,9 @@ def test_self_digested_partial_authority_cannot_forge_production_identity() -> N
             )
         },
         support_profile=(stacked_spine_module.CANONICAL_ORIGIN_BATTERY_SUPPORT_PROFILE),
+        geography_construction=(
+            stacked_spine_module._CANONICAL_STACKED_GEOGRAPHY_CONSTRUCTION
+        ),
         declared_form="CANONICAL",
     )
     result = stacked_spine_module._stacked_completeness_gate_evaluate(
@@ -6961,7 +6964,7 @@ def test_self_digested_partial_authority_cannot_forge_production_identity() -> N
         GateReport((result,)).to_manifest()
 
 
-@pytest.mark.parametrize("stale_version", (1, 2, 3, 4, 5, 6, 7, 8, 9))
+@pytest.mark.parametrize("stale_version", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 def test_self_consistent_stale_stacked_authority_versions_are_rejected(
     stale_version: int,
 ) -> None:
@@ -6977,11 +6980,12 @@ def test_self_consistent_stale_stacked_authority_versions_are_rejected(
         metric_registry=canonical.metric_registry,
         joint_metric_registry=canonical.joint_metric_registry,
         support_profile=canonical.support_profile,
+        geography_construction=canonical.geography_construction,
         declared_form="CANONICAL",
     )
     stale_receipt = stacked_spine_module._authority_receipt(stale)
 
-    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 10
+    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 11
     assert stale_receipt["version"] == stale_version
     assert stale_receipt["integrity_valid"] is True
     assert stale_receipt["digest_matches_declared"] is True
@@ -7000,13 +7004,98 @@ def test_stacked_authority_binds_import_validated_late_producer_schedule() -> No
     receipt = stacked_spine_module.stacked_spine_authority_receipt()
     component = receipt["components"]["late_producer_schedule"]
 
-    assert receipt["version"] == 10
+    assert receipt["version"] == 11
     assert component["producer_count"] == 38
     assert component["schedule_sha256"] == (
         stacked_spine_module.CANONICAL_US_LATE_PRODUCER_SCHEDULE.sha256
     )
     assert component["identity"]["status"] == "derived_and_import_validated"
     assert component["digest_matches_declared"] is True
+
+
+def test_stacked_authority_binds_block_first_geography_construction() -> None:
+    receipt = stacked_spine_module.stacked_spine_authority_receipt()
+    component = receipt["components"]["geography_construction"]
+
+    assert receipt["version"] == 11
+    assert component["operator"] == "assign_us_block_first_geography"
+    assert component["stage"] == "spine_construction_before_gap_fill"
+    assert component["seed"] == stacked_spine_module.POOL_RANDOM_SEED == 0
+    assert component["sampling"] == "population"
+    assert component["artifact_input"] == {
+        "role": "block_ladder",
+        "schema_version": 2,
+    }
+    assert component["channels"] == {
+        "acs": {"draw_universe": "observed_puma"},
+        "asec": {"draw_universe": "state"},
+    }
+    assert component["derived_columns"] == {
+        "block_geoid": {
+            "derivation": "population_weighted_block_draw",
+            "vintage": "2020_tabulation_blocks",
+        },
+        "tract_geoid": {
+            "derivation": "block_geoid_prefix_11",
+            "vintage": "2020_census",
+        },
+        "county_fips": {
+            "derivation": "block_geoid_prefix_5",
+            "vintage": "2020_census",
+        },
+        "puma": {
+            "derivation": "tract_to_puma_relationship",
+            "vintage": "2020_puma",
+        },
+        "congressional_district_geoid": {
+            "derivation": "block_equivalency_lookup",
+            "vintage": "119th_congress",
+        },
+        "place_fips": {
+            "derivation": "block_crosswalk_lookup",
+            "vintage": "2020_census",
+        },
+        "sldu": {
+            "derivation": "block_crosswalk_lookup",
+            "vintage": "2020_baf",
+        },
+        "sldl": {
+            "derivation": "block_crosswalk_lookup",
+            "vintage": "2020_baf",
+        },
+        "cbsa_code": {
+            "derivation": "block_crosswalk_lookup",
+            "vintage": "omb_2023_delineations",
+        },
+    }
+    assert component["acs_self_check"] == "derived_puma_equals_observed_puma"
+    assert component["digest_matches_declared"] is True
+
+
+def test_stacked_geography_authority_is_deeply_immutable_and_hash_bound() -> None:
+    canonical = stacked_spine_module._production_stacked_authority()
+    geography = canonical.geography_construction
+    artifact_input = geography["artifact_input"]
+    assert isinstance(artifact_input, Mapping)
+
+    with pytest.raises(TypeError):
+        geography["seed"] = 1
+    with pytest.raises(TypeError):
+        artifact_input["schema_version"] = 1
+
+    altered = stacked_spine_module._json_ready(geography)
+    altered["seed"] = 1
+    test_authority = stacked_spine_module._make_test_stacked_authority(
+        geography_construction=altered
+    )
+    canonical_receipt = stacked_spine_module.stacked_spine_authority_receipt()
+    test_receipt = stacked_spine_module._authority_receipt(test_authority)
+
+    assert (
+        test_receipt["components"]["geography_construction"]["sha256"]
+        != canonical_receipt["components"]["geography_construction"]["sha256"]
+    )
+    assert test_receipt["sha256"] != canonical_receipt["sha256"]
 
 
 def test_rebound_late_producer_schedule_invalidates_production_authority(
@@ -7053,6 +7142,9 @@ def test_rebound_anchor_aliases_cannot_replace_captured_canonical_authority(
             )
         },
         support_profile=(stacked_spine_module.CANONICAL_ORIGIN_BATTERY_SUPPORT_PROFILE),
+        geography_construction=(
+            stacked_spine_module._CANONICAL_STACKED_GEOGRAPHY_CONSTRUCTION
+        ),
         declared_form="CANONICAL",
     )
     rebound = {
@@ -7433,7 +7525,7 @@ def test_stripped_noncanonical_receipt_cannot_escape_under_a_renamed_gate(
         GateReport((stripped,)).to_manifest()
 
 
-def test_stripped_eight_component_authority_cannot_escape_under_a_renamed_gate() -> (
+def test_stripped_nine_component_authority_cannot_escape_under_a_renamed_gate() -> (
     None
 ):
     authority = stacked_spine_module.stacked_spine_authority_receipt()
@@ -7445,6 +7537,7 @@ def test_stripped_eight_component_authority_cannot_escape_under_a_renamed_gate()
         "metric_registry",
         "joint_metric_registry",
         "support_profile",
+        "geography_construction",
         "puf_capital_gains_tail_support_contract",
         "late_producer_schedule",
     }
