@@ -79,6 +79,8 @@ declared SHA-256 values:
   `raw_source_mapping` and its operator status is `operator_untouched`;
 - the ACS household and person PUMS archives, whose caller-supplied hashes
   must also match the checked-in ACS source manifest;
+- the hash-pinned schema-2 national block ladder, which carries 2020 block
+  population and the aligned PUMA, CD119, place, SLDU, SLDL, and CBSA rungs;
 - the canonical ACS 2022 rent donor used by the post-assembly housing
   operator; and
 - the processed PUF H5 and source-year PUF CSV used by the existing donor
@@ -107,11 +109,12 @@ are allowed only when named by the ACS native-input receipt.
 ### Default sequence
 
 The exact outer `US_STACKED_POOL_OPERATOR_ORDER` is byte-stable and contains
-these ten entries. The numbered paragraphs below explain those phases; nested
+these eleven entries. The numbered paragraphs below explain those phases; nested
 callbacks are not additional outer entries.
 
 ```text
 assemble_stacked_spine
+assign_us_block_first_geography
 prepare_multispine_source_inputs_for_clone
 gap_fill_stacked_spine
 run_stacked_late_producer_dag
@@ -132,7 +135,15 @@ by_origin_battery
    person support/raw/household-parent/classification mappings, and the sampled
    native ACS TYPEHUGQ 2/3 household and person lineage digests. The full PUF
    remains a donor and is never sampled.
-2. The spine-blind source-preparation chain derives the native predictors and
+2. `assign_us_block_first_geography(...)` makes one seeded,
+   population-weighted 2020 block draw per household before any cross-spine
+   fill. ACS households draw within their observed 2020 PUMA; the derived PUMA
+   must equal that observation. ASEC households draw within state because the
+   raw-stage v3 checkpoint carries no identified county. Tract, county, PUMA,
+   CD119, place, SLDU, SLDL, and CBSA are then deterministic functions of the
+   selected block. The stage consumes the pinned block-ladder input and never
+   consults source-channel labels to choose behavior.
+3. The spine-blind source-preparation chain derives the native predictors and
    pre-clone operator outputs needed by the early declared cross-origin fills.
    Historical kernels run on the raw-`PERIDNUM` CPS/ASEC availability
    projection and merge only their declared outputs back into the stack. In
@@ -142,7 +153,7 @@ by_origin_battery
    Targets produced only by the later PUF pass or late source producers are
    excluded from this early authority surface. No population operator selects
    behavior from the source-channel labels.
-3. `gap_fill_stacked_spine(...)` runs the two immutable directions over the
+4. `gap_fill_stacked_spine(...)` runs the two immutable directions over the
    same frame: ASEC survey fields fill ACS nulls, then ASEC-produced housing
    rent fills ACS housing-unit nulls in a separately banked direction.
    Activation authority is source-and-role exact, observed zero is not
@@ -159,7 +170,7 @@ by_origin_battery
    finish with zero `unmodeled_rows` and zero residual nulls: transfer
    accounting alone is not terminal absence authority. The #608 per-target
    banks sit beneath the stack-bound checkpoint identity.
-4. The derived second node of `run_stacked_late_producer_dag(...)` invokes
+5. The derived second node of `run_stacked_late_producer_dag(...)` invokes
    `run_stacked_puf_pass(...)`; it is not a second outer operator-order entry.
    The callback attaches the separately controlled PUF clone arm
    (`clone_attachment_fraction`, default `1.0`) and runs one primary QRF pass
@@ -252,7 +263,7 @@ by_origin_battery
    transfer. The declared batch-5-to-adult-care edge below therefore derives
    the repair from data dependency rather than installing another manual
    ordering exception.
-5. One declared late-producer DAG schedules the ACS earnings-universe
+6. One declared late-producer DAG schedules the ACS earnings-universe
    materializer, primary PUF/tail pass, all 16 post-clone source operators,
    their once-only finalizer, and all 19 bounded transfer groups. Each node
    declares every effective input and output. A callback cannot run until each
@@ -278,7 +289,7 @@ by_origin_battery
    filled from QRF predictions. No blanket null-to-zero synthesis occurs,
    every producer cell stays byte-identical, and zero residual nulls are
    required.
-6. The transferred checkpoint records the early gap-fill banks, 19 distinct
+7. The transferred checkpoint records the early gap-fill banks, 19 distinct
    late-transfer banks, the primary-QRF bank, the complete 38-node DAG receipt,
    tail manifest and its per-status support receipt, weights audit,
    stack-manifest digest, fraction/seed, clone controls, and the channel-aware
@@ -302,7 +313,7 @@ by_origin_battery
    bytes, and checkpoint discovery positively accepts the current identity but
    rejects a stale source asset/config even when every engine and sampling pin
    is otherwise identical.
-7. Schedule-D preparation, deterministic derivation, seeded inputs, and
+8. Schedule-D preparation, deterministic derivation, seeded inputs, and
    batched simulation run on the transferred stack. QBI reconciliation uses
    the same source declaration: it fails on any in-universe self-employment
    null and preserves the receipted ACS under-15 base self-employment zero in
@@ -337,7 +348,7 @@ by_origin_battery
    authority. The tool
    retains the existing `assembled`, `transferred`, and `simulated` #599
    boundaries.
-8. A fresh `us_stacked_completeness` gate proves every declared input is
+9. A fresh `us_stacked_completeness` gate proves every declared input is
    observed or has exact source-by-role absence authority. The terminal
    `us_by_origin_battery` then evaluates all 131 declared targets (114 person,
    9 tax-unit, 8 SPM-unit), plus joint immigration structure, using an
@@ -354,7 +365,7 @@ by_origin_battery
    digest fails closed.
    At small rungs, comparisons outside the validity domain receipt
    `insufficient_support`; tolerances do not widen.
-9. Only after both gates run does publication write the nullable H5,
+10. Only after both gates run does publication write the nullable H5,
    diagnostics, and readiness manifest. Success, failed gate, and exception
    paths each append a durable Logbook spool row beside the output, with the
    fraction token, seed, code/input/identity pins, phases, gate-receipt

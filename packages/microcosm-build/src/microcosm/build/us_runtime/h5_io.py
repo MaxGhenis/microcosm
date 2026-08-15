@@ -59,6 +59,8 @@ US_MULTISPINE_POOL_H5_ARTIFACT_KIND = "populace_us_multispine_input_pool"
 US_MULTISPINE_AGREEMENT_DIAGNOSTICS_ARTIFACT_KIND = (
     "populace_us_multispine_agreement_diagnostics"
 )
+# 9 binds block-first geography construction into the canonical pre-gap-fill
+# operator order.
 # 8 binds the nullable-boolean-capable physical H5 materializer in both the
 # stacked manifest receipt and the H5's frozen metadata key.
 # 7 binds the complete late-producer resource semantics and removes the PUF
@@ -67,7 +69,7 @@ US_MULTISPINE_AGREEMENT_DIAGNOSTICS_ARTIFACT_KIND = (
 # authority and restores its immutable Frame-metadata anchor on H5 load.
 # Schema 5 can authenticate the DAG receipt's structure, but cannot prove that
 # the published receipt is the one authorized by the generating transition.
-US_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION = 8
+US_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION = 9
 US_MULTISPINE_POOL_H5_MATERIALIZER_VERSION = 2
 """Stacked terminal H5 materializer; version 2 handles pandas BooleanDtype."""
 _LEGACY_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION = 4
@@ -77,6 +79,7 @@ _LOWERCASE_SHA256 = re.compile(r"[0-9a-f]{64}")
 _STACKED_PIPELINE = "us-stacked-pool"
 US_STACKED_POOL_OPERATOR_ORDER = (
     "assemble_stacked_spine",
+    "assign_us_block_first_geography",
     "prepare_multispine_source_inputs_for_clone",
     "gap_fill_stacked_spine",
     "run_stacked_late_producer_dag",
@@ -132,6 +135,7 @@ def _stacked_manifest_markers(manifest: Mapping[str, object]) -> set[str]:
         operator
         in {
             "assemble_stacked_spine",
+            "assign_us_block_first_geography",
             "run_stacked_late_producer_dag",
             "by_origin_battery",
         }
@@ -576,7 +580,7 @@ def _validate_stacked_late_dag_manifest_binding(
     *,
     manifest_path: Path,
 ) -> None:
-    """Make schema-8 stacked consumers authenticate the published DAG proof."""
+    """Make schema-9 stacked consumers authenticate the published DAG proof."""
 
     if manifest.get("pipeline") != "us-stacked-pool":
         return

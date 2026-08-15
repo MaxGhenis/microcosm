@@ -96,6 +96,18 @@ def _pool_frame_with_object_strings_on_every_entity() -> Frame:
     )
 
 
+def test_stacked_operator_order_constructs_geography_before_gap_fill() -> None:
+    assert US_STACKED_POOL_OPERATOR_ORDER[:4] == (
+        "assemble_stacked_spine",
+        "assign_us_block_first_geography",
+        "prepare_multispine_source_inputs_for_clone",
+        "gap_fill_stacked_spine",
+    )
+    assert h5_io._stacked_manifest_markers(
+        {"operator_order": ["assign_us_block_first_geography"]}
+    ) == {"operator_order[stacked]"}
+
+
 def _semantic_string_columns(table: pd.DataFrame) -> tuple[str, ...]:
     return tuple(
         column
@@ -993,7 +1005,7 @@ def test_ready_stacked_pool_loader_binds_terminal_gate_aliases(
     frame, manifest, _ = load_simulation_ready_us_multispine_pool(manifest_path)
 
     assert manifest["terminal_gates"] == manifest["agreement_gate"]
-    assert manifest["schema_version"] == 8
+    assert manifest["schema_version"] == 9
     assert (
         manifest["pool_h5"]["materializer_version"]
         == US_MULTISPINE_POOL_H5_MATERIALIZER_VERSION
