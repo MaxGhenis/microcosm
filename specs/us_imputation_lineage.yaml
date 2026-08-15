@@ -1,7 +1,8 @@
-schema_version: 1
+schema_version: 2
 title: US stacked pool - imputation lineage spec
-provenance: v1 extracted from code on main (b420d4ed) 2026-08-15; from here the YAML is the source of
-  truth and code must conform (tests/test_imputation_lineage_spec.py)
+provenance: v2 declares one composed predictor set per imputed family; v1 was extracted from code on
+  main (b420d4ed) 2026-08-15, and the YAML remains the source of truth to which code must conform
+  (tests/test_imputation_lineage_spec.py)
 models:
   regime_gated_qrf:
     id: regime_gated_qrf
@@ -24,48 +25,332 @@ models:
     boolean_targets_note: 'a 0/1 target detects as zero_inflated_positive: the whole model is the gate
       classifier + one draw; the magnitude forest is degenerate on 1'
     post_draw_calibration: null
+predictor_blocks:
+  core_demographics:
+    eligibility_linked: false
+    columns:
+    - column: age
+    - column: is_female
+    - column: state_fips
+  earned_income_components:
+    eligibility_linked: false
+    columns:
+    - column: employment_income
+    - column: self_employment_income
+  social_security_income:
+    eligibility_linked: false
+    columns:
+    - column: social_security_income
+  retirement_income:
+    eligibility_linked: false
+    columns:
+    - column: retirement_income
+  investment_income:
+    eligibility_linked: false
+    columns:
+    - column: interest_dividend_rental_income
+  household_structure:
+    eligibility_linked: false
+    columns:
+    - column: marital_status_code
+    - column: relationship_code
+    - column: household_person_count
+  housing_context:
+    eligibility_linked: false
+    columns:
+    - column: is_household_head
+    - column: tenure_code
+  veteran_va:
+    eligibility_linked: true
+    columns:
+    - column: is_veteran_or_active_military
+    - column: household_has_veteran_or_active_military
+    blocked_on_checkpoint_schema:
+    - column: va_service_connected_disability_rating
+      reason: blocked-on-checkpoint-schema; ASEC v3 has no comparable service-connected disability
+        rating
+  disability:
+    eligibility_linked: true
+    columns:
+    - column: difficulty_dressing_or_bathing
+    - column: difficulty_hearing
+    - column: difficulty_seeing
+    - column: difficulty_doing_errands
+    - column: difficulty_walking_or_climbing_stairs
+    - column: difficulty_remembering_or_making_decisions
+  education_work:
+    eligibility_linked: true
+    columns:
+    - column: usual_hours_worked
+    - column: weeks_worked
+    - column: is_self_employed_worker
+    blocked_on_checkpoint_schema:
+    - column: education_attainment_code
+      reason: blocked-on-checkpoint-schema; ASEC v3 has no A_HGA education-attainment source
+  own_coverage:
+    eligibility_linked: true
+    columns:
+    - column: has_medicare_coverage
+  nativity_english:
+    eligibility_linked: false
+    columns:
+    - column: is_foreign_born
+    blocked_on_checkpoint_schema:
+    - column: english_ability_code
+      reason: blocked-on-checkpoint-schema; ASEC v3 has no English-proficiency source
+  geography:
+    eligibility_linked: false
+    columns:
+    - column: puma
+      pending: 'microcosm#696'
+    - column: county_fips
+      pending: 'microcosm#696'
+  group_core_demographics:
+    eligibility_linked: false
+    columns:
+    - column: person_count
+    - column: age_sum
+    - column: female_count
+    - column: state_fips
+  group_income_housing:
+    eligibility_linked: false
+    columns:
+    - column: group_employment_income_sum
+    - column: group_self_employment_income_sum
+    - column: group_social_security_income_sum
+    - column: group_retirement_income_sum
+    - column: group_investment_income_sum
+    - column: group_head_count
+    - column: group_tenure_code
+  puf_tax_detail:
+    eligibility_linked: false
+    cross_grain_projection: tax unit identity; person broadcast by tax-unit membership; other groups
+      use the tax unit of their first person row because tax-unit and group memberships need not nest
+    columns:
+    - column: puf_predictor_filing_status_code
+    - column: puf_predictor_tax_unit_person_count
+    - column: puf_predictor_employment_income
+    - column: puf_predictor_self_employment_income
+    - column: puf_predictor_taxable_interest_income
+    - column: puf_predictor_dividend_income
+    - column: puf_predictor_short_term_capital_gains
+    - column: puf_predictor_long_term_capital_gains
 predictor_sets:
-  acs_person_transfer:
-    required:
-    - age
-    - is_female
-    - state_fips
-    optional:
-    - employment_income
-    - self_employment_income
+  gap_fill/asec_survey_to_acs/person/puf_tax_itemization:
+    required_blocks:
+    - core_demographics
+    optional_blocks:
+    - earned_income_components
+    - household_structure
+    - housing_context
+    - disability
+    - education_work
+    - own_coverage
+    - nativity_english
+    - geography
+  gap_fill/asec_survey_to_acs/person/model_required_numeric:
+    required_blocks:
+    - core_demographics
+    optional_blocks:
+    - earned_income_components
+    - social_security_income
+    - investment_income
+    - household_structure
+    - housing_context
+    - veteran_va
+    - disability
+    - education_work
+    - own_coverage
+    - nativity_english
+    - geography
+  gap_fill/asec_survey_to_acs/person/model_required_boolean:
+    required_blocks:
+    - core_demographics
+    optional_blocks:
+    - earned_income_components
     - social_security_income
     - retirement_income
-    - interest_dividend_rental_income
-    - is_household_head
-    - tenure_code
-    note: ONE shared tuple for every ACS gap-fill family, money and boolean alike; missingness handled
-      by availability-pattern partition (one fit per observed-predictor pattern)
-  acs_group_transfer:
-    required:
-    - person_count
-    - age_sum
-    - female_count
-    - state_fips
-    optional:
-    - group_employment_income
-    - group_self_employment_income
-    - group_social_security_income
-    - group_retirement_income
-    - group_interest_dividend_rental_income
-    - group_is_household_head
-    - group_tenure_code
-  puf_tax_detail:
-    required:
-    - puf_predictor_filing_status_code
-    - puf_predictor_tax_unit_person_count
-    - puf_predictor_employment_income
-    - puf_predictor_self_employment_income
-    - puf_predictor_taxable_interest_income
-    - puf_predictor_dividend_income
-    - puf_predictor_short_term_capital_gains
-    - puf_predictor_long_term_capital_gains
-    optional: []
-    note: tax-return-shaped; no age, state, marital status, or children
+    - investment_income
+    - household_structure
+    - housing_context
+    - veteran_va
+    - education_work
+    - own_coverage
+    - nativity_english
+    - geography
+  gap_fill/asec_survey_to_acs/person/model_required_discrete:
+    required_blocks:
+    - core_demographics
+    optional_blocks:
+    - earned_income_components
+    - social_security_income
+    - retirement_income
+    - investment_income
+    - household_structure
+    - housing_context
+    - education_work
+    - nativity_english
+    - geography
+  gap_fill/asec_survey_to_acs/person/source_operator_cps_carried:
+    required_blocks:
+    - core_demographics
+    optional_blocks:
+    - earned_income_components
+    - social_security_income
+    - retirement_income
+    - investment_income
+    - household_structure
+    - education_work
+    - nativity_english
+    - geography
+  gap_fill/asec_survey_to_acs/person/source_operator_hours_worked:
+    required_blocks:
+    - core_demographics
+    optional_blocks:
+    - earned_income_components
+    - social_security_income
+    - retirement_income
+    - investment_income
+    - household_structure
+    - housing_context
+    - nativity_english
+    - geography
+  gap_fill/asec_survey_to_acs/person/source_operator_prior_year_income:
+    required_blocks:
+    - core_demographics
+    optional_blocks:
+    - earned_income_components
+    - social_security_income
+    - retirement_income
+    - investment_income
+    - household_structure
+    - housing_context
+    - education_work
+    - nativity_english
+    - geography
+  gap_fill/asec_survey_to_acs/person/source_operator_relationship_inputs:
+    required_blocks:
+    - core_demographics
+    optional_blocks:
+    - earned_income_components
+    - social_security_income
+    - retirement_income
+    - investment_income
+    - education_work
+    - nativity_english
+    - geography
+  gap_fill/asec_survey_to_acs/spm_unit/benefit_participation:
+    required_blocks:
+    - group_core_demographics
+    optional_blocks:
+    - group_income_housing
+    - geography
+  gap_fill/asec_survey_to_acs/spm_unit/model_required_boolean:
+    required_blocks:
+    - group_core_demographics
+    optional_blocks:
+    - group_income_housing
+    - geography
+  gap_fill/asec_survey_to_acs/spm_unit/model_required_numeric:
+    required_blocks:
+    - group_core_demographics
+    optional_blocks:
+    - group_income_housing
+    - geography
+  gap_fill/asec_survey_to_acs/spm_unit/source_operator_housing_inputs:
+    required_blocks:
+    - group_core_demographics
+    optional_blocks:
+    - group_income_housing
+    - geography
+  gap_fill/asec_housing_to_acs/person/housing:
+    required_blocks:
+    - core_demographics
+    - housing_context
+    optional_blocks:
+    - earned_income_components
+    - social_security_income
+    - retirement_income
+    - investment_income
+    - household_structure
+    - nativity_english
+    - geography
+  late_transfer/transfer:person/adult_care:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/model_required_boolean:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/puf_tax_itemization__batch_1:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/puf_tax_itemization__batch_2:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/puf_tax_itemization__batch_3:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/puf_tax_itemization__batch_4:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/puf_tax_itemization__batch_5:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_child_support:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_disability_benefits:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_education_inputs:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_immigration:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_medicare_take_up:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_retirement_contributions:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_retirement_distributions:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_weeks_unemployed:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_wic_claim:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:person/source_operator_workers_compensation:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:tax_unit/puf_tax_itemization:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
+  late_transfer/transfer:spm_unit/source_operator_energy_subsidy:
+    required_blocks:
+    - puf_tax_detail
+    optional_blocks: []
 imputed_families:
 - id: gap_fill/asec_survey_to_acs/person/puf_tax_itemization
   stage: early_gap_fill
@@ -74,7 +359,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: puf_tax_itemization
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/person/puf_tax_itemization
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -100,7 +385,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: model_required_numeric
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/person/model_required_numeric
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -118,22 +403,22 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: model_required_boolean
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/person/model_required_boolean
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
+  - is_blind
+  - is_disabled
   - has_champva_health_coverage_at_interview
-  - has_esi
   - has_indian_health_service_coverage_at_interview
-  - has_marketplace_health_coverage_at_interview
   - has_medicaid_health_coverage_at_interview
-  - has_non_marketplace_direct_purchase_health_coverage_at_interview
   - has_other_means_tested_health_coverage_at_interview
   - has_tricare_health_coverage_at_interview
   - has_va_health_coverage_at_interview
-  - is_blind
-  - is_disabled
   - is_full_time_college_student
+  - has_esi
+  - has_marketplace_health_coverage_at_interview
+  - has_non_marketplace_direct_purchase_health_coverage_at_interview
   - receives_wic
 - id: gap_fill/asec_survey_to_acs/person/model_required_discrete
   stage: early_gap_fill
@@ -142,7 +427,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: model_required_discrete
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/person/model_required_discrete
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -154,7 +439,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: source_operator_cps_carried
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/person/source_operator_cps_carried
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -166,7 +451,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: source_operator_hours_worked
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/person/source_operator_hours_worked
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -178,7 +463,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: source_operator_prior_year_income
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/person/source_operator_prior_year_income
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -191,7 +476,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: source_operator_relationship_inputs
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/person/source_operator_relationship_inputs
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -204,7 +489,7 @@ imputed_families:
   recipient_channel: acs
   entity: spm_unit
   family: benefit_participation
-  predictor_set: acs_group_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/spm_unit/benefit_participation
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -216,7 +501,7 @@ imputed_families:
   recipient_channel: acs
   entity: spm_unit
   family: model_required_boolean
-  predictor_set: acs_group_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/spm_unit/model_required_boolean
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -229,7 +514,7 @@ imputed_families:
   recipient_channel: acs
   entity: spm_unit
   family: model_required_numeric
-  predictor_set: acs_group_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/spm_unit/model_required_numeric
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -241,7 +526,7 @@ imputed_families:
   recipient_channel: acs
   entity: spm_unit
   family: source_operator_housing_inputs
-  predictor_set: acs_group_transfer
+  predictor_set: gap_fill/asec_survey_to_acs/spm_unit/source_operator_housing_inputs
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -253,7 +538,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: housing
-  predictor_set: acs_person_transfer
+  predictor_set: gap_fill/asec_housing_to_acs/person/housing
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -263,7 +548,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: adult_care
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/adult_care
   model: regime_gated_qrf
   targets:
   - is_incapable_of_self_care
@@ -273,7 +558,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: model_required_boolean
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/model_required_boolean
   model: regime_gated_qrf
   targets:
   - is_pregnant
@@ -282,7 +567,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_1
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/puf_tax_itemization__batch_1
   model: regime_gated_qrf
   targets:
   - tax_exempt_interest_income
@@ -298,7 +583,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_2
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/puf_tax_itemization__batch_2
   model: regime_gated_qrf
   targets:
   - investment_interest_expense
@@ -314,7 +599,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_3
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/puf_tax_itemization__batch_3
   model: regime_gated_qrf
   targets:
   - self_employed_pension_contributions_desired
@@ -330,7 +615,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_4
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/puf_tax_itemization__batch_4
   model: regime_gated_qrf
   targets:
   - farm_rent_income_would_be_qualified
@@ -346,7 +631,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_5
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/puf_tax_itemization__batch_5
   model: regime_gated_qrf
   targets:
   - sstb_self_employment_income_before_lsr
@@ -359,7 +644,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_child_support
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_child_support
   model: regime_gated_qrf
   targets:
   - child_support_expense
@@ -369,7 +654,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_disability_benefits
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_disability_benefits
   model: regime_gated_qrf
   targets:
   - disability_benefits
@@ -378,7 +663,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_education_inputs
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_education_inputs
   model: regime_gated_qrf
   targets:
   - attends_eligible_educational_institution_for_american_opportunity_credit
@@ -392,7 +677,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_immigration
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_immigration
   model: regime_gated_qrf
   targets:
   - ssn_card_type
@@ -402,7 +687,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_medicare_take_up
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_medicare_take_up
   model: regime_gated_qrf
   targets:
   - takes_up_medicare_if_eligible
@@ -411,7 +696,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_retirement_contributions
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_retirement_contributions
   model: regime_gated_qrf
   targets:
   - roth_401k_contributions_desired
@@ -422,7 +707,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_retirement_distributions
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_retirement_distributions
   model: regime_gated_qrf
   targets:
   - keogh_distributions
@@ -435,7 +720,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_weeks_unemployed
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_weeks_unemployed
   model: regime_gated_qrf
   targets:
   - weeks_unemployed
@@ -444,7 +729,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_wic_claim
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_wic_claim
   model: regime_gated_qrf
   targets:
   - would_claim_wic
@@ -453,7 +738,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_workers_compensation
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:person/source_operator_workers_compensation
   model: regime_gated_qrf
   targets:
   - workers_compensation
@@ -462,7 +747,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: tax_unit
   family: puf_tax_itemization
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:tax_unit/puf_tax_itemization
   model: regime_gated_qrf
   targets:
   - domestic_production_ald
@@ -476,7 +761,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: spm_unit
   family: source_operator_energy_subsidy
-  predictor_set: puf_tax_detail
+  predictor_set: late_transfer/transfer:spm_unit/source_operator_energy_subsidy
   model: regime_gated_qrf
   targets:
   - spm_unit_energy_subsidy
@@ -1672,8 +1957,8 @@ computed_producers:
   - bond_assets
   - stock_assets
 known_gaps:
-- 'participation booleans (CHAMPVA, TRICARE, VA, IHS, Medicaid, WIC, ...) share acs_person_transfer: no
-  veteran/VA, disability, own-coverage, or eligibility predictors'
-- money families see no marital status, household size, family structure, PUMA, property tax, education,
-  hours/weeks, class of worker
+- education attainment, English ability, and detailed VA service-connected disability remain
+  blocked-on-checkpoint-schema and are recorded on their intended predictor blocks
+- PUMA and county predictors are declared pending microcosm#696; the block-first geography lane owns
+  cross-channel materialization
 - no post-draw marginal calibration on any family (battery red core = incidence + quantile legs)
