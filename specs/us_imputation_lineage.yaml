@@ -1677,3 +1677,629 @@ known_gaps:
 - money families see no marital status, household size, family structure, PUMA, property tax, education,
   hours/weeks, class of worker
 - no post-draw marginal calibration on any family (battery red core = incidence + quantile legs)
+
+# Exclusive artifact-column classes added by microcosm#697. The ASEC channel
+# keeps the raw Census columns loaded into its person/household tables; the ACS
+# channel keeps both its bounded raw surface and its explicitly registered
+# lowercase native mappings.
+measured_native:
+  asec_raw:
+    groups:
+    - id: asec_household_caps
+      entity: household
+      columns:
+      - H_TENURE
+      source: packages/microcosm-build/src/microcosm/build/us_runtime/asec_pool.py:61-75,158-184,298-348
+    - id: asec_person_caps
+      entity: person
+      columns:
+      - ACTC_CRD
+      - AGI
+      - ANN_VAL
+      - A_AGE
+      - A_ENRLW
+      - A_EXPRRP
+      - A_FAMREL
+      - A_FAMTYP
+      - A_FNLWGT
+      - A_FTPT
+      - A_HRS1
+      - A_HSCOL
+      - A_LINENO
+      - A_MARITL
+      - A_MJOCC
+      - A_SEX
+      - A_SPOUSE
+      - CAID
+      - CAP_VAL
+      - CENSUS_TAX_ID
+      - CHAMPVA
+      - CHSP_VAL
+      - CSP_VAL
+      - CTC_CRD
+      - DIS_SC1
+      - DIS_SC2
+      - DIS_VAL1
+      - DIS_VAL2
+      - DIV_VAL
+      - DST_SC1
+      - DST_SC1_YNG
+      - DST_SC2
+      - DST_SC2_YNG
+      - DST_VAL1
+      - DST_VAL1_YNG
+      - DST_VAL2
+      - DST_VAL2_YNG
+      - ED_VAL
+      - EIT_CRED
+      - FEDTAX_AC
+      - FEDTAX_BC
+      - FRSE_VAL
+      - HRSWK
+      - IHSFLG
+      - INT_VAL
+      - I_ERNVAL
+      - I_SEVAL
+      - LKWEEKS
+      - MARG_TAX
+      - MCARE
+      - MIL
+      - MOOP
+      - NOW_CAID
+      - NOW_CHAMPVA
+      - NOW_COV
+      - NOW_DIR
+      - NOW_GRP
+      - NOW_IHSFLG
+      - NOW_MCAID
+      - NOW_MCARE
+      - NOW_MIL
+      - NOW_MRK
+      - NOW_MRKS
+      - NOW_MRKUN
+      - NOW_NONM
+      - NOW_OTHMT
+      - NOW_PCHIP
+      - NOW_PRIV
+      - NOW_PUB
+      - NOW_VACARE
+      - OI_OFF
+      - OI_VAL
+      - PAW_TYP
+      - PAW_VAL
+      - PEAFEVER
+      - PECOHAB
+      - PEDISDRS
+      - PEDISEAR
+      - PEDISEYE
+      - PEDISOUT
+      - PEDISPHY
+      - PEDISREM
+      - PEINUSYR
+      - PEIO1COW
+      - PEIOOCC
+      - PEMCPREM
+      - PENATVTY
+      - PEN_SC1
+      - PEN_SC2
+      - PEPAR1
+      - PEPAR2
+      - PERIDNUM
+      - PF_SEQ
+      - PHIP_VAL
+      - PH_SEQ
+      - PMED_VAL
+      - PNSN_VAL
+      - POCCU2
+      - POTC_VAL
+      - PRCITSHP
+      - PRDTHSP
+      - PRDTRACE
+      - PTOTVAL
+      - P_SEQ
+      - RESNSS1
+      - RESNSS2
+      - RESNSSI1
+      - RESNSSI2
+      - RETCB_VAL
+      - RNT_VAL
+      - SEMP_VAL
+      - SPM_ACTC
+      - SPM_BBSUBVAL
+      - SPM_CAPHOUSESUB
+      - SPM_CAPWKCCXPNS
+      - SPM_CHILDCAREXPNS
+      - SPM_CHILDSUPPD
+      - SPM_EITC
+      - SPM_ENGVAL
+      - SPM_EQUIVSCALE
+      - SPM_FAMTYPE
+      - SPM_FEDTAX
+      - SPM_FEDTAXBC
+      - SPM_FICA
+      - SPM_GEOADJ
+      - SPM_HAGE
+      - SPM_HHISP
+      - SPM_HMARITALSTATUS
+      - SPM_HRACE
+      - SPM_ID
+      - SPM_MEDXPNS
+      - SPM_NUMADULTS
+      - SPM_NUMKIDS
+      - SPM_NUMPER
+      - SPM_POOR
+      - SPM_POVTHRESHOLD
+      - SPM_RESOURCES
+      - SPM_SCHLUNCH
+      - SPM_SNAPSUB
+      - SPM_STTAX
+      - SPM_TENMORTSTATUS
+      - SPM_TOTVAL
+      - SPM_WCOHABIT
+      - SPM_WEIGHT
+      - SPM_WFOSTER22
+      - SPM_WICVAL
+      - SPM_WKXPNS
+      - SPM_WNEWHEAD
+      - SPM_WNEWPARENT
+      - SPM_WUI_LT15
+      - SSI_VAL
+      - SSI_YN
+      - SS_VAL
+      - SS_YN
+      - STATETAX_A
+      - STATETAX_B
+      - TAX_ID
+      - TAX_INC
+      - UC_VAL
+      - VET_VAL
+      - WC_VAL
+      - WICYN
+      - WKSWORK
+      - WSAL_VAL
+      source: packages/microcosm-build/src/microcosm/build/us_runtime/asec_pool.py:61-75,158-179
+    # These lowercase leaves are native on ASEC rows but some are imputed on
+    # the other support channel. To retain one global artifact owner, the lists
+    # below explicitly split the carried surface between measured_native and
+    # modeled instead of making a second closure claim.
+    lowercase_carried_surface:
+      groups:
+      - id: asec_person_carried_inputs
+        entity: person
+        measured_native_columns:
+        - age
+        - employment_income_before_lsr
+        - is_female
+        - self_employment_income_before_lsr
+        modeled_columns:
+        - alimony_income
+        - farm_operations_income
+        - has_champva_health_coverage_at_interview
+        - has_esi
+        - has_indian_health_service_coverage_at_interview
+        - has_marketplace_health_coverage_at_interview
+        - has_medicaid_health_coverage_at_interview
+        - has_non_marketplace_direct_purchase_health_coverage_at_interview
+        - has_other_means_tested_health_coverage_at_interview
+        - has_tricare_health_coverage_at_interview
+        - has_va_health_coverage_at_interview
+        - health_insurance_premiums_without_medicare_part_b
+        - long_term_capital_gains_before_response
+        - miscellaneous_income
+        - non_qualified_dividend_income
+        - other_medical_expenses
+        - over_the_counter_health_expenses
+        - qualified_dividend_income
+        - receives_wic
+        - rental_income
+        - short_term_capital_gains
+        - social_security_dependents
+        - social_security_disability
+        - social_security_retirement
+        - social_security_survivors
+        - strike_benefits
+        - tax_exempt_private_pension_income
+        - taxable_interest_income
+        - taxable_ira_distributions
+        - taxable_private_pension_income
+        - unemployment_compensation
+        source: packages/microcosm-build/src/microcosm/build/us_runtime/cps_carried.py:67-103,114-220
+      - id: asec_spm_unit_carried_inputs
+        entity: spm_unit
+        measured_native_columns: []
+        modeled_columns:
+        - is_tanf_enrolled
+        - receives_snap
+        - spm_unit_pre_subsidy_childcare_expenses
+        source: packages/microcosm-build/src/microcosm/build/us_runtime/cps_carried.py:105-111,220-225
+  acs_native:
+    groups:
+    - id: acs_household_caps
+      entity: household
+      columns:
+      - ADJHSG
+      - GRNTP
+      - NP
+      - PUMA
+      - RNTP
+      - SERIALNO
+      - ST
+      - TAXAMT
+      - TEN
+      - TYPEHUGQ
+      supersedes_modeled: true
+      source: packages/microcosm-build/src/microcosm/build/us_runtime/acs_pums.py:50-71,619-648
+    - id: acs_person_caps
+      entity: person
+      columns:
+      - ADJINC
+      - AGEP
+      - INTP
+      - MAR
+      - PWGTP
+      - RELSHIPP
+      - RETP
+      - SEMP
+      - SEX
+      - SPORDER
+      - SSIP
+      - SSP
+      - WAGP
+      source: packages/microcosm-build/src/microcosm/build/us_runtime/acs_pums.py:72-88
+    - id: acs_household_native_mappings
+      entity: household
+      columns:
+      - acs_annual_property_tax
+      - acs_monthly_contract_rent
+      - acs_monthly_gross_rent
+      - tenure_type
+      source: packages/microcosm-build/src/microcosm/build/us_runtime/acs_inputs.py:198-276
+    - id: acs_person_native_mappings
+      entity: person
+      columns:
+      - acs_interest_dividend_rental_income
+      - acs_retirement_income
+      - acs_social_security_income
+      - age
+      - employment_income_before_lsr
+      - is_female
+      - is_household_head
+      - real_estate_taxes
+      - self_employment_income_before_lsr
+      - ssi_reported
+      supersedes_modeled: true
+      source: packages/microcosm-build/src/microcosm/build/us_runtime/operator_boundary.py:126-190
+    - id: acs_spm_unit_native_mappings
+      entity: spm_unit
+      columns:
+      - spm_unit_tenure_type
+      source: packages/microcosm-build/src/microcosm/build/us_runtime/acs_inputs.py:198-249
+
+# This class inventories every engine takes_up_* input, while stating whether
+# f025 really drew, transferred, or defaulted it. Downstream release replacements
+# are recorded separately so a later mechanism is never mistaken for artifact
+# production.
+take_up_draws:
+- entity: spm_unit
+  column: takes_up_snap_if_eligible
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 868956 true, 0 false; every row was defaulted
+  contract:
+    treatment: out_of_scope
+    engine_default: true
+    rate_status: sourced_administrative
+    rate_value: 0.82
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none at artifact stage; downstream uses the contract's 0.82 FNS national precursor before deriving state fill rates from FNS counts and eligible mass
+  conditioning: per SPM unit over the whole artifact, with no eligibility or receipt interaction at this stage; the final SNAP amount multiplies the flag
+  determinism: deterministic constant-or-preserved assignment; downstream uses a configured-seed stable source-identity hash so clones agree
+  calibration_status: no artifact-stage calibration; downstream greedily targets anchored state counts on the reachable eligible domain within whole-unit weight tolerance
+  downstream_replacement: >-
+    The fiscal source stage anchors ASEC SPM_SNAPSUB reporters, uses stable
+    source-identity draws for a national 0.82 precursor, then overwrites by
+    state through anchored count calibration against FNS eligible-unit targets.
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/snap_take_up.py:77-319; packages/microcosm-build/src/microcosm/build/us_runtime/snap_state_take_up.py:101-305; packages/microcosm-build/src/microcosm/build/us_runtime/source_runtime.py:520-629,1297-1324
+- entity: spm_unit
+  column: takes_up_tanf_if_eligible
+  artifact_assignment: stable Bernoulli draw
+  f025_observation: 190743 true, 678213 false; every row was seeded
+  contract:
+    treatment: seed
+    engine_default: true
+    rate_status: sourced_administrative
+    rate_value: 0.219
+  producer_stage: seed_multispine_pool_inputs via with_us_take_up_inputs
+  probability_source: checked-in contract scalar 0.219 from HHS ASPE 2022 Table 10
+  conditioning: one draw per SPM unit over all units, without a receipt anchor or eligibility mask; the final TANF amount multiplies the flag
+  determinism: BLAKE2b uniform keyed by seed 0, variable, and stable source identity, falling back to support source id or SPM-unit id
+  calibration_status: no exact marginal calibration; weighted participation is diagnostic and must fall in the 0.10-0.40 signal band
+  source: packages/microcosm-build/src/microcosm/build/us/take_up_contract.json:30-45; packages/microcosm-build/src/microcosm/build/us_runtime/take_up_contract.py:140-209,234-267; packages/microcosm-build/src/microcosm/build/us_runtime/take_up.py:112-197,242-294,439-478; packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058
+- entity: tax_unit
+  column: takes_up_eitc
+  artifact_assignment: stable Bernoulli draw with a child-count-specific probability
+  f025_observation: 814010 true, 365854 false; every row was seeded
+  contract:
+    treatment: seed
+    engine_default: true
+    rate_status: sourced_research_irs_published
+    values_by_num_children:
+      '0': 0.65
+      '1': 0.86
+      '2': 0.85
+      3+: 0.82
+  producer_stage: seed_multispine_pool_inputs via with_us_take_up_inputs
+  probability_source: checked-in IRS NTA rates 0.65/0.86/0.85/0.82 for 0/1/2/3+ children
+  conditioning: per tax unit; the artifact proxy counts members age under 19 and does not apply engine eligibility before drawing; final EITC is eligibility-gated and multiplies the flag
+  determinism: BLAKE2b uniform keyed by seed 0, variable, and stable source identity, falling back to support source id or tax-unit id
+  calibration_status: no exact marginal calibration; weighted participation is diagnostic and must fall in the 0.60-0.92 signal band
+  source: packages/microcosm-build/src/microcosm/build/us/take_up_contract.json:48-63; packages/microcosm-build/src/microcosm/build/us_runtime/take_up_contract.py:140-209,234-267; packages/microcosm-build/src/microcosm/build/us_runtime/take_up.py:112-197,200-294,439-478; packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058
+- entity: person
+  column: takes_up_medicaid_if_eligible
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 1970973 true, 0 false; every row was defaulted
+  contract:
+    treatment: count_calibrated
+    engine_default: true
+    rate_status: no_administrative_rate_exists
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none at artifact stage; downstream derives state fill probabilities from CMS enrollment targets, reporter anchors, eligible capacity, and weights
+  conditioning: per person over the whole artifact with no eligibility or reported-coverage interaction at this stage; medicaid_enrolled later adds the flag only when eligible
+  determinism: deterministic constant-or-preserved assignment; downstream ranks candidates with a configured-seed stable person-source hash
+  calibration_status: no artifact-stage calibration; downstream greedily count-matches CMS targets where reachable and records saturated states
+  downstream_replacement: >-
+    The fiscal source stage anchors reported Medicaid coverage and uses stable
+    person draws among eligible candidates, greedily matching CMS state
+    enrollment counts where reachable and recording saturation otherwise.
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/medicaid_take_up.py:119-239,253-340; packages/microcosm-build/src/microcosm/build/us_runtime/source_runtime.py:520-629,1297-1324
+- entity: person
+  column: takes_up_chip_if_eligible
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 1970973 true, 0 false; every row was defaulted
+  contract:
+    treatment: rate_unsourced
+    engine_default: true
+    rate_status: no_standalone_current_rate
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none; the contract records no standalone current CHIP rate
+  conditioning: per person over the whole artifact with no eligibility interaction at assignment; chip_enrolled later adds the flag only when eligible
+  determinism: deterministic constant-or-preserved assignment; no RNG
+  calibration_status: none; CMS counts combine M-CHIP and separate CHIP and are rejected for this unmatched modeled concept
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/take_up_contract.py:140-209
+- entity: person
+  column: takes_up_basic_health_program_if_eligible
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 1970973 true, 0 false; every row was defaulted
+  contract:
+    treatment: rate_unsourced
+    engine_default: true
+    rate_status: no_source
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none; the checked-in contract records no source
+  conditioning: per person over the whole artifact with no eligibility interaction at assignment; BHP enrollment later adds the flag only when eligible
+  determinism: deterministic constant-or-preserved assignment; no RNG
+  calibration_status: none; sourcing a rate for operating BHP states remains follow-up debt
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/take_up_contract.py:140-209
+- entity: person
+  column: takes_up_medicare_if_eligible
+  supersedes_modeled: true
+  artifact_assignment: measured/transferred input, not a draw; ASEC MCARE equals 1 is preserved and copied through support identity
+  f025_observation: 460082 true, 1510891 false; every row was transferred or preserved
+  contract:
+    treatment: out_of_scope
+    engine_default: true
+    rate_status: not_used_measured_source
+  producer_stage: medicare_take_up_input source stage, completed as transfer-owned by seed_multispine_pool_inputs
+  probability_source: none; direct ASEC interview coverage is the source
+  conditioning: per person, independent of modeled eligibility at assignment; medicare_enrolled later adds the flag only when eligible
+  determinism: source mapping and support-identity copy are deterministic and seed-free
+  calibration_status: no marginal calibration; reconciliation and signal gates verify preservation and nonconstant coverage
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/medicare_take_up.py:131-211,253-302; packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:3000-3040
+- entity: person
+  column: takes_up_ssi_if_eligible
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 1970973 true, 0 false; every row was defaulted
+  contract:
+    treatment: count_calibrated
+    engine_default: true
+    rate_status: rejected_scope_mismatch
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none at artifact stage; downstream derives age-band Bernoulli priors from SSA counts after subtracting anchored reporter mass from candidate capacity
+  conditioning: per person over the whole artifact with no eligibility interaction at this stage; downstream SSI multiplies positive uncapped SSI by the flag
+  determinism: deterministic constant-or-preserved artifact assignment; downstream makes one configured-seed stable draw per source-person identity and copies it to clones
+  calibration_status: no artifact-stage calibration; downstream uses SSA counts for priors and release-weight gates, deliberately not exact flag count matching
+  downstream_replacement: >-
+    The SSI source stage anchors ASEC SSI_VAL reporters, assigns one stable draw
+    per source-person identity using SSA-count-derived age-band priors, and fans
+    it to clones. Counts set priors and release-weight gates; flags are deliberately
+    not exact-count-matched.
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/ssi_take_up.py:502-733,1097-1285
+- entity: tax_unit
+  column: takes_up_dc_ptc
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 1179864 true, 0 false; every row was defaulted
+  contract:
+    treatment: rate_unsourced
+    engine_default: true
+    rate_status: model_relative
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none; 0.32 is rejected because its denominator is model-relative rather than an eligible-population fact
+  conditioning: per tax unit over the whole artifact; the DC-only credit later computes its uncapped value and multiplies this flag
+  determinism: deterministic constant-or-preserved assignment; no RNG
+  calibration_status: none; a defensible eligible-population denominator remains follow-up debt
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/take_up_contract.py:140-209
+- entity: person
+  column: takes_up_head_start_if_eligible
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 1970973 true, 0 false; every row was defaulted
+  contract:
+    treatment: out_of_scope
+    engine_default: true
+    rate_status: not_used_measured_source
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none at artifact stage; downstream probability is the weighted 100-tree QRF prediction fitted to measured SIPP enrollment responses
+  conditioning: per person over the whole artifact at assignment; Head Start later applies an eligibility definition and multiplies the flag
+  determinism: deterministic constant-or-preserved artifact assignment; downstream QRF randomness is controlled by the configured seed and predictions are keyed once per source-person identity
+  calibration_status: no artifact-stage or downstream administrative marginal calibration; downstream enforces model/domain signal gates
+  downstream_replacement: >-
+    The fiscal source stage fits a weighted 100-tree QRF to measured SIPP
+    enrollment for ages 3-5, predicts once per stable source-person identity,
+    assigns false outside the domain, and fans the decision to support clones;
+    it has signal gates but no administrative marginal calibration.
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/sipp_head_start.py:1-24,88-163,311-747
+- entity: person
+  column: takes_up_early_head_start_if_eligible
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 1970973 true, 0 false; every row was defaulted
+  contract:
+    treatment: rate_unsourced
+    engine_default: true
+    rate_status: source_unavailable
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none; the retired 0.09 research-chart scalar is rejected and the SIPP Head Start item does not identify Early Head Start
+  conditioning: per person over the whole artifact at assignment; Early Head Start later applies eligibility and multiplies the flag
+  determinism: deterministic constant-or-preserved assignment; no RNG
+  calibration_status: none; no locked individual-level source covers infants, toddlers, and pregnant participants
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/sipp_head_start.py:1-9
+- entity: spm_unit
+  column: takes_up_housing_assistance_if_eligible
+  supersedes_modeled: true
+  artifact_assignment: receipt-derived/transferred input, not an independent take-up draw
+  f025_observation: 24415 true, 844541 false; every row was transferred or preserved
+  contract:
+    treatment: out_of_scope
+    engine_default: true
+    rate_status: not_used_measured_source
+  producer_stage: housing-assistance source/transfer stages, completed as transfer-owned by seed_multispine_pool_inputs
+  probability_source: ASEC uses SPM_CAPHOUSESUB greater than zero; PUF support uses the housing receipt QRF and ACS uses the transfer target
+  conditioning: per SPM unit, assigned equal to the modeled or measured receipt without an eligibility mask; final housing assistance is eligibility-defined and multiplies the flag
+  determinism: ASEC threshold is seed-free; QRF/transfer randomness is controlled by the build seed and the completed column is preserved
+  calibration_status: no external marginal calibration; invariants require receipt and take-up to agree and preserve reporter anchors
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/housing_inputs.py:500-529,984-1146,1283-1344; packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:393-400; packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:3000-3040
+- entity: tax_unit
+  column: takes_up_aca_if_eligible
+  artifact_assignment: missing rows filled with the installed-engine constant true default; nonnull inputs preserved
+  f025_observation: 1179864 true, 0 false; every row was defaulted
+  contract:
+    treatment: out_of_scope
+    engine_default: true
+    rate_status: owned_by_aca_workstream
+    rate_value: 0.672
+  producer_stage: seed_multispine_pool_inputs
+  probability_source: none at artifact stage; downstream derives state assignment rates from CMS targets, Marketplace reporter anchors, eligible mass, and weights rather than using the contract's 0.672 KFF value
+  conditioning: per tax unit over the whole artifact at assignment; downstream receipt assignment is restricted to eligible tax units
+  determinism: deterministic constant-or-preserved artifact assignment; downstream ranks candidates with a configured-seed stable tax-unit-source hash
+  calibration_status: no artifact-stage calibration; downstream count-calibrates to CMS state targets with an optional IRS joint constraint
+  downstream_replacement: >-
+    The fiscal source stage anchors reported subsidized Marketplace coverage,
+    ranks eligible tax units by stable source-identity draws, assigns false off
+    domain, and count-calibrates by state to CMS targets with an optional IRS
+    joint constraint.
+  source: packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2970-3058; packages/microcosm-build/src/microcosm/build/us_runtime/source_runtime.py:451-780,1297-1324; tools/build_us_fiscal_refresh_release.py:2821-3162
+
+receipts:
+  groups:
+  - id: puf_capital_gains_tail_donor_provenance
+    entity: tax_unit
+    columns:
+    - puf_capital_gains_tail_donor_agi_band_index
+    - puf_capital_gains_tail_donor_filing_status_code
+    - puf_capital_gains_tail_donor_is_synthetic
+    - puf_capital_gains_tail_donor_source_id
+    - puf_capital_gains_tail_transfer_applied
+    - puf_capital_gains_tail_transfer_weight
+    source: packages/microcosm-build/src/microcosm/build/us_runtime/operator_boundary.py:191-199,308-315; packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:123-134,662-760,1678-1768
+  - id: schedule_d_capital_gain_distribution_receipt
+    entity: person
+    columns:
+    - schedule_d_capital_gain_distributions
+    source: packages/microcosm-build/src/microcosm/build/us_runtime/capital_gain_distributions.py:151-162,227-238; packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2868-2966
+
+structural:
+  groups:
+  - id: family_identity_and_support
+    entity: family
+    columns:
+    - family_id
+    - family_source_id
+    - family_spine_source_id
+    - family_support_channel
+    - family_support_clone_index
+    supersedes_modeled: true
+    source: packages/microcosm-frame/src/microcosm/frame/units.py:104-146,193-250; packages/microcosm-build/src/microcosm/build/us_runtime/spine_assembly.py:46-75,311-317,401-436
+  - id: household_identity_support_and_weight
+    entity: household
+    columns:
+    - household_id
+    - household_source_id
+    - household_spine_source_id
+    - household_support_channel
+    - household_support_clone_index
+    - household_weight
+    supersedes_modeled: true
+    source: packages/microcosm-frame/src/microcosm/frame/units.py:104-146,193-250; packages/microcosm-build/src/microcosm/build/us_runtime/spine_assembly.py:46-75,311-317,401-436; packages/microcosm-build/src/microcosm/build/us_runtime/h5_io.py:1022-1032
+  - id: marital_unit_identity_and_support
+    entity: marital_unit
+    columns:
+    - marital_unit_id
+    - marital_unit_source_id
+    - marital_unit_spine_source_id
+    - marital_unit_support_channel
+    - marital_unit_support_clone_index
+    supersedes_modeled: true
+    source: packages/microcosm-frame/src/microcosm/frame/units.py:104-146,193-250; packages/microcosm-build/src/microcosm/build/us_runtime/spine_assembly.py:46-75,311-317,401-436
+  - id: person_identity_membership_support_and_role
+    entity: person
+    columns:
+    - is_related_to_head_or_spouse
+    - person_family_id
+    - person_household_id
+    - person_id
+    - person_marital_unit_id
+    - person_source_id
+    - person_spine_source_id
+    - person_spm_unit_id
+    - person_support_channel
+    - person_support_clone_index
+    - person_tax_unit_id
+    - source_household_id
+    - source_person_id
+    - source_row_id
+    - source_year
+    - tax_unit_role_input
+    supersedes_modeled: true
+    source: packages/microcosm-frame/src/microcosm/frame/units.py:104-146,193-250,326-361; packages/microcosm-build/src/microcosm/build/us_runtime/asec_pool.py:265-285; packages/microcosm-build/src/microcosm/build/us_runtime/acs_pums.py:273-279; packages/microcosm-build/src/microcosm/build/us_runtime/spine_assembly.py:46-75,311-317,401-436
+  - id: spm_unit_identity_and_support
+    entity: spm_unit
+    columns:
+    - spm_unit_id
+    - spm_unit_source_id
+    - spm_unit_spine_source_id
+    - spm_unit_support_channel
+    - spm_unit_support_clone_index
+    supersedes_modeled: true
+    source: packages/microcosm-frame/src/microcosm/frame/units.py:104-146,193-250; packages/microcosm-build/src/microcosm/build/us_runtime/spine_assembly.py:46-75,311-317,401-436
+  - id: tax_unit_identity_support_and_filing
+    entity: tax_unit
+    columns:
+    - filing_status_input
+    - tax_unit_id
+    - tax_unit_source_id
+    - tax_unit_spine_source_id
+    - tax_unit_support_channel
+    - tax_unit_support_clone_index
+    supersedes_modeled: true
+    source: packages/microcosm-frame/src/microcosm/frame/units.py:104-146,193-250,326-361; packages/microcosm-build/src/microcosm/build/us_runtime/spine_assembly.py:46-75,311-317,401-436
+
+# Minimal merge-safe claim only; mechanics are owned by the microcosm#696 lane.
+geography:
+  assigned_by_ladder:
+  - id: household_geography_draw_chain
+    entity: household
+    columns:
+    - puma
+    - puma_geoid
+    - state_fips
+    mechanics: pending microcosm#696 lane
+    source: packages/microcosm-build/src/microcosm/build/us_runtime/puma_ladder.py:293-383; packages/microcosm-build/src/microcosm/build/us_runtime/asec_pool.py:286-297; packages/microcosm-build/src/microcosm/build/us_runtime/acs_pums.py:635-646
+
+unclassified: []
