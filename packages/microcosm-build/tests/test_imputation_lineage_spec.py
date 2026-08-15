@@ -30,6 +30,21 @@ from microcosm.fit.qrf import DEFAULT_N_ESTIMATORS, DEFAULT_ZERO_ATOL
 
 SPEC_PATH = Path(__file__).resolve().parents[3] / "specs" / "us_imputation_lineage.yaml"
 
+EXPECTED_GEOGRAPHY = {
+    "block_geoid": ("population_weighted_block_draw", "2020_tabulation_blocks"),
+    "tract_geoid": ("block_geoid_prefix_11", "2020_census"),
+    "county_fips": ("block_geoid_prefix_5", "2020_census"),
+    "puma": ("tract_to_puma_relationship", "2020_puma"),
+    "congressional_district_geoid": (
+        "block_equivalency_lookup",
+        "119th_congress",
+    ),
+    "place_fips": ("block_crosswalk_lookup", "2020_census"),
+    "sldu": ("block_crosswalk_lookup", "2020_baf"),
+    "sldl": ("block_crosswalk_lookup", "2020_baf"),
+    "cbsa_code": ("block_crosswalk_lookup", "omb_2023_delineations"),
+}
+
 
 @pytest.fixture(scope="module")
 def spec() -> dict:
@@ -38,6 +53,30 @@ def spec() -> dict:
 
 def _clean(name: str) -> str:
     return name.replace("__acs_transfer_", "")
+
+
+def test_geography_lineage_section_has_the_ruling_shape(spec: dict) -> None:
+    assert spec["schema_version"] == 2
+    geography = spec["geography"]
+    assert geography["stage"] == "spine_construction_before_gap_fill"
+    assert "checkpoint schema v3" in geography["asec_county_todo"]
+    assert set(geography["columns"]) == set(EXPECTED_GEOGRAPHY)
+
+    for column, (derivation, vintage) in EXPECTED_GEOGRAPHY.items():
+        entry = geography["columns"][column]
+        assert set(entry) == {
+            "lineage_class",
+            "draw_universe",
+            "derivation",
+            "vintage",
+        }
+        assert entry["lineage_class"] == "assigned_by_ladder"
+        assert entry["draw_universe"] == {
+            "acs": "observed_puma",
+            "asec": "state",
+        }
+        assert entry["derivation"] == derivation
+        assert entry["vintage"] == vintage
 
 
 def test_spec_declares_every_stage_family_and_target(spec: dict) -> None:
@@ -82,6 +121,12 @@ def test_predictor_sets_match_the_code(spec: dict) -> None:
         _clean(c) for c in ACS_GROUP_TRANSFER_PREDICTORS
     ]
     assert sets["puf_tax_detail"]["required"] == list(PUF_TAX_DETAIL_DEFAULT_PREDICTORS)
+    for name in ("acs_person_transfer", "acs_group_transfer"):
+        assert sets[name]["optional"][-2:] == ["puma", "county_fips"]
+        assert set(sets[name]["channel_caveat"]) == {
+            "acs_recipient",
+            "asec_donor",
+        }
 
 
 def test_model_attributes_match_the_code(spec: dict) -> None:

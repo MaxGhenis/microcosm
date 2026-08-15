@@ -1,7 +1,75 @@
-schema_version: 1
+schema_version: 2
 title: US stacked pool - imputation lineage spec
 provenance: v1 extracted from code on main (b420d4ed) 2026-08-15; from here the YAML is the source of
   truth and code must conform (tests/test_imputation_lineage_spec.py)
+geography:
+  stage: spine_construction_before_gap_fill
+  asec_county_todo: identified county is absent from raw-stage checkpoint schema v3; add it in a
+    checkpoint-schema change, then use identified_county instead of state
+  columns:
+    block_geoid:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: population_weighted_block_draw
+      vintage: 2020_tabulation_blocks
+    tract_geoid:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: block_geoid_prefix_11
+      vintage: 2020_census
+    county_fips:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: block_geoid_prefix_5
+      vintage: 2020_census
+    puma:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: tract_to_puma_relationship
+      vintage: 2020_puma
+    congressional_district_geoid:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: block_equivalency_lookup
+      vintage: 119th_congress
+    place_fips:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: block_crosswalk_lookup
+      vintage: 2020_census
+    sldu:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: block_crosswalk_lookup
+      vintage: 2020_baf
+    sldl:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: block_crosswalk_lookup
+      vintage: 2020_baf
+    cbsa_code:
+      lineage_class: assigned_by_ladder
+      draw_universe:
+        acs: observed_puma
+        asec: state
+      derivation: block_crosswalk_lookup
+      vintage: omb_2023_delineations
 models:
   regime_gated_qrf:
     id: regime_gated_qrf
@@ -38,6 +106,13 @@ predictor_sets:
     - interest_dividend_rental_income
     - is_household_head
     - tenure_code
+    - puma
+    - county_fips
+    channel_caveat:
+      acs_recipient: puma is exact observed PUMA (self-checked after block derivation); county_fips
+        is block-derived within it
+      asec_donor: geography is drawn from the declared block universe, attenuating geographic signal
+        rather than biasing the transfer
     note: ONE shared tuple for every ACS gap-fill family, money and boolean alike; missingness handled
       by availability-pattern partition (one fit per observed-predictor pattern)
   acs_group_transfer:
@@ -54,6 +129,13 @@ predictor_sets:
     - group_interest_dividend_rental_income
     - group_is_household_head
     - group_tenure_code
+    - puma
+    - county_fips
+    channel_caveat:
+      acs_recipient: puma is exact observed PUMA (self-checked after block derivation); county_fips
+        is block-derived within it
+      asec_donor: geography is drawn from the declared block universe, attenuating geographic signal
+        rather than biasing the transfer
   puf_tax_detail:
     required:
     - puf_predictor_filing_status_code
@@ -1674,6 +1756,6 @@ computed_producers:
 known_gaps:
 - 'participation booleans (CHAMPVA, TRICARE, VA, IHS, Medicaid, WIC, ...) share acs_person_transfer: no
   veteran/VA, disability, own-coverage, or eligibility predictors'
-- money families see no marital status, household size, family structure, PUMA, property tax, education,
+- money families see no marital status, household size, family structure, property tax, education,
   hours/weeks, class of worker
 - no post-draw marginal calibration on any family (battery red core = incidence + quantile legs)
