@@ -152,6 +152,8 @@ _RETIREMENT_FEATURE = "__acs_transfer_retirement_income"
 _INVESTMENT_FEATURE = "__acs_transfer_interest_dividend_rental_income"
 _HEAD_FEATURE = "__acs_transfer_is_household_head"
 _TENURE_FEATURE = "__acs_transfer_tenure_code"
+_PUMA_FEATURE = "__acs_transfer_puma"
+_COUNTY_FIPS_FEATURE = "__acs_transfer_county_fips"
 
 ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS: tuple[str, ...] = (
     _EMPLOYMENT_FEATURE,
@@ -161,6 +163,8 @@ ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS: tuple[str, ...] = (
     _INVESTMENT_FEATURE,
     _HEAD_FEATURE,
     _TENURE_FEATURE,
+    _PUMA_FEATURE,
+    _COUNTY_FIPS_FEATURE,
 )
 
 _GROUP_PERSON_COUNT = "__acs_transfer_person_count"
@@ -181,7 +185,17 @@ _GROUP_OPTIONAL_NAMES: Mapping[str, str] = {
     _INVESTMENT_FEATURE: "__acs_transfer_group_investment_income_sum",
     _HEAD_FEATURE: "__acs_transfer_group_head_count",
     _TENURE_FEATURE: "__acs_transfer_group_tenure_code",
+    _PUMA_FEATURE: "puma",
+    _COUNTY_FIPS_FEATURE: "county_fips",
 }
+
+_GROUP_CONSTANT_PERSON_FEATURES = frozenset(
+    {
+        _TENURE_FEATURE,
+        _PUMA_FEATURE,
+        _COUNTY_FIPS_FEATURE,
+    }
+)
 
 _DONOR_COMBINED_COMPONENTS: Mapping[str, tuple[str, ...]] = {
     _SOCIAL_SECURITY_FEATURE: (
@@ -1918,6 +1932,16 @@ def _person_optional_features(frame: Frame, *, role: str) -> pd.DataFrame:
     tenure = _person_tenure_feature(frame)
     if tenure is not None:
         result[_TENURE_FEATURE] = tenure.to_numpy()
+    for feature, source in (
+        (_PUMA_FEATURE, "puma"),
+        (_COUNTY_FIPS_FEATURE, "county_fips"),
+    ):
+        values = _column_broadcast_to_person(frame, source)
+        if values is not None:
+            result[feature] = _numeric_source(
+                values,
+                context=f"optional geography predictor {source!r}",
+            )
 
     _validate_optional_numeric_frame(
         result,
@@ -2144,7 +2168,7 @@ def _aggregate_optional_to_group(
         )
         complete = observed_counts == total_counts
         group_name = _GROUP_OPTIONAL_NAMES[person_name]
-        if person_name == _TENURE_FEATURE:
+        if person_name in _GROUP_CONSTANT_PERSON_FEATURES:
             low = np.full(n_groups, np.inf, dtype=np.float64)
             high = np.full(n_groups, -np.inf, dtype=np.float64)
             np.minimum.at(low, positions[finite], values[finite])

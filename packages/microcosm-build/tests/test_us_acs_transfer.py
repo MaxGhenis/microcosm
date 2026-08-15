@@ -410,6 +410,22 @@ def _conditioning_frames() -> tuple[Frame, Frame]:
             ],
         },
     )
+    donor = _with_columns(
+        donor,
+        "household",
+        {
+            "puma": ["0600101", "0600102", "3600101", "3600102"],
+            "county_fips": ["06001", "06013", "36061", "36047"],
+        },
+    )
+    recipient = _with_columns(
+        recipient,
+        "household",
+        {
+            "puma": ["0600101", "3600101", "3600102"],
+            "county_fips": ["06001", "36061", "36047"],
+        },
+    )
     return donor, recipient
 
 
@@ -1476,6 +1492,113 @@ def test_group_required_predictors_preserve_missing_state_for_masking() -> None:
         equal_nan=True,
     )
     np.testing.assert_array_equal(complete, np.asarray([True, False, True]))
+
+
+def test_optional_geography_broadcasts_string_codes_as_numeric_features() -> None:
+    donor = _with_columns(
+        _donor_frame(),
+        "household",
+        {
+            "puma": pd.array(
+                ["0600101", "0600102", "3600101", "3600102"],
+                dtype=CANONICAL_STRING_DTYPE,
+            ),
+            "county_fips": pd.array(
+                ["06001", "06013", "36061", "36047"],
+                dtype=CANONICAL_STRING_DTYPE,
+            ),
+        },
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "household",
+        {
+            "puma": pd.array(
+                ["0600101", "3600101", "3600102"],
+                dtype=CANONICAL_STRING_DTYPE,
+            ),
+            "county_fips": pd.array(
+                ["06001", "36061", "36047"],
+                dtype=CANONICAL_STRING_DTYPE,
+            ),
+        },
+    )
+
+    surface = acs_transfer_module._person_feature_surface(donor, recipient)
+
+    assert surface.optional[-2:] == (
+        "__acs_transfer_puma",
+        "__acs_transfer_county_fips",
+    )
+    np.testing.assert_allclose(
+        surface.recipient["__acs_transfer_puma"],
+        [600101.0, 600101.0, 3600101.0, 3600102.0, 3600102.0, 3600102.0],
+    )
+    np.testing.assert_allclose(
+        surface.recipient["__acs_transfer_county_fips"],
+        [6001.0, 6001.0, 36061.0, 36047.0, 36047.0, 36047.0],
+    )
+
+
+def test_group_optional_geography_is_carried_once_not_summed() -> None:
+    donor = _with_columns(
+        _donor_frame(),
+        "household",
+        {
+            "puma": ["0600101", "0600102", "3600101", "3600102"],
+            "county_fips": ["06001", "06013", "36061", "36047"],
+        },
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "household",
+        {
+            "puma": ["0600101", "3600101", "3600102"],
+            "county_fips": ["06001", "36061", "36047"],
+        },
+    )
+
+    surface = acs_transfer_module._group_feature_surface(
+        donor,
+        recipient,
+        entity="tax_unit",
+    )
+
+    assert surface.optional[-2:] == ("puma", "county_fips")
+    np.testing.assert_allclose(surface.recipient["puma"], [600101, 3600101, 3600102])
+    np.testing.assert_allclose(surface.recipient["county_fips"], [6001, 36061, 36047])
+
+
+def test_missing_optional_geography_routes_by_availability_pattern() -> None:
+    donor = _with_columns(
+        _donor_frame(),
+        "household",
+        {
+            "puma": ["0600101", "0600102", "3600101", "3600102"],
+            "county_fips": ["06001", "06013", "36061", "36047"],
+        },
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "household",
+        {
+            "puma": ["0600101", None, "3600102"],
+            "county_fips": ["06001", "36061", "36047"],
+        },
+    )
+    surface = acs_transfer_module._person_feature_surface(donor, recipient)
+
+    patterns = acs_transfer_module._availability_patterns(
+        surface,
+        eligible=np.ones(len(recipient.person), dtype=bool),
+    )
+
+    for observed, positions in patterns:
+        assert "__acs_transfer_county_fips" in observed
+        if 2 in positions:
+            assert "__acs_transfer_puma" not in observed
+        else:
+            assert "__acs_transfer_puma" in observed
 
 
 @pytest.mark.parametrize(
