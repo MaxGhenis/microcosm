@@ -1186,7 +1186,7 @@ def _parse_observed_puma(
     normalized[observed] = numeric[observed].astype(np.int64)
 
     missing = sorted(
-        set(normalized[observed].tolist()) - set(ladder.puma.tolist())
+        set(normalized[observed].tolist()) - set(np.unique(ladder.puma).tolist())
     )
     if missing:
         raise ValueError(
