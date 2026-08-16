@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import microcosm.build.us_runtime.stacked_spine as stacked_spine_module
 from microcosm.build.serialization_dtypes import CANONICAL_STRING_DTYPE
 from microcosm.build.us_runtime.acs_pums import (
     ACS_2024_1YR_SPINE,
@@ -14,7 +15,7 @@ from microcosm.build.us_runtime.acs_pums import (
     build_acs_pums_unit_frame,
     load_acs_pums_tables,
 )
-from microcosm.build.us_runtime.spine_assembly import assemble_spines
+from microcosm.build.us_runtime.stacked_spine import assemble_stacked_spine
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
 
 
@@ -184,6 +185,7 @@ def _source(tmp_path: Path) -> AcsPumsSource:
                     25,
                     AGEP=10,
                     MAR=5,
+                    MIL=None,
                     SCH=2,
                     SCHG=10,
                     SCHL=10,
@@ -202,7 +204,7 @@ def _source(tmp_path: Path) -> AcsPumsSource:
 
 
 def _asec_shaped_frame() -> Frame:
-    """Return one ASEC-like row sharing only structural and lineage fields."""
+    """Return one ASEC-like row with the pinned raw shared-column dtypes."""
 
     person = pd.DataFrame(
         {
@@ -222,6 +224,9 @@ def _asec_shaped_frame() -> Frame:
             "source_person_id": pd.Series(["7-1"]).astype(CANONICAL_STRING_DTYPE),
             "source_row_id": np.asarray([0], dtype=np.int64),
             "A_AGE": np.asarray([55], dtype=np.int64),
+            # Pinned raw ASEC checkpoint storage. ACS MIL has native blanks,
+            # so its otherwise integral codes materialize as float64.
+            "MIL": np.asarray([2], dtype=np.int64),
         }
     )
     return Frame(
@@ -387,18 +392,32 @@ def test_build_acs_pums_unit_frame_derives_only_structural_relationship_fields(
     assert child["person_marital_unit_id"] != head["person_marital_unit_id"]
 
 
-def test_built_acs_lineage_assembles_with_asec_without_measured_coercion(
+def test_built_acs_assembles_with_pinned_asec_shared_source_dtypes(
     tmp_path: Path,
 ) -> None:
     pytest.importorskip("microunit")  # sanctioned tax-unit constructor (us extra)
     acs, _metadata = build_acs_pums_unit_frame(_source(tmp_path), chunksize=1)
+    asec = _asec_shaped_frame()
     measured_wages = acs.table("person")["WAGP"].copy()
+    measured_military_codes = acs.table("person")["MIL"].copy()
     raw_serials = acs.table("household")["SERIALNO"].copy()
 
-    assembled = assemble_spines(
-        {"asec": _asec_shaped_frame(), "acs": acs},
-        household_mass_shares={"asec": 0.5, "acs": 0.5},
-    )
+    # Exercise every reviewed cross-survey physical harmonization. This is the
+    # full overlap introduced by the widened ACS loader against the pinned raw
+    # ASEC schema; the two MIL columns intentionally start with different
+    # physical dtypes while retaining their origin-specific meanings.
+    assert set(stacked_spine_module._STACKED_SHARED_SOURCE_FLOAT64_COLUMNS) == {
+        ("person", "MIL")
+    }
+    assert asec.table("person")["MIL"].dtype == np.dtype(np.int64)
+    assert acs.table("person")["MIL"].dtype == np.dtype(np.float64)
+
+    assembled = assemble_stacked_spine(
+        asec,
+        acs,
+        sample_fraction=1.0,
+        sample_seed=578,
+    ).frame
 
     person = assembled.table("person")
     acs_person = person.loc[person["person_support_channel"].eq("acs")].sort_values(
@@ -408,10 +427,18 @@ def test_built_acs_lineage_assembles_with_asec_without_measured_coercion(
         acs_person["WAGP"].reset_index(drop=True),
         measured_wages.reset_index(drop=True),
     )
+    pd.testing.assert_series_equal(
+        acs_person["MIL"].reset_index(drop=True),
+        measured_military_codes.reset_index(drop=True),
+    )
+    assert person["MIL"].dtype == np.dtype(np.float64)
+    assert person.loc[person["person_support_channel"].eq("asec"), "MIL"].tolist() == [
+        2.0
+    ]
     assert person["source_household_id"].dtype == np.dtype(np.int64)
     assert (
         person["source_person_id"].dtype
-        == _asec_shaped_frame().table("person")["source_person_id"].dtype
+        == asec.table("person")["source_person_id"].dtype
     )
     assert person["source_row_id"].dtype == np.dtype(np.int64)
 

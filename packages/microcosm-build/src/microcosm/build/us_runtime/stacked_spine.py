@@ -293,6 +293,15 @@ _MASS_RTOL = 1e-9
 STACKED_PILOT_ACS_SAMPLE_FRACTION = 0.10
 STACKED_PILOT_ACS_SAMPLE_SEED = 578
 
+# CPS ``MIL`` is a military-health-coverage flag, while ACS ``MIL`` is a
+# military-service code. Both raw sources must survive assembly because their
+# origin-specific decoders run later, but ACS has genuine out-of-universe
+# blanks and therefore materializes the column as float64. The pinned ASEC raw
+# checkpoint has no blanks and stores it as int64. This reviewed physical-only
+# cast preserves every code and ACS blank while keeping the generic assembly
+# boundary strict for every undeclared dtype collision.
+_STACKED_SHARED_SOURCE_FLOAT64_COLUMNS = (("person", "MIL"),)
+
 
 @dataclass(frozen=True)
 class StackedSpineResult:
@@ -309,6 +318,53 @@ class StackedSpineResult:
             )
         if not isinstance(self.receipt, Mapping):
             raise TypeError("StackedSpineResult.receipt must be a mapping.")
+
+
+def _harmonize_stacked_shared_source_dtypes(
+    asec: Frame,
+    acs: Frame,
+) -> tuple[Frame, Frame]:
+    """Apply only reviewed, value-preserving ASEC/ACS physical dtype casts."""
+
+    frames = {
+        BASE_ASEC_SUPPORT_CHANNEL: asec,
+        ACS_STACKED_SUPPORT_CHANNEL: acs,
+    }
+    for entity, column in _STACKED_SHARED_SOURCE_FLOAT64_COLUMNS:
+        if not all(column in frame.table(entity) for frame in frames.values()):
+            continue
+        for channel, frame in tuple(frames.items()):
+            source = frame.table(entity)[column]
+            if pd.api.types.is_bool_dtype(source.dtype) or not (
+                pd.api.types.is_numeric_dtype(source.dtype)
+            ):
+                raise TypeError(
+                    f"Stacked source dtype harmonization requires numeric "
+                    f"{channel}.{entity}.{column}; got {source.dtype!s}."
+                )
+            numeric = source.to_numpy(dtype=np.float64, na_value=np.nan)
+            observed = source.notna().to_numpy(dtype=bool)
+            if not np.isfinite(numeric[observed]).all():
+                raise ValueError(
+                    f"Stacked source dtype harmonization requires finite "
+                    f"observed {channel}.{entity}.{column} values."
+                )
+            if source.dtype == np.dtype(np.float64):
+                continue
+            tables = {name: frame.table(name) for name in frame.entities}
+            tables.update({name: frame.link(name) for name in frame.links})
+            replacement = frame.table(entity).copy()
+            replacement[column] = numeric
+            tables[entity] = replacement
+            frames[channel] = Frame(
+                tables,
+                frame.schema,
+                {name: frame.weights_for(name) for name in frame.weighted_entities},
+                frame.strata,
+                mass_log=frame.mass_log,
+                metadata=frame.metadata,
+            )
+    return frames[BASE_ASEC_SUPPORT_CHANNEL], frames[ACS_STACKED_SUPPORT_CHANNEL]
 
 
 def _sample_survey_households(
@@ -678,6 +734,10 @@ def assemble_stacked_spine(
             },
         }
 
+    sampled_asec, sampled_acs = _harmonize_stacked_shared_source_dtypes(
+        sampled_asec,
+        sampled_acs,
+    )
     assembled = assemble_spines(
         {
             BASE_ASEC_SUPPORT_CHANNEL: sampled_asec,

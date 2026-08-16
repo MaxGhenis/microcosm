@@ -86,3 +86,35 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   without schema exceptions. Selective checkpoint recomputation reproduced
   the CHAMPVA ASEC incidence 0.000758391845865648, ACS incidence
   0.002821413844669058, and ratio 3.720258676368841 exactly from that artifact.
+
+### Candidate attempt 1: pre-artifact dtype diagnosis
+
+- Launched the candidate setsid-detached and off-chain at commit
+  `a510ac764d0faa6804f02082758589a919135353`, using the exact held launcher
+  inputs, hashes, sample/attachment fractions, and seeds; explicitly supplied
+  the isolated checkpoint root and removed
+  `POPULACE_LOGBOOK_PREV_ROW_DIGEST`. The sandbox-writable requested relative
+  output is
+  `/Users/maxghenis/PolicyEngine/_worktrees/microcosm-predictor-sets/_buildo-runtime/out/stacked-f025-predictor-sets-r1/`.
+- This first attempt returned rc=1 at 2026-08-16T23:12:21Z, but it was **not**
+  the expected terminal-gate-red completion. It stopped before assembly wrote
+  a pool/checkpoint/gates artifact because shared raw `person.MIL` was `int64`
+  on ASEC and `float64` on ACS. Receipts:
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/build.status.json` and
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/build.log`.
+- The offline full-schema audit read the pinned ASEC checkpoint metadata and
+  streamed all 3,422,888 ACS person rows from the pinned person zip. Of 42
+  newly selected raw ACS fields, only `MIL` overlaps the ASEC person schema;
+  ACS has 591,066 native blank `MIL` cells. The 15 canonical carried predictor
+  columns are post-assembly float64 outputs and do not collide at this seam.
+- The repair is a single reviewed physical harmonization inside the
+  ACS-specific stacked boundary: losslessly cast both present raw `MIL`
+  columns to float64 before calling strict generic `assemble_spines`. It does
+  not fill ACS blanks, change either origin's codes/semantics, or relax generic
+  mismatch refusal. Realistic ACS-loader and direct stacked regressions prove
+  both origins' codes/blanks and the input frames remain unchanged.
+- The ACS PUMS, generic spine-assembly, and stacked-spine test files pass all
+  **262 tests** after the repair. Ruff, format, and whitespace checks pass.
+  GitNexus graph tools were unavailable in this environment, so the required
+  debugging workflow used the exact traceback, repository call chain, pinned
+  checkpoint metadata, and streamed pinned input schema instead.

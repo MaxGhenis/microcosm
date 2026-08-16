@@ -236,6 +236,45 @@ def test_stacked_assembly_is_deterministic_and_floor_exact() -> None:
     )
 
 
+def test_stacked_assembly_harmonizes_only_reviewed_mil_dtype_collision() -> None:
+    asec = _asec_source()
+    acs = _acs_source()
+    asec_values = np.asarray([0, 1, 2], dtype=np.int64)
+    acs_values = np.asarray(
+        [1.0, 2.0, np.nan, 4.0, 3.0, 2.0, 1.0, 4.0, 3.0, 2.0, 1.0, 4.0, 3.0],
+        dtype=np.float64,
+    )
+    asec.table("person")["MIL"] = asec_values
+    acs.table("person")["MIL"] = acs_values
+
+    result = assemble_stacked_spine(
+        asec,
+        acs,
+        sample_fraction=1.0,
+        sample_seed=578,
+    )
+
+    # The source frames remain untouched. The stacked physical column is the
+    # lossless float64 union needed for ACS native blanks, while origin-specific
+    # CPS/ACS MIL semantics remain encoded in their unchanged values.
+    assert asec.table("person")["MIL"].dtype == np.dtype(np.int64)
+    assert acs.table("person")["MIL"].dtype == np.dtype(np.float64)
+    person = result.frame.table("person")
+    assert person["MIL"].dtype == np.dtype(np.float64)
+    channel = person[support_channel_column("person")].astype(str)
+    np.testing.assert_array_equal(
+        person.loc[channel.eq("asec"), "MIL"].to_numpy(),
+        asec_values.astype(np.float64),
+    )
+    np.testing.assert_allclose(
+        person.loc[channel.eq("acs"), "MIL"].to_numpy(),
+        acs_values,
+        rtol=0.0,
+        atol=0.0,
+        equal_nan=True,
+    )
+
+
 def test_stacked_assembly_seed_and_fraction_bind_identity() -> None:
     base = assemble_stacked_spine(
         _asec_source(),
