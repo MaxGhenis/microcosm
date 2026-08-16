@@ -53,3 +53,36 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   does not drop the required count.
 - No network access, Modal work, on-chain build, stash, or `PROGRESS.md` change
   was used for this checkpoint.
+
+### Acceptance-gate machinery
+
+- Added `tools/predictor_set_oos_gate.py`. Its in-file authority block fixes a
+  SHA-256 stable-source-id donor fold (seed 20260816, fold 0 of 5 held out), the
+  five quantiles, the quantile-forest fit, and a 2,000-replicate paired
+  256-cluster bootstrap. None of these are inherited library defaults.
+- The sweep binds all 32 lineage families and 118 changed targets to each
+  artifact's own executed target order. Baseline models use the legacy
+  predictor set; candidate models use the branch declarations. Target-stable
+  model seeds keep the paired comparison from acquiring independent Monte
+  Carlo noise when the participation reorder crosses a chain boundary.
+- The JSON includes every target's weighted held-out pinball loss and paired
+  CI, all 211 flattened battery legs with their full receipt-derived gate
+  status plus ratio-band transition, and all 16 participation-incidence legs.
+  In-band to non-comparable is fail-closed as a leaving-band transition, and
+  serialized infinite ratios are out of band.
+- The verdict implements the three approved clauses. Any artifact, predictor,
+  donor-scarcity, alignment, or bootstrap measurement error writes a named
+  `measurement_integrity` FAIL receipt instead of exiting without a verdict.
+- Contract validation passed **5 tests** in 1.37 seconds, including real
+  fixture-scale HDF/JSON discovery, battery status/transitions, stable-id
+  paired bootstrap alignment, a synthetic significant money worsening that
+  fails clause b, fail-closed output for synthetic donor scarcity, and refusal
+  of unmatched battery failures or unknown statuses. Ruff, format, compile/fit
+  smoke, and whitespace checks pass.
+- The held baseline was read directly from
+  `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1/`: 32
+  family receipts, 118 classified targets, 211 flattened battery legs, 93
+  failure messages across 60 failed legs, and 16 participation legs parse
+  without schema exceptions. Selective checkpoint recomputation reproduced
+  the CHAMPVA ASEC incidence 0.000758391845865648, ACS incidence
+  0.002821413844669058, and ratio 3.720258676368841 exactly from that artifact.
