@@ -32,3 +32,24 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
 - Focused touched-module runs passed 1,023 tests: lineage/dashboard + ACS parse/plan/PUF/checkpoint (443), ACS transfer (99), multispine/stacked-spine (295), and late DAG/tool contracts (186).
 - The final broader non-slow `microcosm-build` unit/contract suite passed 5,501 tests, with 30 skipped and the two tests marked `slow` deselected, across four deterministic test-file shards.
 - `uv run ruff check .`, changed-file `ruff format --check`, staged and unstaged whitespace checks, and the clean-tree check pass after the local commits.
+
+## Phase P acceptance gate (2026-08-16)
+
+### Rebase and full-suite checkpoint
+
+- Read the binding `Rollout — honest phases` section in
+  `/Users/maxghenis/PolicyEngine/_worktrees/microcosm-spec-engine/docs/spec-engine.md`.
+  Phase P requires this behavior-changing predictor-set branch to land under
+  the #695 mirror only after its own out-of-sample/statistical acceptance gate,
+  and before any baseline freeze.
+- `git merge-base HEAD f7173120` returned
+  `f71731202b6ff1f0dfa757b6b52aa87ff2a34161`; the branch was exactly three
+  commits ahead, so no replay was needed and the branch still applies cleanly
+  to the requested base.
+- The full local US-extra environment suite passed with **6,336 passed, 68
+  skipped** in 1,680.07 seconds. Command:
+  `UV_CACHE_DIR=/private/tmp/microcosm-predictor-sets-uv-cache uv run --no-sync pytest`.
+  This is 835 more passing tests than the prior 5,501-green floor and therefore
+  does not drop the required count.
+- No network access, Modal work, on-chain build, stash, or `PROGRESS.md` change
+  was used for this checkpoint.
