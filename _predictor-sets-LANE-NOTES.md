@@ -272,3 +272,46 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   invalid-vector refusal; Ruff, format, compilation, and whitespace checks
   pass. Gate attempt 1 is diagnostic only; clauses A--C remain unevaluated
   until the corrected full sweep completes.
+
+### Gate attempt 2: completed Phase-P verdict
+
+- The corrected full-artifact-arm gate ran from committed implementation
+  `677acb2ea9178a1924e480595ec61f06aaae9cbd`. It started at
+  2026-08-17T04:17:05.998021Z and finished at
+  2026-08-17T04:30:42.828237Z after 816.821 seconds, with peak RSS
+  22,033,809,408 bytes. The process returned rc=1 because the substantive
+  acceptance verdict is FAIL; it had no traceback, OOM, or measurement-
+  integrity failure. Runtime receipts are
+  `_buildo-runtime/out/phase-p-predictor-set-gate-r2/gate.status.json` and
+  `_buildo-runtime/out/phase-p-predictor-set-gate-r2/gate.log`.
+- Measurement completed for all 32 changed families and 118 targets. The
+  machine verdict is **FAIL**, with all three clauses named:
+  `a_champva`, `b_money_oos`, and `c_no_battery_leg_leaves_band`. The complete
+  receipt is `experiments/phase_p_predictor_sets/verdict.json`; the human
+  report is `experiments/phase_p_predictor_sets/report.md`.
+- Clause A: the CHAMPVA ACS/ASEC incidence ratio moved from
+  3.72025867636884 to 7.308962645414619. Baseline-minus-candidate is
+  -3.588703969045779 with paired-bootstrap 95% CI
+  [-4.698608271228702, -2.8501157729883744], and progress toward the 1.25
+  ceiling is -1.4527644425971613. CHAMPVA has only 80 positive ASEC clone-0
+  rows; the declared held-out fold contains 14 of them. Sources are the
+  verdict, both `.gates.json` files, the baseline simulated checkpoint, and
+  `tools/predictor_set_oos_gate.py`, all named in the report.
+- Clause B: 21 of 74 monetary targets have a candidate-minus-baseline OOS
+  loss CI wholly above zero: 7 early-gap-fill targets across 2 families and
+  14 late-transfer targets across 8 families. All have 86,775 training and
+  21,298 held-out rows in both arms. The candidate resolves every declared
+  optional predictor across all 118 target measurements; the baseline omits
+  the execution-unavailable investment feature on all 48 early targets.
+  Exact targets, losses, CIs, execution surfaces, and source paths are in the
+  verdict and report.
+- Clause C: 12 battery legs leave the ratio band. Five change overall gate
+  status from PASS to FAIL; seven were already FAIL on another submetric but
+  newly move from in-band to out-of-band. The complete 211-leg delta and all
+  source paths are in the verdict/report; counts are 23 entering, 12 leaving,
+  and 176 unchanged.
+- The report's FAIL diagnosis records the recipient-side availability and
+  donor-scarcity evidence without claiming a single-predictor causal effect.
+  No predictor, target order, threshold, band, fold, seed, forest setting, or
+  artifact was tuned after the verdict. Per the binding Phase-P stop rule,
+  work stops here for owner adjudication before any baseline freeze.
