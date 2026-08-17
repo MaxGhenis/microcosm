@@ -76,6 +76,11 @@ PHASE_P_CONFIG: dict[str, object] = {
         "unit": "entity_source_id",
     },
     "quantiles": [0.10, 0.25, 0.50, 0.75, 0.90],
+    "quantile_loss": {
+        "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+        "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean",
+        "paired_delta": "candidate_minus_baseline",
+    },
     "optional_missingness": {
         "value": "unweighted_training_fold_median",
         "indicator": "one_observed_value_indicator_per_optional_predictor",
@@ -275,6 +280,48 @@ PHASE_P_CONFIG: dict[str, object] = {
                 },
             },
         },
+    },
+    "battery_receipt": {
+        "top_level_keys": [
+            "agreement_gate",
+            "artifact_kind",
+            "pipeline",
+            "publication_run_id",
+            "release_id",
+            "schema_version",
+            "semantic_kind",
+            "simulation_ready",
+            "terminal_gates",
+        ],
+        "artifact_kind": "populace_us_multispine_agreement_diagnostics",
+        "schema_version": 8,
+        "semantic_kind": "stacked_terminal_gates",
+        "pipeline": "us-stacked-pool",
+        "gate_id": "us_by_origin_battery",
+        "gate_keys": ["details", "failures", "passed"],
+        "details_keys": [
+            "authority",
+            "comparisons",
+            "declared_plan",
+            "declared_target_count",
+            "extra_registered_targets",
+            "missing_declared_targets",
+            "puf_capital_gains_tail_support",
+            "registered_joint_target_count",
+            "registered_specs",
+            "registered_target_count",
+            "support_profile",
+            "tested_comparisons",
+            "tolerances",
+            "untestable_comparisons",
+        ],
+        "declared_plan_id": "stacked_gap_fill_plan",
+        "tolerances": {
+            "incidence_ratio_bounds": [0.8, 1.25],
+            "max_categorical_total_variation_distance": 0.25,
+            "max_quantile_envelope_distance": 0.25,
+        },
+        "monetary_leg_names": ["negative", "positive"],
     },
     "verdict": {
         "ratio_band": [0.8, 1.25],
@@ -1454,8 +1501,13 @@ def _fit_target_loss(
     train_weights: np.ndarray,
 ) -> np.ndarray:
     forest = PHASE_P_CONFIG["forest"]
+    loss_config = PHASE_P_CONFIG["quantile_loss"]
     quantiles = np.asarray(PHASE_P_CONFIG["quantiles"], dtype=np.float64)
-    assert isinstance(forest, Mapping)
+    assert isinstance(forest, Mapping) and isinstance(loss_config, Mapping)
+    if loss_config.get("per_row_quantile_aggregation") != (
+        "unweighted_arithmetic_mean"
+    ):
+        raise ValueError("Unsupported Phase-P per-row quantile-loss aggregation.")
     minimum_train = int(forest["minimum_training_rows"])
     minimum_test = int(forest["minimum_holdout_rows"])
     if len(train_y) < minimum_train or len(test_y) < minimum_test:
@@ -1914,31 +1966,183 @@ def measure_arm(
     return ArmMeasurement(targets=targets, champva_by_origin=incidence)
 
 
-def _battery_gate(artifact: Artifact) -> dict[str, object]:
-    value = _nested(
-        artifact.gates,
-        "terminal_gates",
-        "gates",
-        "us_by_origin_battery",
-    )
-    if not isinstance(value, dict):
-        raise ValueError(f"Battery gate in {artifact.gates_path} is malformed.")
+def _battery_receipt_config() -> Mapping[str, object]:
+    value = PHASE_P_CONFIG.get("battery_receipt")
+    if not isinstance(value, Mapping):  # pragma: no cover - fixed config
+        raise TypeError("Phase-P battery_receipt config must be an object.")
     return value
 
 
-def _battery(artifact: Artifact) -> dict[str, object]:
-    value = _battery_gate(artifact).get("details")
-    if not isinstance(value, dict):
+def _battery_gate(artifact: Artifact) -> dict[str, object]:
+    """Validate and return the production battery receipt for one artifact."""
+
+    config = _battery_receipt_config()
+    expected_top_level_keys = set(
+        _string_list(
+            config.get("top_level_keys"),
+            label="Phase-P battery top-level keys",
+        )
+    )
+    if set(artifact.gates) != expected_top_level_keys:
+        raise ValueError(
+            f"Battery diagnostics envelope keys changed in {artifact.gates_path}."
+        )
+    for key in ("artifact_kind", "schema_version", "semantic_kind", "pipeline"):
+        if artifact.gates.get(key) != config.get(key):
+            raise ValueError(
+                f"Battery diagnostics envelope field {key!r} changed in "
+                f"{artifact.gates_path}."
+            )
+    for key in ("publication_run_id", "release_id"):
+        value = artifact.gates.get(key)
+        if not isinstance(value, str) or not value:
+            raise ValueError(
+                f"Battery diagnostics envelope field {key!r} is malformed in "
+                f"{artifact.gates_path}."
+            )
+    if not isinstance(artifact.gates.get("simulation_ready"), bool):
+        raise ValueError(
+            f"Battery diagnostics simulation_ready is malformed in "
+            f"{artifact.gates_path}."
+        )
+
+    agreement = artifact.gates.get("agreement_gate")
+    terminal = artifact.gates.get("terminal_gates")
+    if (
+        not isinstance(agreement, Mapping)
+        or not isinstance(terminal, Mapping)
+        or agreement != terminal
+        or set(terminal) != {"gates", "passed"}
+        or not isinstance(terminal.get("passed"), bool)
+    ):
+        raise ValueError(
+            f"Battery agreement/terminal gate envelopes diverged in "
+            f"{artifact.gates_path}."
+        )
+    gates = terminal.get("gates")
+    gate_id = str(config["gate_id"])
+    if not isinstance(gates, Mapping) or gate_id not in gates:
+        raise ValueError(f"Battery gate is missing in {artifact.gates_path}.")
+    value = gates[gate_id]
+    if not isinstance(value, dict) or set(value) != set(
+        _string_list(config.get("gate_keys"), label="Phase-P battery gate keys")
+    ):
+        raise ValueError(f"Battery gate in {artifact.gates_path} is malformed.")
+
+    failures = value.get("failures")
+    if not isinstance(failures, list) or not all(
+        isinstance(failure, str) for failure in failures
+    ):
+        raise ValueError(f"Battery failures in {artifact.gates_path} are malformed.")
+    if not isinstance(value.get("passed"), bool) or value["passed"] != (not failures):
+        raise ValueError(
+            f"Battery passed/failures receipt is inconsistent in {artifact.gates_path}."
+        )
+
+    details = value.get("details")
+    if not isinstance(details, Mapping) or set(details) != set(
+        _string_list(
+            config.get("details_keys"),
+            label="Phase-P battery detail keys",
+        )
+    ):
         raise ValueError(f"Battery details in {artifact.gates_path} are malformed.")
+    checkpoint_authority = _nested(
+        _external_metadata(artifact),
+        "identity",
+        "stacked_authority",
+    )
+    authority = details.get("authority")
+    if not isinstance(authority, Mapping) or authority != checkpoint_authority:
+        raise ValueError(
+            f"Battery authority does not match the selected checkpoint authority in "
+            f"{artifact.gates_path}."
+        )
+    components = authority.get("components")
+    if not isinstance(components, Mapping):
+        raise ValueError("Battery authority components are malformed.")
+    declared_surface = components.get("declared_surface")
+    gap_fill_plan = components.get("gap_fill_plan")
+    joint_registry = components.get("joint_metric_registry")
+    support_profile = components.get("support_profile")
+    if not all(
+        isinstance(component, Mapping)
+        for component in (
+            declared_surface,
+            gap_fill_plan,
+            joint_registry,
+            support_profile,
+        )
+    ):
+        raise ValueError("Battery authority lacks required component receipts.")
+
+    declared_target_count = declared_surface.get("target_count")
+    joint_target_count = joint_registry.get("target_count")
+    if (
+        isinstance(declared_target_count, bool)
+        or not isinstance(declared_target_count, int)
+        or declared_target_count <= 0
+        or isinstance(joint_target_count, bool)
+        or not isinstance(joint_target_count, int)
+        or joint_target_count < 0
+    ):
+        raise ValueError("Battery authority target counts are malformed.")
+    expected_comparison_count = declared_target_count + joint_target_count
+    comparisons = details.get("comparisons")
+    if not isinstance(comparisons, Mapping) or len(comparisons) != (
+        expected_comparison_count
+    ):
+        raise ValueError(
+            f"Battery comparison coverage changed in {artifact.gates_path}: "
+            f"observed={len(comparisons) if isinstance(comparisons, Mapping) else None}, "
+            f"expected={expected_comparison_count}."
+        )
+    registered_specs = details.get("registered_specs")
+    if (
+        details.get("declared_target_count") != declared_target_count
+        or details.get("registered_target_count") != declared_target_count
+        or details.get("registered_joint_target_count") != joint_target_count
+        or details.get("tested_comparisons") != expected_comparison_count
+        or isinstance(registered_specs, bool)
+        or not isinstance(registered_specs, int)
+        or registered_specs <= 0
+        or details.get("missing_declared_targets") != []
+        or details.get("extra_registered_targets") != []
+        or details.get("untestable_comparisons") != []
+    ):
+        raise ValueError(
+            f"Battery completeness receipt changed in {artifact.gates_path}."
+        )
+    expected_plan = {
+        "plan_id": config["declared_plan_id"],
+        "sha256": gap_fill_plan.get("sha256"),
+        "version": authority.get("version"),
+    }
+    if details.get("declared_plan") != expected_plan:
+        raise ValueError(
+            f"Battery declared-plan binding changed in {artifact.gates_path}."
+        )
+    if details.get("support_profile") != support_profile:
+        raise ValueError(
+            f"Battery support-profile binding changed in {artifact.gates_path}."
+        )
+    if not isinstance(details.get("puf_capital_gains_tail_support"), Mapping):
+        raise ValueError(
+            f"Battery PUF tail support receipt is malformed in {artifact.gates_path}."
+        )
+    if details.get("tolerances") != config.get("tolerances"):
+        raise ValueError(f"Battery tolerances changed in {artifact.gates_path}.")
     return value
 
 
 def _battery_legs(artifact: Artifact) -> dict[str, dict[str, object]]:
-    battery = _battery(artifact)
+    gate = _battery_gate(artifact)
+    battery = gate["details"]
+    assert isinstance(battery, Mapping)
     comparisons = battery.get("comparisons")
     if not isinstance(comparisons, Mapping):
         raise ValueError(f"Battery comparisons in {artifact.gates_path} are malformed.")
-    failures = _battery_gate(artifact).get("failures")
+    failures = gate.get("failures")
     if not isinstance(failures, list) or not all(
         isinstance(failure, str) for failure in failures
     ):
@@ -1949,6 +2153,27 @@ def _battery_legs(artifact: Artifact) -> dict[str, dict[str, object]]:
             raise ValueError(f"Battery comparison {comparison_id!r} is malformed.")
         metric = raw.get("metric")
         legs = raw.get("legs")
+        if not isinstance(metric, str) or metric not in ORIGIN_BATTERY_METRIC_KINDS:
+            raise ValueError(
+                f"Battery comparison {comparison_id!r} has unknown metric {metric!r}."
+            )
+        if metric == "monetary_sign_separated":
+            expected_leg_names = set(
+                _string_list(
+                    _battery_receipt_config().get("monetary_leg_names"),
+                    label="Phase-P monetary battery leg names",
+                )
+            )
+            if not isinstance(legs, Mapping) or set(legs) != expected_leg_names:
+                raise ValueError(
+                    f"Battery monetary comparison {comparison_id!r} must contain "
+                    f"exactly legs {sorted(expected_leg_names)}."
+                )
+        elif "legs" in raw:
+            raise ValueError(
+                f"Battery non-monetary comparison {comparison_id!r} cannot contain "
+                "physical sub-legs."
+            )
         if "legs" in raw:
             if not isinstance(legs, Mapping) or not legs:
                 raise ValueError(
@@ -2356,7 +2581,18 @@ def _paired_loss_comparison(
 
     bootstrap = PHASE_P_CONFIG["bootstrap"]
     estimand = PHASE_P_CONFIG["paired_oos_estimand"]
-    assert isinstance(bootstrap, Mapping) and isinstance(estimand, Mapping)
+    loss_config = PHASE_P_CONFIG["quantile_loss"]
+    assert (
+        isinstance(bootstrap, Mapping)
+        and isinstance(estimand, Mapping)
+        and isinstance(loss_config, Mapping)
+    )
+    if (
+        loss_config.get("per_target_holdout_aggregation")
+        != "arm_specific_scoring_weighted_mean"
+        or loss_config.get("paired_delta") != "candidate_minus_baseline"
+    ):
+        raise ValueError("Unsupported Phase-P target quantile-loss aggregation.")
     cluster_count = int(bootstrap["clusters"])
     absolute_tolerance = float(estimand["drift_diagnostics_absolute_tolerance"])
     base_vectors = _validated_oos_measurement_vectors(
@@ -2428,6 +2664,8 @@ def _paired_loss_comparison(
     ci = _bootstrap_ci(replicate_delta)
     return {
         "estimand": str(estimand["name"]),
+        "quantile_grid": [float(value) for value in PHASE_P_CONFIG["quantiles"]],
+        "quantile_loss_aggregation": dict(loss_config),
         "paired_rows": len(base_pos),
         "bootstrap_nonempty_clusters": len(active),
         "bootstrap_pairing": str(estimand["bootstrap_pairing"]),
@@ -2927,6 +3165,10 @@ def build_verdict(
         },
         "family_count": len(family_specs),
         "target_count": len(oos_rows),
+        "quantile_loss_definition": {
+            "quantile_grid": [float(value) for value in PHASE_P_CONFIG["quantiles"]],
+            "aggregation": PHASE_P_CONFIG["quantile_loss"],
+        },
         "families": [
             {
                 **{

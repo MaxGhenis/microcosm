@@ -49,20 +49,117 @@ def _incidence_leg(
     }
 
 
+def _fixture_battery_authority(
+    identity: str,
+    comparisons: dict[str, object],
+) -> dict[str, object]:
+    authority_sha256 = hashlib.sha256(f"authority:{identity}".encode()).hexdigest()
+    gap_sha256 = hashlib.sha256(f"gap:{identity}".encode()).hexdigest()
+    declared_sha256 = hashlib.sha256(f"surface:{identity}".encode()).hexdigest()
+    joint_sha256 = hashlib.sha256(f"joint:{identity}".encode()).hexdigest()
+    support_sha256 = hashlib.sha256(f"support:{identity}".encode()).hexdigest()
+    support_profile = {
+        "profile_id": "phase_p_fixture_support",
+        "version": 1,
+        "min_effective_support": 1,
+        "sha256": support_sha256,
+        "declared_sha256": support_sha256,
+        "digest_matches_declared": True,
+    }
+    return {
+        "authority_id": "phase_p_fixture_stacked_authority",
+        "version": 1,
+        "authority_form": "CANONICAL",
+        "declared_authority_form": "CANONICAL",
+        "sha256": authority_sha256,
+        "declared_sha256": authority_sha256,
+        "canonical": True,
+        "canonical_content": True,
+        "canonical_identity": True,
+        "digest_matches_declared": True,
+        "integrity_valid": True,
+        "production_manifest_permitted": True,
+        "components": {
+            "declared_surface": {
+                "target_count": len(comparisons),
+                "sha256": declared_sha256,
+                "declared_sha256": declared_sha256,
+                "digest_matches_declared": True,
+            },
+            "gap_fill_plan": {
+                "sha256": gap_sha256,
+                "declared_sha256": gap_sha256,
+                "digest_matches_declared": True,
+            },
+            "joint_metric_registry": {
+                "target_count": 0,
+                "sha256": joint_sha256,
+                "declared_sha256": joint_sha256,
+                "digest_matches_declared": True,
+            },
+            "support_profile": support_profile,
+        },
+    }
+
+
 def _gates_receipt(
     comparisons: dict[str, object],
     *,
     failures: list[str] | None = None,
+    authority: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    return {
-        "terminal_gates": {
-            "gates": {
-                "us_by_origin_battery": {
-                    "details": {"comparisons": comparisons},
-                    "failures": failures or [],
+    if authority is None:
+        return {
+            "terminal_gates": {
+                "gates": {
+                    "us_by_origin_battery": {
+                        "details": {"comparisons": comparisons},
+                        "failures": failures or [],
+                    }
                 }
             }
         }
+    config = GATE.PHASE_P_CONFIG["battery_receipt"]
+    components = authority["components"]
+    battery_failures = failures or []
+    battery = {
+        "details": {
+            "authority": authority,
+            "comparisons": comparisons,
+            "declared_plan": {
+                "plan_id": config["declared_plan_id"],
+                "sha256": components["gap_fill_plan"]["sha256"],
+                "version": authority["version"],
+            },
+            "declared_target_count": len(comparisons),
+            "extra_registered_targets": [],
+            "missing_declared_targets": [],
+            "puf_capital_gains_tail_support": {"artifact_kind": "fixture"},
+            "registered_joint_target_count": 0,
+            "registered_specs": max(1, len(comparisons)),
+            "registered_target_count": len(comparisons),
+            "support_profile": components["support_profile"],
+            "tested_comparisons": len(comparisons),
+            "tolerances": config["tolerances"],
+            "untestable_comparisons": [],
+        },
+        "failures": battery_failures,
+        "passed": not battery_failures,
+    }
+    terminal = {
+        "gates": {"us_by_origin_battery": battery},
+        "passed": not battery_failures,
+    }
+    return {
+        "agreement_gate": terminal,
+        "artifact_kind": config["artifact_kind"],
+        "pipeline": config["pipeline"],
+        "publication_run_id": f"fixture-run-{authority['sha256'][:12]}",
+        "release_id": f"fixture-release-{authority['sha256'][:12]}",
+        "schema_version": config["schema_version"],
+        "semantic_kind": config["semantic_kind"],
+        "simulation_ready": False,
+        "terminal_gates": terminal,
     }
 
 
@@ -75,8 +172,17 @@ def _write_artifact(
     failures: list[str] | None = None,
 ):
     root.mkdir()
+    authority = _fixture_battery_authority(identity, comparisons)
     gates_path = root / "fixture.gates.json"
-    gates_path.write_text(json.dumps(_gates_receipt(comparisons, failures=failures)))
+    gates_path.write_text(
+        json.dumps(
+            _gates_receipt(
+                comparisons,
+                failures=failures,
+                authority=authority,
+            )
+        )
+    )
     checkpoint_path = (
         root / "fixture.checkpoints" / "stacked" / identity / "simulated.checkpoint.h5"
     )
@@ -84,8 +190,15 @@ def _write_artifact(
         checkpoint_path,
         frame,
         metadata={
+            "artifact_kind": "populace_us_multispine_pool_stage_checkpoint",
+            "schema_version": 1,
+            "materializer_version": 7,
+            "stage": "simulated",
             "identity_sha256": f"sha256:{identity}",
-            "identity": {"fixture_arm": identity},
+            "identity": {
+                "fixture_arm": identity,
+                "stacked_authority": authority,
+            },
         },
     )
     return GATE.resolve_artifact(root)
@@ -520,7 +633,13 @@ def test_resolve_artifact_discovers_real_frame_checkpoint(
         / "simulated.checkpoint.h5"
     )
     external = artifact.checkpoint_metadata["external_metadata"]
-    assert external["identity"] == {"fixture_arm": "baseline-fixture"}
+    assert external["identity"]["fixture_arm"] == "baseline-fixture"
+    assert (
+        external["identity"]["stacked_authority"]
+        == artifact.gates["terminal_gates"]["gates"]["us_by_origin_battery"]["details"][
+            "authority"
+        ]
+    )
     assert external["identity_sha256"] == "sha256:baseline-fixture"
 
 
@@ -622,6 +741,100 @@ def test_battery_transitions_and_participation_rows_come_from_receipts(
     assert GATE._band_status("inf", lower=0.8, upper=1.25) == "out_of_band"
 
 
+def test_battery_receipts_reject_identically_truncated_comparisons_and_legs(
+    tmp_path: Path,
+    small_frame: Frame,
+) -> None:
+    comparisons = _battery_comparisons(
+        champva_ratio=3.72,
+        other_boolean_ratio=1.0,
+        positive_money_ratio=1.0,
+        negative_money_ratio=1.0,
+    )
+    baseline = _write_artifact(
+        tmp_path / "baseline",
+        small_frame,
+        identity="baseline",
+        comparisons=comparisons,
+    )
+    candidate = _write_artifact(
+        tmp_path / "candidate",
+        small_frame,
+        identity="candidate",
+        comparisons=comparisons,
+    )
+    removed = "person/model_required_boolean/receives_wic[clone_0]"
+    for artifact in (baseline, candidate):
+        for envelope_name in ("agreement_gate", "terminal_gates"):
+            details = artifact.gates[envelope_name]["gates"]["us_by_origin_battery"][
+                "details"
+            ]
+            details["comparisons"].pop(removed)
+
+    with pytest.raises(ValueError, match="Battery comparison coverage changed"):
+        GATE.battery_delta(baseline, candidate)
+
+    baseline = _write_artifact(
+        tmp_path / "baseline_leg",
+        small_frame,
+        identity="baseline-leg",
+        comparisons=comparisons,
+    )
+    candidate = _write_artifact(
+        tmp_path / "candidate_leg",
+        small_frame,
+        identity="candidate-leg",
+        comparisons=comparisons,
+    )
+    monetary = "person/earnings/wages[clone_0]"
+    for artifact in (baseline, candidate):
+        for envelope_name in ("agreement_gate", "terminal_gates"):
+            legs = artifact.gates[envelope_name]["gates"]["us_by_origin_battery"][
+                "details"
+            ]["comparisons"][monetary]["legs"]
+            legs.pop("negative")
+
+    with pytest.raises(ValueError, match="must contain exactly legs"):
+        GATE.battery_delta(baseline, candidate)
+
+
+def test_battery_receipt_rejects_checkpoint_authority_and_envelope_drift(
+    tmp_path: Path,
+    small_frame: Frame,
+) -> None:
+    comparisons = _battery_comparisons(
+        champva_ratio=3.72,
+        other_boolean_ratio=1.0,
+        positive_money_ratio=1.0,
+        negative_money_ratio=1.0,
+    )
+    mismatched = _write_artifact(
+        tmp_path / "mismatched",
+        small_frame,
+        identity="mismatched",
+        comparisons=comparisons,
+    )
+    for envelope_name in ("agreement_gate", "terminal_gates"):
+        authority = mismatched.gates[envelope_name]["gates"]["us_by_origin_battery"][
+            "details"
+        ]["authority"]
+        authority["sha256"] = "0" * 64
+        authority["declared_sha256"] = "0" * 64
+
+    with pytest.raises(ValueError, match="selected checkpoint authority"):
+        GATE._battery_legs(mismatched)
+
+    malformed_envelope = _write_artifact(
+        tmp_path / "malformed_envelope",
+        small_frame,
+        identity="malformed-envelope",
+        comparisons=comparisons,
+    )
+    malformed_envelope.gates["schema_version"] = 9
+    with pytest.raises(ValueError, match="envelope field 'schema_version' changed"):
+        GATE._battery_legs(malformed_envelope)
+
+
 def test_significant_money_oos_worsening_fails_clause_b_and_verdict(
     tmp_path: Path,
     small_frame: Frame,
@@ -666,6 +879,8 @@ def test_significant_money_oos_worsening_fails_clause_b_and_verdict(
     assert paired["candidate_minus_baseline"] == pytest.approx(1.0)
     assert paired["candidate_minus_baseline_ci"] == pytest.approx([1.0, 1.0])
     assert paired["statistically_significant_worsening"] is True
+    assert paired["quantile_grid"] == GATE.PHASE_P_CONFIG["quantiles"]
+    assert paired["quantile_loss_aggregation"] == GATE.PHASE_P_CONFIG["quantile_loss"]
 
     verdict = GATE.build_verdict(
         baseline=baseline,
@@ -701,6 +916,10 @@ def test_significant_money_oos_worsening_fails_clause_b_and_verdict(
     assert verdict["verdict"] == "FAIL"
     assert verdict["passed"] is False
     assert verdict["failing_clauses"] == ["b_money_oos"]
+    assert verdict["quantile_loss_definition"] == {
+        "quantile_grid": GATE.PHASE_P_CONFIG["quantiles"],
+        "aggregation": GATE.PHASE_P_CONFIG["quantile_loss"],
+    }
 
 
 def test_paired_loss_uses_arm_specific_weights_and_truth_after_id_alignment() -> None:
@@ -847,6 +1066,11 @@ def test_paired_loss_requires_identical_bootstrap_clusters() -> None:
 
 def test_paired_oos_estimand_config_declares_full_arm_authorities() -> None:
     assert GATE.PHASE_P_CONFIG["schema_version"] == 2
+    assert GATE.PHASE_P_CONFIG["quantile_loss"] == {
+        "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+        "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean",
+        "paired_delta": "candidate_minus_baseline",
+    }
     estimand = GATE.PHASE_P_CONFIG["paired_oos_estimand"]
     assert estimand == {
         "name": "full_artifact_arm_weighted_oos_risk_difference",
@@ -861,6 +1085,90 @@ def test_paired_oos_estimand_config_declares_full_arm_authorities() -> None:
         "outcome_drift_policy": "allowed_and_reported",
         "drift_diagnostics_absolute_tolerance": 1e-10,
     }
+
+
+def test_fixture_oos_refit_uses_declared_fold_quantiles_and_detects_worsening() -> None:
+    row_count = 1_200
+    rng = np.random.default_rng(20260816)
+    signal = rng.uniform(-10.0, 10.0, size=row_count)
+    person = pd.DataFrame(
+        {
+            "person_id": np.arange(row_count, dtype=np.int64),
+            "person_source_id": [
+                f"fixture-person-{index}" for index in range(row_count)
+            ],
+            "person_household_id": np.arange(row_count, dtype=np.int64),
+            "age": rng.integers(18, 90, size=row_count).astype(np.float64),
+            "is_female": rng.integers(0, 2, size=row_count).astype(bool),
+            "state_fips": rng.integers(1, 57, size=row_count).astype(np.float64),
+            "employment_income_before_lsr": signal,
+            "synthetic_money_target": 100.0 * signal,
+        }
+    )
+    household = pd.DataFrame({"household_id": np.arange(row_count, dtype=np.int64)})
+    donor = Frame(
+        {"person": person, "household": household},
+        EntitySchema(group_entities=("household",)),
+        {
+            "household": Weights(
+                values=np.ones(row_count, dtype=np.float64),
+                kind=WeightKind.DESIGN,
+            )
+        },
+    )
+    baseline_predictors = GATE.AcsPredictorSet(
+        required=("age",),
+        optional=("__acs_transfer_employment_income",),
+    )
+    candidate_predictors = GATE.AcsPredictorSet(required=("age",))
+    family = GATE.FamilySpec(
+        family_id="late_transfer/fixture/synthetic_money",
+        stage="late_transfer",
+        entity="person",
+        family="synthetic_money",
+        baseline_targets=("synthetic_money_target",),
+        candidate_targets=("synthetic_money_target",),
+        max_targets_per_fit=1,
+        baseline_predictor_set=baseline_predictors,
+        candidate_predictor_set=candidate_predictors,
+    )
+
+    baseline = GATE._measure_family(
+        donor,
+        spec=family,
+        arm="baseline",
+        execution_evidence=None,
+    )
+    candidate = GATE._measure_family(
+        donor,
+        spec=family,
+        arm="candidate",
+        execution_evidence=None,
+    )
+    key = f"{family.family_id}/synthetic_money_target"
+    baseline_target = baseline[key]
+    candidate_target = candidate[key]
+    folds, _clusters = GATE._folds_and_clusters(
+        person["person_source_id"].to_numpy(dtype=object),
+        entity="person",
+    )
+    expected_holdout = int(
+        (folds == GATE.PHASE_P_CONFIG["fold"]["held_out_fold"]).sum()
+    )
+
+    assert baseline_target.holdout_rows == expected_holdout
+    assert candidate_target.holdout_rows == expected_holdout
+    assert "__acs_transfer_employment_income" in (baseline_target.resolved_predictors)
+    assert "__acs_transfer_employment_income" not in (
+        candidate_target.resolved_predictors
+    )
+    paired = GATE._paired_loss_comparison(baseline_target, candidate_target)
+    assert paired["quantile_grid"] == GATE.PHASE_P_CONFIG["quantiles"]
+    assert (
+        paired["candidate_mean_pinball_loss"] > (paired["baseline_mean_pinball_loss"])
+    )
+    assert paired["candidate_minus_baseline_ci"][0] > 0.0
+    assert paired["statistically_significant_worsening"] is True
 
 
 def test_measurement_error_writes_named_fail_closed_verdict(
@@ -992,7 +1300,7 @@ def test_battery_schema_drift_fails_closed(
             identity=f"malformed-legs-{index}",
             comparisons=malformed_comparisons,
         )
-        with pytest.raises(ValueError, match="legs must be a nonempty object"):
+        with pytest.raises(ValueError, match="must contain exactly legs"):
             GATE._battery_legs(malformed)
 
 

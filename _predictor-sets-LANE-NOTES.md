@@ -138,7 +138,8 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   no `tax_exempt_interest_income` or `estate_income` columns. The existing
   six-leaf complete-component mapper therefore removed the declared feature.
   The ACS recipient mapping is present and retains its native sparsity:
-  729,029 of 964,699 stacked recipient rows are observed.
+  729,029 of 856,626 ACS recipient rows are observed; the 964,699-row
+  combined person table also includes 108,073 ASEC donor rows.
 - The pinned ASEC source already carries the measured survey analogue as raw
   `INT_VAL`, `DIV_VAL`, and `RNT_VAL`. The repair leaves every predictor set,
   order, target, and threshold unchanged: the preferred six-leaf
@@ -149,8 +150,8 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   its producer.
 - On the actual prepared checkpoint, strict resolution now succeeds for all
   3 required and all 17 optional `person/model_required_boolean` predictors.
-  The investment feature is observed on 108,073/108,073 donor rows and
-  729,029/964,699 recipient rows. The broader ACS-transfer, stacked-spine,
+  The investment feature is observed on 108,073/108,073 ASEC donor rows and
+  729,029/856,626 ACS recipient rows. The broader ACS-transfer, stacked-spine,
   and multispine-pool run passed its entire selected suite; focused regressions
   cover object-backed raw values, source precedence, missing-component
   refusal, recipient sparsity, identity binding, and leakage refusal. Ruff and
@@ -315,3 +316,35 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   No predictor, target order, threshold, band, fold, seed, forest setting, or
   artifact was tuned after the verdict. Per the binding Phase-P stop rule,
   work stops here for owner adjudication before any baseline freeze.
+
+### Post-verdict receipt audit and validation hardening
+
+- An independent read-only audit reproduced all 118 OOS rows, all 211 battery
+  legs, all 16 participation rows, all three clause outcomes, and the artifact
+  and checkpoint hashes in the committed verdict/report. It found one
+  report-only denominator error: 964,699 is the combined person-table count,
+  whereas the ACS recipient denominator is 856,626. The report and the two
+  historical journal references now state 729,029/856,626 ACS recipients and
+  108,073/108,073 ASEC donors. A separate 21-regression diagnosis paragraph
+  now carries its adjacent verdict path. Neither correction changes a clause
+  or numeric verdict.
+- A second audit found that two identically truncated battery receipts could
+  evade the prior cross-arm leg-set check. The actual baseline and candidate
+  receipts are complete and authority-consistent, so the observed Phase-P
+  result is unaffected. The tool now validates the exact production envelope,
+  receipt completeness, declared-plan/support bindings, battery tolerances,
+  and full checkpoint authority before parsing legs. Monetary comparisons must
+  contain exactly their positive and negative legs. The declared quantile-loss
+  grid aggregation is now explicit in configuration and output.
+- Contract coverage now includes identically truncated A/B receipts, a missing
+  physical leg, authority and envelope drift, and a real 1,200-row seeded
+  fold-to-QRF-to-pinball-to-paired-bootstrap worsening case. The post-patch
+  focused suite passes all **41 tests** in 3.51 seconds; Ruff, format, and
+  whitespace checks pass.
+- An additional complete-suite audit, collected before this validation-only
+  patch, passed **6,378 tests with 68 skipped** in 1,113.23 seconds. The
+  original ordered Phase-P rebase checkpoint remains the committed 6,336-pass
+  full-suite result; both counts exceed the required 5,501 floor. A fresh real
+  A/B gate rerun is required next so its implementation hash and emitted config
+  bind the hardened tool. No threshold, band, seed, fold, forest setting,
+  predictor, artifact, or measured loss was changed.
