@@ -282,6 +282,17 @@ _DONOR_COMBINED_COMPONENTS: Mapping[str, tuple[str, ...]] = {
     ),
 }
 
+# The pre-clone ASEC gap-fill donor has not passed through PUF support yet.
+# Its measured CPS investment aggregate is still present on the three raw
+# source columns below, while two leaves in the preferred six-component
+# PolicyEngine surface (tax-exempt interest and estate income) are not
+# materialized.  Keep the preferred surface authoritative whenever it is
+# complete, then use this survey-native, semantically matched aggregate rather
+# than silently dropping a predictor that the per-family contract declares.
+_DONOR_COMBINED_FALLBACK_COMPONENTS: Mapping[str, tuple[str, ...]] = {
+    _INVESTMENT_FEATURE: ("INT_VAL", "DIV_VAL", "RNT_VAL"),
+}
+
 _RECIPIENT_COMBINED_SOURCES: Mapping[str, str] = {
     _SOCIAL_SECURITY_FEATURE: "acs_social_security_income",
     _RETIREMENT_FEATURE: "acs_retirement_income",
@@ -365,6 +376,15 @@ def acs_transfer_execution_contract_identity(
             feature: list(columns)
             for feature, columns in sorted(_DONOR_COMBINED_COMPONENTS.items())
         },
+        "donor_combined_fallback_components": {
+            feature: list(columns)
+            for feature, columns in sorted(
+                _DONOR_COMBINED_FALLBACK_COMPONENTS.items()
+            )
+        },
+        "donor_combined_source_precedence": (
+            "complete_policyengine_components_else_complete_numeric_fallback"
+        ),
         "recipient_combined_sources": dict(sorted(_RECIPIENT_COMBINED_SOURCES.items())),
         "housing": {
             "targets": sorted(_HOUSING_TRANSFER_TARGETS),
@@ -474,7 +494,17 @@ def _predictor_source_components() -> dict[str, tuple[str, ...]]:
     result: dict[str, tuple[str, ...]] = {}
     source_mappings = {
         **_DONOR_DIRECT_COMPONENTS,
-        **_DONOR_COMBINED_COMPONENTS,
+        **{
+            feature: tuple(
+                dict.fromkeys(
+                    (
+                        *components,
+                        *_DONOR_COMBINED_FALLBACK_COMPONENTS.get(feature, ()),
+                    )
+                )
+            )
+            for feature, components in _DONOR_COMBINED_COMPONENTS.items()
+        },
     }
     for feature, components in source_mappings.items():
         public_feature = feature.removeprefix("__acs_transfer_")
@@ -2421,6 +2451,12 @@ def _person_optional_features(
     if role == "donor":
         for feature, components in _DONOR_COMBINED_COMPONENTS.items():
             values = _complete_component_sum(frame, components, feature=feature)
+            if values is None and feature in _DONOR_COMBINED_FALLBACK_COMPONENTS:
+                values = _complete_numeric_component_sum(
+                    frame,
+                    _DONOR_COMBINED_FALLBACK_COMPONENTS[feature],
+                    feature=feature,
+                )
             if values is not None:
                 result[feature] = values.to_numpy()
     else:
@@ -2873,6 +2909,31 @@ def _complete_component_sum(
         .sum(axis=1)
     )
     return pd.Series(values, index=person.index, name=feature)
+
+
+def _complete_numeric_component_sum(
+    frame: Frame,
+    components: Sequence[str],
+    *,
+    feature: str,
+) -> pd.Series | None:
+    """Sum a complete survey-native numeric surface without changing it."""
+
+    person = frame.table(frame.schema.person_entity)
+    if any(component not in person.columns for component in components):
+        return None
+    encoded = np.column_stack(
+        [
+            _numeric_source(
+                person[component],
+                context=f"donor analog {feature!r} component {component!r}",
+            )
+            for component in components
+        ]
+    )
+    # As on the preferred PolicyEngine surface, a row is usable only when all
+    # source components are observed; NumPy deliberately propagates NaN.
+    return pd.Series(encoded.sum(axis=1), index=person.index, name=feature)
 
 
 def _person_head_feature(frame: Frame) -> pd.Series | None:

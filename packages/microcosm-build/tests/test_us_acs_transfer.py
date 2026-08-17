@@ -804,6 +804,16 @@ def test_declared_boolean_predictors_use_eligibility_and_target_chaining() -> No
         "__acs_transfer_employment_income": ["employment_income_before_lsr"],
         "__acs_transfer_self_employment_income": ["self_employment_income_before_lsr"],
     }
+    assert identity["donor_combined_fallback_components"] == {
+        "__acs_transfer_interest_dividend_rental_income": [
+            "INT_VAL",
+            "DIV_VAL",
+            "RNT_VAL",
+        ]
+    }
+    assert identity["donor_combined_source_precedence"] == (
+        "complete_policyengine_components_else_complete_numeric_fallback"
+    )
     assert identity["target_leakage_policy"] == {
         "version": 1,
         "exact_match": "strip_internal_acs_transfer_prefix_then_compare",
@@ -890,6 +900,85 @@ def test_expanded_person_predictor_registry_matches_the_cps_carry_surface() -> N
             "three_valued_household_any_true_else_all_known_false_else_missing"
         ),
     }
+
+
+def test_investment_predictor_uses_complete_native_asec_fallback() -> None:
+    """The pre-clone ASEC surface truthfully pairs with native ACS INTP."""
+
+    donor, recipient = _conditioning_frames()
+    raw_components = {
+        "INT_VAL": np.asarray([10, 20, 30, 40, 50, 60, 70, 80], dtype=object),
+        "DIV_VAL": np.asarray([1, 2, 3, 4, 5, 6, 7, 8], dtype=object),
+        "RNT_VAL": np.asarray(
+            [100, 200, 300, 400, 500, 600, 700, 800], dtype=object
+        ),
+    }
+    donor = _with_columns(donor, "person", raw_components)
+    feature = "__acs_transfer_interest_dividend_rental_income"
+    predictor_set = AcsPredictorSet(
+        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        optional=(feature,),
+    )
+
+    preferred = acs_transfer_module._person_feature_surface(
+        donor,
+        recipient,
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+    preferred_expected = donor.person.loc[
+        :,
+        list(acs_transfer_module._DONOR_COMBINED_COMPONENTS[feature]),
+    ].sum(axis=1, skipna=False)
+    np.testing.assert_array_equal(
+        preferred.donor[feature].to_numpy(),
+        preferred_expected.to_numpy(),
+    )
+    # Fallback is schema-level, not row-level: a missing preferred component
+    # stays missing even though all three raw sources are observed on this row.
+    assert np.isnan(preferred.donor[feature].iloc[-1])
+
+    donor = _drop_column(donor, "person", "tax_exempt_interest_income")
+    donor = _drop_column(donor, "person", "estate_income")
+    surface = acs_transfer_module._person_feature_surface(
+        donor,
+        recipient,
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+
+    expected = np.sum(np.asarray(list(raw_components.values())), axis=0)
+    np.testing.assert_array_equal(surface.donor[feature].to_numpy(), expected)
+    np.testing.assert_array_equal(
+        surface.recipient[feature].to_numpy(),
+        recipient.person["acs_interest_dividend_rental_income"].to_numpy(),
+    )
+
+
+def test_investment_predictor_fallback_requires_every_native_component() -> None:
+    donor, recipient = _conditioning_frames()
+    donor = _with_columns(
+        donor,
+        "person",
+        {
+            "INT_VAL": np.arange(8),
+            "DIV_VAL": np.arange(8),
+        },
+    )
+    donor = _drop_column(donor, "person", "tax_exempt_interest_income")
+    donor = _drop_column(donor, "person", "estate_income")
+    feature = "__acs_transfer_interest_dividend_rental_income"
+
+    with pytest.raises(ValueError, match="unmapped optional.*interest_dividend"):
+        acs_transfer_module._person_feature_surface(
+            donor,
+            recipient,
+            predictor_set=AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=(feature,),
+            ),
+            require_all_predictors=True,
+        )
 
 
 def test_household_veteran_predictor_matches_raw_and_canonical_surfaces() -> None:
@@ -1564,6 +1653,10 @@ def test_explicit_predictor_set_refuses_target_leakage() -> None:
         (
             "__acs_transfer_interest_dividend_rental_income",
             "qualified_dividend_income",
+        ),
+        (
+            "__acs_transfer_interest_dividend_rental_income",
+            "INT_VAL",
         ),
         (
             "__acs_transfer_employment_income",

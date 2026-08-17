@@ -118,3 +118,40 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   GitNexus graph tools were unavailable in this environment, so the required
   debugging workflow used the exact traceback, repository call chain, pinned
   checkpoint metadata, and streamed pinned input schema instead.
+
+### Candidate attempt 2: pre-artifact investment-predictor diagnosis
+
+- Relaunched the same detached, off-chain probe at commit
+  `cf4530b20f2c77df4176ee42937fbd30e542bfa2`. It crossed the repaired dtype
+  seam and wrote the 2,347,322,429-byte assembled checkpoint under identity
+  `5c1c042b4b9e65e9a4114d2c3c850ebdda0933dd48cf5dfa97212164bc4b7305`,
+  then returned rc=1 at 2026-08-16T23:49:08Z before transfer or terminal
+  gates. The exact error was the declared but unmapped optional feature
+  `__acs_transfer_interest_dividend_rental_income`; receipts are
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/build.status.json`,
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/build.log`, and
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/logbook-receipts/populace-us-2024-stacked-f025-s578-asec42213-acs382903-20260816T233514Z-1c572817/error.json`.
+- A production-sized replay from that assembled checkpoint through the exact
+  pre-clone source preparation isolated the donor side. All 108,073 ASEC
+  donor rows have the prepared taxable-interest, qualified-dividend,
+  non-qualified-dividend, and rental leaves, but the stage intentionally has
+  no `tax_exempt_interest_income` or `estate_income` columns. The existing
+  six-leaf complete-component mapper therefore removed the declared feature.
+  The ACS recipient mapping is present and retains its native sparsity:
+  729,029 of 964,699 stacked recipient rows are observed.
+- The pinned ASEC source already carries the measured survey analogue as raw
+  `INT_VAL`, `DIV_VAL`, and `RNT_VAL`. The repair leaves every predictor set,
+  order, target, and threshold unchanged: the preferred six-leaf
+  PolicyEngine surface remains first, with a complete numeric three-source
+  ASEC sum as the execution-bound fallback. The three sources also enter the
+  target-leakage registry; missing or nonnumeric components still fail closed.
+  No absent estate-income value is synthesized and no target is used before
+  its producer.
+- On the actual prepared checkpoint, strict resolution now succeeds for all
+  3 required and all 17 optional `person/model_required_boolean` predictors.
+  The investment feature is observed on 108,073/108,073 donor rows and
+  729,029/964,699 recipient rows. The broader ACS-transfer, stacked-spine,
+  and multispine-pool run passed its entire selected suite; focused regressions
+  cover object-backed raw values, source precedence, missing-component
+  refusal, recipient sparsity, identity binding, and leakage refusal. Ruff and
+  whitespace checks pass.
