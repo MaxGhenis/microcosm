@@ -155,3 +155,41 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   cover object-backed raw values, source precedence, missing-component
   refusal, recipient sparsity, identity binding, and leakage refusal. Ruff and
   whitespace checks pass.
+
+### Candidate attempt 3: completed off-chain f025 arm
+
+- Relaunched the exact pinned f025 command setsid-detached at commit
+  `f0d249732fbdf4f886333aacc160bc3a73a89774`, with the candidate-local
+  checkpoint root and `POPULACE_LOGBOOK_PREV_ROW_DIGEST` removed. It ran from
+  2026-08-17T00:03:51.368429Z through 2026-08-17T03:09:28.005266Z and reached
+  publication after 11,136.637 seconds. The supervisor recorded peak RSS
+  84,097,925,120 bytes and rc=1 in
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/build.status.json`.
+- Rc=1 is the requested terminal-gates-red measurement, not a pipeline error:
+  the attempt-3 portion of
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/build.log` contains no
+  traceback, exception, OOM, or kill marker and ends with `US stacked terminal
+  gates failed`. Completeness passed with zero failures; the by-origin battery
+  tested 132 comparisons with zero untestable comparisons and emitted 77
+  failure messages, per
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/populace_us_2024_stacked_pool.gates.json`.
+- The candidate CHAMPVA clone-0 receipt in that gates artifact has ASEC
+  incidence 0.000758391845865648, ACS incidence 0.005543057672019064, ratio
+  7.3089626454146215, and nonzero rows ASEC 80 / ACS 5,283. These are artifact
+  measurements only; the formal Phase-P verdict remains the OOS gate's job.
+- The completed candidate files are
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/populace_us_2024_stacked_pool.h5`
+  (3,926,011,964 bytes), its `.gates.json` (4,550,974 bytes), and its
+  `.manifest.json` (200,832,034 bytes). The isolated stacked identity is
+  `5c1c042b4b9e65e9a4114d2c3c850ebdda0933dd48cf5dfa97212164bc4b7305`;
+  its transferred checkpoint is 6,519,174,534 bytes and its simulated
+  checkpoint is 6,567,855,699 bytes.
+- Candidate-local Logbook row
+  `_buildo-runtime/out/stacked-f025-predictor-sets-r1/logbook-spool/752e523ef0812d3cb74a2ac714e9da6fa7a1bb1e09f28cccc754a14f66ea3a7a.json`
+  records `prev_row_digest: null`, all phases through publication, completeness
+  passed, and the battery failed. The held external
+  `/Users/maxghenis/PolicyEngine/_buildo-runtime/logbook-pending-chain.txt`
+  remained at its pre-launch 2026-08-16T14:51:20Z modification time and SHA-256
+  `14bf8d34ee355a745a7c6ebe83a38ce7307facbfa2bfbef7c190ba44f4d19177`.
+  No on-chain row, network call, Modal work, stash, or `PROGRESS.md` edit was
+  made.
