@@ -348,3 +348,31 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   A/B gate rerun is required next so its implementation hash and emitted config
   bind the hardened tool. No threshold, band, seed, fold, forest setting,
   predictor, artifact, or measured loss was changed.
+
+### Gate attempt 3: hardened receipt-bound rerun
+
+- The real A/B gate reran from committed implementation
+  `a320712284c5b30771f09b126e755c7f0cd2b77c`. It started at
+  2026-08-17T05:09:34.706031Z and finished at
+  2026-08-17T05:21:35.191717Z after 720.4986282080063 seconds, with peak RSS
+  22,596,321,280 bytes. It completed all 32 baseline and all 32 candidate
+  family fits and returned rc=1 solely for the substantive FAIL. Receipts are
+  `_buildo-runtime/out/phase-p-predictor-set-gate-r3/gate.status.json` and
+  `_buildo-runtime/out/phase-p-predictor-set-gate-r3/gate.log`.
+- The hardened parser accepted both production battery receipts and the run
+  completed with no traceback, resource failure, or measurement-integrity
+  verdict. The regenerated `experiments/phase_p_predictor_sets/verdict.json`
+  binds tool SHA-256
+  `25295af61fece0e124a2658eed469ce1b5ecf9abd0c8e6b622807df8d4d69fe8`
+  and emits the exact receipt-validation and quantile-loss aggregation config.
+- After removing only those newly declared metadata fields and the updated
+  implementation hash, the r2 and r3 verdict payloads have the identical
+  canonical SHA-256
+  `105f300adb9888db858df54ff101f91de041235f41a5f484b2627cdbd2fa0e81`.
+  Every statistical value and all three failing clauses are unchanged. The
+  generated r3 tables/config were compared with the human report; the report
+  preserves its receipt-sourced FAIL diagnosis and now carries the hardened
+  config and implementation hash.
+- The final Phase-P verdict therefore remains **FAIL** on `a_champva`,
+  `b_money_oos`, and `c_no_battery_leg_leaves_band`. No gate or predictor was
+  tuned. Work stops for owner adjudication before any baseline freeze.

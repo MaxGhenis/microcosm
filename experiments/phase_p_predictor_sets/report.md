@@ -16,6 +16,8 @@ Clause A CHAMPVA receipt: baseline ratio 3.7202587; candidate ratio 7.3089626; p
 
 The rule is machine-decidable in the adjacent verdict JSON: PASS iff clauses a, b, and c all pass.
 
+The final hardened rerun completed all 32 baseline and 32 candidate family fits in 720.4986282080063 seconds, with peak RSS 22,596,321,280 bytes and rc=1 because the substantive verdict is FAIL. Sources: `/Users/maxghenis/PolicyEngine/_worktrees/microcosm-predictor-sets/_buildo-runtime/out/phase-p-predictor-set-gate-r3/gate.status.json`; `/Users/maxghenis/PolicyEngine/_worktrees/microcosm-predictor-sets/_buildo-runtime/out/phase-p-predictor-set-gate-r3/gate.log`; `/Users/maxghenis/PolicyEngine/_worktrees/microcosm-predictor-sets/experiments/phase_p_predictor_sets/verdict.json`.
+
 The OOS delta is the full-artifact-arm weighted risk difference: stable donor ids and bootstrap cluster draws are paired, while each arm uses its own checkpoint outcomes and effective weights with a separate denominator. Weight and truth drift are reported per target in the adjacent verdict JSON.
 
 ## Artifact receipts
@@ -457,10 +459,62 @@ Per the Phase-P stop rule, no predictor, target order, threshold, ratio band, fo
 
 ## Configuration
 
-Source: `/Users/maxghenis/PolicyEngine/_worktrees/microcosm-predictor-sets/tools/predictor_set_oos_gate.py` (SHA-256 `d17be30b2b8dc4326052be6ae970cfeec61bafcb3b91a1a2d55362ad276c89cf`).
+Source: `/Users/maxghenis/PolicyEngine/_worktrees/microcosm-predictor-sets/tools/predictor_set_oos_gate.py` (SHA-256 `25295af61fece0e124a2658eed469ce1b5ecf9abd0c8e6b622807df8d4d69fe8`).
 
 ```json
 {
+  "battery_receipt": {
+    "artifact_kind": "populace_us_multispine_agreement_diagnostics",
+    "declared_plan_id": "stacked_gap_fill_plan",
+    "details_keys": [
+      "authority",
+      "comparisons",
+      "declared_plan",
+      "declared_target_count",
+      "extra_registered_targets",
+      "missing_declared_targets",
+      "puf_capital_gains_tail_support",
+      "registered_joint_target_count",
+      "registered_specs",
+      "registered_target_count",
+      "support_profile",
+      "tested_comparisons",
+      "tolerances",
+      "untestable_comparisons"
+    ],
+    "gate_id": "us_by_origin_battery",
+    "gate_keys": [
+      "details",
+      "failures",
+      "passed"
+    ],
+    "monetary_leg_names": [
+      "negative",
+      "positive"
+    ],
+    "pipeline": "us-stacked-pool",
+    "schema_version": 8,
+    "semantic_kind": "stacked_terminal_gates",
+    "tolerances": {
+      "incidence_ratio_bounds": [
+        0.8,
+        1.25
+      ],
+      "max_categorical_total_variation_distance": 0.25,
+      "max_quantile_envelope_distance": 0.25
+    },
+    "top_level_keys": [
+      "agreement_gate",
+      "artifact_kind",
+      "pipeline",
+      "publication_run_id",
+      "release_id",
+      "schema_version",
+      "semantic_kind",
+      "simulation_ready",
+      "terminal_gates"
+    ]
+  },
   "bootstrap": {
     "cluster_assignment": "sha256(seed + NUL + stable_source_id)",
     "clusters": 256,
@@ -651,6 +705,11 @@ Source: `/Users/maxghenis/PolicyEngine/_worktrees/microcosm-predictor-sets/tools
     "scoring_weights": "arm_specific_frame_resolve_weights",
     "training_weights": "arm_specific_frame_resolve_weights",
     "weight_drift_policy": "allowed_and_reported"
+  },
+  "quantile_loss": {
+    "paired_delta": "candidate_minus_baseline",
+    "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+    "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
   },
   "quantiles": [
     0.1,

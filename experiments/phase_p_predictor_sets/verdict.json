@@ -126779,6 +126779,58 @@
     }
   },
   "config": {
+    "battery_receipt": {
+      "artifact_kind": "populace_us_multispine_agreement_diagnostics",
+      "declared_plan_id": "stacked_gap_fill_plan",
+      "details_keys": [
+        "authority",
+        "comparisons",
+        "declared_plan",
+        "declared_target_count",
+        "extra_registered_targets",
+        "missing_declared_targets",
+        "puf_capital_gains_tail_support",
+        "registered_joint_target_count",
+        "registered_specs",
+        "registered_target_count",
+        "support_profile",
+        "tested_comparisons",
+        "tolerances",
+        "untestable_comparisons"
+      ],
+      "gate_id": "us_by_origin_battery",
+      "gate_keys": [
+        "details",
+        "failures",
+        "passed"
+      ],
+      "monetary_leg_names": [
+        "negative",
+        "positive"
+      ],
+      "pipeline": "us-stacked-pool",
+      "schema_version": 8,
+      "semantic_kind": "stacked_terminal_gates",
+      "tolerances": {
+        "incidence_ratio_bounds": [
+          0.8,
+          1.25
+        ],
+        "max_categorical_total_variation_distance": 0.25,
+        "max_quantile_envelope_distance": 0.25
+      },
+      "top_level_keys": [
+        "agreement_gate",
+        "artifact_kind",
+        "pipeline",
+        "publication_run_id",
+        "release_id",
+        "schema_version",
+        "semantic_kind",
+        "simulation_ready",
+        "terminal_gates"
+      ]
+    },
     "bootstrap": {
       "cluster_assignment": "sha256(seed + NUL + stable_source_id)",
       "clusters": 256,
@@ -126969,6 +127021,11 @@
       "scoring_weights": "arm_specific_frame_resolve_weights",
       "training_weights": "arm_specific_frame_resolve_weights",
       "weight_drift_policy": "allowed_and_reported"
+    },
+    "quantile_loss": {
+      "paired_delta": "candidate_minus_baseline",
+      "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+      "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
     },
     "quantiles": [
       0.1,
@@ -128634,7 +128691,7 @@
   "family_count": 32,
   "gate_implementation": {
     "path": "/Users/maxghenis/PolicyEngine/_worktrees/microcosm-predictor-sets/tools/predictor_set_oos_gate.py",
-    "sha256": "d17be30b2b8dc4326052be6ae970cfeec61bafcb3b91a1a2d55362ad276c89cf"
+    "sha256": "25295af61fece0e124a2658eed469ce1b5ecf9abd0c8e6b622807df8d4d69fe8"
   },
   "measurement_complete": true,
   "oos_pinball_loss": [
@@ -128860,6 +128917,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -135058,6 +135127,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -141257,6 +141338,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -147462,6 +147555,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -153667,6 +153772,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -159878,6 +159995,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -166089,6 +166218,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -172306,6 +172447,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -178527,6 +178680,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -184735,6 +184900,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -190931,6 +191108,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -197132,6 +197321,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -203332,6 +203533,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -209543,6 +209756,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -209915,6 +210140,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -214404,6 +214641,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -218899,6 +219148,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -223398,6 +223659,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -227901,6 +228174,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -232408,6 +232693,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -236919,6 +237216,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -241434,6 +241743,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -245685,6 +246006,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -249944,6 +250277,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -254199,6 +254544,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -258462,6 +258819,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -262709,6 +263078,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -266952,6 +267333,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -271207,6 +271600,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -275458,6 +275863,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -279701,6 +280118,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -283938,6 +284367,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -288205,6 +288646,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -292452,6 +292905,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -296689,6 +297154,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -300952,6 +301429,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -305211,6 +305700,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -305510,6 +306011,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -305803,6 +306316,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -306379,6 +306904,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -306961,6 +307498,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -307359,6 +307908,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -307763,6 +308324,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -308042,6 +308615,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 8946,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -308442,6 +309027,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 8946,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -308848,6 +309445,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 8946,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -309127,6 +309736,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 8946,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -309406,6 +310027,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 8946,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -309528,6 +310161,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -309656,6 +310301,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -309778,6 +310435,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -309914,6 +310583,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -310058,6 +310739,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -310206,6 +310899,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -310358,6 +311063,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -310486,6 +311203,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -310618,6 +311347,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -310758,6 +311499,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -310880,6 +311633,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -311024,6 +311789,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -311160,6 +311937,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -311288,6 +312077,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -311410,6 +312211,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -311550,6 +312363,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -311682,6 +312507,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -311834,6 +312671,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -311982,6 +312831,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -312110,6 +312971,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -312258,6 +313131,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -312390,6 +313275,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -312542,6 +313439,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -312678,6 +313587,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -312818,6 +313739,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -312962,6 +313895,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -313084,6 +314029,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -313228,6 +314185,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -313350,6 +314319,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -313478,6 +314459,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -313626,6 +314619,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -313778,6 +314783,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -313910,6 +314927,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -314046,6 +315075,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -314186,6 +315227,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -314308,6 +315361,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -314436,6 +315501,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -314568,6 +315645,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -314704,6 +315793,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -314844,6 +315945,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -314966,6 +316079,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -315094,6 +316219,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -315216,6 +316353,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -315338,6 +316487,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -315466,6 +316627,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -315598,6 +316771,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -315734,6 +316919,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -315874,6 +317071,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -316018,6 +317227,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -316140,6 +317361,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -316262,6 +317495,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -316384,6 +317629,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -316506,6 +317763,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -316634,6 +317903,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -316766,6 +318047,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -316888,6 +318181,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -317016,6 +318321,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -317148,6 +318465,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -317284,6 +318613,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -317424,6 +318765,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -317546,6 +318899,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -317668,6 +319033,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": true,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -317790,6 +319167,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 21298,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -317914,6 +319303,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 8946,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -318038,6 +319439,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 11548,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -318172,6 +319585,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 11548,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -318310,6 +319735,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 11548,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -318452,6 +319889,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 11548,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -318598,6 +320047,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 11548,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -318728,6 +320189,18 @@
         ],
         "estimand": "full_artifact_arm_weighted_oos_risk_difference",
         "paired_rows": 11548,
+        "quantile_grid": [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          0.9
+        ],
+        "quantile_loss_aggregation": {
+          "paired_delta": "candidate_minus_baseline",
+          "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+          "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+        },
         "statistically_significant_worsening": false,
         "truth_drift": {
           "absolute_tolerance": 1e-10,
@@ -319098,6 +320571,20 @@
     }
   ],
   "passed": false,
+  "quantile_loss_definition": {
+    "aggregation": {
+      "paired_delta": "candidate_minus_baseline",
+      "per_row_quantile_aggregation": "unweighted_arithmetic_mean",
+      "per_target_holdout_aggregation": "arm_specific_scoring_weighted_mean"
+    },
+    "quantile_grid": [
+      0.1,
+      0.25,
+      0.5,
+      0.75,
+      0.9
+    ]
+  },
   "rule": {
     "a": "CHAMPVA ratio enters [0.8, 1.25], or reaches at least 50% of the baseline-to-1.25 distance with the paired bootstrap improvement CI strictly above zero.",
     "b": "No monetary target has a candidate-minus-baseline OOS pinball-loss bootstrap CI strictly above zero.",
