@@ -292,6 +292,7 @@ class TestExistingPackagesGeneralize:
             "qrf_tail_reviewed_exclusions.json",
             "release_input_coverage_manifest.json",
             "uk_local_target_census.json",
+            "uk_national_targets.json",
         )
 
 
