@@ -13,6 +13,9 @@ predictors.  This makes the baseline CHAMPVA-first order and the candidate
 disability-first order part of the measured treatment.  Optional predictor
 missingness is handled deterministically with a training-fold median plus an
 observed-value indicator, while required-predictor null rows remain ineligible.
+The paired estimand is the difference in full-artifact-arm OOS risk: stable
+donor ids and bootstrap clusters pair the rows, while each arm retains the
+target values and effective importance weights its runtime actually consumed.
 """
 
 from __future__ import annotations
@@ -64,7 +67,7 @@ from microcosm.frame import Frame
 # ---------------------------------------------------------------------------
 
 PHASE_P_CONFIG: dict[str, object] = {
-    "schema_version": 1,
+    "schema_version": 2,
     "fold": {
         "algorithm": "sha256(namespace + NUL + stable_source_id)",
         "seed": 20260816,
@@ -116,6 +119,19 @@ PHASE_P_CONFIG: dict[str, object] = {
         "replicates": 2000,
         "confidence_level": 0.95,
         "percentile_method": "linear",
+    },
+    "paired_oos_estimand": {
+        "name": "full_artifact_arm_weighted_oos_risk_difference",
+        "pairing_authority": "identical_entity_source_id_sets",
+        "fold_authority": "shared_deterministic_id_hash",
+        "bootstrap_pairing": "shared_cluster_multiplicities",
+        "training_weights": "arm_specific_frame_resolve_weights",
+        "scoring_weights": "arm_specific_frame_resolve_weights",
+        "scoring_outcomes": "arm_specific_simulated_checkpoint_target_values",
+        "normalization": "separate_arm_weight_denominators",
+        "weight_drift_policy": "allowed_and_reported",
+        "outcome_drift_policy": "allowed_and_reported",
+        "drift_diagnostics_absolute_tolerance": 1e-10,
     },
     "money_amount_classification": {
         "authority": "explicit_phase_p_family_target_allowlist",
@@ -2210,38 +2226,172 @@ def _bootstrap_ci(values: np.ndarray) -> list[float]:
     ]
 
 
+def _validated_oos_measurement_vectors(
+    measurement: OOSTargetMeasurement,
+    *,
+    arm: str,
+    cluster_count: int,
+) -> dict[str, np.ndarray]:
+    """Return one arm's finite, aligned vectors for the paired estimand."""
+
+    ids = np.asarray(measurement.ids, dtype=object)
+    if ids.ndim != 1 or not len(ids):
+        raise ValueError(
+            f"Paired OOS {arm} ids for {measurement.key!r} must be a nonempty "
+            "one-dimensional vector."
+        )
+    if pd.isna(ids).any():
+        raise ValueError(f"Paired OOS {arm} ids for {measurement.key!r} contain nulls.")
+    if measurement.holdout_rows != len(ids):
+        raise ValueError(
+            f"Paired OOS {arm} holdout count for {measurement.key!r} differs "
+            f"from its retained vectors: {measurement.holdout_rows} != {len(ids)}."
+        )
+
+    result: dict[str, np.ndarray] = {"ids": ids}
+    for name in ("weights", "truth", "losses"):
+        try:
+            values = np.asarray(getattr(measurement, name), dtype=np.float64)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Paired OOS {arm} {name} for {measurement.key!r} must be numeric."
+            ) from exc
+        if values.ndim != 1 or len(values) != len(ids):
+            raise ValueError(
+                f"Paired OOS {arm} {name} for {measurement.key!r} must be a "
+                f"one-dimensional vector of length {len(ids)}."
+            )
+        if not np.isfinite(values).all():
+            raise ValueError(
+                f"Paired OOS {arm} {name} for {measurement.key!r} contain "
+                "non-finite values."
+            )
+        result[name] = values
+    if (result["weights"] <= 0.0).any():
+        raise ValueError(
+            f"Paired OOS {arm} weights for {measurement.key!r} must be "
+            "strictly positive."
+        )
+    if (result["losses"] < 0.0).any():
+        raise ValueError(
+            f"Paired OOS {arm} losses for {measurement.key!r} must be nonnegative."
+        )
+
+    raw_clusters = np.asarray(measurement.clusters)
+    if (
+        raw_clusters.ndim != 1
+        or len(raw_clusters) != len(ids)
+        or not np.issubdtype(raw_clusters.dtype, np.integer)
+    ):
+        raise ValueError(
+            f"Paired OOS {arm} clusters for {measurement.key!r} must be a "
+            f"one-dimensional integer vector of length {len(ids)}."
+        )
+    clusters = raw_clusters.astype(np.int64, copy=False)
+    if ((clusters < 0) | (clusters >= cluster_count)).any():
+        raise ValueError(
+            f"Paired OOS {arm} clusters for {measurement.key!r} must be in "
+            f"[0, {cluster_count})."
+        )
+    result["clusters"] = clusters
+    return result
+
+
+def _paired_drift_diagnostics(
+    baseline: np.ndarray,
+    candidate: np.ndarray,
+    *,
+    absolute_tolerance: float,
+    include_weight_totals: bool,
+) -> dict[str, object]:
+    """Describe arm drift without turning it into an acceptance threshold."""
+
+    delta = candidate - baseline
+    absolute = np.abs(delta)
+    changed = absolute > absolute_tolerance
+    result: dict[str, object] = {
+        "absolute_tolerance": absolute_tolerance,
+        "changed_rows": int(changed.sum()),
+        "unchanged_rows": int((~changed).sum()),
+        "changed_fraction": float(changed.mean()),
+        "candidate_greater_rows": int((changed & (delta > 0.0)).sum()),
+        "candidate_less_rows": int((changed & (delta < 0.0)).sum()),
+        "maximum_absolute_difference": float(absolute.max(initial=0.0)),
+        "mean_absolute_difference": float(absolute.mean()),
+    }
+    if include_weight_totals:
+        relative = absolute / np.abs(baseline)
+        baseline_total = float(baseline.sum())
+        candidate_total = float(candidate.sum())
+        result.update(
+            {
+                "maximum_relative_difference_from_baseline": float(
+                    relative.max(initial=0.0)
+                ),
+                "baseline_total": baseline_total,
+                "candidate_total": candidate_total,
+                "candidate_minus_baseline_total": candidate_total - baseline_total,
+                "candidate_minus_baseline_total_fraction": (
+                    candidate_total / baseline_total - 1.0
+                ),
+            }
+        )
+    return result
+
+
 def _paired_loss_comparison(
     baseline: OOSTargetMeasurement,
     candidate: OOSTargetMeasurement,
 ) -> dict[str, object]:
-    base_pos, cand_pos = _align_measurements(baseline.ids, candidate.ids)
-    base_weights = baseline.weights[base_pos]
-    candidate_weights = candidate.weights[cand_pos]
-    if not np.allclose(base_weights, candidate_weights, rtol=0.0, atol=1e-10):
-        raise ValueError(f"Paired OOS weights changed for {baseline.key!r}.")
-    if not np.allclose(
-        baseline.truth[base_pos],
-        candidate.truth[cand_pos],
-        rtol=0.0,
-        atol=1e-10,
-        equal_nan=False,
-    ):
-        raise ValueError(f"Paired OOS donor truth changed for {baseline.key!r}.")
-    base_loss = baseline.losses[base_pos]
-    candidate_loss = candidate.losses[cand_pos]
-    weight_total = float(base_weights.sum())
-    base_mean = float(np.dot(base_weights, base_loss) / weight_total)
-    candidate_mean = float(np.dot(base_weights, candidate_loss) / weight_total)
-    delta = candidate_mean - base_mean
+    if baseline.key != candidate.key:
+        raise ValueError(
+            f"Paired OOS measurement keys differ: {baseline.key!r} != "
+            f"{candidate.key!r}."
+        )
+    if baseline.entity != candidate.entity:
+        raise ValueError(
+            f"Paired OOS entities differ for {baseline.key!r}: "
+            f"{baseline.entity!r} != {candidate.entity!r}."
+        )
 
     bootstrap = PHASE_P_CONFIG["bootstrap"]
-    assert isinstance(bootstrap, Mapping)
+    estimand = PHASE_P_CONFIG["paired_oos_estimand"]
+    assert isinstance(bootstrap, Mapping) and isinstance(estimand, Mapping)
     cluster_count = int(bootstrap["clusters"])
-    base_clusters = baseline.clusters[base_pos]
-    candidate_clusters = candidate.clusters[cand_pos]
+    absolute_tolerance = float(estimand["drift_diagnostics_absolute_tolerance"])
+    base_vectors = _validated_oos_measurement_vectors(
+        baseline,
+        arm="baseline",
+        cluster_count=cluster_count,
+    )
+    candidate_vectors = _validated_oos_measurement_vectors(
+        candidate,
+        arm="candidate",
+        cluster_count=cluster_count,
+    )
+    base_pos, cand_pos = _align_measurements(
+        base_vectors["ids"], candidate_vectors["ids"]
+    )
+    base_weights = base_vectors["weights"][base_pos]
+    candidate_weights = candidate_vectors["weights"][cand_pos]
+    base_truth = base_vectors["truth"][base_pos]
+    candidate_truth = candidate_vectors["truth"][cand_pos]
+    base_loss = base_vectors["losses"][base_pos]
+    candidate_loss = candidate_vectors["losses"][cand_pos]
+
+    base_weight_total = float(base_weights.sum())
+    candidate_weight_total = float(candidate_weights.sum())
+    base_mean = float(np.dot(base_weights, base_loss) / base_weight_total)
+    candidate_mean = float(
+        np.dot(candidate_weights, candidate_loss) / candidate_weight_total
+    )
+    delta = candidate_mean - base_mean
+
+    base_clusters = base_vectors["clusters"][base_pos]
+    candidate_clusters = candidate_vectors["clusters"][cand_pos]
     if not np.array_equal(base_clusters, candidate_clusters):
         raise ValueError(f"Paired OOS bootstrap clusters changed for {baseline.key!r}.")
-    base_num, denominator = _cluster_sums(
+    base_num, base_denominator = _cluster_sums(
         base_clusters,
         base_weights,
         base_loss,
@@ -2249,13 +2399,15 @@ def _paired_loss_comparison(
     )
     cand_num, cand_denominator = _cluster_sums(
         base_clusters,
-        base_weights,
+        candidate_weights,
         candidate_loss,
         cluster_count=cluster_count,
     )
-    if not np.array_equal(denominator, cand_denominator):
-        raise RuntimeError("Paired OOS cluster denominators changed unexpectedly.")
-    active = np.flatnonzero(denominator > 0)
+    base_active = base_denominator > 0.0
+    candidate_active = cand_denominator > 0.0
+    if not np.array_equal(base_active, candidate_active):
+        raise RuntimeError("Paired OOS active bootstrap clusters changed unexpectedly.")
+    active = np.flatnonzero(base_active)
     if len(active) < 2:
         raise ValueError(f"OOS target {baseline.key!r} has fewer than two clusters.")
     rng = np.random.default_rng(
@@ -2267,20 +2419,35 @@ def _paired_loss_comparison(
         size = min(256, replicate_count - start)
         sampled = rng.integers(0, len(active), size=(size, len(active)))
         selected = active[sampled]
-        denom = denominator[selected].sum(axis=1)
+        base_denom = base_denominator[selected].sum(axis=1)
+        candidate_denom = cand_denominator[selected].sum(axis=1)
         replicate_delta[start : start + size] = (
-            cand_num[selected].sum(axis=1) / denom
-            - base_num[selected].sum(axis=1) / denom
+            cand_num[selected].sum(axis=1) / candidate_denom
+            - base_num[selected].sum(axis=1) / base_denom
         )
     ci = _bootstrap_ci(replicate_delta)
     return {
+        "estimand": str(estimand["name"]),
         "paired_rows": len(base_pos),
         "bootstrap_nonempty_clusters": len(active),
+        "bootstrap_pairing": str(estimand["bootstrap_pairing"]),
         "baseline_mean_pinball_loss": base_mean,
         "candidate_mean_pinball_loss": candidate_mean,
         "candidate_minus_baseline": delta,
         "candidate_minus_baseline_ci": ci,
         "statistically_significant_worsening": ci[0] > 0.0,
+        "weight_drift": _paired_drift_diagnostics(
+            base_weights,
+            candidate_weights,
+            absolute_tolerance=absolute_tolerance,
+            include_weight_totals=True,
+        ),
+        "truth_drift": _paired_drift_diagnostics(
+            base_truth,
+            candidate_truth,
+            absolute_tolerance=absolute_tolerance,
+            include_weight_totals=False,
+        ),
     }
 
 
@@ -2940,6 +3107,12 @@ def render_markdown(payload: Mapping[str, object]) -> str:
             "The rule is machine-decidable in the adjacent verdict JSON: PASS "
             "iff clauses a, b, and c all pass.",
             "",
+            "The OOS delta is the full-artifact-arm weighted risk difference: "
+            "stable donor ids and bootstrap cluster draws are paired, while "
+            "each arm uses its own checkpoint outcomes and effective weights "
+            "with a separate denominator. Weight and truth drift are reported "
+            "per target in the adjacent verdict JSON.",
+            "",
             "## Artifact receipts",
             "",
             "| Arm | Gates JSON | Simulated checkpoint | Operational receipts | "
@@ -2957,13 +3130,15 @@ def render_markdown(payload: Mapping[str, object]) -> str:
             "## Per-target OOS pinball loss",
             "",
             "| Family | Target | Money | Baseline | Candidate | Delta | 95% CI | "
-            "Train B/C | Holdout B/C | Sources |",
-            "|---|---|---:|---:|---:|---:|---|---:|---:|---|",
+            "Train B/C | Holdout B/C | Weight drift | Truth drift | Sources |",
+            "|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---|",
         ]
     )
     for row in payload["oos_pinball_loss"]:
         paired = row["paired"]
         ci = paired["candidate_minus_baseline_ci"]
+        weight_drift = paired["weight_drift"]
+        truth_drift = paired["truth_drift"]
         lines.append(
             f"| `{row['family_id']}` | `{row['target']}` | "
             f"{'yes' if row['is_money_amount'] else 'no'} | "
@@ -2973,6 +3148,10 @@ def render_markdown(payload: Mapping[str, object]) -> str:
             f"[{_number(ci[0])}, {_number(ci[1])}] | "
             f"{row['baseline']['training_rows']}/{row['candidate']['training_rows']} | "
             f"{row['baseline']['holdout_rows']}/{row['candidate']['holdout_rows']} | "
+            f"{weight_drift['changed_rows']}/{paired['paired_rows']} "
+            f"(max abs {_number(weight_drift['maximum_absolute_difference'])}) | "
+            f"{truth_drift['changed_rows']}/{paired['paired_rows']} "
+            f"(max abs {_number(truth_drift['maximum_absolute_difference'])}) | "
             f"`{baseline['simulated_checkpoint_h5']}`; "
             f"`{candidate['simulated_checkpoint_h5']}` |"
         )

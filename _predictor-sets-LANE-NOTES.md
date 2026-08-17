@@ -228,3 +228,47 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   format, compilation, `git diff --check`, and an independent semantic audit
   are green. The statistical fits have not yet run, and no gate threshold,
   band, seed, fold, or forest parameter changed.
+
+### Gate attempt 1: full-arm paired-estimand correction
+
+- The first production A/B sweep ran from committed gate implementation
+  `1b0a573f64403dac5a1197b78f90367fe24b4b7a`, completed all 32 baseline and
+  all 32 candidate family fits, and then failed closed before clauses A--C on
+  `Paired OOS weights changed for
+  'late_transfer/transfer:person/adult_care/is_incapable_of_self_care'`.
+  Runtime receipts are
+  `_buildo-runtime/out/phase-p-predictor-set-gate-r1/gate.status.json` and
+  `_buildo-runtime/out/phase-p-predictor-set-gate-r1/gate.log`: rc=1 after
+  739.745 seconds, peak RSS 22,595,059,712 bytes, with a deliberately emitted
+  `measurement_integrity` FAIL rather than a crash.
+- This is not numeric serialization noise. Across the two simulated
+  checkpoints, the same 108,073 ASEC clone-1 person source ids and target
+  eligibility survive, but 10,590 resolved importance weights differ (maximum
+  absolute difference 73.78023881791728; maximum relative difference
+  0.2958549262760144). Baseline/candidate clone-1 mass is
+  81,283,311.94148234 / 81,282,654.37993121. The source is the intentional
+  capital-gains tail split: clone-2 membership changes between arms, while
+  recombining clone-1 plus clone-2 weight by stable source id agrees to at most
+  1.1368683772161603e-13. Evidence is in the two simulated checkpoints named
+  above and the read-only replay
+  `_buildo-runtime/out/phase-p-predictor-set-gate-r1/diagnose_weights.py`.
+- A complete comparison found identical held-out source-id sets for all 70
+  late targets. All 70 carry arm weight drift and 20 late targets carry
+  arm-owned target-value drift; with one early target, 21/118 target truths
+  differ overall, with no null-status drift. These are the values and
+  importance weights each arm's production late QRF actually consumed. The
+  two-artifact contract provides no frozen common weight or truth authority;
+  substituting baseline or reconstructed pre-tail values would silently
+  redefine the gate after seeing its result.
+- The corrected declared estimand is therefore full-artifact-arm OOS risk:
+  retain each arm's own production training weights, scoring weights, outcomes,
+  and normalization denominator; require identical stable ids, folds, and
+  bootstrap clusters; and apply the same bootstrap cluster multiplicities to
+  both arms. Per-target weight and truth drift are reported. CHAMPVA stays on
+  the stricter clone-0 equality path, whose ASEC and ACS ids/weights are exact.
+- No acceptance threshold, ratio band, fold, seed, quantile, forest setting,
+  or money classification changed. The corrected contract suite passes all
+  **38 tests**, including arm-specific denominator/outcome bite tests and
+  invalid-vector refusal; Ruff, format, compilation, and whitespace checks
+  pass. Gate attempt 1 is diagnostic only; clauses A--C remain unevaluated
+  until the corrected full sweep completes.

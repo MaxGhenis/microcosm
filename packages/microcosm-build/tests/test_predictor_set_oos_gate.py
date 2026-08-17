@@ -703,6 +703,166 @@ def test_significant_money_oos_worsening_fails_clause_b_and_verdict(
     assert verdict["failing_clauses"] == ["b_money_oos"]
 
 
+def test_paired_loss_uses_arm_specific_weights_and_truth_after_id_alignment() -> None:
+    baseline = replace(
+        _oos_measurement(
+            [1.0, 3.0],
+            ids=["a", "b"],
+            clusters=[0, 1],
+        ),
+        weights=np.asarray([1.0, 3.0]),
+        truth=np.asarray([10.0, 20.0]),
+    )
+    candidate = replace(
+        _oos_measurement(
+            [2.0, 4.0],
+            ids=["b", "a"],
+            clusters=[1, 0],
+        ),
+        weights=np.asarray([1.0, 4.0]),
+        truth=np.asarray([18.0, 11.0]),
+    )
+
+    paired = GATE._paired_loss_comparison(baseline, candidate)
+
+    assert paired["estimand"] == "full_artifact_arm_weighted_oos_risk_difference"
+    assert paired["baseline_mean_pinball_loss"] == pytest.approx(2.5)
+    assert paired["candidate_mean_pinball_loss"] == pytest.approx(3.6)
+    assert paired["candidate_minus_baseline"] == pytest.approx(1.1)
+    assert paired["candidate_minus_baseline_ci"] == pytest.approx([-1.0, 3.0])
+    assert paired["weight_drift"] == {
+        "absolute_tolerance": 1e-10,
+        "changed_rows": 2,
+        "unchanged_rows": 0,
+        "changed_fraction": 1.0,
+        "candidate_greater_rows": 1,
+        "candidate_less_rows": 1,
+        "maximum_absolute_difference": 3.0,
+        "mean_absolute_difference": 2.5,
+        "maximum_relative_difference_from_baseline": 3.0,
+        "baseline_total": 4.0,
+        "candidate_total": 5.0,
+        "candidate_minus_baseline_total": 1.0,
+        "candidate_minus_baseline_total_fraction": 0.25,
+    }
+    assert paired["truth_drift"] == {
+        "absolute_tolerance": 1e-10,
+        "changed_rows": 2,
+        "unchanged_rows": 0,
+        "changed_fraction": 1.0,
+        "candidate_greater_rows": 1,
+        "candidate_less_rows": 1,
+        "maximum_absolute_difference": 2.0,
+        "mean_absolute_difference": 1.5,
+    }
+    json.dumps(paired, allow_nan=False)
+
+
+def test_paired_bootstrap_uses_separate_arm_denominators() -> None:
+    baseline = replace(
+        _oos_measurement(
+            [1.0, 1.0],
+            ids=["a", "b"],
+            clusters=[0, 1],
+        ),
+        weights=np.asarray([1.0, 9.0]),
+        truth=np.asarray([-1.0, 0.0]),
+    )
+    candidate = replace(
+        _oos_measurement(
+            [2.0, 2.0],
+            ids=["a", "b"],
+            clusters=[0, 1],
+        ),
+        weights=np.asarray([9.0, 1.0]),
+        truth=np.asarray([0.0, -2.0]),
+    )
+
+    paired = GATE._paired_loss_comparison(baseline, candidate)
+
+    assert paired["baseline_mean_pinball_loss"] == pytest.approx(1.0)
+    assert paired["candidate_mean_pinball_loss"] == pytest.approx(2.0)
+    assert paired["candidate_minus_baseline"] == pytest.approx(1.0)
+    assert paired["candidate_minus_baseline_ci"] == pytest.approx([1.0, 1.0])
+
+
+@pytest.mark.parametrize("arm", ["baseline", "candidate"])
+@pytest.mark.parametrize(
+    ("field", "values", "message"),
+    [
+        ("weights", [np.nan, 1.0], "weights.*non-finite"),
+        ("weights", [np.inf, 1.0], "weights.*non-finite"),
+        ("weights", [0.0, 1.0], "weights.*strictly positive"),
+        ("weights", [-1.0, 1.0], "weights.*strictly positive"),
+        ("truth", [np.nan, 0.0], "truth.*non-finite"),
+        ("truth", [np.inf, 0.0], "truth.*non-finite"),
+        ("losses", [np.nan, 0.0], "losses.*non-finite"),
+        ("losses", [-1.0, 0.0], "losses.*nonnegative"),
+    ],
+)
+def test_paired_loss_rejects_invalid_arm_vectors(
+    arm: str,
+    field: str,
+    values: list[float],
+    message: str,
+) -> None:
+    baseline = _oos_measurement(
+        [0.0, 1.0],
+        ids=["a", "b"],
+        clusters=[0, 1],
+    )
+    candidate = _oos_measurement(
+        [0.0, 1.0],
+        ids=["a", "b"],
+        clusters=[0, 1],
+    )
+    invalid = replace(
+        baseline if arm == "baseline" else candidate,
+        **{field: np.asarray(values, dtype=np.float64)},
+    )
+    if arm == "baseline":
+        baseline = invalid
+    else:
+        candidate = invalid
+
+    with pytest.raises(ValueError, match=f"{arm} {message}"):
+        GATE._paired_loss_comparison(baseline, candidate)
+
+
+def test_paired_loss_requires_identical_bootstrap_clusters() -> None:
+    baseline = _oos_measurement(
+        [0.0, 1.0],
+        ids=["a", "b"],
+        clusters=[0, 1],
+    )
+    candidate = _oos_measurement(
+        [0.0, 1.0],
+        ids=["a", "b"],
+        clusters=[1, 0],
+    )
+
+    with pytest.raises(ValueError, match="bootstrap clusters changed"):
+        GATE._paired_loss_comparison(baseline, candidate)
+
+
+def test_paired_oos_estimand_config_declares_full_arm_authorities() -> None:
+    assert GATE.PHASE_P_CONFIG["schema_version"] == 2
+    estimand = GATE.PHASE_P_CONFIG["paired_oos_estimand"]
+    assert estimand == {
+        "name": "full_artifact_arm_weighted_oos_risk_difference",
+        "pairing_authority": "identical_entity_source_id_sets",
+        "fold_authority": "shared_deterministic_id_hash",
+        "bootstrap_pairing": "shared_cluster_multiplicities",
+        "training_weights": "arm_specific_frame_resolve_weights",
+        "scoring_weights": "arm_specific_frame_resolve_weights",
+        "scoring_outcomes": "arm_specific_simulated_checkpoint_target_values",
+        "normalization": "separate_arm_weight_denominators",
+        "weight_drift_policy": "allowed_and_reported",
+        "outcome_drift_policy": "allowed_and_reported",
+        "drift_diagnostics_absolute_tolerance": 1e-10,
+    }
+
+
 def test_measurement_error_writes_named_fail_closed_verdict(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
