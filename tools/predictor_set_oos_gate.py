@@ -22,10 +22,11 @@ import gc
 import hashlib
 import json
 import math
+import re
 import sys
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import h5py
@@ -37,15 +38,25 @@ from quantile_forest import RandomForestQuantileRegressor
 from microcosm.build.frame_checkpoint import load_frame_checkpoint
 from microcosm.build.us_runtime.acs_transfer import (
     AcsPredictorSet,
+    _aggregate_optional_to_group,
     _complete_case_target_encodings,
+    _complete_numeric_component_sum,
     _complete_target_mask,
     _legacy_predictor_set,
     _transfer_feature_surface,
     declared_acs_transfer_predictor_sets,
 )
+from microcosm.build.us_runtime.acs_transfer_bank import (
+    ACS_TRANSFER_TARGET_BANK_ARTIFACT_KIND,
+    ACS_TRANSFER_TARGET_BANK_MATERIALIZER_VERSION,
+    ACS_TRANSFER_TARGET_BANK_RECEIPT_ARTIFACT_KIND,
+    ACS_TRANSFER_TARGET_BANK_SCHEMA_VERSION,
+)
 from microcosm.build.us_runtime.stacked_spine import (
+    ORIGIN_BATTERY_METRIC_KINDS,
     declared_stacked_post_puf_predictor_sets,
 )
+from microcosm.fit import QRFChainState
 from microcosm.frame import Frame
 
 # ---------------------------------------------------------------------------
@@ -106,6 +117,149 @@ PHASE_P_CONFIG: dict[str, object] = {
         "confidence_level": 0.95,
         "percentile_method": "linear",
     },
+    "money_amount_classification": {
+        "authority": "explicit_phase_p_family_target_allowlist",
+        "changed_target_count": 118,
+        "generic_numeric_metric_target_count": 77,
+        "money_amount_target_count": 74,
+        "money_amount_target_keys": [
+            "gap_fill/asec_housing_to_acs/person/housing/pre_subsidy_rent",
+            "gap_fill/asec_survey_to_acs/person/model_required_numeric/health_insurance_premiums_without_medicare_part_b",
+            "gap_fill/asec_survey_to_acs/person/model_required_numeric/other_medical_expenses",
+            "gap_fill/asec_survey_to_acs/person/model_required_numeric/over_the_counter_health_expenses",
+            "gap_fill/asec_survey_to_acs/person/model_required_numeric/tax_exempt_private_pension_income",
+            "gap_fill/asec_survey_to_acs/person/model_required_numeric/unemployment_compensation",
+            "gap_fill/asec_survey_to_acs/person/model_required_numeric/veterans_benefits",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/alimony_income",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/farm_operations_income",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/long_term_capital_gains_before_response",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/miscellaneous_income",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/non_qualified_dividend_income",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/qualified_dividend_income",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/rental_income",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/short_term_capital_gains",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/social_security_dependents",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/social_security_disability",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/social_security_retirement",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/social_security_survivors",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/taxable_interest_income",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/taxable_ira_distributions",
+            "gap_fill/asec_survey_to_acs/person/puf_tax_itemization/taxable_private_pension_income",
+            "gap_fill/asec_survey_to_acs/person/source_operator_cps_carried/strike_benefits",
+            "gap_fill/asec_survey_to_acs/person/source_operator_prior_year_income/self_employment_income_last_year",
+            "gap_fill/asec_survey_to_acs/spm_unit/model_required_numeric/spm_unit_pre_subsidy_childcare_expenses",
+            "late_transfer/transfer:person/adult_care/pre_subsidy_care_expenses",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_1/alimony_expense",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_1/charitable_cash_donations",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_1/charitable_non_cash_donations",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_1/home_mortgage_interest",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_1/long_term_capital_gains_on_collectibles",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_1/non_sch_d_capital_gains",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_1/salt_refund_income",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_1/tax_exempt_interest_income",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_2/casualty_loss",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_2/educator_expense",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_2/investment_income_elected_form_4952",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_2/investment_interest_expense",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_2/qualified_tuition_expenses",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_2/student_loan_interest",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_2/traditional_ira_contributions_desired",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_2/unreimbursed_business_employee_expenses",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_3/estate_income",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_3/farm_income",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_3/farm_rent_income",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_3/partnership_income",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_3/partnership_self_employment_net_earnings",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_3/self_employed_pension_contributions_desired",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_4/qualified_bdc_income",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_4/qualified_reit_and_ptp_income",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_5/sstb_self_employment_income_before_lsr",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_5/sstb_unadjusted_basis_qualified_property",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_5/sstb_w2_wages_from_qualified_business",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_5/unadjusted_basis_qualified_property",
+            "late_transfer/transfer:person/puf_tax_itemization__batch_5/w2_wages_from_qualified_business",
+            "late_transfer/transfer:person/source_operator_child_support/child_support_expense",
+            "late_transfer/transfer:person/source_operator_child_support/child_support_received",
+            "late_transfer/transfer:person/source_operator_disability_benefits/disability_benefits",
+            "late_transfer/transfer:person/source_operator_education_inputs/educational_assistance",
+            "late_transfer/transfer:person/source_operator_retirement_contributions/roth_401k_contributions_desired",
+            "late_transfer/transfer:person/source_operator_retirement_contributions/roth_ira_contributions_desired",
+            "late_transfer/transfer:person/source_operator_retirement_contributions/traditional_401k_contributions_desired",
+            "late_transfer/transfer:person/source_operator_retirement_distributions/keogh_distributions",
+            "late_transfer/transfer:person/source_operator_retirement_distributions/tax_exempt_ira_distributions",
+            "late_transfer/transfer:person/source_operator_retirement_distributions/taxable_401k_distributions",
+            "late_transfer/transfer:person/source_operator_retirement_distributions/taxable_403b_distributions",
+            "late_transfer/transfer:person/source_operator_retirement_distributions/taxable_sep_distributions",
+            "late_transfer/transfer:person/source_operator_workers_compensation/workers_compensation",
+            "late_transfer/transfer:spm_unit/source_operator_energy_subsidy/spm_unit_energy_subsidy",
+            "late_transfer/transfer:tax_unit/puf_tax_itemization/domestic_production_ald",
+            "late_transfer/transfer:tax_unit/puf_tax_itemization/first_home_mortgage_balance",
+            "late_transfer/transfer:tax_unit/puf_tax_itemization/first_home_mortgage_interest",
+            "late_transfer/transfer:tax_unit/puf_tax_itemization/health_savings_account_ald",
+            "late_transfer/transfer:tax_unit/puf_tax_itemization/unrecaptured_section_1250_gain",
+        ],
+        "generic_numeric_non_money_target_keys": [
+            "gap_fill/asec_survey_to_acs/person/model_required_numeric/hours_worked_last_week",
+            "gap_fill/asec_survey_to_acs/person/source_operator_hours_worked/weekly_hours_worked_before_lsr",
+            "late_transfer/transfer:person/source_operator_weeks_unemployed/weeks_unemployed",
+        ],
+    },
+    "execution_surface": {
+        "operational_receipts": {
+            "artifact_kind": (
+                "populace_us_multispine_pool_stage_checkpoint_operational_receipts"
+            ),
+            "schema_version": 1,
+            "materializer_version": 7,
+            "stage": "simulated",
+        },
+        "early_investment": {
+            "person_feature": ("__acs_transfer_interest_dividend_rental_income"),
+            "group_feature": "__acs_transfer_group_investment_income_sum",
+            "candidate_donor_components": ["INT_VAL", "DIV_VAL", "RNT_VAL"],
+            "baseline_donor_source": "unavailable_on_early_execution_surface",
+            "candidate_person_donor_source": "complete_numeric_component_sum",
+            "candidate_group_projection": (
+                "microcosm.build.us_runtime.acs_transfer._aggregate_optional_to_group"
+            ),
+        },
+        "artifact_role_bindings": {
+            "baseline": {
+                "stacked_authority_version": 10,
+                "stacked_authority_sha256": (
+                    "f0b676f6508dbf6bb2b787c42e6b85331bacc57c6649ac7ad15fdaa5884a1b2d"
+                ),
+                "gap_fill_plan_sha256": (
+                    "f70bc89cd887504645bd299501e9a63ea23726fb8d9f3fe523092639e251fe0f"
+                ),
+                "early_target_bank_identity_sha256": {
+                    "asec_survey_to_acs": (
+                        "4cc8d5ceed38cf61b459a748cee209afabb3a8ccc4cf6cb2edfd089a311aba78"
+                    ),
+                    "asec_housing_to_acs": (
+                        "ba2dd68d0d32ca9bc1eddaf18af64c8bec7e93d649108f398f14806bb42c67e5"
+                    ),
+                },
+            },
+            "candidate": {
+                "stacked_authority_version": 11,
+                "stacked_authority_sha256": (
+                    "5a397d602e3a9549c2ce986eab1e098c47886b597b05c892306ef06757950a71"
+                ),
+                "gap_fill_plan_sha256": (
+                    "fdee403f065277448ecd97084c4110cc89304e6586d1717fe60d1669dc5c8af9"
+                ),
+                "early_target_bank_identity_sha256": {
+                    "asec_survey_to_acs": (
+                        "26c20db9b43eecac36776e63047c324667b46c7eb7bfba7037d5fa5ab79cb474"
+                    ),
+                    "asec_housing_to_acs": (
+                        "fa4ad7c7d8cc696d4d1ee7d8b9d6018a84a8a14f905e52f5e0fb494e7f47c21e"
+                    ),
+                },
+            },
+        },
+    },
     "verdict": {
         "ratio_band": [0.8, 1.25],
         "champva_leg": (
@@ -131,6 +285,10 @@ _ASEC_CHANNEL = "asec"
 _ACS_CHANNEL = "acs"
 _CLONE_ZERO = 0
 _PUF_CLONE = 1
+_TARGET_METADATA_DATASET = "metadata_json"
+_TARGET_RAW_DRAW_DATASET = "raw_draw_bits"
+_LOWERCASE_SHA256 = re.compile(r"[0-9a-f]{64}")
+_BATCH_SUFFIX = re.compile(r"__batch_[1-9][0-9]*$")
 
 
 @dataclass(frozen=True)
@@ -140,6 +298,7 @@ class Artifact:
     root: Path
     gates_path: Path
     checkpoint_path: Path
+    operational_receipts_path: Path
     gates: dict[str, object]
     checkpoint_metadata: dict[str, object]
 
@@ -185,6 +344,43 @@ class OOSTargetMeasurement:
     truth: np.ndarray
     losses: np.ndarray
     clusters: np.ndarray
+    predictor_source_bindings: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class EarlyTargetExecution:
+    """Authenticated early target-bank evidence for one exported target."""
+
+    family_id: str
+    direction: str
+    entity: str
+    family: str
+    target: str
+    bank_identity_sha256: str
+    checkpoint_path: Path
+    checkpoint_sha256: str
+    pattern_predictors: tuple[tuple[str, ...], ...]
+    resolved_predictors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class EarlyExecutionEvidence:
+    """Operational evidence binding all early targets for one artifact arm."""
+
+    receipts_path: Path
+    receipts_sha256: str
+    simulated_checkpoint_sha256: str
+    targets: Mapping[tuple[str, str], EarlyTargetExecution]
+
+
+@dataclass(frozen=True)
+class OOSFeatureSurface:
+    """Donor-only OOS surface plus its execution-source receipt."""
+
+    features: pd.DataFrame
+    required: tuple[str, ...]
+    optional: tuple[str, ...]
+    source_bindings: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -241,6 +437,25 @@ def _canonical_json(value: object) -> str:
         separators=(",", ":"),
         allow_nan=False,
     )
+
+
+def _bank_mapping_sha256(value: Mapping[str, object]) -> str:
+    """Match the target-bank canonical JSON contract exactly."""
+
+    payload = json.dumps(
+        value,
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _require_sha256(value: object, *, label: str) -> str:
+    if not isinstance(value, str) or _LOWERCASE_SHA256.fullmatch(value) is None:
+        raise ValueError(f"{label} must be a lowercase SHA-256 digest.")
+    return value
 
 
 def _sha256_file(path: Path) -> str:
@@ -304,6 +519,7 @@ def resolve_artifact(path: str | Path) -> Artifact:
         root=root,
         gates_path=gates_path,
         checkpoint_path=checkpoint_path,
+        operational_receipts_path=checkpoint_path.with_suffix(".receipts.json"),
         gates=gates,
         checkpoint_metadata=_read_checkpoint_metadata(checkpoint_path),
     )
@@ -325,6 +541,620 @@ def _nested(mapping: Mapping[str, object], *keys: str) -> object:
             raise ValueError(f"Artifact receipt lacks {'.'.join(keys)}.")
         current = current[key]
     return current
+
+
+def _execution_surface_config() -> Mapping[str, object]:
+    value = PHASE_P_CONFIG.get("execution_surface")
+    if not isinstance(value, Mapping):  # pragma: no cover - fixed config
+        raise TypeError("Phase-P execution_surface config must be an object.")
+    return value
+
+
+def _artifact_role_binding(arm: str) -> Mapping[str, object]:
+    roles = _execution_surface_config().get("artifact_role_bindings")
+    if not isinstance(roles, Mapping) or arm not in roles:
+        raise ValueError(f"Phase-P has no artifact role binding for {arm!r}.")
+    binding = roles[arm]
+    if not isinstance(binding, Mapping):  # pragma: no cover - fixed config
+        raise TypeError(f"Phase-P artifact role {arm!r} must be an object.")
+    return binding
+
+
+def _validate_artifact_role(
+    artifact: Artifact,
+    *,
+    arm: str,
+    role_binding: Mapping[str, object] | None = None,
+) -> Mapping[str, object]:
+    """Bind baseline/candidate semantics to the audited stacked authorities."""
+
+    binding = _artifact_role_binding(arm) if role_binding is None else role_binding
+    external = _external_metadata(artifact)
+    expected_external = {
+        "artifact_kind": "populace_us_multispine_pool_stage_checkpoint",
+        "schema_version": 1,
+        "materializer_version": 7,
+        "stage": "simulated",
+    }
+    changed = {
+        key: external.get(key)
+        for key, expected in expected_external.items()
+        if external.get(key) != expected
+    }
+    if changed:
+        raise ValueError(
+            f"Phase-P {arm} simulated checkpoint envelope changed: {changed}."
+        )
+    authority = _nested(external, "identity", "stacked_authority")
+    if not isinstance(authority, Mapping):
+        raise ValueError(f"Phase-P {arm} stacked authority is malformed.")
+    expected_sha256 = _require_sha256(
+        binding.get("stacked_authority_sha256"),
+        label=f"Phase-P {arm} configured stacked authority",
+    )
+    if (
+        authority.get("version") != binding.get("stacked_authority_version")
+        or authority.get("sha256") != expected_sha256
+        or authority.get("declared_sha256") != expected_sha256
+        or authority.get("authority_id") != "us_stacked_spine_authority"
+        or authority.get("authority_form") != "CANONICAL"
+        or authority.get("declared_authority_form") != "CANONICAL"
+        or authority.get("canonical") is not True
+        or authority.get("canonical_content") is not True
+        or authority.get("canonical_identity") is not True
+        or authority.get("digest_matches_declared") is not True
+        or authority.get("integrity_valid") is not True
+        or authority.get("production_manifest_permitted") is not True
+    ):
+        raise ValueError(
+            f"Phase-P {arm} artifact does not match its audited stacked authority."
+        )
+    gap_fill = _nested(authority, "components", "gap_fill_plan")
+    if not isinstance(gap_fill, Mapping):
+        raise ValueError(f"Phase-P {arm} gap-fill authority is malformed.")
+    expected_gap = _require_sha256(
+        binding.get("gap_fill_plan_sha256"),
+        label=f"Phase-P {arm} configured gap-fill plan",
+    )
+    if (
+        gap_fill.get("sha256") != expected_gap
+        or gap_fill.get("declared_sha256") != expected_gap
+        or gap_fill.get("digest_matches_declared") is not True
+        or gap_fill.get("target_count") != 48
+        or gap_fill.get("direction_count") != 2
+    ):
+        raise ValueError(
+            f"Phase-P {arm} artifact does not match its audited gap-fill plan."
+        )
+    return binding
+
+
+def _early_direction(spec: FamilySpec) -> str:
+    pieces = spec.family_id.split("/", 3)
+    if (
+        spec.stage != "early_gap_fill"
+        or len(pieces) != 4
+        or pieces[0] != "gap_fill"
+        or pieces[2] != spec.entity
+        or pieces[3] != spec.family
+    ):
+        raise ValueError(
+            f"Early Phase-P family id {spec.family_id!r} is not direction-bound."
+        )
+    return pieces[1]
+
+
+def _string_list(value: object, *, label: str) -> tuple[str, ...]:
+    if (
+        not isinstance(value, list)
+        or not value
+        or any(not isinstance(item, str) or not item for item in value)
+    ):
+        raise ValueError(f"{label} must be a nonempty list of strings.")
+    result = tuple(value)
+    if len(set(result)) != len(result):
+        raise ValueError(f"{label} contains duplicates.")
+    return result
+
+
+def _read_target_execution(
+    path: Path,
+    *,
+    record: Mapping[str, object],
+    bank_identity: Mapping[str, object],
+    bank_identity_sha256: str,
+) -> tuple[Mapping[str, object], tuple[tuple[str, ...], ...], tuple[str, ...]]:
+    """Validate one target H5 and its raw-draw/content digests."""
+
+    if not path.is_file():
+        raise FileNotFoundError(f"ACS target checkpoint is missing: {path}.")
+    expected_file_sha256 = _require_sha256(
+        record.get("checkpoint_sha256"),
+        label=f"ACS target checkpoint receipt {path}",
+    )
+    if path.stat().st_size != record.get("size_bytes"):
+        raise ValueError(f"ACS target checkpoint size changed: {path}.")
+    if _sha256_file(path) != expected_file_sha256:
+        raise ValueError(f"ACS target checkpoint SHA-256 changed: {path}.")
+
+    with h5py.File(path, mode="r") as h5:
+        if set(h5) != {_TARGET_METADATA_DATASET, _TARGET_RAW_DRAW_DATASET}:
+            raise ValueError(f"ACS target checkpoint datasets changed: {path}.")
+        metadata_dataset = h5[_TARGET_METADATA_DATASET]
+        raw_dataset = h5[_TARGET_RAW_DRAW_DATASET]
+        if metadata_dataset.ndim != 1 or metadata_dataset.dtype != np.dtype(np.uint8):
+            raise ValueError(f"ACS target metadata dataset changed: {path}.")
+        if raw_dataset.ndim != 1 or raw_dataset.dtype != np.dtype("<u8"):
+            raise ValueError(f"ACS target raw-draw dataset changed: {path}.")
+        metadata_bytes = np.asarray(metadata_dataset, dtype=np.uint8).tobytes()
+        raw_rows = int(raw_dataset.shape[0])
+        raw_sha256 = hashlib.sha256(
+            np.asarray(raw_dataset, dtype=np.dtype("<u8")).tobytes()
+        ).hexdigest()
+    try:
+        metadata = json.loads(metadata_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"ACS target metadata JSON is invalid: {path}.") from error
+    if not isinstance(metadata, Mapping):
+        raise ValueError(f"ACS target metadata must be an object: {path}.")
+    expected_metadata_keys = {
+        "artifact_kind",
+        "schema_version",
+        "materializer_version",
+        "identity",
+        "identity_sha256",
+        "target",
+        "recipient_rows",
+        "raw_draw_sha256",
+        "pattern_steps",
+        "content_metadata_sha256",
+    }
+    if set(metadata) != expected_metadata_keys:
+        raise ValueError(f"ACS target metadata keys changed: {path}.")
+    if (
+        metadata.get("artifact_kind") != ACS_TRANSFER_TARGET_BANK_ARTIFACT_KIND
+        or metadata.get("schema_version") != ACS_TRANSFER_TARGET_BANK_SCHEMA_VERSION
+        or metadata.get("materializer_version")
+        != ACS_TRANSFER_TARGET_BANK_MATERIALIZER_VERSION
+        or metadata.get("identity") != bank_identity
+        or metadata.get("identity_sha256") != bank_identity_sha256
+        or metadata.get("target") != record.get("descriptor")
+        or metadata.get("recipient_rows") != raw_rows
+        or metadata.get("raw_draw_sha256") != record.get("raw_draw_sha256")
+        or metadata.get("raw_draw_sha256") != raw_sha256
+        or metadata.get("content_metadata_sha256")
+        != record.get("content_metadata_sha256")
+    ):
+        raise ValueError(f"ACS target checkpoint binding changed: {path}.")
+    content_sha256 = _require_sha256(
+        metadata.get("content_metadata_sha256"),
+        label=f"ACS target content metadata {path}",
+    )
+    content = {
+        key: value
+        for key, value in metadata.items()
+        if key != "content_metadata_sha256"
+    }
+    if _bank_mapping_sha256(content) != content_sha256:
+        raise ValueError(f"ACS target content metadata digest changed: {path}.")
+    _require_sha256(
+        metadata.get("raw_draw_sha256"),
+        label=f"ACS target raw draw {path}",
+    )
+
+    descriptor = metadata.get("target")
+    if not isinstance(descriptor, Mapping):
+        raise ValueError(f"ACS target descriptor is malformed: {path}.")
+    expected_descriptor_keys = {
+        "target_index",
+        "total_targets",
+        "entity",
+        "family",
+        "family_targets",
+        "model_targets",
+        "model_target",
+        "exported_targets",
+    }
+    if set(descriptor) != expected_descriptor_keys:
+        raise ValueError(f"ACS target descriptor keys changed: {path}.")
+    model_targets = _string_list(
+        descriptor.get("model_targets"), label=f"ACS model targets {path}"
+    )
+    _string_list(descriptor.get("family_targets"), label=f"ACS family targets {path}")
+    _string_list(
+        descriptor.get("exported_targets"), label=f"ACS exported targets {path}"
+    )
+    model_target = descriptor.get("model_target")
+    if model_target not in model_targets:
+        raise ValueError(f"ACS model target is absent from its chain: {path}.")
+
+    raw_steps = metadata.get("pattern_steps")
+    if not isinstance(raw_steps, list) or not raw_steps:
+        raise ValueError(f"ACS target pattern_steps are malformed: {path}.")
+    pattern_names: set[str] = set()
+    pattern_predictors: list[tuple[str, ...]] = []
+    resolved: list[str] = []
+    for index, raw_step in enumerate(raw_steps):
+        if not isinstance(raw_step, Mapping) or set(raw_step) != {
+            "pattern",
+            "state_before_sha256",
+            "state_after",
+        }:
+            raise ValueError(f"ACS target pattern step {index} changed: {path}.")
+        pattern = raw_step.get("pattern")
+        if not isinstance(pattern, str) or not pattern or pattern in pattern_names:
+            raise ValueError(f"ACS target pattern name is invalid: {path}.")
+        pattern_names.add(pattern)
+        _require_sha256(
+            raw_step.get("state_before_sha256"),
+            label=f"ACS target predecessor state {path}",
+        )
+        state_payload = raw_step.get("state_after")
+        if not isinstance(state_payload, Mapping):
+            raise ValueError(f"ACS target state_after is malformed: {path}.")
+        state = QRFChainState.from_dict(state_payload)
+        if (
+            state.entity != descriptor.get("entity")
+            or state.targets != model_targets
+            or not state.completed_targets
+            or state.completed_targets[-1] != model_target
+        ):
+            raise ValueError(
+                f"ACS target QRF state does not match its descriptor: {path}."
+            )
+        pattern_predictors.append(state.predictors)
+        for predictor in state.predictors:
+            if predictor not in resolved:
+                resolved.append(predictor)
+    return descriptor, tuple(pattern_predictors), tuple(resolved)
+
+
+def _load_early_execution_evidence(
+    artifact: Artifact,
+    *,
+    arm: str,
+    family_specs: Sequence[FamilySpec],
+    role_binding: Mapping[str, object] | None = None,
+) -> EarlyExecutionEvidence:
+    """Load and authenticate the operational early-transfer target bank."""
+
+    binding = _validate_artifact_role(
+        artifact,
+        arm=arm,
+        role_binding=role_binding,
+    )
+    early_specs = tuple(spec for spec in family_specs if spec.stage == "early_gap_fill")
+    expected: dict[tuple[str, str, str, str], FamilySpec] = {}
+    for spec in early_specs:
+        direction = _early_direction(spec)
+        targets = spec.baseline_targets if arm == "baseline" else spec.candidate_targets
+        for target in targets:
+            key = (direction, spec.entity, spec.family, target)
+            if key in expected:
+                raise ValueError(f"Early Phase-P target is declared twice: {key}.")
+            expected[key] = spec
+    expected_directions = {key[0] for key in expected}
+
+    receipts_path = artifact.operational_receipts_path
+    if not receipts_path.is_file():
+        raise FileNotFoundError(
+            f"Phase-P {arm} operational receipts are missing: {receipts_path}."
+        )
+    payload = json.loads(receipts_path.read_text())
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"Operational receipts are not an object: {receipts_path}.")
+    expected_receipt_keys = {
+        "artifact_kind",
+        "schema_version",
+        "materializer_version",
+        "stage",
+        "identity_sha256",
+        "checkpoint",
+        "operational_stage_receipts",
+    }
+    if set(payload) != expected_receipt_keys:
+        raise ValueError(f"Operational receipts keys changed: {receipts_path}.")
+    receipt_config = _execution_surface_config().get("operational_receipts")
+    if not isinstance(receipt_config, Mapping):  # pragma: no cover - fixed config
+        raise TypeError("Operational receipt config must be an object.")
+    if any(payload.get(key) != value for key, value in receipt_config.items()):
+        raise ValueError(f"Operational receipt envelope changed: {receipts_path}.")
+
+    external = _external_metadata(artifact)
+    if payload.get("identity_sha256") != external.get("identity_sha256"):
+        raise ValueError(
+            "Operational receipts do not bind the selected simulated stage identity."
+        )
+    checkpoint_sha256 = _sha256_file(artifact.checkpoint_path)
+    checkpoint_receipt = payload.get("checkpoint")
+    expected_checkpoint_receipt = {
+        "filename": artifact.checkpoint_path.name,
+        "sha256": checkpoint_sha256,
+        "size_bytes": artifact.checkpoint_path.stat().st_size,
+    }
+    if checkpoint_receipt != expected_checkpoint_receipt:
+        raise ValueError(
+            "Operational receipts do not bind the selected simulated checkpoint."
+        )
+
+    target_bank = _nested(
+        payload,
+        "operational_stage_receipts",
+        "impute",
+        "acs_qrf_transfer",
+        "target_bank",
+    )
+    if not isinstance(target_bank, Mapping) or set(target_bank) != {
+        "directions",
+        "identity_routing",
+        "late_producer_groups",
+    }:
+        raise ValueError("Operational target-bank receipt shape changed.")
+    directions = target_bank.get("directions")
+    if not isinstance(directions, Mapping) or set(directions) != expected_directions:
+        raise ValueError(
+            "Operational early target-bank directions differ from the Phase-P specs."
+        )
+    configured_bank_ids = binding.get("early_target_bank_identity_sha256")
+    if not isinstance(configured_bank_ids, Mapping) or set(configured_bank_ids) != (
+        expected_directions
+    ):
+        raise ValueError(f"Phase-P {arm} bank identity configuration is incomplete.")
+
+    executions: dict[tuple[str, str], EarlyTargetExecution] = {}
+    for direction in sorted(expected_directions):
+        bank = directions[direction]
+        if not isinstance(bank, Mapping) or set(bank) != {
+            "artifact_kind",
+            "schema_version",
+            "materializer_version",
+            "root",
+            "identity",
+            "identity_sha256",
+            "targets",
+        }:
+            raise ValueError(f"ACS target-bank receipt changed for {direction!r}.")
+        expected_bank_sha256 = _require_sha256(
+            configured_bank_ids[direction],
+            label=f"Phase-P {arm} {direction} configured target bank",
+        )
+        bank_identity = bank.get("identity")
+        if not isinstance(bank_identity, Mapping):
+            raise ValueError(
+                f"ACS target-bank identity is malformed for {direction!r}."
+            )
+        if (
+            bank.get("artifact_kind") != ACS_TRANSFER_TARGET_BANK_RECEIPT_ARTIFACT_KIND
+            or bank.get("schema_version") != ACS_TRANSFER_TARGET_BANK_SCHEMA_VERSION
+            or bank.get("materializer_version")
+            != ACS_TRANSFER_TARGET_BANK_MATERIALIZER_VERSION
+            or bank.get("identity_sha256") != expected_bank_sha256
+            or _bank_mapping_sha256(bank_identity) != expected_bank_sha256
+        ):
+            raise ValueError(
+                f"ACS target-bank identity changed for Phase-P {arm} {direction}."
+            )
+        bank_root_raw = bank.get("root")
+        if not isinstance(bank_root_raw, str) or not bank_root_raw:
+            raise ValueError(f"ACS target-bank root is malformed for {direction!r}.")
+        bank_root = Path(bank_root_raw).expanduser().resolve()
+        checkpoint_identity_dir = artifact.checkpoint_path.parent.resolve()
+        if not bank_root.is_relative_to(checkpoint_identity_dir):
+            raise ValueError(
+                f"ACS target-bank root escapes the selected checkpoint identity: "
+                f"{bank_root}."
+            )
+        targets_receipt = bank.get("targets")
+        if not isinstance(targets_receipt, Mapping) or not targets_receipt:
+            raise ValueError(
+                f"ACS target-bank targets are malformed for {direction!r}."
+            )
+        try:
+            indexes = sorted(int(index) for index in targets_receipt)
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                f"ACS target-bank indexes are malformed for {direction!r}."
+            ) from error
+        if indexes != list(range(len(indexes))):
+            raise ValueError(
+                f"ACS target-bank indexes are not contiguous: {direction}."
+            )
+        for target_index in indexes:
+            record = targets_receipt[str(target_index)]
+            if not isinstance(record, Mapping):
+                raise ValueError(
+                    f"ACS target receipt {direction}/{target_index} changed."
+                )
+            required_record_keys = {
+                "source",
+                "descriptor",
+                "load_status",
+                "path",
+                "checkpoint_sha256",
+                "size_bytes",
+                "raw_draw_sha256",
+                "content_metadata_sha256",
+                "write_status",
+                "write_seconds",
+            }
+            if (
+                set(record) != required_record_keys
+                or record.get("source") not in {"rebuilt", "checkpoint"}
+                or record.get("load_status") not in {"loaded", "missing"}
+                or record.get("write_status") not in {"rebuilt", "not_required"}
+                or isinstance(record.get("write_seconds"), bool)
+                or not isinstance(record.get("write_seconds"), (int, float))
+                or not math.isfinite(float(record["write_seconds"]))
+                or float(record["write_seconds"]) < 0.0
+            ):
+                raise ValueError(
+                    f"ACS target receipt {direction}/{target_index} changed."
+                )
+            target_path_raw = record.get("path")
+            if not isinstance(target_path_raw, str) or not target_path_raw:
+                raise ValueError(f"ACS target path {direction}/{target_index} changed.")
+            target_path = Path(target_path_raw).expanduser().resolve()
+            if not target_path.is_relative_to(bank_root / "targets"):
+                raise ValueError(
+                    f"ACS target path escapes its bank root: {target_path}."
+                )
+            descriptor, pattern_predictors, resolved = _read_target_execution(
+                target_path,
+                record=record,
+                bank_identity=bank_identity,
+                bank_identity_sha256=expected_bank_sha256,
+            )
+            if descriptor.get("target_index") != target_index or descriptor.get(
+                "total_targets"
+            ) != len(indexes):
+                raise ValueError(
+                    f"ACS target index binding changed for {direction}/{target_index}."
+                )
+            entity = descriptor.get("entity")
+            family_raw = descriptor.get("family")
+            if not isinstance(entity, str) or not isinstance(family_raw, str):
+                raise ValueError(f"ACS target owner is malformed: {target_path}.")
+            family = _BATCH_SUFFIX.sub("", family_raw)
+            exported_targets = _string_list(
+                descriptor.get("exported_targets"),
+                label=f"ACS exported targets {target_path}",
+            )
+            for target in exported_targets:
+                expected_key = (direction, entity, family, target)
+                spec = expected.get(expected_key)
+                if spec is None:
+                    raise ValueError(
+                        f"ACS target-bank exported undeclared Phase-P target {expected_key}."
+                    )
+                execution_key = (spec.family_id, target)
+                if execution_key in executions:
+                    raise ValueError(
+                        f"ACS target-bank repeats Phase-P target {execution_key}."
+                    )
+                executions[execution_key] = EarlyTargetExecution(
+                    family_id=spec.family_id,
+                    direction=direction,
+                    entity=entity,
+                    family=family,
+                    target=target,
+                    bank_identity_sha256=expected_bank_sha256,
+                    checkpoint_path=target_path,
+                    checkpoint_sha256=str(record["checkpoint_sha256"]),
+                    pattern_predictors=pattern_predictors,
+                    resolved_predictors=resolved,
+                )
+
+    expected_execution_keys = {
+        (spec.family_id, target)
+        for spec in early_specs
+        for target in (
+            spec.baseline_targets if arm == "baseline" else spec.candidate_targets
+        )
+    }
+    if set(executions) != expected_execution_keys:
+        raise ValueError(
+            f"Phase-P {arm} target-bank coverage changed: "
+            f"missing={sorted(expected_execution_keys - set(executions))}, "
+            f"extra={sorted(set(executions) - expected_execution_keys)}."
+        )
+    _validate_early_predictor_evidence(
+        arm=arm,
+        family_specs=early_specs,
+        executions=executions,
+    )
+    return EarlyExecutionEvidence(
+        receipts_path=receipts_path,
+        receipts_sha256=_sha256_file(receipts_path),
+        simulated_checkpoint_sha256=checkpoint_sha256,
+        targets=executions,
+    )
+
+
+def _early_investment_config() -> Mapping[str, object]:
+    value = _execution_surface_config().get("early_investment")
+    if not isinstance(value, Mapping):  # pragma: no cover - fixed config
+        raise TypeError("Phase-P early investment config must be an object.")
+    return value
+
+
+def _entity_investment_feature(entity: str) -> tuple[str, str]:
+    config = _early_investment_config()
+    person_feature = str(config["person_feature"])
+    group_feature = str(config["group_feature"])
+    if entity == "person":
+        return person_feature, group_feature
+    if entity == "spm_unit":
+        return group_feature, person_feature
+    raise ValueError(f"Unsupported early investment entity {entity!r}.")
+
+
+def _validate_early_predictor_evidence(
+    *,
+    arm: str,
+    family_specs: Sequence[FamilySpec],
+    executions: Mapping[tuple[str, str], EarlyTargetExecution],
+) -> None:
+    """Bind declared predictors to pattern states and their target-level union.
+
+    Required predictors must occur in every source-pattern state. Optional
+    predictors are pattern-specific, so exact equality applies to their union
+    across states. The baseline early investment feature is the sole declared
+    exception: it was unavailable before post-PUF leaves existed.
+    """
+
+    for spec in family_specs:
+        feature, opposite_feature = _entity_investment_feature(spec.entity)
+        predictor_set = (
+            spec.baseline_predictor_set
+            if arm == "baseline"
+            else spec.candidate_predictor_set
+        )
+        if feature in predictor_set.required:
+            raise ValueError(
+                f"Early investment predictor became required for {spec.family_id}."
+            )
+        declared = feature in predictor_set.optional
+        expected_present = arm == "candidate" and declared
+        required = set(predictor_set.required)
+        allowed = required.union(predictor_set.optional)
+        targets = spec.baseline_targets if arm == "baseline" else spec.candidate_targets
+        for target in targets:
+            execution = executions[(spec.family_id, target)]
+            observed = set(execution.resolved_predictors)
+            if opposite_feature in observed:
+                raise ValueError(
+                    f"Early target {spec.family_id}/{target} resolved the "
+                    "opposite-grain investment predictor."
+                )
+            if (feature in observed) != expected_present:
+                raise ValueError(
+                    f"Phase-P {arm} early target {spec.family_id}/{target} "
+                    f"investment evidence changed: declared={declared}, "
+                    f"observed={feature in observed}, expected={expected_present}."
+                )
+            for pattern_index, pattern_predictors in enumerate(
+                execution.pattern_predictors
+            ):
+                pattern = set(pattern_predictors)
+                missing_required = required - pattern
+                undeclared = pattern - allowed
+                if missing_required or undeclared:
+                    raise ValueError(
+                        f"Phase-P {arm} early target {spec.family_id}/{target} "
+                        f"pattern {pattern_index} predictor surface changed: "
+                        f"missing_required={sorted(missing_required)}, "
+                        f"undeclared={sorted(undeclared)}."
+                    )
+            expected_union = set(allowed)
+            if arm == "baseline":
+                expected_union.discard(feature)
+            if observed != expected_union:
+                raise ValueError(
+                    f"Phase-P {arm} early target {spec.family_id}/{target} "
+                    "resolved predictor union changed: "
+                    f"missing={sorted(expected_union - observed)}, "
+                    f"extra={sorted(observed - expected_union)}."
+                )
 
 
 def _artifact_target_orders(artifact: Artifact) -> dict[str, tuple[str, ...]]:
@@ -672,11 +1502,151 @@ def _bounded_chunks(targets: Sequence[str], width: int) -> list[tuple[str, ...]]
     ]
 
 
+def _phase_p_oos_feature_surface(
+    donor: Frame,
+    *,
+    spec: FamilySpec,
+    arm: str,
+    predictor_set: AcsPredictorSet,
+    execution_evidence: EarlyExecutionEvidence | None,
+) -> OOSFeatureSurface:
+    """Reconstruct the predictor surface at its actual execution stage."""
+
+    targets = spec.baseline_targets if arm == "baseline" else spec.candidate_targets
+    if spec.stage != "early_gap_fill":
+        surface = _transfer_feature_surface(
+            donor,
+            donor,
+            entity=spec.entity,
+            targets=targets,
+            predictor_set=predictor_set,
+            require_all_predictors=False,
+        )
+        return OOSFeatureSurface(
+            features=surface.donor,
+            required=tuple(surface.required),
+            optional=tuple(surface.optional),
+            source_bindings={
+                "execution_surface": "final_simulated_checkpoint",
+                "stage": spec.stage,
+            },
+        )
+    if execution_evidence is None:
+        raise ValueError(
+            f"Early Phase-P family {spec.family_id} lacks execution evidence."
+        )
+
+    feature, _opposite_feature = _entity_investment_feature(spec.entity)
+    _validate_early_predictor_evidence(
+        arm=arm,
+        family_specs=(spec,),
+        executions=execution_evidence.targets,
+    )
+    if feature in predictor_set.required:
+        raise ValueError(
+            f"Early investment predictor became required for {spec.family_id}."
+        )
+    declared = feature in predictor_set.optional
+    stripped_predictors = AcsPredictorSet(
+        required=predictor_set.required,
+        optional=tuple(name for name in predictor_set.optional if name != feature),
+    )
+    surface = _transfer_feature_surface(
+        donor,
+        donor,
+        entity=spec.entity,
+        targets=targets,
+        predictor_set=stripped_predictors,
+        require_all_predictors=False,
+    )
+    features = surface.donor.copy()
+    source_mode = "not_declared"
+    config = _early_investment_config()
+    components: tuple[str, ...] = ()
+    if arm == "baseline" and declared:
+        source_mode = str(config["baseline_donor_source"])
+    elif arm == "candidate" and declared:
+        raw_components = config.get("candidate_donor_components")
+        if not isinstance(raw_components, list) or not all(
+            isinstance(component, str) and component for component in raw_components
+        ):
+            raise TypeError("Candidate donor component config is malformed.")
+        components = tuple(raw_components)
+        person_feature = str(config["person_feature"])
+        person_values = _complete_numeric_component_sum(
+            donor,
+            components,
+            feature=person_feature,
+        )
+        if person_values is None:
+            raise ValueError(
+                f"Candidate early donor lacks raw investment components {components}."
+            )
+        if spec.entity == "person":
+            feature_values = person_values
+            source_mode = str(config["candidate_person_donor_source"])
+        else:
+            grouped = _aggregate_optional_to_group(
+                donor,
+                entity=spec.entity,
+                person_features=person_values.to_frame(),
+            )
+            feature_values = grouped[feature]
+            source_mode = "complete_numeric_component_sum_then_group_projection"
+        features[feature] = feature_values.to_numpy()
+
+    resolved_optional = tuple(
+        name for name in predictor_set.optional if name in features.columns
+    )
+    features = features.loc[:, [*surface.required, *resolved_optional]]
+    target_receipts = {
+        target: {
+            "direction": execution.direction,
+            "bank_identity_sha256": execution.bank_identity_sha256,
+            "checkpoint_path": str(execution.checkpoint_path),
+            "checkpoint_sha256": execution.checkpoint_sha256,
+            "resolved_predictors": list(execution.resolved_predictors),
+            "pattern_predictors": [
+                list(predictors) for predictors in execution.pattern_predictors
+            ],
+            "investment_predictor_observed": (feature in execution.resolved_predictors),
+        }
+        for target in targets
+        for execution in [execution_evidence.targets[(spec.family_id, target)]]
+    }
+    return OOSFeatureSurface(
+        features=features,
+        required=tuple(surface.required),
+        optional=resolved_optional,
+        source_bindings={
+            "execution_surface": "early_gap_fill_target_bank_replay",
+            "operational_receipts_path": str(execution_evidence.receipts_path),
+            "operational_receipts_sha256": execution_evidence.receipts_sha256,
+            "simulated_checkpoint_sha256": (
+                execution_evidence.simulated_checkpoint_sha256
+            ),
+            "investment_income": {
+                "feature": feature,
+                "declared_optional": declared,
+                "oos_donor_source": source_mode,
+                "raw_components": list(components),
+                "group_projection": (
+                    config["candidate_group_projection"]
+                    if arm == "candidate" and declared and spec.entity != "person"
+                    else None
+                ),
+            },
+            "target_checkpoints": target_receipts,
+        },
+    )
+
+
 def _measure_family(
     donor: Frame,
     *,
     spec: FamilySpec,
     arm: str,
+    execution_evidence: EarlyExecutionEvidence | None,
 ) -> dict[str, OOSTargetMeasurement]:
     targets = spec.baseline_targets if arm == "baseline" else spec.candidate_targets
     predictor_set = (
@@ -684,13 +1654,12 @@ def _measure_family(
         if arm == "baseline"
         else spec.candidate_predictor_set
     )
-    surface = _transfer_feature_surface(
+    surface = _phase_p_oos_feature_surface(
         donor,
-        donor,
-        entity=spec.entity,
-        targets=targets,
+        spec=spec,
+        arm=arm,
         predictor_set=predictor_set,
-        require_all_predictors=False,
+        execution_evidence=execution_evidence,
     )
     resolved_optional = tuple(surface.optional)
     missing_optional = tuple(
@@ -741,7 +1710,7 @@ def _measure_family(
                 train_weights,
                 all_missing_optional,
             ) = _prepare_design(
-                surface.donor,
+                surface.features,
                 required=surface.required,
                 optional=resolved_optional,
                 predecessors=predecessor_frame,
@@ -770,7 +1739,7 @@ def _measure_family(
                     _as_float_frame(
                         pd.concat(
                             [
-                                surface.donor.loc[:, list(surface.required)],
+                                surface.features.loc[:, list(surface.required)],
                                 predecessor_frame,
                             ],
                             axis=1,
@@ -821,6 +1790,7 @@ def _measure_family(
                     truth=test_y.copy(),
                     losses=losses.copy(),
                     clusters=clusters[test_positions].copy(),
+                    predictor_source_bindings=surface.source_bindings,
                 )
     expected = {f"{spec.family_id}/{target}" for target in targets}
     if set(results) != expected:
@@ -876,6 +1846,7 @@ def measure_arm(
     *,
     arm: str,
     family_specs: Sequence[FamilySpec],
+    execution_evidence: EarlyExecutionEvidence,
 ) -> ArmMeasurement:
     """Load one large checkpoint once, retain only compact OOS measurements."""
 
@@ -899,7 +1870,12 @@ def measure_arm(
                 flush=True,
             )
             try:
-                measured = _measure_family(donor, spec=spec, arm=arm)
+                measured = _measure_family(
+                    donor,
+                    spec=spec,
+                    arm=arm,
+                    execution_evidence=execution_evidence,
+                )
             except Exception as error:
                 raise GateMeasurementError(
                     arm=arm,
@@ -957,7 +1933,12 @@ def _battery_legs(artifact: Artifact) -> dict[str, dict[str, object]]:
             raise ValueError(f"Battery comparison {comparison_id!r} is malformed.")
         metric = raw.get("metric")
         legs = raw.get("legs")
-        if isinstance(legs, Mapping):
+        if "legs" in raw:
+            if not isinstance(legs, Mapping) or not legs:
+                raise ValueError(
+                    f"Battery comparison {comparison_id!r} legs must be a "
+                    "nonempty object."
+                )
             for leg_name, leg in legs.items():
                 if not isinstance(leg, Mapping):
                     raise ValueError(
@@ -967,7 +1948,10 @@ def _battery_legs(artifact: Artifact) -> dict[str, dict[str, object]]:
                 leg_failures = [
                     failure for failure in failures if failure.startswith(f"{leg_id}:")
                 ]
-                operational_status = leg.get("status") or raw.get("status")
+                leg_status = leg.get("status")
+                operational_status = (
+                    raw.get("status") if leg_status is None else leg_status
+                )
                 result[leg_id] = {
                     "comparison_id": comparison_id,
                     "leg": leg_name,
@@ -1025,16 +2009,24 @@ def _gate_leg_status(
     operational_status: object,
     failure_messages: Sequence[str],
 ) -> str:
+    allowed = {
+        "tested",
+        "dead_comparison",
+        "absent_on_both_origins",
+        "insufficient_support",
+    }
+    if not isinstance(operational_status, str) or operational_status not in allowed:
+        raise ValueError(
+            f"Unknown battery operational status {operational_status!r}; refusing "
+            "to infer a gate status."
+        )
     if failure_messages or operational_status == "dead_comparison":
         return "FAIL"
     if operational_status in {"absent_on_both_origins", "insufficient_support"}:
         return "NOT_TESTED"
     if operational_status == "tested":
         return "PASS"
-    raise ValueError(
-        f"Unknown battery operational status {operational_status!r}; refusing "
-        "to infer a gate status."
-    )
+    raise RuntimeError("Validated battery status did not map to a gate status.")
 
 
 def _band_status(ratio: object, *, lower: float, upper: float) -> str:
@@ -1160,11 +2152,21 @@ def _align_measurements(
 ) -> tuple[np.ndarray, np.ndarray]:
     base_index = pd.Index(baseline_ids)
     candidate_index = pd.Index(candidate_ids)
-    common = base_index.intersection(candidate_index, sort=True)
-    if common.empty:
-        raise ValueError("Paired measurement has no common stable donor ids.")
-    base_positions = base_index.get_indexer(common)
-    candidate_positions = candidate_index.get_indexer(common)
+    if base_index.has_duplicates or candidate_index.has_duplicates:
+        raise ValueError("Paired measurement stable donor ids must be unique.")
+    missing_candidate = base_index.difference(candidate_index, sort=True)
+    extra_candidate = candidate_index.difference(base_index, sort=True)
+    if len(missing_candidate) or len(extra_candidate):
+        raise ValueError(
+            "Paired measurement stable donor id sets differ: "
+            f"missing_candidate={missing_candidate.tolist()}, "
+            f"extra_candidate={extra_candidate.tolist()}."
+        )
+    if base_index.empty:
+        raise ValueError("Paired measurement stable donor id sets are empty.")
+    ordered_ids = base_index.sort_values()
+    base_positions = base_index.get_indexer(ordered_ids)
+    candidate_positions = candidate_index.get_indexer(ordered_ids)
     if (base_positions < 0).any() or (candidate_positions < 0).any():
         raise RuntimeError("Paired donor alignment produced missing positions.")
     return base_positions, candidate_positions
@@ -1285,12 +2287,97 @@ def _paired_loss_comparison(
 def _target_metric_index(artifact: Artifact) -> dict[tuple[str, str, str], str]:
     result: dict[tuple[str, str, str], str] = {}
     for leg in _battery_legs(artifact).values():
+        metric = leg.get("metric")
+        if not isinstance(metric, str) or metric not in ORIGIN_BATTERY_METRIC_KINDS:
+            raise ValueError(
+                f"Battery comparison {leg['comparison_id']!r} has unknown "
+                f"metric {metric!r}."
+            )
         comparison_id = str(leg["comparison_id"])
         base = comparison_id.split("[", 1)[0]
         pieces = base.split("/", 2)
         if len(pieces) == 3:
-            result[(pieces[0], pieces[1], pieces[2])] = str(leg["metric"])
+            key = (pieces[0], pieces[1], pieces[2])
+            previous = result.get(key)
+            if previous is not None and previous != metric:
+                raise ValueError(
+                    f"Battery target {comparison_id!r} has conflicting metrics "
+                    f"{previous!r} and {metric!r}."
+                )
+            result[key] = metric
     return result
+
+
+def _money_amount_config() -> Mapping[str, object]:
+    value = PHASE_P_CONFIG.get("money_amount_classification")
+    if not isinstance(value, Mapping):  # pragma: no cover - fixed config
+        raise TypeError("Phase-P money amount classification must be an object.")
+    return value
+
+
+def _validated_money_amount_keys(
+    target_metrics: Mapping[str, str],
+) -> frozenset[str]:
+    """Validate and return the explicit money-only subset of numeric targets."""
+
+    config = _money_amount_config()
+    money = set(
+        _string_list(
+            config.get("money_amount_target_keys"),
+            label="Phase-P money amount target keys",
+        )
+    )
+    numeric_non_money = set(
+        _string_list(
+            config.get("generic_numeric_non_money_target_keys"),
+            label="Phase-P generic numeric non-money target keys",
+        )
+    )
+    overlap = money.intersection(numeric_non_money)
+    if overlap:  # pragma: no cover - fixed config
+        raise ValueError(
+            f"Phase-P money and non-money target authorities overlap: {sorted(overlap)}."
+        )
+    unknown_metrics = {
+        key: metric
+        for key, metric in target_metrics.items()
+        if metric not in ORIGIN_BATTERY_METRIC_KINDS
+    }
+    if unknown_metrics:
+        raise ValueError(
+            f"Phase-P OOS target metrics contain unknown kinds: {unknown_metrics}."
+        )
+    expected_changed_count = int(config["changed_target_count"])
+    if len(target_metrics) != expected_changed_count:
+        raise ValueError(
+            "Phase-P changed-target classification count differs from its "
+            f"authority: observed={len(target_metrics)}, "
+            f"expected={expected_changed_count}."
+        )
+    generic_numeric = {
+        key
+        for key, metric in target_metrics.items()
+        if metric == "monetary_sign_separated"
+    }
+    declared_numeric = money.union(numeric_non_money)
+    if generic_numeric != declared_numeric:
+        raise ValueError(
+            "Phase-P generic numeric target partition differs from its authority: "
+            f"missing={sorted(generic_numeric - declared_numeric)}, "
+            f"extra={sorted(declared_numeric - generic_numeric)}."
+        )
+    expected_numeric_count = int(config["generic_numeric_metric_target_count"])
+    expected_money_count = int(config["money_amount_target_count"])
+    if (
+        len(generic_numeric) != expected_numeric_count
+        or len(money) != expected_money_count
+    ):
+        raise ValueError(
+            "Phase-P money classification counts differ from their authority: "
+            f"generic_numeric={len(generic_numeric)}/{expected_numeric_count}, "
+            f"money={len(money)}/{expected_money_count}."
+        )
+    return frozenset(money)
 
 
 def compare_oos(
@@ -1305,17 +2392,24 @@ def compare_oos(
             f"missing_candidate={sorted(set(baseline.targets) - set(candidate.targets))}, "
             f"extra_candidate={sorted(set(candidate.targets) - set(baseline.targets))}."
         )
+    metrics_by_key: dict[str, str] = {}
+    for key, measurement in baseline.targets.items():
+        battery_family = measurement.family.split("__batch_", 1)[0]
+        metric = metric_index.get(
+            (measurement.entity, battery_family, measurement.target)
+        )
+        if metric is None:
+            raise ValueError(
+                f"Battery does not classify OOS target {measurement.entity}/"
+                f"{measurement.family}/{measurement.target}."
+            )
+        metrics_by_key[key] = metric
+    money_amount_keys = _validated_money_amount_keys(metrics_by_key)
     rows: list[dict[str, object]] = []
     for key in sorted(baseline.targets):
         base = baseline.targets[key]
         cand = candidate.targets[key]
-        battery_family = base.family.split("__batch_", 1)[0]
-        metric = metric_index.get((base.entity, battery_family, base.target))
-        if metric is None:
-            raise ValueError(
-                f"Battery does not classify OOS target {base.entity}/{base.family}/"
-                f"{base.target}."
-            )
+        metric = metrics_by_key[key]
         paired = _paired_loss_comparison(base, cand)
         rows.append(
             {
@@ -1326,7 +2420,7 @@ def compare_oos(
                 "family": base.family,
                 "target": base.target,
                 "metric": metric,
-                "is_money_amount": metric == "monetary_sign_separated",
+                "is_money_amount": key in money_amount_keys,
                 "baseline": {
                     "target_position": base.target_position,
                     "chain_predecessors": list(base.chain_predecessors),
@@ -1335,6 +2429,7 @@ def compare_oos(
                     "unavailable_optional_predictors": list(
                         base.unavailable_optional_predictors
                     ),
+                    "predictor_source_bindings": base.predictor_source_bindings,
                     "training_rows": base.training_rows,
                     "holdout_rows": base.holdout_rows,
                 },
@@ -1346,6 +2441,7 @@ def compare_oos(
                     "unavailable_optional_predictors": list(
                         cand.unavailable_optional_predictors
                     ),
+                    "predictor_source_bindings": cand.predictor_source_bindings,
                     "training_rows": cand.training_rows,
                     "holdout_rows": cand.holdout_rows,
                 },
@@ -1497,6 +2593,19 @@ def champva_ratio_bootstrap(
 def _artifact_receipt(artifact: Artifact) -> dict[str, object]:
     external = _external_metadata(artifact)
     identity = external.get("identity")
+    operational: dict[str, object] | None = None
+    if artifact.operational_receipts_path.is_file():
+        operational_payload = json.loads(artifact.operational_receipts_path.read_text())
+        checkpoint = (
+            operational_payload.get("checkpoint")
+            if isinstance(operational_payload, Mapping)
+            else None
+        )
+        operational = {
+            "path": str(artifact.operational_receipts_path),
+            "sha256": _sha256_file(artifact.operational_receipts_path),
+            "checkpoint_binding": checkpoint,
+        }
     return {
         "artifact_dir": str(artifact.root),
         "gates_json": str(artifact.gates_path),
@@ -1505,6 +2614,7 @@ def _artifact_receipt(artifact: Artifact) -> dict[str, object]:
         "simulated_checkpoint_size_bytes": artifact.checkpoint_path.stat().st_size,
         "stacked_identity": artifact.checkpoint_path.parent.name,
         "checkpoint_identity_sha256": external.get("identity_sha256"),
+        "operational_receipts": operational,
         "run_identity": identity if isinstance(identity, Mapping) else None,
     }
 
@@ -1581,12 +2691,11 @@ def build_verdict(
     enters_band = lower <= candidate_ratio <= upper
     denominator = baseline_ratio - upper
     progress = (
-        (baseline_ratio - candidate_ratio) / denominator
-        if denominator > 0
-        else float("nan")
+        (baseline_ratio - candidate_ratio) / denominator if denominator > 0 else None
     )
     progress_pass = (
-        math.isfinite(progress)
+        progress is not None
+        and math.isfinite(progress)
         and progress >= float(rule["champva_minimum_progress_to_band_ceiling"])
         and float(improvement_ci[0]) > 0.0
     )
@@ -1694,15 +2803,27 @@ def run_gate(
     )
     battery_rows, battery_counts = battery_delta(baseline, candidate)
     participation_rows = participation_incidence(baseline, candidate)
+    baseline_evidence = _load_early_execution_evidence(
+        baseline,
+        arm="baseline",
+        family_specs=specs,
+    )
+    candidate_evidence = _load_early_execution_evidence(
+        candidate,
+        arm="candidate",
+        family_specs=specs,
+    )
     baseline_measurement = measure_arm(
         baseline,
         arm="baseline",
         family_specs=specs,
+        execution_evidence=baseline_evidence,
     )
     candidate_measurement = measure_arm(
         candidate,
         arm="candidate",
         family_specs=specs,
+        execution_evidence=candidate_evidence,
     )
     metric_index = _target_metric_index(baseline)
     oos_rows = compare_oos(
@@ -1777,6 +2898,8 @@ def render_markdown(payload: Mapping[str, object]) -> str:
     baseline = artifacts["baseline"]
     candidate = artifacts["candidate"]
     clauses = payload["clauses"]
+    clause_a = clauses["a_champva"]
+    champva = payload["champva_ratio_bootstrap"]
     lines = [
         "# Phase P predictor-sets acceptance gate",
         "",
@@ -1799,18 +2922,36 @@ def render_markdown(payload: Mapping[str, object]) -> str:
     lines.extend(
         [
             "",
+            "Clause A CHAMPVA receipt: baseline ratio "
+            f"{_number(champva['baseline_ratio'])}; candidate ratio "
+            f"{_number(champva['candidate_ratio'])}; progress from the baseline "
+            "toward the band ceiling "
+            f"{_number(clause_a['progress_from_baseline_to_band_ceiling'])}; "
+            "baseline-minus-candidate ratio 95% CI "
+            f"[{_number(clause_a['baseline_minus_candidate_ratio_ci'][0])}, "
+            f"{_number(clause_a['baseline_minus_candidate_ratio_ci'][1])}]; "
+            f"candidate enters band: {str(clause_a['candidate_enters_band']).lower()}; "
+            "improvement CI excludes zero: "
+            f"{str(clause_a['improvement_ci_excludes_zero']).lower()}. Sources: "
+            f"`{baseline['gates_json']}`; `{candidate['gates_json']}`; "
+            f"`{baseline['simulated_checkpoint_h5']}`; "
+            f"`{candidate['simulated_checkpoint_h5']}`.",
+            "",
             "The rule is machine-decidable in the adjacent verdict JSON: PASS "
             "iff clauses a, b, and c all pass.",
             "",
             "## Artifact receipts",
             "",
-            "| Arm | Gates JSON | Simulated checkpoint | Stacked identity |",
-            "|---|---|---|---|",
+            "| Arm | Gates JSON | Simulated checkpoint | Operational receipts | "
+            "Stacked identity |",
+            "|---|---|---|---|---|",
             f"| baseline | `{baseline['gates_json']}` | "
             f"`{baseline['simulated_checkpoint_h5']}` | "
+            f"`{(baseline['operational_receipts'] or {}).get('path', '—')}` | "
             f"`{baseline['stacked_identity']}` |",
             f"| candidate | `{candidate['gates_json']}` | "
             f"`{candidate['simulated_checkpoint_h5']}` | "
+            f"`{(candidate['operational_receipts'] or {}).get('path', '—')}` | "
             f"`{candidate['stacked_identity']}` |",
             "",
             "## Per-target OOS pinball loss",
@@ -1850,8 +2991,8 @@ def render_markdown(payload: Mapping[str, object]) -> str:
             f"{counts['unchanged_not_ratio_comparable']}). Sources: "
             f"`{baseline['gates_json']}`; `{candidate['gates_json']}`.",
             "",
-            "| Leg | Metric | Baseline gate/receipt/band | Baseline ratio | "
-            "Baseline distance | Candidate gate/receipt/band | Candidate ratio | "
+            "| Leg | Metric | Baseline gate/band | Baseline ratio | "
+            "Baseline distance | Candidate gate/band | Candidate ratio | "
             "Candidate distance | Band transition | Sources |",
             "|---|---|---|---:|---:|---|---:|---:|---|---|",
         ]
@@ -1870,12 +3011,10 @@ def render_markdown(payload: Mapping[str, object]) -> str:
         lines.append(
             f"| `{row['leg_id']}` | {row['metric']} | "
             f"{row['baseline']['gate_status']} / "
-            f"{row['baseline']['raw_status']} / "
             f"{row['baseline']['band_status']} | "
             f"{_number(row['baseline']['ratio'])} | "
             f"{_number(baseline_distance)} | "
             f"{row['candidate']['gate_status']} / "
-            f"{row['candidate']['raw_status']} / "
             f"{row['candidate']['band_status']} | "
             f"{_number(row['candidate']['ratio'])} | "
             f"{_number(candidate_distance)} | {row['transition']} | "

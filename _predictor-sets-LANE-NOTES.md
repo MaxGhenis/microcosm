@@ -193,3 +193,38 @@ Branch baseline: `per-family-predictor-sets` at `f7173120`
   `14bf8d34ee355a745a7c6ebe83a38ce7307facbfa2bfbef7c190ba44f4d19177`.
   No on-chain row, network call, Modal work, stash, or `PROGRESS.md` edit was
   made.
+
+### Acceptance-gate execution-surface binding
+
+- The completed artifacts exposed a measurement-integrity issue before the
+  statistical run: their final simulated frames contain later PolicyEngine
+  investment leaves that were not present for the baseline early transfer.
+  Scoring those final leaves would leak a later execution surface into the
+  early OOS refit. The gate now strips that feature for every early family,
+  leaves it unavailable for the baseline, and reconstructs the candidate's
+  actually executed `INT_VAL + DIV_VAL + RNT_VAL` person source (plus the
+  production SPM aggregation) before resolving the declared predictor order.
+- The gate authenticates each arm's stacked authority and gap-fill plan,
+  simulated operational-receipt/checkpoint binding, both early target-bank
+  identities, and every target checkpoint's path, size, SHA-256, HDF schema,
+  content/raw-draw hashes, descriptor, QRF state, and complete predictor
+  surface. The baseline and candidate each validate all 48 early targets.
+  Sidecar receipts are
+  `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1/populace_us_2024_stacked_pool.checkpoints/stacked/9be8ecdf82356f38998e8b620ee36d9134f554fe89a8eafd8406f438e2b5aad6/simulated.checkpoint.receipts.json`
+  (SHA-256
+  `cb9ed4abb7586b6128f6aeefc9a4923e7e5934844bc3bd56e458299ac28e8c27`)
+  and the corresponding candidate sidecar under stacked identity
+  `5c1c042b4b9e65e9a4114d2c3c850ebdda0933dd48cf5dfa97212164bc4b7305`
+  (SHA-256
+  `fb4033a5944034eccf7948a0e690f21774f5d207da8a449db6c948bb85c513e5`).
+- Further fail-closed review requires identical unique held-out donor-id sets,
+  validates the battery metric/status vocabulary before classification, and
+  partitions all 77 generic-numeric changed targets explicitly into 74
+  currency-USD targets and the three hour/hour/week targets excluded from
+  clause B. Clause-A progress is JSON-safe when a baseline starts in band.
+- The primary-session real preflight authenticated 32 families, 118 targets,
+  211 battery legs, 16 participation legs, and all 96 early target files. The
+  strengthened fixture-scale contract suite passes all **18 tests**; Ruff,
+  format, compilation, `git diff --check`, and an independent semantic audit
+  are green. The statistical fits have not yet run, and no gate threshold,
+  band, seed, fold, or forest parameter changed.
