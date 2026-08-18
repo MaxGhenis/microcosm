@@ -110,3 +110,8 @@ that owns each arm.
   leakage, structural completion, restoration, fitted-pattern coverage, and
   already-complete opted targets. Repository-wide Ruff, `git diff --check`, and
   the copied gate's `--help` import smoke also passed.
+- Pre-build full-suite receipt on implementation commit `42a8c06c`: 6,255
+  passed and 68 skipped (6,323 collected), with zero failures/errors in
+  1,495.453 seconds. The machine-readable pytest receipt was written to
+  `/private/tmp/arm-investment-full-suite.xml`; this journal-only follow-up does
+  not change the tested runtime.
