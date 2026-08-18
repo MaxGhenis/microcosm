@@ -38,8 +38,8 @@ predictor_sets:
     - interest_dividend_rental_income
     - is_household_head
     - tenure_code
-    note: ONE shared tuple for every ACS gap-fill family, money and boolean alike; missingness handled
-      by availability-pattern partition (one fit per observed-predictor pattern)
+    note: shared late-transfer tuple, money and boolean alike; missingness handled by availability-pattern
+      partition (one fit per observed-predictor pattern)
   acs_group_transfer:
     required:
     - person_count
@@ -47,12 +47,66 @@ predictor_sets:
     - female_count
     - state_fips
     optional:
-    - group_employment_income
-    - group_self_employment_income
-    - group_social_security_income
-    - group_retirement_income
-    - group_interest_dividend_rental_income
-    - group_is_household_head
+    - group_employment_income_sum
+    - group_self_employment_income_sum
+    - group_social_security_income_sum
+    - group_retirement_income_sum
+    - group_investment_income_sum
+    - group_head_count
+    - group_tenure_code
+  acs_person_transfer_early_baseline:
+    required:
+    - age
+    - is_female
+    - state_fips
+    optional:
+    - employment_income
+    - self_employment_income
+    - social_security_income
+    - retirement_income
+    - is_household_head
+    - tenure_code
+    note: realized pre-clone baseline surface; the unavailable investment feature is omitted
+  acs_person_transfer_early_investment:
+    required:
+    - age
+    - is_female
+    - state_fips
+    optional:
+    - employment_income
+    - self_employment_income
+    - social_security_income
+    - retirement_income
+    - interest_dividend_rental_income
+    - is_household_head
+    - tenure_code
+    note: investment is complete only in the authority-bound early modeling view and remains optional in its historical slot
+  acs_person_transfer_housing_early_investment:
+    required:
+    - age
+    - is_female
+    - state_fips
+    - is_household_head
+    - tenure_code
+    optional:
+    - employment_income
+    - self_employment_income
+    - social_security_income
+    - retirement_income
+    - interest_dividend_rental_income
+  acs_group_transfer_early_investment:
+    required:
+    - person_count
+    - age_sum
+    - female_count
+    - state_fips
+    optional:
+    - group_employment_income_sum
+    - group_self_employment_income_sum
+    - group_social_security_income_sum
+    - group_retirement_income_sum
+    - group_investment_income_sum
+    - group_head_count
     - group_tenure_code
   puf_tax_detail:
     required:
@@ -66,6 +120,37 @@ predictor_sets:
     - puf_predictor_long_term_capital_gains
     optional: []
     note: tax-return-shaped; no age, state, marital status, or children
+predictor_availability_policies:
+  acs_pums_investment_age_15_plus_early_modeling_view:
+    clone_index: 0
+    donor_fallback_components:
+    - INT_VAL
+    - DIV_VAL
+    - RNT_VAL
+    donor_preferred_components:
+    - taxable_interest_income
+    - tax_exempt_interest_income
+    - qualified_dividend_income
+    - non_qualified_dividend_income
+    - rental_income
+    - estate_income
+    donor_source_precedence: complete_policyengine_components_else_complete_numeric_fallback
+    group_aggregation: existing_all_members_complete_sum
+    group_predictor: __acs_transfer_group_investment_income_sum
+    in_universe_requirement: age_gte_15_raw_and_mapped_finite
+    mapped_source_column: acs_interest_dividend_rental_income
+    mapped_source_persistence: early_modeling_view_only
+    minimum_age: 15
+    modeling_value: 0.0
+    person_predictor: __acs_transfer_interest_dividend_rental_income
+    policy_id: acs_pums_investment_age_15_plus_early_modeling_view
+    raw_source_column: INTP
+    raw_source_persistence: untouched
+    recipient_channel: acs
+    restoration: restore_full_native_mapped_series_after_each_direction
+    sha256: 28ecfb5d648c97d7c4753113ebd5134aaacacad00647ab3b93b7072c38131a33
+    structural_selection: recipient_channel_and_clone_0_and_age_lt_15_and_raw_and_mapped_blank
+    version: 1
 imputed_families:
 - id: gap_fill/asec_survey_to_acs/person/puf_tax_itemization
   stage: early_gap_fill
@@ -74,7 +159,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: puf_tax_itemization
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_early_baseline
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -100,7 +185,8 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: model_required_numeric
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -118,7 +204,8 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: model_required_boolean
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -142,7 +229,8 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: model_required_discrete
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -154,7 +242,8 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: source_operator_cps_carried
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -166,7 +255,8 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: source_operator_hours_worked
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -178,7 +268,8 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: source_operator_prior_year_income
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -191,7 +282,8 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: source_operator_relationship_inputs
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -204,7 +296,8 @@ imputed_families:
   recipient_channel: acs
   entity: spm_unit
   family: benefit_participation
-  predictor_set: acs_group_transfer
+  predictor_set: acs_group_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -216,7 +309,8 @@ imputed_families:
   recipient_channel: acs
   entity: spm_unit
   family: model_required_boolean
-  predictor_set: acs_group_transfer
+  predictor_set: acs_group_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -229,7 +323,8 @@ imputed_families:
   recipient_channel: acs
   entity: spm_unit
   family: model_required_numeric
-  predictor_set: acs_group_transfer
+  predictor_set: acs_group_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -241,7 +336,8 @@ imputed_families:
   recipient_channel: acs
   entity: spm_unit
   family: source_operator_housing_inputs
-  predictor_set: acs_group_transfer
+  predictor_set: acs_group_transfer_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -253,7 +349,8 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: housing
-  predictor_set: acs_person_transfer
+  predictor_set: acs_person_transfer_housing_early_investment
+  predictor_availability_policy: acs_pums_investment_age_15_plus_early_modeling_view
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:
@@ -263,7 +360,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: adult_care
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - is_incapable_of_self_care
@@ -273,7 +370,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: model_required_boolean
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - is_pregnant
@@ -282,7 +379,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_1
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - tax_exempt_interest_income
@@ -298,7 +395,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_2
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - investment_interest_expense
@@ -314,7 +411,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_3
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - self_employed_pension_contributions_desired
@@ -330,7 +427,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_4
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - farm_rent_income_would_be_qualified
@@ -346,7 +443,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: puf_tax_itemization__batch_5
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - sstb_self_employment_income_before_lsr
@@ -359,7 +456,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_child_support
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - child_support_expense
@@ -369,7 +466,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_disability_benefits
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - disability_benefits
@@ -378,7 +475,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_education_inputs
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - attends_eligible_educational_institution_for_american_opportunity_credit
@@ -392,7 +489,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_immigration
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - ssn_card_type
@@ -402,7 +499,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_medicare_take_up
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - takes_up_medicare_if_eligible
@@ -411,7 +508,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_retirement_contributions
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - roth_401k_contributions_desired
@@ -422,7 +519,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_retirement_distributions
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - keogh_distributions
@@ -435,7 +532,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_weeks_unemployed
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - weeks_unemployed
@@ -444,7 +541,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_wic_claim
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - would_claim_wic
@@ -453,7 +550,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: person
   family: source_operator_workers_compensation
-  predictor_set: puf_tax_detail
+  predictor_set: acs_person_transfer
   model: regime_gated_qrf
   targets:
   - workers_compensation
@@ -462,7 +559,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: tax_unit
   family: puf_tax_itemization
-  predictor_set: puf_tax_detail
+  predictor_set: acs_group_transfer
   model: regime_gated_qrf
   targets:
   - domestic_production_ald
@@ -476,7 +573,7 @@ imputed_families:
   donor: 'asec origin clone, declared per group (adult_care -> clone 0 per #675; others clone 1)'
   entity: spm_unit
   family: source_operator_energy_subsidy
-  predictor_set: puf_tax_detail
+  predictor_set: acs_group_transfer
   model: regime_gated_qrf
   targets:
   - spm_unit_energy_subsidy
@@ -1672,7 +1769,7 @@ computed_producers:
   - bond_assets
   - stock_assets
 known_gaps:
-- 'participation booleans (CHAMPVA, TRICARE, VA, IHS, Medicaid, WIC, ...) share acs_person_transfer: no
+- 'participation booleans (CHAMPVA, TRICARE, VA, IHS, Medicaid, WIC, ...) share acs_person_transfer_early_investment: no
   veteran/VA, disability, own-coverage, or eligibility predictors'
 - money families see no marital status, household size, family structure, PUMA, property tax, education,
   hours/weeks, class of worker

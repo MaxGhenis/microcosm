@@ -44,7 +44,7 @@ import struct
 import sys
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from importlib.resources import files
 from pathlib import Path
 from types import MappingProxyType
@@ -90,9 +90,13 @@ from microcosm.build.us_runtime.acs_income_universe import (
 from microcosm.build.us_runtime.acs_transfer import (
     ASEC_PUF_DONOR_SPINE,
     DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT,
+    AcsPredictorSet,
     AcsTransferResult,
     AcsTransferTargetBank,
+    PredictorSets,
     TargetFamilies,
+    _legacy_predictor_set,
+    declared_acs_transfer_predictor_sets,
     transfer_acs_inputs,
 )
 from microcosm.build.us_runtime.late_producer_dag import (
@@ -230,6 +234,7 @@ __all__ = [
     "AbsenceProof",
     "GapFillAbsenceRule",
     "GapFillDirection",
+    "GapFillPredictorAvailabilityPolicy",
     "GapFillResult",
     "OriginBatterySpec",
     "StackedPufPassResult",
@@ -239,6 +244,7 @@ __all__ = [
     "assemble_stacked_spine",
     "assert_stacked_tail_cells_preserved",
     "by_origin_battery",
+    "declared_stacked_post_puf_predictor_sets",
     "gap_fill_stacked_spine",
     "run_stacked_puf_pass",
     "run_stacked_late_producer_dag",
@@ -1688,11 +1694,12 @@ _GAP_FILL_ASEC_TO_ACS = "asec_survey_to_acs"
 _GAP_FILL_ASEC_HOUSING_TO_ACS = "asec_housing_to_acs"
 _GAP_FILL_HOUSING_FAMILY = "housing"
 _STACKED_AUTHORITY_ID = "us_stacked_spine_authority"
-# v10 binds the primary-PUF whole-pool output-universe declaration. v9 bound
-# the content-hashed execution/transition-authority schema in addition to the
-# import-validated producer/input DAG. Version 8 named the graph but did not
+# v11 binds the per-family gap-fill predictor declarations. v10 bound the
+# primary-PUF whole-pool output-universe declaration. v9 bound the content-
+# hashed execution/transition-authority schema in addition to the import-
+# validated producer/input DAG. Version 8 named the graph but did not
 # authenticate its live input/output transition.
-_STACKED_AUTHORITY_VERSION = 10
+_STACKED_AUTHORITY_VERSION = 11
 _CANONICAL_AUTHORITY_FORM = "CANONICAL"
 _NONCANONICAL_AUTHORITY_FORM = "NON-CANONICAL"
 _PRE_CLONE_PREPARATION_STAGE = "prepare_multispine_source_inputs_for_clone"
@@ -1731,6 +1738,186 @@ def _freeze_target_families(target_families: TargetFamilies) -> TargetFamilies:
             frozen_families[family] = frozen_targets
         frozen_entities[entity] = MappingProxyType(frozen_families)
     return MappingProxyType(frozen_entities)
+
+
+def _freeze_predictor_sets(
+    predictor_sets: PredictorSets,
+    *,
+    target_families: TargetFamilies,
+) -> PredictorSets:
+    """Validate and recursively freeze one predictor set per family."""
+
+    if not isinstance(predictor_sets, Mapping):
+        raise TypeError("Predictor sets must be a mapping.")
+    expected = {
+        (entity, family)
+        for entity, families in target_families.items()
+        for family in families
+    }
+    observed: set[tuple[str, str]] = set()
+    frozen_entities: dict[str, Mapping[str, AcsPredictorSet]] = {}
+    for entity, families in predictor_sets.items():
+        if not isinstance(entity, str) or not entity.strip():
+            raise ValueError("Predictor-set entity names must be non-empty strings.")
+        if not isinstance(families, Mapping):
+            raise TypeError(f"Predictor sets for {entity!r} must be a mapping.")
+        frozen_families: dict[str, AcsPredictorSet] = {}
+        for family, predictor_set in families.items():
+            if not isinstance(family, str) or not family.strip():
+                raise ValueError("Predictor-set family names must be non-empty strings.")
+            if not isinstance(predictor_set, AcsPredictorSet):
+                raise TypeError(
+                    f"Predictor set {entity}/{family} must be an AcsPredictorSet."
+                )
+            observed.add((entity, family))
+            frozen_families[family] = predictor_set
+        frozen_entities[entity] = MappingProxyType(frozen_families)
+    if observed != expected:
+        raise ValueError(
+            "Predictor sets must declare exactly the target families; "
+            f"missing={sorted(expected - observed)}, extra={sorted(observed - expected)}."
+        )
+    return MappingProxyType(frozen_entities)
+
+
+@dataclass(frozen=True)
+class GapFillPredictorAvailabilityPolicy:
+    """One authority-bound, modeling-view-only predictor completion rule."""
+
+    policy_id: str
+    version: int
+    person_predictor: str
+    group_predictor: str
+    recipient_channel: str
+    clone_index: int
+    raw_source_column: str
+    mapped_source_column: str
+    minimum_age: int
+    modeling_value: float
+    structural_selection: str
+    in_universe_requirement: str
+    raw_source_persistence: str
+    mapped_source_persistence: str
+    restoration: str
+    donor_preferred_components: tuple[str, ...]
+    donor_fallback_components: tuple[str, ...]
+    donor_source_precedence: str
+    group_aggregation: str
+
+    def __post_init__(self) -> None:
+        for label in (
+            "policy_id",
+            "person_predictor",
+            "group_predictor",
+            "recipient_channel",
+            "raw_source_column",
+            "mapped_source_column",
+            "structural_selection",
+            "in_universe_requirement",
+            "raw_source_persistence",
+            "mapped_source_persistence",
+            "restoration",
+            "donor_source_precedence",
+            "group_aggregation",
+        ):
+            value = getattr(self, label)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"GapFillPredictorAvailabilityPolicy.{label} must be a "
+                    "non-empty string."
+                )
+        if (
+            not isinstance(self.version, int)
+            or isinstance(self.version, bool)
+            or self.version <= 0
+        ):
+            raise ValueError("Predictor availability policy version must be positive.")
+        if (
+            not isinstance(self.clone_index, int)
+            or isinstance(self.clone_index, bool)
+            or self.clone_index < 0
+        ):
+            raise ValueError("Predictor availability clone index must be non-negative.")
+        if (
+            not isinstance(self.minimum_age, int)
+            or isinstance(self.minimum_age, bool)
+            or self.minimum_age <= 0
+        ):
+            raise ValueError("Predictor availability minimum age must be positive.")
+        if not np.isfinite(float(self.modeling_value)):
+            raise ValueError("Predictor availability modeling value must be finite.")
+        preferred = tuple(self.donor_preferred_components)
+        fallback = tuple(self.donor_fallback_components)
+        if not preferred or not fallback:
+            raise ValueError(
+                "Predictor availability policy requires preferred and fallback "
+                "donor components."
+            )
+        if len(set(preferred)) != len(preferred) or len(set(fallback)) != len(fallback):
+            raise ValueError("Predictor availability donor components must be unique.")
+        object.__setattr__(self, "donor_preferred_components", preferred)
+        object.__setattr__(self, "donor_fallback_components", fallback)
+
+    def identity(self) -> dict[str, object]:
+        """Return the complete JSON-ready authority payload for this policy."""
+
+        body: dict[str, object] = {
+            "policy_id": self.policy_id,
+            "version": self.version,
+            "person_predictor": self.person_predictor,
+            "group_predictor": self.group_predictor,
+            "recipient_channel": self.recipient_channel,
+            "clone_index": self.clone_index,
+            "raw_source_column": self.raw_source_column,
+            "mapped_source_column": self.mapped_source_column,
+            "minimum_age": self.minimum_age,
+            "modeling_value": self.modeling_value,
+            "structural_selection": self.structural_selection,
+            "in_universe_requirement": self.in_universe_requirement,
+            "raw_source_persistence": self.raw_source_persistence,
+            "mapped_source_persistence": self.mapped_source_persistence,
+            "restoration": self.restoration,
+            "donor_preferred_components": list(self.donor_preferred_components),
+            "donor_fallback_components": list(self.donor_fallback_components),
+            "donor_source_precedence": self.donor_source_precedence,
+            "group_aggregation": self.group_aggregation,
+        }
+        return {**body, "sha256": _canonical_sha256(body)}
+
+
+_INVESTMENT_AVAILABILITY_POLICY = GapFillPredictorAvailabilityPolicy(
+    policy_id="acs_pums_investment_age_15_plus_early_modeling_view",
+    version=1,
+    person_predictor=acs_transfer_runtime._INVESTMENT_FEATURE,
+    group_predictor=acs_transfer_runtime._GROUP_OPTIONAL_NAMES[
+        acs_transfer_runtime._INVESTMENT_FEATURE
+    ],
+    recipient_channel=ACS_STACKED_SUPPORT_CHANNEL,
+    clone_index=0,
+    raw_source_column="INTP",
+    mapped_source_column="acs_interest_dividend_rental_income",
+    minimum_age=15,
+    modeling_value=0.0,
+    structural_selection=(
+        "recipient_channel_and_clone_0_and_age_lt_15_and_raw_and_mapped_blank"
+    ),
+    in_universe_requirement="age_gte_15_raw_and_mapped_finite",
+    raw_source_persistence="untouched",
+    mapped_source_persistence="early_modeling_view_only",
+    restoration="restore_full_native_mapped_series_after_each_direction",
+    donor_preferred_components=acs_transfer_runtime._DONOR_COMBINED_COMPONENTS[
+        acs_transfer_runtime._INVESTMENT_FEATURE
+    ],
+    donor_fallback_components=(
+        acs_transfer_runtime._DONOR_COMBINED_FALLBACK_COMPONENTS[
+            acs_transfer_runtime._INVESTMENT_FEATURE
+        ]
+    ),
+    donor_source_precedence=(
+        "complete_policyengine_components_else_complete_numeric_fallback"
+    ),
+    group_aggregation="existing_all_members_complete_sum",
+)
 
 
 @dataclass(frozen=True)
@@ -1774,6 +1961,10 @@ class GapFillDirection:
     recipient_channel: str
     donor_channel: str
     target_families: TargetFamilies
+    predictor_sets: PredictorSets | None = None
+    predictor_availability_policies: tuple[
+        GapFillPredictorAvailabilityPolicy, ...
+    ] = ()
     recipient_absence_rules: tuple[GapFillAbsenceRule, ...] = ()
 
     def __post_init__(self) -> None:
@@ -1802,6 +1993,67 @@ class GapFillDirection:
             "target_families",
             _freeze_target_families(self.target_families),
         )
+        resolved_predictor_sets = (
+            declared_acs_transfer_predictor_sets(self.target_families)
+            if self.predictor_sets is None
+            else self.predictor_sets
+        )
+        object.__setattr__(
+            self,
+            "predictor_sets",
+            _freeze_predictor_sets(
+                resolved_predictor_sets,
+                target_families=self.target_families,
+            ),
+        )
+        policies = tuple(self.predictor_availability_policies)
+        if any(
+            not isinstance(policy, GapFillPredictorAvailabilityPolicy)
+            for policy in policies
+        ):
+            raise TypeError(
+                "GapFillDirection predictor_availability_policies require "
+                "GapFillPredictorAvailabilityPolicy values."
+            )
+        policy_ids = [policy.policy_id for policy in policies]
+        if len(set(policy_ids)) != len(policy_ids):
+            raise ValueError(
+                f"GapFillDirection {self.name!r} repeats predictor availability "
+                f"policy IDs: {policy_ids}."
+            )
+        selected_predictors = {
+            predictor
+            for families in self.predictor_sets.values()
+            for predictor_set in families.values()
+            for predictor in (*predictor_set.required, *predictor_set.optional)
+        }
+        target_names = {
+            target
+            for families in self.target_families.values()
+            for targets in families.values()
+            for target in targets
+        }
+        for policy in policies:
+            if policy.recipient_channel != self.recipient_channel:
+                raise ValueError(
+                    f"Gap-fill policy {policy.policy_id!r} recipient channel "
+                    f"{policy.recipient_channel!r} differs from direction "
+                    f"{self.recipient_channel!r}."
+                )
+            if not {
+                policy.person_predictor,
+                policy.group_predictor,
+            }.intersection(selected_predictors):
+                raise ValueError(
+                    f"Gap-fill policy {policy.policy_id!r} does not govern a "
+                    "selected direction predictor."
+                )
+            if policy.mapped_source_column in target_names:
+                raise ValueError(
+                    f"Gap-fill policy {policy.policy_id!r} cannot restore target "
+                    f"column {policy.mapped_source_column!r}."
+                )
+        object.__setattr__(self, "predictor_availability_policies", policies)
         rules = tuple(self.recipient_absence_rules)
         if any(not isinstance(rule, GapFillAbsenceRule) for rule in rules):
             raise TypeError(
@@ -1873,6 +2125,10 @@ def _build_stacked_gap_fill_plan(
                 recipient_channel=ACS_STACKED_SUPPORT_CHANNEL,
                 donor_channel=BASE_ASEC_SUPPORT_CHANNEL,
                 target_families=survey_families,
+                predictor_sets=declared_acs_transfer_predictor_sets(survey_families),
+                predictor_availability_policies=(
+                    _INVESTMENT_AVAILABILITY_POLICY,
+                ),
             )
         )
     if housing_families:
@@ -1882,6 +2138,10 @@ def _build_stacked_gap_fill_plan(
                 recipient_channel=ACS_STACKED_SUPPORT_CHANNEL,
                 donor_channel=BASE_ASEC_SUPPORT_CHANNEL,
                 target_families=housing_families,
+                predictor_sets=declared_acs_transfer_predictor_sets(housing_families),
+                predictor_availability_policies=(
+                    _INVESTMENT_AVAILABILITY_POLICY,
+                ),
                 recipient_absence_rules=(
                     GapFillAbsenceRule(
                         rule_id=_ACS_GQ_RENT_ABSENCE_RULE_ID,
@@ -2148,6 +2408,20 @@ def _plan_payload(plan: Sequence[GapFillDirection]) -> list[dict[str, object]]:
             "recipient_channel": direction.recipient_channel,
             "donor_channel": direction.donor_channel,
             "target_families": _surface_payload(direction.target_families),
+            "predictor_sets": {
+                entity: {
+                    family: {
+                        "required": list(predictor_set.required),
+                        "optional": list(predictor_set.optional),
+                    }
+                    for family, predictor_set in families.items()
+                }
+                for entity, families in direction.predictor_sets.items()
+            },
+            "predictor_availability_policies": [
+                policy.identity()
+                for policy in direction.predictor_availability_policies
+            ],
             "recipient_absence_rules": [
                 {
                     "rule_id": rule.rule_id,
@@ -7578,6 +7852,447 @@ def _gap_fill_stacked_spine_with_test_authority(
     )
 
 
+@dataclass(frozen=True)
+class _GapFillPredictorAvailabilityApplication:
+    """One modeling view plus the native cells required for restoration."""
+
+    frame: Frame
+    policy: GapFillPredictorAvailabilityPolicy
+    native_mapped: pd.Series
+    raw_before_sha256: str
+    mapped_before_sha256: str
+    modeling_mapped_sha256: str
+    receipt: Mapping[str, object]
+
+
+def _series_values_sha256(series: pd.Series, *, column: str) -> str:
+    """Hash one indexed series with the runtime's typed, null-aware codec."""
+
+    return _late_table_values_sha256(series.rename(column).to_frame())
+
+
+def _investment_group_completeness(
+    frame: Frame,
+    *,
+    entity: str,
+    policy: GapFillPredictorAvailabilityPolicy,
+) -> dict[str, int]:
+    """Count complete recipient investment aggregates at one group grain."""
+
+    table = frame.table(entity)
+    channel_column = support_channel_column(entity)
+    if channel_column not in table.columns:
+        raise ValueError(
+            f"Gap-fill investment availability cannot scope {entity!r}; "
+            f"missing {channel_column!r}."
+        )
+    person_features = acs_transfer_runtime._person_optional_features(
+        frame,
+        role="recipient",
+    )
+    if policy.person_predictor not in person_features.columns:
+        raise ValueError(
+            "Gap-fill investment availability could not materialize the "
+            f"person predictor {policy.person_predictor!r}."
+        )
+    grouped = acs_transfer_runtime._aggregate_optional_to_group(
+        frame,
+        entity=entity,
+        person_features=person_features.loc[:, [policy.person_predictor]],
+    )
+    scoped = table[channel_column].astype(str).eq(policy.recipient_channel)
+    values = pd.to_numeric(grouped[policy.group_predictor], errors="coerce")
+    finite = pd.Series(
+        np.isfinite(values.to_numpy(dtype=np.float64)),
+        index=table.index,
+    )
+    return {
+        "scoped_groups": int(scoped.sum()),
+        "complete_groups": int((scoped & finite).sum()),
+        "incomplete_groups": int((scoped & ~finite).sum()),
+    }
+
+
+def _apply_gap_fill_predictor_availability_policy(
+    frame: Frame,
+    *,
+    direction: GapFillDirection,
+    policy: GapFillPredictorAvailabilityPolicy,
+) -> _GapFillPredictorAvailabilityApplication:
+    """Create the deterministic ACS-under-15 investment modeling view."""
+
+    if policy.policy_id != _INVESTMENT_AVAILABILITY_POLICY.policy_id or (
+        policy.identity() != _INVESTMENT_AVAILABILITY_POLICY.identity()
+    ):
+        raise ValueError(
+            f"Gap-fill direction {direction.name!r} declares unsupported "
+            f"predictor availability policy {policy.policy_id!r}."
+        )
+
+    person = frame.table("person")
+    channel_column = support_channel_column("person")
+    clone_column = support_clone_index_column("person")
+    source_id_column = support_source_id_column("person")
+    required = {
+        "person_id",
+        "age",
+        channel_column,
+        clone_column,
+        source_id_column,
+        policy.raw_source_column,
+        policy.mapped_source_column,
+    }
+    missing = sorted(required - set(person.columns))
+    if missing:
+        raise ValueError(
+            f"Gap-fill investment availability for {direction.name!r} is "
+            f"missing person column(s): {missing}."
+        )
+
+    channel = person[channel_column].astype(str)
+    recipient = channel.eq(policy.recipient_channel)
+    clone = pd.to_numeric(person[clone_column], errors="coerce")
+    clone_values = clone.to_numpy(dtype=np.float64)
+    invalid_clone = recipient & (
+        ~np.isfinite(clone_values) | ~clone.eq(float(policy.clone_index))
+    )
+    if invalid_clone.any():
+        raise ValueError(
+            f"Gap-fill investment availability for {direction.name!r} found "
+            f"{int(invalid_clone.sum())} recipient row(s) outside clone "
+            f"{policy.clone_index}."
+        )
+    scope = recipient & clone.eq(float(policy.clone_index))
+    if not scope.any():
+        raise ValueError(
+            f"Gap-fill investment availability for {direction.name!r} has no "
+            "scoped recipient rows."
+        )
+
+    age = pd.to_numeric(person["age"], errors="coerce")
+    age_values = age.to_numpy(dtype=np.float64)
+    invalid_age = scope & ~np.isfinite(age_values)
+    if invalid_age.any():
+        raise ValueError(
+            f"Gap-fill investment availability for {direction.name!r} found "
+            f"{int(invalid_age.sum())} missing or nonfinite age value(s)."
+        )
+    structural = scope & age.lt(policy.minimum_age)
+    in_universe = scope & ~structural
+
+    raw = person[policy.raw_source_column]
+    mapped = person[policy.mapped_source_column]
+    raw_numeric = pd.to_numeric(raw, errors="coerce")
+    mapped_numeric = pd.to_numeric(mapped, errors="coerce")
+    raw_values = raw_numeric.to_numpy(dtype=np.float64)
+    mapped_values = mapped_numeric.to_numpy(dtype=np.float64)
+    raw_invalid_numeric = scope & raw.notna() & raw_numeric.isna()
+    mapped_invalid_numeric = scope & mapped.notna() & mapped_numeric.isna()
+    raw_infinite = scope & np.isinf(raw_values)
+    mapped_infinite = scope & np.isinf(mapped_values)
+    structural_raw_nonblank = structural & raw.notna()
+    structural_mapped_nonblank = structural & mapped.notna()
+    in_universe_raw_nonfinite = in_universe & ~np.isfinite(raw_values)
+    in_universe_mapped_nonfinite = in_universe & ~np.isfinite(mapped_values)
+    failures = {
+        "raw_nonnumeric_rows": int(raw_invalid_numeric.sum()),
+        "mapped_nonnumeric_rows": int(mapped_invalid_numeric.sum()),
+        "raw_infinite_rows": int(raw_infinite.sum()),
+        "mapped_infinite_rows": int(mapped_infinite.sum()),
+        "structural_raw_nonblank_rows": int(structural_raw_nonblank.sum()),
+        "structural_mapped_nonblank_rows": int(structural_mapped_nonblank.sum()),
+        "in_universe_raw_nonfinite_rows": int(in_universe_raw_nonfinite.sum()),
+        "in_universe_mapped_nonfinite_rows": int(
+            in_universe_mapped_nonfinite.sum()
+        ),
+    }
+    if any(failures.values()):
+        raise ValueError(
+            f"Gap-fill investment availability for {direction.name!r} violates "
+            f"its declared ACS source universe: {failures}."
+        )
+
+    group_entities = sorted(
+        entity
+        for entity, families in direction.predictor_sets.items()
+        if any(
+            policy.group_predictor
+            in (*predictor_set.required, *predictor_set.optional)
+            for predictor_set in families.values()
+        )
+    )
+    groups_before = {
+        entity: _investment_group_completeness(
+            frame,
+            entity=entity,
+            policy=policy,
+        )
+        for entity in group_entities
+    }
+
+    raw_before_sha256 = _series_values_sha256(
+        raw,
+        column=policy.raw_source_column,
+    )
+    mapped_before_sha256 = _series_values_sha256(
+        mapped,
+        column=policy.mapped_source_column,
+    )
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    output_person = person.copy()
+    output_person.loc[structural, policy.mapped_source_column] = policy.modeling_value
+    tables["person"] = output_person
+    modeling = Frame(
+        tables,
+        frame.schema,
+        {
+            entity: frame.weights_for(entity)
+            for entity in frame.weighted_entities
+        },
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    modeling_person = modeling.table("person")
+    raw_modeling_sha256 = _series_values_sha256(
+        modeling_person[policy.raw_source_column],
+        column=policy.raw_source_column,
+    )
+    modeling_mapped_sha256 = _series_values_sha256(
+        modeling_person[policy.mapped_source_column],
+        column=policy.mapped_source_column,
+    )
+    if raw_modeling_sha256 != raw_before_sha256:
+        raise ValueError(
+            f"Gap-fill investment availability for {direction.name!r} changed "
+            "the raw INTP source."
+        )
+    modeled_structural = pd.to_numeric(
+        modeling_person.loc[structural, policy.mapped_source_column],
+        errors="coerce",
+    )
+    if not modeled_structural.eq(policy.modeling_value).all():
+        raise ValueError(
+            f"Gap-fill investment availability for {direction.name!r} failed "
+            "to complete every structural mapped cell."
+        )
+    groups_modeling = {
+        entity: _investment_group_completeness(
+            modeling,
+            entity=entity,
+            policy=policy,
+        )
+        for entity in group_entities
+    }
+    incomplete_groups = {
+        entity: counts["incomplete_groups"]
+        for entity, counts in groups_modeling.items()
+        if counts["incomplete_groups"]
+    }
+    if incomplete_groups:
+        raise ValueError(
+            f"Gap-fill investment availability for {direction.name!r} leaves "
+            f"incomplete opted group predictor(s): {incomplete_groups}."
+        )
+
+    lineage_columns = ["person_id", source_id_column]
+    receipt: dict[str, object] = {
+        "policy": policy.identity(),
+        "status": "early_modeling_view_applied",
+        "scoped_person_rows": int(scope.sum()),
+        "structural_person_rows": int(structural.sum()),
+        "in_universe_person_rows": int(in_universe.sum()),
+        "structural_lineages_sha256": _late_table_values_sha256(
+            person.loc[structural, lineage_columns]
+        ),
+        "raw_before_sha256": raw_before_sha256,
+        "raw_modeling_sha256": raw_modeling_sha256,
+        "mapped_before_sha256": mapped_before_sha256,
+        "mapped_modeling_sha256": modeling_mapped_sha256,
+        "groups_before": groups_before,
+        "groups_modeling": groups_modeling,
+        "failures": failures,
+    }
+    return _GapFillPredictorAvailabilityApplication(
+        frame=modeling,
+        policy=policy,
+        native_mapped=mapped.copy(deep=True),
+        raw_before_sha256=raw_before_sha256,
+        mapped_before_sha256=mapped_before_sha256,
+        modeling_mapped_sha256=modeling_mapped_sha256,
+        receipt=MappingProxyType(receipt),
+    )
+
+
+def _investment_pattern_coverage(
+    *,
+    direction: GapFillDirection,
+    policy: GapFillPredictorAvailabilityPolicy,
+    result: AcsTransferResult,
+    pre_counts: Mapping[tuple[str, str], Mapping[str, int]],
+) -> dict[str, object]:
+    """Prove every fitted target pattern carries its opted investment feature."""
+
+    expected: dict[tuple[str, str], tuple[str, str]] = {}
+    for entity, families in direction.target_families.items():
+        for family, targets in families.items():
+            predictor_set = direction.predictor_sets[entity][family]
+            selected = (*predictor_set.required, *predictor_set.optional)
+            predictor = (
+                policy.person_predictor
+                if entity == "person"
+                else policy.group_predictor
+            )
+            if predictor not in selected:
+                continue
+            for target in targets:
+                if pre_counts[(entity, target)]["authorized_null_rows"] == 0:
+                    continue
+                expected[(entity, target)] = (family, predictor)
+
+    records = {}
+    for record in result.imputed_inputs:
+        key = (record.entity, record.column)
+        if key in expected:
+            if key in records:
+                raise ValueError(
+                    f"Gap-fill investment pattern receipt repeats target {key}."
+                )
+            records[key] = record
+    missing_records = sorted(set(expected) - set(records))
+    if missing_records:
+        raise ValueError(
+            f"Gap-fill investment policy {policy.policy_id!r} has no fit receipt "
+            f"for opted target(s): {missing_records}."
+        )
+
+    family_rows: dict[str, dict[str, object]] = {}
+    total_patterns = 0
+    for (entity, target), record in sorted(records.items()):
+        family, predictor = expected[(entity, target)]
+        patterns = tuple(record.patterns)
+        if not patterns:
+            raise ValueError(
+                f"Gap-fill investment policy {policy.policy_id!r} target "
+                f"{entity}/{target} has no availability-pattern receipt."
+            )
+        missing_patterns = [
+            pattern.name
+            for pattern in patterns
+            if predictor not in pattern.predictors
+        ]
+        if missing_patterns:
+            raise ValueError(
+                f"Gap-fill investment policy {policy.policy_id!r} target "
+                f"{entity}/{target} omitted {predictor!r} from pattern(s) "
+                f"{missing_patterns}."
+            )
+        label = f"{entity}/{family}"
+        row = family_rows.setdefault(
+            label,
+            {
+                "entity": entity,
+                "family": family,
+                "predictor": predictor,
+                "targets": [],
+                "pattern_count": 0,
+            },
+        )
+        row["targets"].append(target)
+        row["pattern_count"] += len(patterns)
+        total_patterns += len(patterns)
+
+    return {
+        "expected_target_count": len(expected),
+        "fit_target_count": len(records),
+        "pattern_count": total_patterns,
+        "all_patterns_include_predictor": True,
+        "families": family_rows,
+    }
+
+
+def _restore_gap_fill_predictor_availability_policy(
+    result: AcsTransferResult,
+    *,
+    direction: GapFillDirection,
+    application: _GapFillPredictorAvailabilityApplication,
+    pre_counts: Mapping[tuple[str, str], Mapping[str, int]],
+) -> tuple[AcsTransferResult, dict[str, object]]:
+    """Restore native investment cells and finalize the policy receipt."""
+
+    policy = application.policy
+    result_person = result.frame.table("person")
+    raw_after_transfer_sha256 = _series_values_sha256(
+        result_person[policy.raw_source_column],
+        column=policy.raw_source_column,
+    )
+    mapped_after_transfer_sha256 = _series_values_sha256(
+        result_person[policy.mapped_source_column],
+        column=policy.mapped_source_column,
+    )
+    if raw_after_transfer_sha256 != application.raw_before_sha256:
+        raise ValueError(
+            f"Gap-fill investment policy {policy.policy_id!r} changed raw INTP "
+            "during transfer."
+        )
+    if mapped_after_transfer_sha256 != application.modeling_mapped_sha256:
+        raise ValueError(
+            f"Gap-fill investment policy {policy.policy_id!r} changed its "
+            "modeling-only mapped source during transfer."
+        )
+
+    tables = {entity: result.frame.table(entity) for entity in result.frame.entities}
+    restored_person = result_person.copy()
+    restored_person[policy.mapped_source_column] = application.native_mapped
+    tables["person"] = restored_person
+    restored_frame = Frame(
+        tables,
+        result.frame.schema,
+        {
+            entity: result.frame.weights_for(entity)
+            for entity in result.frame.weighted_entities
+        },
+        result.frame.strata,
+        mass_log=result.frame.mass_log,
+        metadata=result.frame.metadata,
+    )
+    restored_person = restored_frame.table("person")
+    raw_restored_sha256 = _series_values_sha256(
+        restored_person[policy.raw_source_column],
+        column=policy.raw_source_column,
+    )
+    mapped_restored_sha256 = _series_values_sha256(
+        restored_person[policy.mapped_source_column],
+        column=policy.mapped_source_column,
+    )
+    raw_untouched = raw_restored_sha256 == application.raw_before_sha256
+    mapped_restored = mapped_restored_sha256 == application.mapped_before_sha256
+    if not raw_untouched or not mapped_restored:
+        raise ValueError(
+            f"Gap-fill investment policy {policy.policy_id!r} failed native "
+            "source restoration."
+        )
+
+    restored_result = replace(result, frame=restored_frame)
+    receipt = dict(application.receipt)
+    receipt["pattern_coverage"] = _investment_pattern_coverage(
+        direction=direction,
+        policy=policy,
+        result=restored_result,
+        pre_counts=pre_counts,
+    )
+    receipt["restoration"] = {
+        "raw_after_transfer_sha256": raw_after_transfer_sha256,
+        "mapped_after_transfer_sha256": mapped_after_transfer_sha256,
+        "raw_restored_sha256": raw_restored_sha256,
+        "mapped_restored_sha256": mapped_restored_sha256,
+        "raw_untouched_byte_identical": raw_untouched,
+        "mapped_restored_byte_identical": mapped_restored,
+        "status": "native_sources_restored_before_next_direction",
+    }
+    return restored_result, receipt
+
+
 def _gap_fill_stacked_spine_evaluate(
     frame: Frame,
     *,
@@ -7660,7 +8375,19 @@ def _gap_fill_stacked_spine_evaluate(
             current,
             direction=direction,
         )
-        donor = _origin_projection(current, channel=direction.donor_channel)
+        modeling = current
+        availability_applications: list[
+            _GapFillPredictorAvailabilityApplication
+        ] = []
+        for policy in direction.predictor_availability_policies:
+            application = _apply_gap_fill_predictor_availability_policy(
+                modeling,
+                direction=direction,
+                policy=policy,
+            )
+            modeling = application.frame
+            availability_applications.append(application)
+        donor = _origin_projection(modeling, channel=direction.donor_channel)
         donor_snapshot = {
             entity: _direction_targets_snapshot(
                 current,
@@ -7671,24 +8398,42 @@ def _gap_fill_stacked_spine_evaluate(
             for entity, targets in _direction_entity_targets(direction).items()
         }
         result = transfer_acs_inputs(
-            current,
+            modeling,
             donor,
             target_families=direction.target_families,
+            predictor_sets=direction.predictor_sets,
             donor_channel=None,
             seed=seed,
             n_estimators=n_estimators,
             max_targets_per_fit=max_targets_per_fit,
             target_bank=(target_banks or {}).get(direction.name),
         )
+        availability_receipts: dict[str, object] = {}
+        for application in reversed(availability_applications):
+            result, policy_receipt = (
+                _restore_gap_fill_predictor_availability_policy(
+                    result,
+                    direction=direction,
+                    application=application,
+                    pre_counts=pre_counts,
+                )
+            )
+            availability_receipts[application.policy.policy_id] = policy_receipt
         transfer_results[direction.name] = result
         current = result.frame
-        receipts[direction.name] = _verify_gap_fill_outcome(
+        direction_receipt = _verify_gap_fill_outcome(
             current,
             direction=direction,
             pre_counts=pre_counts,
             donor_snapshot=donor_snapshot,
             result=result,
         )
+        if availability_receipts:
+            direction_receipt = {
+                **direction_receipt,
+                "predictor_availability": availability_receipts,
+            }
+        receipts[direction.name] = direction_receipt
 
     validate_stacked_spine_frame(current, boundary="stacked gap-fill output")
     return GapFillResult(
@@ -8195,6 +8940,20 @@ def _verify_gap_fill_outcome(
 # ---------------------------------------------------------------------------
 # Post-PUF transfer of outputs that do not exist at the early gap-fill stage
 # ---------------------------------------------------------------------------
+
+
+def declared_stacked_post_puf_predictor_sets(
+    target_families: TargetFamilies,
+) -> dict[str, dict[str, AcsPredictorSet]]:
+    """Describe the live baseline shared predictor tuple for late families."""
+
+    return {
+        entity: {
+            family: _legacy_predictor_set(entity=entity, targets=targets)
+            for family, targets in families.items()
+        }
+        for entity, families in target_families.items()
+    }
 
 
 @dataclass(frozen=True)

@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal, assert_series_equal
 
 import microcosm.build.us_runtime.acs_income_universe as universe_module
 import microcosm.build.us_runtime.acs_transfer as acs_transfer_module
@@ -39,7 +39,13 @@ from microcosm.build.serialization_dtypes import CANONICAL_STRING_DTYPE
 from microcosm.build.us_runtime.acs_income_universe import (
     apply_acs_pums_earnings_universe_zeros,
 )
-from microcosm.build.us_runtime.acs_transfer import AcsTransferResult
+from microcosm.build.us_runtime.acs_transfer import (
+    ACS_GROUP_TRANSFER_PREDICTORS,
+    ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
+    ACS_PERSON_TRANSFER_PREDICTORS,
+    AcsPredictorSet,
+    AcsTransferResult,
+)
 from microcosm.build.us_runtime.acs_transfer_bank import AcsTransferTargetBankStore
 from microcosm.build.us_runtime.late_producer_dag import (
     ProducerContract,
@@ -1626,6 +1632,32 @@ _CANONICAL_RENT_ABSENCE_RULE = GapFillAbsenceRule(
 )
 
 
+_TEST_PERSON_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_PERSON_TRANSFER_PREDICTORS,
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 4, 5, 6)
+    ),
+)
+_TEST_PUF_PERSON_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_PERSON_TRANSFER_PREDICTORS,
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 5, 6)
+    ),
+)
+_TEST_HOUSING_PREDICTOR_SET = AcsPredictorSet(
+    required=(
+        *ACS_PERSON_TRANSFER_PREDICTORS,
+        *ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[-2:],
+    ),
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 4)
+    ),
+)
+_TEST_GROUP_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_GROUP_TRANSFER_PREDICTORS,
+)
+
+
 _GAP_FILL_TEST_PLAN = (
     GapFillDirection(
         name="asec_survey_to_acs",
@@ -1637,12 +1669,19 @@ _GAP_FILL_TEST_PLAN = (
                 "model_required_boolean": ("is_disabled",),
             }
         },
+        predictor_sets={
+            "person": {
+                "model_required_numeric": _TEST_PERSON_PREDICTOR_SET,
+                "model_required_boolean": _TEST_PERSON_PREDICTOR_SET,
+            }
+        },
     ),
     GapFillDirection(
         name="asec_housing_to_acs",
         recipient_channel="acs",
         donor_channel="asec",
         target_families={"person": {"housing": ("pre_subsidy_rent",)}},
+        predictor_sets={"person": {"housing": _TEST_HOUSING_PREDICTOR_SET}},
         recipient_absence_rules=(_CANONICAL_RENT_ABSENCE_RULE,),
     ),
 )
@@ -2228,6 +2267,36 @@ def _stacked_gap_fixture() -> Frame:
     ).frame
 
 
+def _investment_availability_fixture() -> Frame:
+    """Add the reviewed ACS INTP age universe to the gap-fill fixture."""
+
+    frame = _stacked_gap_fixture()
+    person = frame.table("person").copy()
+    channel = person[support_channel_column("person")].astype(str)
+    acs_rows = person.index[channel.eq("acs")]
+    person["INTP"] = np.nan
+    person.loc[acs_rows, "INTP"] = person.loc[
+        acs_rows,
+        "acs_interest_dividend_rental_income",
+    ].to_numpy()
+    structural_rows = acs_rows[:2]
+    person.loc[structural_rows, "age"] = [10.0, 12.0]
+    person.loc[
+        structural_rows,
+        ["INTP", "acs_interest_dividend_rental_income"],
+    ] = np.nan
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    tables["person"] = person
+    return Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+
 def test_stacked_assembly_binds_native_acs_group_quarters_lineage() -> None:
     stacked = _stacked_gap_fixture()
     receipt = stacked.metadata[STACKED_SPINE_MANIFEST_KEY]["acs_native_group_quarters"]
@@ -2513,6 +2582,251 @@ def test_gap_fill_plan_covers_declared_families_exactly() -> None:
     }
     assert early_keys.isdisjoint(late_keys)
     assert early_keys | late_keys == full_keys
+
+
+def test_investment_availability_policy_is_bound_to_both_early_directions() -> None:
+    plan = stacked_gap_fill_plan()
+    identities = []
+    for direction in plan:
+        assert len(direction.predictor_availability_policies) == 1
+        policy = direction.predictor_availability_policies[0]
+        identity = policy.identity()
+        identities.append(identity)
+        assert identity["policy_id"] == (
+            "acs_pums_investment_age_15_plus_early_modeling_view"
+        )
+        assert identity["raw_source_column"] == "INTP"
+        assert identity["mapped_source_column"] == (
+            "acs_interest_dividend_rental_income"
+        )
+        assert identity["minimum_age"] == 15
+        assert identity["modeling_value"] == 0.0
+        assert identity["mapped_source_persistence"] == "early_modeling_view_only"
+        assert identity["donor_fallback_components"] == [
+            "INT_VAL",
+            "DIV_VAL",
+            "RNT_VAL",
+        ]
+        assert len(identity["sha256"]) == 64
+    assert identities[0] == identities[1]
+    payload = stacked_spine_module._plan_payload(plan)
+    assert [row["predictor_availability_policies"] for row in payload] == [
+        [identities[0]],
+        [identities[1]],
+    ]
+
+
+def test_investment_availability_view_completes_children_and_spm_groups() -> None:
+    frame = _investment_availability_fixture()
+    direction = stacked_gap_fill_plan()[0]
+    policy = direction.predictor_availability_policies[0]
+
+    application = stacked_spine_module._apply_gap_fill_predictor_availability_policy(
+        frame,
+        direction=direction,
+        policy=policy,
+    )
+
+    person = frame.table("person")
+    modeled = application.frame.table("person")
+    acs = person[support_channel_column("person")].astype(str).eq("acs")
+    structural = acs & person["age"].lt(15)
+    assert int(structural.sum()) == 2
+    assert person.loc[structural, "INTP"].isna().all()
+    assert modeled.loc[structural, "INTP"].isna().all()
+    assert person.loc[
+        structural,
+        "acs_interest_dividend_rental_income",
+    ].isna().all()
+    assert modeled.loc[
+        structural,
+        "acs_interest_dividend_rental_income",
+    ].eq(0.0).all()
+    receipt = application.receipt
+    assert receipt["structural_person_rows"] == 2
+    assert receipt["groups_before"]["spm_unit"]["incomplete_groups"] == 2
+    assert receipt["groups_modeling"]["spm_unit"]["incomplete_groups"] == 0
+    assert receipt["groups_modeling"]["spm_unit"]["complete_groups"] == (
+        receipt["groups_modeling"]["spm_unit"]["scoped_groups"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("case", "message"),
+    (
+        ("eligible_mapped_blank", "in_universe_mapped_nonfinite_rows.*1"),
+        ("structural_raw_nonblank", "structural_raw_nonblank_rows.*1"),
+        ("structural_mapped_preexisting", "structural_mapped_nonblank_rows.*1"),
+    ),
+)
+def test_investment_availability_policy_rejects_source_universe_mismatch(
+    case: str,
+    message: str,
+) -> None:
+    frame = _investment_availability_fixture()
+    person = frame.table("person").copy()
+    acs = person[support_channel_column("person")].astype(str).eq("acs")
+    structural_rows = person.index[acs & person["age"].lt(15)]
+    eligible_rows = person.index[acs & person["age"].ge(15)]
+    if case == "eligible_mapped_blank":
+        person.loc[
+            eligible_rows[0],
+            "acs_interest_dividend_rental_income",
+        ] = np.nan
+    elif case == "structural_raw_nonblank":
+        person.loc[structural_rows[0], "INTP"] = 1.0
+    else:
+        person.loc[
+            structural_rows[0],
+            "acs_interest_dividend_rental_income",
+        ] = 0.0
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    tables["person"] = person
+    corrupted = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    direction = stacked_gap_fill_plan()[0]
+
+    with pytest.raises(ValueError, match=message):
+        stacked_spine_module._apply_gap_fill_predictor_availability_policy(
+            corrupted,
+            direction=direction,
+            policy=direction.predictor_availability_policies[0],
+        )
+
+
+def test_investment_availability_is_restored_after_gap_fill() -> None:
+    frame = _investment_availability_fixture()
+    policy = stacked_gap_fill_plan()[0].predictor_availability_policies[0]
+    investment = "__acs_transfer_interest_dividend_rental_income"
+    direction = GapFillDirection(
+        name="asec_survey_to_acs",
+        recipient_channel="acs",
+        donor_channel="asec",
+        target_families={
+            "person": {
+                "model_required_numeric": ("unemployment_compensation",),
+            }
+        },
+        predictor_sets={
+            "person": {
+                "model_required_numeric": AcsPredictorSet(
+                    required=ACS_PERSON_TRANSFER_PREDICTORS,
+                    optional=(investment,),
+                )
+            }
+        },
+        predictor_availability_policies=(policy,),
+    )
+    native_raw = frame.table("person")["INTP"].copy()
+    native_mapped = frame.table("person")[
+        "acs_interest_dividend_rental_income"
+    ].copy()
+
+    result = _gap_fill_with_test_authority(
+        frame,
+        plan=(direction,),
+        seed=578,
+        n_estimators=5,
+    )
+
+    assert_series_equal(result.frame.table("person")["INTP"], native_raw)
+    assert_series_equal(
+        result.frame.table("person")["acs_interest_dividend_rental_income"],
+        native_mapped,
+    )
+    stored = result.transfer_results[direction.name].frame.table("person")
+    assert_series_equal(stored["INTP"], native_raw)
+    assert_series_equal(
+        stored["acs_interest_dividend_rental_income"],
+        native_mapped,
+    )
+    receipt = result.receipt["directions"][direction.name][
+        "predictor_availability"
+    ][policy.policy_id]
+    assert receipt["pattern_coverage"] == {
+        "expected_target_count": 1,
+        "fit_target_count": 1,
+        "pattern_count": 1,
+        "all_patterns_include_predictor": True,
+        "families": {
+            "person/model_required_numeric": {
+                "entity": "person",
+                "family": "model_required_numeric",
+                "predictor": investment,
+                "targets": ["unemployment_compensation"],
+                "pattern_count": 1,
+            }
+        },
+    }
+    assert receipt["restoration"]["raw_untouched_byte_identical"] is True
+    assert receipt["restoration"]["mapped_restored_byte_identical"] is True
+
+
+def test_investment_pattern_coverage_skips_targets_without_missing_rows() -> None:
+    frame = _investment_availability_fixture()
+    person = frame.table("person").copy()
+    acs = person[support_channel_column("person")].astype(str).eq("acs")
+    person.loc[acs, "unemployment_compensation"] = 123.0
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    tables["person"] = person
+    frame = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    policy = stacked_gap_fill_plan()[0].predictor_availability_policies[0]
+    investment = "__acs_transfer_interest_dividend_rental_income"
+    direction = GapFillDirection(
+        name="asec_survey_to_acs",
+        recipient_channel="acs",
+        donor_channel="asec",
+        target_families={
+            "person": {
+                "model_required_numeric": ("unemployment_compensation",),
+            }
+        },
+        predictor_sets={
+            "person": {
+                "model_required_numeric": AcsPredictorSet(
+                    required=ACS_PERSON_TRANSFER_PREDICTORS,
+                    optional=(investment,),
+                )
+            }
+        },
+        predictor_availability_policies=(policy,),
+    )
+
+    result = _gap_fill_with_test_authority(
+        frame,
+        plan=(direction,),
+        seed=578,
+        n_estimators=5,
+    )
+
+    coverage = result.receipt["directions"][direction.name][
+        "predictor_availability"
+    ][policy.policy_id]["pattern_coverage"]
+    assert coverage == {
+        "expected_target_count": 0,
+        "fit_target_count": 0,
+        "pattern_count": 0,
+        "all_patterns_include_predictor": True,
+        "families": {},
+    }
+    target = result.receipt["directions"][direction.name]["targets"][
+        "person/model_required_numeric/unemployment_compensation"
+    ]
+    assert target["authorized_null_rows"] == 0
+    assert target["imputed_rows"] == 0
 
 
 def test_every_declared_direction_producer_precedes_its_activation_check() -> None:
@@ -2970,6 +3284,13 @@ def test_gap_fill_activation_authority_rejects_nonlive_declared_channel(
             recipient_channel=recipient_channel,
             donor_channel=donor_channel,
             target_families={"person": {"complete": ("age",)}},
+            predictor_sets={
+                "person": {
+                    "complete": AcsPredictorSet(
+                        required=("is_female", "__acs_transfer_state_fips")
+                    )
+                }
+            },
         ),
     )
 
@@ -6961,7 +7282,7 @@ def test_self_digested_partial_authority_cannot_forge_production_identity() -> N
         GateReport((result,)).to_manifest()
 
 
-@pytest.mark.parametrize("stale_version", (1, 2, 3, 4, 5, 6, 7, 8, 9))
+@pytest.mark.parametrize("stale_version", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 def test_self_consistent_stale_stacked_authority_versions_are_rejected(
     stale_version: int,
 ) -> None:
@@ -6981,7 +7302,7 @@ def test_self_consistent_stale_stacked_authority_versions_are_rejected(
     )
     stale_receipt = stacked_spine_module._authority_receipt(stale)
 
-    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 10
+    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 11
     assert stale_receipt["version"] == stale_version
     assert stale_receipt["integrity_valid"] is True
     assert stale_receipt["digest_matches_declared"] is True
@@ -7000,7 +7321,7 @@ def test_stacked_authority_binds_import_validated_late_producer_schedule() -> No
     receipt = stacked_spine_module.stacked_spine_authority_receipt()
     component = receipt["components"]["late_producer_schedule"]
 
-    assert receipt["version"] == 10
+    assert receipt["version"] == 11
     assert component["producer_count"] == 38
     assert component["schedule_sha256"] == (
         stacked_spine_module.CANONICAL_US_LATE_PRODUCER_SCHEDULE.sha256
@@ -7899,6 +8220,10 @@ def test_gap_fill_plan_digest_binds_direction_and_channels() -> None:
             name="rerouted_gap_fill",
             recipient_channel="asec",
             donor_channel="acs",
+            predictor_availability_policies=tuple(
+                replace(policy, recipient_channel="asec")
+                for policy in plan[0].predictor_availability_policies
+            ),
         ),
         *plan[1:],
     )
@@ -8233,12 +8558,23 @@ _E2E_GAP_FILL_PLAN = (
                 "puf_tax_itemization": ("health_savings_account_ald",),
             },
         },
+        predictor_sets={
+            "person": {
+                "puf_tax_itemization": _TEST_PUF_PERSON_PREDICTOR_SET,
+                "model_required_numeric": _TEST_PERSON_PREDICTOR_SET,
+                "model_required_boolean": _TEST_PERSON_PREDICTOR_SET,
+            },
+            "tax_unit": {
+                "puf_tax_itemization": _TEST_GROUP_PREDICTOR_SET,
+            },
+        },
     ),
     GapFillDirection(
         name="asec_housing_to_acs",
         recipient_channel="acs",
         donor_channel="asec",
         target_families={"person": {"housing": ("pre_subsidy_rent",)}},
+        predictor_sets={"person": {"housing": _TEST_HOUSING_PREDICTOR_SET}},
         recipient_absence_rules=(_CANONICAL_RENT_ABSENCE_RULE,),
     ),
 )

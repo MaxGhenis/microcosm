@@ -15,13 +15,17 @@ import pytest
 import yaml
 
 from microcosm.build.us_runtime.acs_transfer import (
+    _GROUP_OPTIONAL_NAMES,
     ACS_GROUP_TRANSFER_PREDICTORS,
     ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
     ACS_PERSON_TRANSFER_PREDICTORS,
     DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT,
 )
 from microcosm.build.us_runtime.puf_support import PUF_TAX_DETAIL_DEFAULT_PREDICTORS
-from microcosm.build.us_runtime.stacked_spine import stacked_gap_fill_plan
+from microcosm.build.us_runtime.stacked_spine import (
+    declared_stacked_post_puf_predictor_sets,
+    stacked_gap_fill_plan,
+)
 from microcosm.build.us_runtime.us_late_producer_registry import (
     CANONICAL_US_LATE_PRODUCER_REGISTRY,
     CANONICAL_US_LATE_TRANSFER_GROUPS,
@@ -81,7 +85,101 @@ def test_predictor_sets_match_the_code(spec: dict) -> None:
     assert sets["acs_group_transfer"]["required"] == [
         _clean(c) for c in ACS_GROUP_TRANSFER_PREDICTORS
     ]
+    assert sets["acs_group_transfer"]["optional"] == [
+        _clean(c) for c in _GROUP_OPTIONAL_NAMES.values()
+    ]
     assert sets["puf_tax_detail"]["required"] == list(PUF_TAX_DETAIL_DEFAULT_PREDICTORS)
+
+
+def test_late_family_predictor_sets_match_the_live_baseline_runtime(spec: dict) -> None:
+    target_families: dict[str, dict[str, tuple[str, ...]]] = {}
+    for group in CANONICAL_US_LATE_TRANSFER_GROUPS:
+        target_families.setdefault(group.entity, {})[group.family] = group.targets
+    live = declared_stacked_post_puf_predictor_sets(target_families)
+
+    for family in spec["imputed_families"]:
+        if family["stage"] != "late_transfer":
+            continue
+        declared = spec["predictor_sets"][family["predictor_set"]]
+        predictor_set = live[family["entity"]][family["family"]]
+        assert declared["required"] == [_clean(name) for name in predictor_set.required]
+        assert declared.get("optional", []) == [
+            _clean(name) for name in predictor_set.optional
+        ]
+
+
+def test_early_family_predictor_sets_match_the_live_arm_runtime(spec: dict) -> None:
+    declared_families = {family["id"]: family for family in spec["imputed_families"]}
+
+    for direction in stacked_gap_fill_plan():
+        for entity, families in direction.predictor_sets.items():
+            for family, predictor_set in families.items():
+                family_id = f"gap_fill/{direction.name}/{entity}/{family}"
+                mirror = declared_families[family_id]
+                declared = spec["predictor_sets"][mirror["predictor_set"]]
+                assert declared["required"] == [
+                    _clean(name) for name in predictor_set.required
+                ]
+                assert declared.get("optional", []) == [
+                    _clean(name) for name in predictor_set.optional
+                ]
+
+
+def test_investment_availability_policy_matches_live_arm_runtime(spec: dict) -> None:
+    policy_id = "acs_pums_investment_age_15_plus_early_modeling_view"
+    person_investment = "__acs_transfer_interest_dividend_rental_income"
+    group_investment = _GROUP_OPTIONAL_NAMES[person_investment]
+    plan = stacked_gap_fill_plan()
+    live_policies: dict[str, dict[str, object]] = {}
+    directions = {direction.name: direction for direction in plan}
+
+    for direction in plan:
+        assert len(direction.predictor_availability_policies) == 1
+        policy = direction.predictor_availability_policies[0]
+        identity = policy.identity()
+        if policy.policy_id in live_policies:
+            assert live_policies[policy.policy_id] == identity
+        live_policies[policy.policy_id] = identity
+
+    assert live_policies == spec["predictor_availability_policies"]
+    assert set(live_policies) == {policy_id}
+
+    governed_family_ids: set[str] = set()
+    for family in spec["imputed_families"]:
+        if family["stage"] != "early_gap_fill":
+            assert "predictor_availability_policy" not in family, family["id"]
+            continue
+        direction = directions[family["direction"]]
+        predictor_set = direction.predictor_sets[family["entity"]][family["family"]]
+        selected = (*predictor_set.required, *predictor_set.optional)
+        governed = person_investment in selected or group_investment in selected
+        if governed:
+            governed_family_ids.add(family["id"])
+            assert family["predictor_availability_policy"] == policy_id, family["id"]
+        else:
+            assert "predictor_availability_policy" not in family, family["id"]
+
+    assert governed_family_ids == {
+        "gap_fill/asec_housing_to_acs/person/housing",
+        "gap_fill/asec_survey_to_acs/person/model_required_boolean",
+        "gap_fill/asec_survey_to_acs/person/model_required_discrete",
+        "gap_fill/asec_survey_to_acs/person/model_required_numeric",
+        "gap_fill/asec_survey_to_acs/person/source_operator_cps_carried",
+        "gap_fill/asec_survey_to_acs/person/source_operator_hours_worked",
+        "gap_fill/asec_survey_to_acs/person/source_operator_prior_year_income",
+        "gap_fill/asec_survey_to_acs/person/source_operator_relationship_inputs",
+        "gap_fill/asec_survey_to_acs/spm_unit/benefit_participation",
+        "gap_fill/asec_survey_to_acs/spm_unit/model_required_boolean",
+        "gap_fill/asec_survey_to_acs/spm_unit/model_required_numeric",
+        "gap_fill/asec_survey_to_acs/spm_unit/source_operator_housing_inputs",
+    }
+    champva_family = next(
+        family
+        for family in spec["imputed_families"]
+        if family["id"]
+        == "gap_fill/asec_survey_to_acs/person/model_required_boolean"
+    )
+    assert champva_family["targets"][0] == "has_champva_health_coverage_at_interview"
 
 
 def test_model_attributes_match_the_code(spec: dict) -> None:

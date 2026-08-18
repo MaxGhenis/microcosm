@@ -62,3 +62,51 @@ is not needed in that minimal arm.
 
 Arm implementation, test, build, and gate receipts are appended on the branch
 that owns each arm.
+
+### `arm-investment` surgery (2026-08-17)
+
+- The branch starts from `arm-split-base` at
+  `aec9fdc1cf71eb33019fe3e0e425926573544afb`. Early target declarations retain
+  their baseline order, including CHAMPVA at position 0. No eligibility loader,
+  CPS mapping, MIL dtype, or operator-boundary change is present.
+- The assembled-artifact audit found 856,626 ACS persons. Raw `INTP` and mapped
+  `acs_interest_dividend_rental_income` have the same null mask: all 127,597
+  people under age 15 are null and all 729,029 people age 15 or older are
+  finite. The finite raw and mapped values are deliberately not equated because
+  the mapped field applies the ACS income adjustment. On the early ASEC donor,
+  `INT_VAL`, `DIV_VAL`, and `RNT_VAL` are complete on all 108,073 people and
+  exact zero for all 21,441 children under age 15.
+- The donor investment analogue uses the six PolicyEngine components whenever
+  that schema is complete and otherwise uses the complete numeric sum of
+  `INT_VAL + DIV_VAL + RNT_VAL`. This is schema-level precedence, never
+  row-level fallback, and both sources plus the precedence are bound into the
+  transfer execution identity.
+- Investment remains optional in its historical position after retirement and
+  before head/tenure. It is enabled on exactly eight person families (housing;
+  model-required numeric, boolean, and discrete; CPS-carried, hours-worked,
+  prior-year-income, and relationship source operators) and four SPM-unit
+  families (benefit participation, required boolean, required numeric, and the
+  housing-input source operator). Person PUF tax itemization is excluded because
+  its targets overlap the investment predictor's source leaves.
+- Both early directions bind the same authority version-1 availability policy.
+  It validates native ACS clone-0 source universes, fills only mapped under-15
+  structural cells with zero in a modeling view, proves every fitted opted
+  pattern carries the person or group investment feature, then restores the
+  full native mapped series before the next direction. Raw `INTP` and restored
+  mapped cells are byte-hashed. The structural completion raises complete ACS
+  SPM investment aggregates from 309,885/382,903 to 382,903/382,903 without
+  persisting the zeroes into the primary PUF pass or late transfer.
+- Stacked authority version 11 binds the exact family predictor sets and full
+  policy identity into the `gap_fill_plan` component. The #695 mirror matches
+  those live early sets and policy assignments exactly; late transfer retains
+  the baseline call with no explicit predictor sets.
+- The copied round-1 gate remains byte-identical to the rejected-branch source
+  and the other arms: SHA-256
+  `25295af61fece0e124a2658eed469ce1b5ecf9abd0c8e6b622807df8d4d69fe8`.
+- Focused verification passed the complete ACS-transfer, stacked-spine,
+  ACS-PUMS, PUF-support, multispine-pool, multispine build-tool, and
+  lineage-spec modules. It includes regression coverage for preferred/fallback
+  precedence, invalid fallback values, exact family opt-ins, source-mediated
+  leakage, structural completion, restoration, fitted-pattern coverage, and
+  already-complete opted targets. Repository-wide Ruff, `git diff --check`, and
+  the copied gate's `--help` import smoke also passed.

@@ -20,7 +20,9 @@ from microcosm.build.us_runtime.acs_transfer import (
     ACS_NATIVE_PERSON_INPUTS,
     ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
     ACS_PERSON_TRANSFER_PREDICTORS,
+    AcsPredictorSet,
     AcsTransferResult,
+    declared_acs_transfer_predictor_sets,
     declared_acs_transfer_target_families,
     default_acs_transfer_target_families,
     transfer_acs_inputs,
@@ -783,6 +785,199 @@ def test_declared_plan_carries_the_23_stage_base_surface() -> None:
     assert declared_acs_transfer_target_families()["spm_unit"][
         "model_required_boolean"
     ] == ("is_tanf_enrolled", "receives_snap")
+
+
+def test_investment_arm_declares_exact_opted_families_in_historical_order() -> None:
+    families = {
+        "person": {
+            "puf_tax_itemization": ("qualified_dividend_income",),
+            "model_required_numeric": ("veterans_benefits",),
+            "model_required_boolean": ("is_blind",),
+            "model_required_discrete": ("own_children_in_household",),
+            "source_operator_cps_carried": ("strike_benefits",),
+            "source_operator_hours_worked": ("hours_worked_last_week",),
+            "source_operator_prior_year_income": ("previous_year_income",),
+            "source_operator_relationship_inputs": ("is_tax_unit_head",),
+            "housing": ("pre_subsidy_rent",),
+        },
+        "tax_unit": {
+            "puf_tax_itemization": ("first_home_mortgage_balance",),
+        },
+        "spm_unit": {
+            "benefit_participation": ("takes_up_housing_assistance_if_eligible",),
+            "model_required_boolean": ("receives_snap",),
+            "model_required_numeric": ("spm_unit_pre_subsidy_childcare_expenses",),
+            "source_operator_housing_inputs": ("spm_unit_capped_housing_subsidy",),
+        },
+    }
+
+    declared = declared_acs_transfer_predictor_sets(families)
+    investment = "__acs_transfer_interest_dividend_rental_income"
+    group_investment = "__acs_transfer_group_investment_income_sum"
+    enabled_person = {
+        family
+        for family, predictor_set in declared["person"].items()
+        if investment in (*predictor_set.required, *predictor_set.optional)
+    }
+    assert enabled_person == {
+        "housing",
+        "model_required_numeric",
+        "model_required_boolean",
+        "model_required_discrete",
+        "source_operator_cps_carried",
+        "source_operator_hours_worked",
+        "source_operator_prior_year_income",
+        "source_operator_relationship_inputs",
+    }
+    assert declared["person"]["model_required_numeric"].optional == (
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS
+    )
+    assert declared["person"]["housing"].optional == (
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[:5]
+    )
+    assert investment not in declared["person"]["puf_tax_itemization"].optional
+    enabled_spm = {
+        family
+        for family, predictor_set in declared["spm_unit"].items()
+        if group_investment in (*predictor_set.required, *predictor_set.optional)
+    }
+    assert enabled_spm == set(families["spm_unit"])
+    assert group_investment not in (
+        declared["tax_unit"]["puf_tax_itemization"].optional
+    )
+
+
+def test_investment_predictor_uses_complete_native_asec_fallback() -> None:
+    """The pre-clone ASEC surface truthfully pairs with native ACS INTP."""
+
+    donor, recipient = _conditioning_frames()
+    raw_components = {
+        "INT_VAL": np.asarray([10, 20, 30, 40, 50, 60, 70, 80], dtype=object),
+        "DIV_VAL": np.asarray([1, 2, 3, 4, 5, 6, 7, 8], dtype=object),
+        "RNT_VAL": np.asarray(
+            [100, 200, 300, 400, 500, 600, 700, 800], dtype=object
+        ),
+    }
+    donor = _with_columns(donor, "person", raw_components)
+    feature = "__acs_transfer_interest_dividend_rental_income"
+    predictor_set = AcsPredictorSet(
+        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        optional=(feature,),
+    )
+
+    preferred = acs_transfer_module._person_feature_surface(donor, recipient)
+    preferred_expected = donor.person.loc[
+        :,
+        list(acs_transfer_module._DONOR_COMBINED_COMPONENTS[feature]),
+    ].sum(axis=1, skipna=False)
+    np.testing.assert_array_equal(
+        preferred.donor[feature].to_numpy(),
+        preferred_expected.to_numpy(),
+    )
+    # Fallback is schema-level, not row-level: a missing preferred component
+    # stays missing even though all three raw sources are observed on this row.
+    assert np.isnan(preferred.donor[feature].iloc[-1])
+
+    donor = _drop_column(donor, "person", "tax_exempt_interest_income")
+    donor = _drop_column(donor, "person", "estate_income")
+    surface = acs_transfer_module._transfer_feature_surface(
+        donor,
+        recipient,
+        entity="person",
+        targets=("veterans_benefits",),
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+
+    expected = np.sum(np.asarray(list(raw_components.values())), axis=0)
+    np.testing.assert_array_equal(surface.donor[feature].to_numpy(), expected)
+    np.testing.assert_array_equal(
+        surface.recipient[feature].to_numpy(),
+        recipient.person["acs_interest_dividend_rental_income"].to_numpy(),
+    )
+    identity = acs_transfer_module.acs_transfer_execution_contract_identity(
+        targets=("veterans_benefits",),
+        predictor_sets={"person": {"fixture": predictor_set}},
+    )
+    assert identity["donor_combined_fallback_components"] == {
+        feature: ["INT_VAL", "DIV_VAL", "RNT_VAL"]
+    }
+    assert identity["donor_combined_source_precedence"] == (
+        "complete_policyengine_components_else_complete_numeric_fallback"
+    )
+    assert identity["family_predictor_sets"]["person"]["fixture"][
+        "optional"
+    ] == [feature]
+
+
+def test_investment_predictor_fallback_requires_every_native_component() -> None:
+    donor, recipient = _conditioning_frames()
+    donor = _with_columns(
+        donor,
+        "person",
+        {
+            "INT_VAL": np.arange(8),
+            "DIV_VAL": np.arange(8),
+        },
+    )
+    donor = _drop_column(donor, "person", "tax_exempt_interest_income")
+    donor = _drop_column(donor, "person", "estate_income")
+    feature = "__acs_transfer_interest_dividend_rental_income"
+
+    with pytest.raises(ValueError, match="unmapped optional.*interest_dividend"):
+        acs_transfer_module._transfer_feature_surface(
+            donor,
+            recipient,
+            entity="person",
+            targets=("veterans_benefits",),
+            predictor_set=AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=(feature,),
+            ),
+            require_all_predictors=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ("invalid_value", "message"),
+    (("not-a-number", "non-numeric"), (np.inf, "infinity")),
+)
+def test_investment_predictor_fallback_rejects_invalid_native_values(
+    invalid_value: object,
+    message: str,
+) -> None:
+    donor, _recipient = _conditioning_frames()
+    int_values = np.arange(8, dtype=object)
+    int_values[0] = invalid_value
+    donor = _with_columns(
+        donor,
+        "person",
+        {
+            "INT_VAL": int_values,
+            "DIV_VAL": np.arange(8),
+            "RNT_VAL": np.arange(8),
+        },
+    )
+    donor = _drop_column(donor, "person", "tax_exempt_interest_income")
+    donor = _drop_column(donor, "person", "estate_income")
+
+    with pytest.raises(ValueError, match=message):
+        acs_transfer_module._person_optional_features(donor, role="donor")
+
+
+@pytest.mark.parametrize("target", ("qualified_dividend_income", "INT_VAL"))
+def test_investment_predictor_refuses_source_mediated_target_leakage(
+    target: str,
+) -> None:
+    with pytest.raises(ValueError, match="target-bearing predictor source"):
+        acs_transfer_module.assert_acs_predictor_set_has_no_target_leakage(
+            AcsPredictorSet(
+                required=ACS_PERSON_TRANSFER_PREDICTORS,
+                optional=("__acs_transfer_interest_dividend_rental_income",),
+            ),
+            (target,),
+            context="fixture",
+        )
 
 
 def test_explicit_transfer_adds_requested_model_inputs(
