@@ -62,3 +62,25 @@ is not needed in that minimal arm.
 
 Arm implementation, test, build, and gate receipts are appended on the branch
 that owns each arm.
+
+## Synthesis continuation (2026-08-19)
+
+- State: synthesize on `arm-split-base` from immutable evidence only: round-1
+  bundle verdict commit `df6bd65b`, order verdict commit `9d6eecb4`,
+  eligibility verdict commit `1ffea7ae`, and bounded investment verdict commit
+  `5cf6a306`.
+- Done: each arm has complete 32-family/118-target/74-money/211-leg evidence;
+  each arm's configuration, after removing only its candidate integrity
+  binding, hashes to the round-1 value
+  `10f29427d83c340973869fb735188967aff9a4eea770b066f604e7a28a0b5e5a`.
+  All accepted arm runs stayed below 20 GiB RSS.
+- Fixed interpretation: this is full predictor-set attribution, not a
+  publication or CHAMPVA project. The synthesis will report CHAMPVA as one of
+  all 211 battery legs and will not attribute the bundle-only late-PUF change
+  to any of the three isolated arms.
+- Fixed boundary: generate only
+  `experiments/phase_p_arm_split/SYNTHESIS.md`; do not build, use network, push,
+  edit `PROGRESS.md`, or access `logbook-pending-chain.txt`.
+- Next: construct the source-qualified 74-target and 211-leg four-way tables,
+  derive cautious attribution and landability conclusions, validate every row
+  against the four verdicts, then commit the final report.
