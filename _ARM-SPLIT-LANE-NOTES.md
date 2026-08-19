@@ -84,3 +84,29 @@ that owns each arm.
 - Next: construct the source-qualified 74-target and 211-leg four-way tables,
   derive cautious attribution and landability conclusions, validate every row
   against the four verdicts, then commit the final report.
+- Done: `tools/synthesize_phase_p_arm_split.py` authenticates the four verdict
+  digests, asserts complete and identical target/leg keys and baselines, asserts
+  the frozen normalized configuration, and emits the synthesis deterministically.
+  Independent review found exactly 74 unique money rows with 14 cells each,
+  211 unique battery rows with 7 cells each, and four clause rows with five
+  cells each; every displayed value, diagnostic, stored transition, CI flag,
+  source path, and digest matches its verdict.
+- Result: order is A FAIL / B PASS / C PASS but all 74 money deltas are exactly
+  zero. Eligibility is FAIL / FAIL / FAIL with five significant improvements,
+  five significant regressions, and six battery exits. Investment is FAIL /
+  PASS / FAIL with three significant improvements, no significant money
+  regressions, and three battery exits. No arm improves money without battery
+  damage, so there is no F1 bundle handoff.
+- Attribution: no isolated arm reproduces the round-1
+  `social_security_retirement` blowup. The contrast localizes it to the broad
+  bundle predictor replacement or interactions; removal of the direct social-
+  security and retirement-income predictors is a next-isolation hypothesis,
+  not an identified unique cause. Eligibility reproduces ten bundle transition
+  classes, investment reproduces the TANF exit direction, order reproduces no
+  crossing, and 24 of 35 bundle crossings remain unassigned to an isolated arm.
+- Deliverable: `experiments/phase_p_arm_split/SYNTHESIS.md`, SHA-256
+  `a12d7d599ac25493197123347ab73ba1fe00e2dd838009fd0da2f9b4a3eb4215`.
+  It includes the exhaustive source-tagged money and battery tables, frozen
+  clause table, attribution, explicit no-handoff block with schema field names,
+  and evidence-driven next experiments.
+- State: synthesis complete. Next: stop; the owner adjudicates.
