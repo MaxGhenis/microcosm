@@ -545,7 +545,8 @@ def add_attribution(
             "band as the clause table shows.",
             f"- Eligibility produces {tagged(6, 'E')} entries and {tagged(6, 'E')} exits. "
             f"It reproduces {tagged(10, 'R1/E')} of the bundle's "
-            f"{tagged(35, 'R1')} crossings in the same categorical direction: "
+            f"{tagged(35, 'R1')} crossings in the same transition class "
+            "(`entered_band` or `left_band`): "
             + ", ".join(code(key) for key in shared_e)
             + ". Casualty loss and farm income cross opposite sides of the band in `E` "
             "and `R1`, so magnitude and signed direction remain interaction-dependent. "
