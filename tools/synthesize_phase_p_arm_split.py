@@ -528,9 +528,9 @@ def add_attribution(
             "`__acs_transfer_retirement_income` while adding "
             f"{tagged(len(data['r1_added']), 'R1')} broader predictors. Eligibility "
             "retains both direct income predictors and adds only hearing, seeing, and "
-            "Medicare. Loss of the direct income predictors is the leading mechanism, "
-            "but it is not proven separately from the simultaneous additions or bundle "
-            "interactions.",
+            "Medicare. Loss of the direct income predictors is the leading hypothesis "
+            "suggested by this contrast, but it is not isolated from the simultaneous "
+            "additions or bundle interactions.",
             "",
             "The non-additivity extends to the cluster: the bundle significantly worsens "
             "social-security disability, dependents, survivors, taxable IRA, taxable "
@@ -548,11 +548,19 @@ def add_attribution(
             f"{tagged(35, 'R1')} crossings in the same categorical direction: "
             + ", ".join(code(key) for key in shared_e)
             + ". Casualty loss and farm income cross opposite sides of the band in `E` "
-            "and `R1`, so magnitude and signed direction remain interaction-dependent.",
+            "and `R1`, so magnitude and signed direction remain interaction-dependent. "
+            "The eligibility-only crossings are "
+            "`person/source_operator_retirement_distributions/"
+            "taxable_403b_distributions[clone_0]/positive` entering (`E`) and "
+            "`person/source_operator_retirement_distributions/"
+            "tax_exempt_ira_distributions[clone_0]/positive` leaving (`E`); neither is "
+            "a crossing in `R1`.",
             f"- Investment produces {tagged(0, 'I')} entries and {tagged(3, 'I')} exits: "
             + ", ".join(code(key) for key in sorted(transitions["I"]))
-            + ". Only TANF also exits in the bundle, supporting investment as its isolated "
-            "driver. Separation and SPM-childcare exits are masked in the bundle.",
+            + ". Only TANF also exits in the bundle; the isolated direction is consistent "
+            "with investment contributing, but does not establish a unique driver. The "
+            "separation and SPM-childcare exits do not occur in the bundle, consistent "
+            "with masking or interaction.",
             f"- The remaining {tagged(24, 'R1/O/E/I')} of the bundle's "
             f"{tagged(35, 'R1')} crossings are not reproduced by an isolated arm. They "
             "cannot be assigned among order, minimal eligibility, or investment; the "
