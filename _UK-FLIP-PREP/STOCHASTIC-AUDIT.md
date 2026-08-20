@@ -26,6 +26,15 @@ Line numbers refer to that tree. The strict count covers the requested UK files.
 Reachable shared-kernel dependencies are called out separately and are not
 double-counted.
 
+The 87-site universe follows the US F1 D1 **stochastic/hash/ambient-entropy**
+convention, extended here for the prompt's clock requirement. “Ambient” in this
+count means UUID or temporary-name entropy, wall/duration clocks, and retry
+sleep—not every declared file, network, environment, or subprocess effect.
+Those general effects remain mandatory F1 broker-routing surfaces but are
+outside this draw-site census. There is no direct environment read in the 58 UK
+files; all three drivers delegate the Logbook predecessor environment lookup to
+shared code.
+
 ## Proposed logical draw-site ledger
 
 ### Identity-keyed hash streams
@@ -66,7 +75,7 @@ manifest below.
 
 | ID | Draw-site id | `rng_family` | `seed_material` | `consumption_order` | `reset_boundary` |
 | --- | --- | --- | --- | --- | --- |
-| L19 | `uk_cgt_within_band_amounts` | NumPy `Generator(PCG64)` | `SeedSequence((seed_base=552, int(time_period)))` | Fixed CGT allocation/band order, highest-gain band first; `count` uniforms only for nonempty allocations | New generator per CGT stage invocation |
+| L19 | `uk_cgt_within_band_amounts` | NumPy `Generator(PCG64)` | `SeedSequence((seed_base=552, int(time_period)))` | Income bands `(0, 37_700, 50_000, 100_000, 150_000, 200_000)` in that order; within a band people sort by descending existing gain then `person_id`; gain-cell plans iterate by descending lower bound; `count` uniforms only for nonempty cells | New generator per CGT stage invocation |
 | L20 | `uk_oa_ladder_assignment` | NumPy `Generator(PCG64)` | Rowwise run seed; current drivers default 42 | Sorted region groups; constituency choice first; then OA choices by sorted chosen constituency; input ladder order and weights sealed | New generator per assignment call |
 | L21 | `uk_rowwise_crosswalk_geography` | NumPy `Generator(PCG64)` | Rowwise run seed; current driver default 42 | Clone order, sorted country/region keys, initial choices, then collision-resample loop up to 50; crosswalk row order and collision history sealed | New generator per assignment call |
 | L22 | `uk_national_household_sample` | NumPy `Generator(PCG64)` in shared sampler | Sample seed, default 578 | Sorted stratum keys and unit IDs; one without-replacement choice per partially selected stratum; fraction 1 consumes nothing | New generator per sample call only when fraction < 1 |
@@ -223,9 +232,10 @@ unhashed mutable source bytes.
 | FRS take-up/person/household draws | `source_stages.json` declares seed 0 per output; all runtime maps and helper calls use 0. `take_up_contract.json` seed 42 values describe offline fitting receipts, while historical take-up seed 100 is provenance. | **Match.** The compiler must not misclassify offline 42 or incumbent 100 as runtime streams. |
 | BRMA | Source operation declares seed 0; runtime uses 0 for both `brma` and `brma:household_pick`. | **Match**, but one authored operation must compile two reset-free logical sites. |
 | CGT | `cgt_source_stages.json` declares `seed_base: 552` and period mixing; runtime constructs `(552, time_period)`. | **Match.** `deterministic: true` means seeded-deterministic, not draw-free. |
-| SPI support | Authored support operation declares 42; runtime support/replacement defaults and assertions use 42. | **Match**, with two distinct reset boundaries L23/L24. |
+| SPI support donor stack | `source_stages.json`'s `spi_support_channel` declares seed 42 for `stack_zero_weight_donors`; runtime L23 constructs and consumes that stream at `spi_support.py:676,678`. | **Match** for L23. |
+| Active SPI support replacement | The selected `hmrc_spi_income` node's `replace_zero_weight_spi_support` operation declares no seed. Driver seed 42 flows through `hmrc_restoration.py:547-552` to the separate L24 reset at `spi_support.py:729,740`. | **Active-path authority gap.** L24 is not owned by the donor-stack declaration. |
 | SPI/HMRC QRF alternate spine | `source_stages.json`'s `hmrc_spi_income_spine` declares strict-read 42, stage 1 seed 42, and stage 2 seed 43. Runtime independently resets seed 42 for donor age jitter, pandas bootstrap, and QRF stage 1, then constructs stage 2 with `seed + 1`. | **Partly descriptive, not sufficient.** The strict read is draw-free and cannot own all three seed-42 streams; each needs a ledger row. |
-| SPI/HMRC active national stage | The driver selects `hmrc_spi_income` (`tools/build_uk_national_dataset.py:839`), whose `hmrc_income_source_stages.json` operations contain no seed fields. CLI default 42 is the live owner and derives 43. | **Active-path authority gap.** Bundle mode must compile explicit 42/43 sites into the selected node. |
+| SPI/HMRC active national stage | The driver selects `hmrc_spi_income` (`tools/build_uk_national_dataset.py:839`), whose `hmrc_income_source_stages.json` operations contain no seed fields. CLI default 42 is the live owner for four reset-distinct streams—L24 replacement, L25 age jitter, L26 pandas bootstrap, and L27 QRF—then derives L28 seed 43. | **Active-path authority gap.** Bundle mode must compile all five explicit 42/43 sites into the selected node. |
 | WAS | Source declares one seed-0 QRF chain with a 14-name chain order including derived `corporate_wealth`; runtime executes three fresh seed-0 chains and draws 13 outputs. | **Reset/order mismatch in representation.** Author L29–L31 and mark `corporate_wealth` derived. |
 | National rung sampling | Runtime/driver declare sample seed 578; it is outside source stages. | **Unowned until** `spine.sampling` and the seed map carry L22. |
 | Geography | Ladder kernel defaults to 0; both rowwise drivers default/pass 42; the spec-branch geography skeleton also says default 0. Crosswalk order/retry behavior has no declarative seed protocol. | **Blocking conflict.** Seal run seed 42 if preserving production bytes, and author L20/L21 exactly. |
@@ -247,17 +257,28 @@ or brokered by the upstream certified F1 ABI:
   `default_rng()` before restoring serialized state.
   UK F1 must inherit the US F1 correction (`Generator(PCG64(0))` before state
   restore) and its implementation digest.
-- `microcosm-calibrate/solve.py:1126,1600` owns Torch resets and conditional
-  HardConcrete draws behind calibration.
+- `microcosm-calibrate/solve.py:1126,1600` owns the Torch resets behind
+  calibration. The actual conditional HardConcrete draw is
+  `microcosm-calibrate/gates.py:102` (`Tensor.uniform_`), called once per epoch
+  from `solve.py:831-836` when gates are active; L32 must bind the certified
+  reset-plus-draw ABI.
 - The three drivers call shared `resolve_predecessor`, which reads
   `POPULACE_LOGBOOK_PREV_ROW_DIGEST`; shared logbook code also reads a duration
   clock and generates temp nonces. Those environment/clock/UUID operations must
   pass through the certified brokers even though they are not UK-file sites.
+- General ambient effects outside the 87-site entropy census include the live
+  `urlopen` boundary at `uk_runtime/geography_sources.py:1654`, direct
+  subprocesses in `firm_generation.py:318` and the rowwise drivers at
+  `build_uk_rowwise_candidate.py:1031` and
+  `build_uk_rowwise_dataset.py:1447`, plus declared source/file reads. They must
+  be routed through the file broker and explicit network/process
+  capability/guard policy; none is a draw-ledger row or typed entropy exemption.
 
 ## Highest-risk findings
 
-1. The active `hmrc_spi_income` stage has no authored seed fields. Seed 42 is
-   reused across three unrelated RNG families, then 43 is derived in code.
+1. The active `hmrc_spi_income` stage has no authored seed fields. Four
+   reset-distinct seed-42 streams span three RNG families, then seed 43 is
+   derived in code.
 2. The WAS document says one chain; runtime resets the same seed for three
    chains and treats one documented chain member as derived rather than drawn.
 3. Exclusion expiry depends on the current UTC date and can change a gate

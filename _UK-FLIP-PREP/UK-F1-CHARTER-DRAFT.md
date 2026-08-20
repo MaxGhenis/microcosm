@@ -37,9 +37,10 @@ Start only when all of the following are true:
   pipelines. The current six-resource walking skeleton, absent producer graph,
   and empty compiled-node set are a hard stop.
 - Compiled seed ownership covers L01–L32 and C01 with zero unbound physical
-  sites. Tests prove active `hmrc_spi_income` owns separate 42/42/42/43 streams,
-  WAS owns three independently reset seed-0 chains, and both geography profiles
-  resolve to incumbent seed 42 without a hidden bundle default of 0.
+  sites. Tests prove active `hmrc_spi_income` owns separate
+  42/42/42/42/43 streams, WAS owns three independently reset seed-0 chains, and
+  both geography profiles resolve to incumbent seed 42 without a hidden bundle
+  default of 0.
 - Every UK gate and calibration field required by the binding executable
   contract is compiled and mutation-tested: formula, input/stage,
   population/denominator, slices, reference digest, support/ESS, absolute and
@@ -158,7 +159,7 @@ deliberately, making live defaults and certification overrides explicit:
 | Surface | Sealed values |
 | --- | --- |
 | National | target period/source year 2023; build seed 42; QRF estimators 100; sample fraction 0.01; sample seed 578; rung `f001`; non-release-candidate posture; exact owner-approved noncanonical f001 `release_id`; compiled source tier; compiled cardinality source and expected resolved count |
-| SPI/HMRC | separate ledger sites for age jitter 42, donor bootstrap 42, QRF stage 1 seed 42, QRF stage 2 seed 43; exact donor size and ordered targets |
+| SPI/HMRC | separate ledger sites for support replacement 42, age jitter 42, donor bootstrap 42, QRF stage 1 seed 42, and QRF stage 2 seed 43; exact donor size and ordered targets |
 | CGT | seed base 552 mixed with target period; exact ordered allocation/band surface |
 | Rowwise geography | production route `ladder`; two clones; run seed 42; constituency vintage `2024_pcon`; exact ladder content pin; preserved clone/ID/weight semantics |
 | Crosswalk fixture | named compatibility route; run seed 42; exact pinned crosswalk bytes; collision policy and 50-retry cap; never live-download during certification |
