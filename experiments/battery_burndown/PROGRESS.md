@@ -136,14 +136,16 @@ has been changed.
   discovery lanes. Corrected the QBI evidence language to record the manifest's
   `gate_failed`/`simulation_ready=false` state and avoid implying readiness.
 - Hardened all 21 incidence FIX-CANDIDATE rows from a conditional
-  regime-dependent diagnosis to a selected implementation: origin-aware,
-  cross-fitted carrier calibration restricted to mutable imputed recipients,
-  with frozen authority margins, immutable observed/producer cells, held-out
-  non-regression, identity checks, and the complete terminal battery.
+  regime-dependent diagnosis to a selected implementation: target/sign-scoped,
+  origin-aware, cross-fitted carrier calibration restricted to mutable imputed
+  recipients, with frozen authority margins, immutable observed/producer cells,
+  held-out non-regression, identity checks, and the complete terminal battery.
+  Source-operator fixes are scoped within their family so an incidence fix does
+  not imply that another target or the opposite-sign BLOCKER is safe to alter.
 - Current report SHA-256:
-  `2e0f134141a5def7d7dce9ec087d013d70891968cbfd938d82422f8b1388fdf6`;
+  `7c5dfbf55e9e53505eacc1e3800cfde632b4b535c0127b489b47418676e54e25`;
   JSON SHA-256:
-  `d6e925ff7c073b48ab7e02acfafefe9489519c9c86040768e24377c76a3827a5`.
+  `fd4f25245a2b32a199675a35c26ca575b027f665205ba639fb073434a8b5c2db`.
 
 ## Next
 
