@@ -186,6 +186,8 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         "acs_multispine.py",
         "acs_pums.py",
         "acs_sources.py",
+        # Pure calibration arrays/receipts; callers own population routing.
+        "acs_transfer_calibration.py",
         "acs_transfer_bank.py",  # Bounded checkpoint I/O; no population treatment.
         "asec_checkpoint.py",  # Bounded checkpoint I/O; no population treatment.
         "asec_pool.py",
@@ -237,6 +239,8 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         "release_gate_preflight.py",
         "release_input_coverage.py",
         "release_target_parity.py",
+        # Pure joint-parent array reconciliation; no source routing.
+        "schedule_d_joint_reconciliation.py",
         "scf_auto_loans.py",
         "scf_wealth.py",
         "sipp_financial_assets.py",

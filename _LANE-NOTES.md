@@ -72,9 +72,9 @@ Before/after 1% results will be added after the frozen builds.
   (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:992-1043`;
   `packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1581-1703`;
   `packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:2951-3035`).
-- Carrier quotas must be donor weighted within each availability pattern;
-  conditional magnitude transport should pool each target/sign across patterns
-  because the battery measures aggregate carrier quantiles
+- Carrier decisions must be deterministic within each availability pattern;
+  the conditional magnitude reference pools each donor target/sign because the
+  battery measures aggregate carrier quantiles
   (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1247-1386`;
   `packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11860-12021`).
 - Schedule-D requires the donor-weighted four-state parent table, including a
@@ -87,3 +87,42 @@ Before/after 1% results will be added after the frozen builds.
   prediction chunks plus in-process RSS enforcement before it is safe
   (`packages/microcosm-fit/src/microcosm/fit/qrf.py:318-351`;
   `packages/microcosm-build/src/microcosm/build/stage_profile.py:100-217`).
+
+## Pure calibration kernel receipt
+
+- The hurdle is now an explicit weighted allocation kernel: binary selection
+  ranks raw carrier propensity with stable-ID tie breaks, while the three-class
+  allocator handles signed targets without conflating sign with magnitude
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer_calibration.py:164-258`).
+- Conditional amounts are mapped only after signs are fixed. The kernel ranks
+  all final-domain carriers, including immutable native carriers, maps only the
+  mutable rows through the donor sign's weighted empirical inverse CDF,
+  restores the sign, and asserts that no sign changed
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer_calibration.py:259-382`).
+- Immutable rows and zero-weight rows constrain capacity instead of silently
+  becoming calibration candidates; receipts disclose target projection and
+  indivisible-weight allocation error
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer_calibration.py:501-575`).
+- The first Schedule-D subset solver was rejected during review before commit:
+  it imposed a 32-row production limit and preserved only unweighted parent
+  support. The replacement constructs disjoint positive/zero swaps only within
+  exact-equal-weight buckets, so it scales linearly after sorting and preserves
+  the weighted direct-parent carrier and conditional value distribution exactly
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/schedule_d_joint_reconciliation.py:110-303`).
+- The Schedule-D receipt distinguishes the requested target, its feasible
+  capacity projection, and the residual indivisible-swap error; unequal-weight,
+  signed, native, and zero-weight rows remain immutable
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/schedule_d_joint_reconciliation.py:304-386`).
+- A second pre-commit audit found crossing immutable amount anchors, a missing
+  one-for-one Schedule-D repair, and cancellation-sensitive capacity arithmetic.
+  The amount mapper now removes immutable CDF mass before mapping mutable ranks;
+  the Schedule-D frontier adds a deterministic exchange repair and derives
+  bounds directly from feasible carrier masks (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer_calibration.py:316-389`;
+  `packages/microcosm-build/src/microcosm/build/us_runtime/schedule_d_joint_reconciliation.py:190-257`).
+- Focused verification: 37 helper test cases and the complete 495-case runtime
+  source-blindness module passed; Ruff passed for both helpers, both test
+  modules, and the reviewed runtime inventory.
+- Commit-boundary verification: the complete repository pytest run reached
+  100% and exited 0 after the constrained-CDF and weight-matched reconciliation
+  revisions. Its warnings matched the baseline categories; no failure was
+  emitted.
