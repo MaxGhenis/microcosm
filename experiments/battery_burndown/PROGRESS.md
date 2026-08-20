@@ -2,13 +2,12 @@
 
 ## State
 
-An independent final revalidation is in progress on branch
-`battery-burndown`, based on `arm-split-base` at
-`7d6749990933ac072ac257ae76d666aa16b84d25`. The existing owner-facing and
-machine-readable reports have passed a fresh frozen-artifact arithmetic audit;
-source, exclusion, and classification checks are being repeated before close.
-No builds or pushes have been performed, and no code, gate, band, or threshold
-has been changed.
+Complete on branch `battery-burndown`, based on `arm-split-base` at
+`7d6749990933ac072ac257ae76d666aa16b84d25`. The owner-facing and
+machine-readable reports have passed independent frozen-artifact arithmetic,
+source/citation, reviewed-exclusion, actionability, and Markdown/JSON parity
+audits. No builds or pushes were performed, and no code, gate, band, threshold,
+or publication state was changed.
 
 ## Done
 
@@ -142,16 +141,23 @@ has been changed.
   held-out non-regression, identity checks, and the complete terminal battery.
   Source-operator fixes are scoped within their family so an incidence fix does
   not imply that another target or the opposite-sign BLOCKER is safe to alter.
-- Current report SHA-256:
+- Closed three final independent audits at commit `23add529`: all four frozen
+  gate hashes and every stored value/movement match; all 93 rows and 55 citation
+  entries resolve; the 21 incidence fixes respect target/sign and immutability
+  boundaries; UK schema-2 and QBI failed-attempt wording are exact. No further
+  report change was requested.
+- Final report SHA-256:
   `7c5dfbf55e9e53505eacc1e3800cfde632b4b535c0127b489b47418676e54e25`;
   JSON SHA-256:
   `fd4f25245a2b32a199675a35c26ca575b027f665205ba639fb073434a8b5c2db`.
 
 ## Next
 
-- Complete the fresh source-line and UK reviewed-exclusion audit.
-- Recheck every classification, named resolution, coverage partition, and
-  Markdown/JSON parity; correct and commit only substantiated report defects.
-- Close the journal with final hashes and owner priorities. Implementation and
-  rebuilds remain separate, explicitly authorized work; publication remains
-  gated until a future release battery is green.
+- Owner sequence: start with the five concrete FIX-CANDIDATE packages in
+  `ADJUDICATION.md`; Schedule-D is the tied 1/1 runner-up.
+- In parallel, commission the named data/ownership/model investigations for the
+  36 BLOCKER checks; do not convert them into exclusions without new evidence
+  and criterion-level machinery.
+- Implementation and rebuilds require separate authorization. Certification
+  must rerun all 211 battery legs after every current red clears; publication
+  remains gated until that future release battery is green.
