@@ -2,8 +2,8 @@
 
 ## State
 
-The authority inventory is complete; this journal update accompanies its
-commit. The stochastic audit and F1 dispatch-charter draft are in progress.
+The authority inventory and stochastic audit are complete and committed in
+coherent steps. The F1 dispatch-charter draft is in progress.
 Dependencies are synced with both locked country extras. The worktree is detached at
 the locally cached `origin/main` SHA
 `164027e21cfa58a71d701b43211d009d6182e39d` (2026-08-19 15:28:43 -0400).
@@ -39,9 +39,14 @@ are the locally cached references.
 - Completed the 87-row UK authority census and mapped it to compiled owners,
   including 14 concrete schema gaps.
 - Wrote `_UK-FLIP-PREP/AUTHORITY-INVENTORY.md`.
+- Closed the AST/semantic stochastic census at 78 physical calls: 40
+  ledger-bound calls and 38 typed exemptions, lowering to 34 logical ledger
+  rows (32 draw/hash-draw, two reset-only controls).
+- Reconciled source-stage seeds 0/42/43 with runtime behavior and separated the
+  historical take-up fitting seed 42 from live seed-0 assignments.
+- Wrote `_UK-FLIP-PREP/STOCHASTIC-AUDIT.md`.
 
 ## Next
 
-- Write and commit the stochastic audit with its closed callsite census.
 - Write and commit the UK F1 charter draft, finalize the output-file report,
   and verify counts, links, and worktree state.
