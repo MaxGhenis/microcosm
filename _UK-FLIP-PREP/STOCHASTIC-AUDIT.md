@@ -3,20 +3,20 @@
 ## Result
 
 An AST/source audit of all **55** `uk_runtime/*.py` modules (including
-`__init__.py`) and the three requested UK drivers found **84 physical
+`__init__.py`) and the three requested UK drivers found **87 physical
 callsites**:
 
 | Class | Physical sites | Ledger/broker-owned | Typed exemptions |
 | --- | ---: | ---: | ---: |
-| Stochastic or seeded lifecycle | 47 | 32 | 15 |
+| Stochastic or seeded lifecycle | 48 | 32 | 16 |
 | Deterministic hash | 17 | 0 | 17 |
-| Ambient clock, UUID, or backoff | 20 | 1 | 19 |
-| **Total** | **84** | **33** | **51** |
+| Ambient clock, nonce, UUID, or backoff | 22 | 1 | 21 |
+| **Total** | **87** | **33** | **54** |
 
 The 32 owned stochastic physical sites collapse/expand into **32 logical
 draw-site ledger rows**: five hash-helper delegations expand to 18 output-keyed
 streams, while ten QRF lifecycle calls bind to five model-chain rows. The one
-behavior-affecting clock has a separate broker record. The 51 exemptions are
+behavior-affecting clock has a separate broker record. The 54 exemptions are
 fully typed below; there are no unclassified sites.
 
 This is an analysis of cached `origin/main@164027e21cfa58a71d701b43211d009d6182e39d`.
@@ -72,7 +72,7 @@ manifest below.
 | L24 | `uk_spi_support_replacement` | NumPy `Generator(PCG64)` | Source operation/run seed 42 | Sorted `(clone_index, capital-gains flag, region)` dead strata; one without-replacement choice per stratum; final IDs restored to base input order | New generator per replacement call |
 | L25 | `uk_spi_donor_age_jitter` | NumPy `Generator(PCG64)` | Build seed 42 by default | One vector uniform in raw donor row order, mapped within published age bands | New generator per donor preparation |
 | L26 | `uk_spi_donor_bootstrap` | pandas weighted sample using NumPy legacy `RandomState(MT19937)` under the pinned pandas ABI | Build seed 42 by default, donor FACT weights | 100,000 replacement draws in pandas-emitted order | pandas reconstructs state for each `.sample` call |
-| L27 | `uk_spi_qrf_stage1` | Shared QRF `SeedSequence(42).spawn(2)`: PCG64 child 0 fit, child 1 draws; estimator RNGs derived by the QRF ABI | Stage-1 seed 42; tree count 100 | Exact 18-target source order. Fit once, predict SPI recipients, then predict all 18 targets again for canonical base rows even though only `dividend_income` is retained; the draw cursor advances across both predicts | New QRF object/child pair per stage-1 construction |
+| L27 | `uk_spi_qrf_stage1` | Shared QRF `SeedSequence(42).spawn(2)`: PCG64 child 0 fit, child 1 draws; estimator RNGs derived by the QRF ABI | Stage-1 seed 42; tree count 100 | Exact 18-target source order. The active `hmrc_spi_income` path fits once and predicts SPI recipients once. The alternate `hmrc_spi_income_spine` path additionally predicts all 18 targets for canonical base rows, advancing the same draw cursor, although it retains only `dividend_income` | New QRF object/child pair per stage-1 construction |
 | L28 | `uk_spi_qrf_stage2` | Same QRF family | Stage-2 seed 43 (`seed + 1`); tree count 100 | Exact authored 29-target stage-2 order; one recipient prediction | New QRF object/child pair per stage-2 construction |
 | L29 | `uk_was_qrf_segment_1` | Same QRF family | Seed 0 | `owned_land`, then `property_wealth` | `start_chain` creates a fresh fit/draw child pair for this segment |
 | L30 | `uk_was_qrf_segment_2` | Same QRF family | Seed 0 | `corporate_wealth_excl_isa`, then `stocks_and_shares_isa`; derived `corporate_wealth` is not drawn | Fresh `start_chain`; deliberately repeats seed 0 |
@@ -89,13 +89,14 @@ recording the constructor seed is insufficient.
 | --- | --- | --- | --- |
 | C01 | `uk_runtime/weighted_integrity.py:474` | UTC calendar date supplied by `ClockBroker` or sealed run request as `exclusions_evaluated_on` | Resolve exactly once before the stage/gate chain and receipt it; reset per build. Crossing midnight must not silently change exclusion-expiry verdicts. |
 
-## Physical stochastic/seeded manifest — 47 sites
+## Physical stochastic/seeded manifest — 48 sites
 
 Each owned row maps to one or more logical ledger IDs above. Exempt rows name an
 exact typed exemption.
 
 | Site | Physical API | Disposition |
 | --- | --- | --- |
+| `uk_runtime/cgt_imputation.py:272` | `np.power(...)`, conservatively surfaced by the certified F1 visitor as `stochastic.unresolved.power` | `deterministic_numpy_power`; deterministic inverse-CDF numeric transform, with no RNG receiver, state, seed, or draw |
 | `uk_runtime/cgt_imputation.py:471` | `np.random.default_rng((seed, time_period))` | L19 |
 | `uk_runtime/cgt_imputation.py:517` | `rng.random(count)` | L19 |
 | `uk_runtime/geography_ladder.py:658` | `np.random.default_rng(seed)` | L20 |
@@ -136,7 +137,7 @@ exact typed exemption.
 | `uk_runtime/spi_income.py:511` | QRF constructor | L28 |
 | `uk_runtime/spi_income.py:511` | QRF `.fit(...)` | L28 |
 | `uk_runtime/spi_income.py:517` | fitted QRF `.predict(...)` | L28 |
-| `uk_runtime/spi_income.py:538` | stage-1 fitted QRF `.predict(...)` | L27; advances after the SPI prediction |
+| `uk_runtime/spi_income.py:538` | stage-1 fitted QRF `.predict(...)` | L27; alternate `hmrc_spi_income_spine` only, not the active national stage |
 | `uk_runtime/was_wealth.py:364` | `RegimeGatedQRF(...)` constructor | L29–L31 |
 | `uk_runtime/was_wealth.py:369` | `model.start_chain(...)` | L29–L31; three dynamic invocations |
 | `uk_runtime/was_wealth.py:381` | `model.fit_draw_next(...)` | L29–L31; once per ordered target |
@@ -181,7 +182,7 @@ run identity. No built-in `hash`, direct `RandomState` constructor, stdlib
 `random`, `secrets`, `os.urandom`, or UUIDv1 site exists in the requested
 scope.
 
-## Ambient manifest — 20 sites
+## Ambient manifest — 22 sites
 
 | Site | API/use | Disposition |
 | --- | --- | --- |
@@ -191,7 +192,9 @@ scope.
 | `tools/build_uk_national_dataset.py:388` | `uuid.uuid4()` build ID | `operational_nonce` |
 | `tools/build_uk_national_dataset.py:1138` | `uuid.uuid4()` temp filename | `operational_nonce` |
 | `tools/build_uk_rowwise_candidate.py:116` | `uuid.uuid4()` build ID | `operational_nonce` |
+| `tools/build_uk_rowwise_candidate.py:667` | `tempfile.mkdtemp(...)` staging directory | `operational_temp_path_nonce`; OS-selected suffix affects only the normalized staging path |
 | `tools/build_uk_rowwise_dataset.py:206` | `uuid.uuid4()` build ID | `operational_nonce` |
+| `uk_runtime/hmrc_replay.py:816` | `tempfile.NamedTemporaryFile(...)` replay filename | `operational_temp_path_nonce`; OS-selected filename affects no numerical or node identity |
 | `uk_runtime/weighted_integrity.py:474` | `datetime.now(UTC).date()` exclusion-expiry date | **C01, behavior-affecting clock; not exempt** |
 | `tools/build_uk_national_dataset.py:530` | `datetime.now(UTC)` attempt timestamp | `operational_timestamp` |
 | `tools/build_uk_rowwise_candidate.py:267` | `datetime.now(UTC)` attempt timestamp | `operational_timestamp` |
@@ -238,7 +241,8 @@ or brokered by the upstream certified F1 ABI:
   generator behind L22.
 - `microcosm-fit/qrf.py` owns SeedSequence spawning, weighted bootstrap,
   estimator seeds, and draw uniforms for L27–L31. On this baseline,
-  `qrf.py:640` calls ambient `default_rng()` before restoring serialized state.
+  `packages/microcosm-fit/src/microcosm/fit/qrf.py:640` calls ambient
+  `default_rng()` before restoring serialized state.
   UK F1 must inherit the US F1 correction (`Generator(PCG64(0))` before state
   restore) and its implementation digest.
 - `microcosm-calibrate/solve.py:1126,1600` owns Torch resets and conditional

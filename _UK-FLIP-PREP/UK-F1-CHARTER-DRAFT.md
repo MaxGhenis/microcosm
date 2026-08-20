@@ -1,8 +1,9 @@
 # UK F1 — make the compiled UK bundle authoritative
 
 **Status:** dispatch draft. Do not dispatch until the certified US F1
-executor/broker ABI is pinned and every N01–N12 schema prerequisite in
-`AUTHORITY-INVENTORY.md` has landed.
+executor/broker ABI is pinned, every N01–N12 schema prerequisite in
+`AUTHORITY-INVENTORY.md` has landed, and the existing US-specific battery,
+calibration, publication-rung, and spine pipeline fields accept the UK bundle.
 
 ## Why this lane exists
 
@@ -37,7 +38,7 @@ Start only when all of the following are true:
   inputs, public-source bytes, OA ladder/crosswalk, exclusion registers, and
   signing/evidence inputs are content-pinned and available locally.
 - The two preflight artifacts remain current: 30 authority groups/12 missing
-  field paths and an independent 84-physical-site stochastic/hash/ambient
+  field paths and an independent 87-physical-site stochastic/hash/ambient
   baseline. Every source delta since that audit is adjudicated before a run.
 
 If UK-specific schema/compiler work remains at dispatch, this is not yet a
@@ -69,14 +70,14 @@ The lane is sized for these reviewed surfaces:
 - **12 schema field paths** that must be present before dispatch, plus
   country-neutral generalization of existing US-specific battery, calibration,
   publication-rung, and spine pipeline fields.
-- **84 physical UK-file callsites**: 47 stochastic/seeded, 17 deterministic
-  hashes, and 20 ambient calls. The reviewed disposition is 33 owned physical
-  sites and 51 typed exemptions.
+- **87 physical UK-file callsites**: 48 stochastic/seeded, 17 deterministic
+  hashes, and 22 ambient calls. The reviewed disposition is 33 owned physical
+  sites and 54 typed exemptions.
 - **32 logical draw-site rows** plus one behavior-affecting clock record. The
   seed families are identity-keyed 0; CGT 552 mixed with period; SPI/HMRC 42
   followed by 43; national sample 578; and rowwise geography/calibration 42.
 - Three physical pipelines, two geography profiles, one selected local target
-  family, and one restricted cold end-to-end certification chain.
+  family, and one restricted cold certification graph.
 
 These numbers are baselines, not magic acceptance constants. The independent
 scanner must produce an exact explained delta after upstream F1 merges; an
@@ -87,10 +88,11 @@ unexplained addition, deletion, or reclassification fails.
 - **Upstream US F1 owner:** supplies and certifies the country-neutral executor,
   brokers, capabilities, seed protocol machinery, coverage scanner, plan lock,
   comparator, artifact collection, and resume semantics. UK does not fork them.
-- **UK schema/compiler owner:** authors the complete resources, UK executable
-  graph/nodes, physical pipeline ABI, N01–N12 fields, seed sites, geography
-  profiles, release dimensions, target catalog, compile-back projection, and
-  field-usage coverage.
+- **UK schema/compiler prerequisite owner:** before dispatch, lands the complete
+  resources, UK executable graph/nodes, physical pipeline ABI, N01–N12 fields,
+  seed sites, geography profiles, release dimensions, target catalog,
+  compile-back projection, and field-usage coverage. The one-day flip lane
+  verifies and consumes this work; it does not author missing schema/specs.
 - **UK runtime owner:** adds the authority-mode selector to all three drivers
   and binds bundle mode to compiled IR/brokers. Constants mode stays untouched.
 - **Certification/data owner:** provides licensed inputs, adjudicates evidence,
@@ -102,7 +104,8 @@ Record one immutable `plan_lock` before execution. It contains all content
 digests, upstream ABI/implementation digests, bundle/spec identity, oracle code
 pin, exact artifact/comparison vectors, and typed run-request values.
 
-The restricted certification request preserves the live defaults explicitly:
+The restricted certification request seals f001 for the national input
+deliberately, making live defaults and certification overrides explicit:
 
 | Surface | Sealed values |
 | --- | --- |
@@ -111,8 +114,8 @@ The restricted certification request preserves the live defaults explicitly:
 | CGT | seed base 552 mixed with target period; exact ordered allocation/band surface |
 | Rowwise geography | production route `ladder`; two clones; run seed 42; constituency vintage `2024_pcon`; exact ladder content pin; preserved clone/ID/weight semantics |
 | Crosswalk fixture | named compatibility route; run seed 42; exact pinned crosswalk bytes; collision policy and 50-retry cap; never live-download during certification |
-| Candidate solve | target family `census_households/constituency`; epochs 512; learning rate 0.15; free mass; target records null; L0 0; budget iterations 10; loss cap 10; max weight ratio 100; seed 42 |
-| Operational | fresh output/checkpoint roots per cold run; no pending production logbook chain; injected exclusion-evaluation date; under-15-GiB per-process RSS ceiling |
+| Candidate solve | target family `census_households/constituency`; epochs 512; learning rate 0.15; free mass; target records null; L0 0; budget iterations 10; loss cap 10; max weight ratio 100; seed 42; preserve the incumbent hardcoded candidate receipt/build rung tag `f100` pending a separate owner ruling |
+| Operational | fresh output/checkpoint roots per cold run; no pending production logbook chain; injected exclusion-evaluation date; heavy runs serialized; aggregate lane RSS below 15 GiB |
 
 Filesystem paths and licensed handles are operational bindings. Route, source
 identity, seed, vintage, clone count, solver behavior, gate posture, and release
@@ -125,11 +128,14 @@ dimensions are semantic and enter the plan/node slices as appropriate.
 - No derived-v2/block-first geography, target re-unification, new fiscal
   calibration, or firm-generation activation.
 - No source-stage consolidation or cleanup hidden inside the authority flip.
+- No relabeling of the candidate's incumbent `f100` receipt/build identity to
+  match the national f001 certification override.
 - No F2 deletion. Constants mode remains runnable and is retained as oracle.
 - No full-scale release, `latest` promotion, push, or publication from this
   lane. The owner receives commands and evidence.
-- No edits to María’s branches or UK package sources outside the dispatched
-  lane's own isolated worktree.
+- No edits to María’s branches, external `policyengine-uk` sources, or the
+  prelanded `packages/microcosm-build/src/microcosm/build/uk/` bundle resources.
+  If those need changes, stop and return them to the prerequisite owner.
 - No reroll, tolerance relaxation, or canonicalization invented after observing
   a mismatch.
 
@@ -214,30 +220,37 @@ FitWeightRecord, and changed checkpoint identity.
 
 ### 6. Run cold certification and resume proof
 
-Run four fresh restricted f001 end-to-end chains with no artifact, checkpoint,
-model, or bank reuse:
+Run four fresh restricted certification graphs, each using a newly built f001
+national input and no artifact, checkpoint, model, or bank reuse:
 
 - constants A;
 - constants B;
 - bundle C; and
 - bundle D.
 
-Each chain is national staging → rowwise OA-ladder dataset → rowwise calibrated
-candidate. Require `A = B`, `C = D`, and `A = C` under the sealed comparator.
-Require zero resumed stages in all four cold runs. Record wall time and peak RSS
-per stage/mode; abort before any process exceeds 15 GiB RSS.
+Each graph fans out from one national staging H5 to two independent consumers:
+the rowwise OA-ladder dataset driver and the rowwise calibrated-candidate
+driver. Both receive that same frozen national H5 and the same ladder pin; the
+candidate never consumes the rowwise dataset output. Its incumbent `f100`
+receipt/build tag is preserved and compared exactly even though its national
+input is the sealed f001 override. Require `A = B`, `C = D`, and `A = C` under
+the sealed comparator. Require zero resumed stages in all four cold graphs. Run
+heavy stages serially, record wall time and aggregate lane peak RSS per
+stage/mode, and abort before aggregate lane RSS reaches 15 GiB.
 
-Separately kill one build after a durable stage boundary, resume it only under
-the compiler-emitted predicate, and require its final normative vector to equal
-an uninterrupted build. Resume evidence does not substitute for the four cold
+Separately exercise kill/resume at fixture scale after a durable stage boundary,
+resume only under the compiler-emitted predicate, and require its final
+normative vector to equal an uninterrupted fixture build. This is not a fifth
+certification graph, and resume evidence does not substitute for the four cold
 runs.
 
 ### 7. Close and hand off
 
 Write machine-readable and human UK F1 certification evidence under an
-owner-approved evidence path, retarget only in-scope derived consumers to
-compiled outputs, record constants/F2 retention, and hand the owner exact
-f010/f100/full commands and expected identities. Do not push or publish.
+owner-approved evidence path, record constants/F2 retention, and hand the owner
+exact f010/f100/full commands and expected identities. Consumer retargeting is
+out of scope unless a separate dependency inventory and owner dispatch add it.
+Do not push or publish.
 
 ## Required tests and evidence
 
@@ -251,9 +264,11 @@ f010/f100/full commands and expected identities. Do not push or publish.
   enforcement and golden legacy vectors for each seed family/reset boundary.
 - Per-logical-stage synthetic dual-mode receipts and every declared UK gate run
   with identical threshold, direction, status, and detail.
-- Four cold f001 chains and one separate kill/resume proof, with commands,
-  environment/code/spec pins, artifact identities, comparisons, gate table,
-  broker logs, checkpoint evidence, wall time, and RSS.
+- Four cold certification graphs with f001 national inputs and incumbent
+  `f100` candidate receipt tags, plus one separate fixture-scale kill/resume
+  proof, with commands, environment/code/spec pins, artifact identities,
+  comparisons, gate table, broker logs, checkpoint evidence, wall time, and
+  RSS.
 - A leak/waiver register. No silent exemption or post-hoc comparison rule is
   acceptable.
 
@@ -269,11 +284,14 @@ vector.
    the plan-derived publication/artifact vector. An H5 structural comparison is
    also emitted for diagnosis; it never excuses a normative byte mismatch.
 2. **Provenance/operational surfaces:** compare structurally under explicit
-   sealed rows only. `identity_generation` and `config_authority` are expected
-   generation differences and must equal loader outputs; absolute paths,
-   durations, UUID nonces, injected/recorded clock values, host/executable
-   strings, and similar fields may be excluded only when predeclared. Any
-   unlisted difference fails. Node reuse keys remain equal across modes.
+   sealed rows only. `identity_generation` and the provenance triad are expected
+   generation differences and must equal loader outputs; `config_authority`
+   must equal the selected mode. Absolute paths, durations, UUID nonces,
+   operational timestamps, host/executable strings, and similar readouts may be
+   excluded only when predeclared. The sealed semantic
+   `exclusions_evaluated_on` date must compare equal and is never an operational
+   exclusion. Any unlisted difference fails. Node reuse keys remain equal
+   across modes.
 
 Unlike the US D6 migration, this draft authorizes no UK release-prefix change:
 the inventoried `populace-uk-<year>-<tier>-k<count>` identity is normative. A
@@ -289,8 +307,9 @@ normalization row; it must not appear opportunistically in UK F1.
 - Independent stochastic coverage is complete; all declared/runtime seeds and
   reset boundaries reconcile; the semantic clock is injected.
 - Fixture and stage receipts show no normative differences.
-- Cold f001 `A=B`, `C=D`, and `A=C`; resume proof passes; all gates match; no
-  hidden reuse; every process stays below 15 GiB RSS.
+- Cold-graph `A=B`, `C=D`, and `A=C` with f001 national inputs and preserved
+  `f100` candidate receipt tags; resume proof passes; all gates match; no hidden
+  reuse; heavy runs are serialized and aggregate lane RSS stays below 15 GiB.
 - Nothing is tuned, pushed, published, promoted, or run above the restricted
   certification scale.
 - Journal, machine evidence, human summary, and owner handoff are complete.
@@ -313,8 +332,10 @@ Stop immediately and leave the last coherent commit/test state if:
   unlisted receipt difference, hidden reuse, or resume-predicate failure occurs;
 - required licensed/pinned inputs, signing/evidence, or authenticated geography
   bytes are unavailable;
-- any process approaches 15 GiB RSS or success would require a reroll/tune; or
-- work would require touching María’s branches or unauthorized UK sources.
+- aggregate lane RSS approaches 15 GiB, heavy runs would overlap, or success
+  would require a reroll/tune; or
+- work would require touching María’s branches, external `policyengine-uk`, or
+  the prelanded UK bundle resources.
 
 ## Owner handoff
 
