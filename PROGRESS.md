@@ -4,10 +4,10 @@
 
 Continuation active on branch `battery-pkg1-puf-tax`. The host's paired 1%
 evidence showed identical 127-line failure sets because the committed PUF-tax
-and Schedule-D calibration kernels have no production caller. The carried
-exact capped-leaf QRF correction is still uncommitted and will be revalidated
-and committed before the transfer wiring changes. No frozen gate parameter or
-band has changed, and the host owns the next 1% comparison.
+and Schedule-D calibration kernels have no production caller. The exact capped-
+leaf QRF correction now passes its 73-case focused suite and static checks and
+is committed with this journal boundary. No frozen gate parameter or band has
+changed, and the host owns the next 1% comparison.
 
 ## Done
 
@@ -107,9 +107,10 @@ band has changed, and the host owns the next 1% comparison.
   dense tensor projects to 21,801,467,904 bytes while the exact ragged payload
   retains 10,623,840 bytes and peaks at 273,088,512 bytes RSS. Independent fuzz
   review found all 160 capped and 100 unlimited comparisons bit-identical.
-- The expanded QRF module, Ruff check, targeted format check, and
-  `git diff --check` pass. The complete repository suite is running for the
-  capped-support commit boundary.
+- Revalidated the carried capped-leaf correction in this worktree: all 73 QRF
+  tests pass with execution widths pinned to one; focused Ruff, format, and
+  `git diff --check` pass. The complete repository suite remains reserved for
+  the final wired state.
 - Received the host's paired 1% result: branch and `origin/main` each produced
   the same 127 failure lines, with zero fixed and zero introduced. Direct source
   and log inspection established that `acs_transfer_calibration.py` is never
@@ -122,7 +123,6 @@ band has changed, and the host owns the next 1% comparison.
 
 ## Next
 
-- Revalidate and commit the carried exact capped-leaf storage correction.
 - Wire the calibration seam into the ACS transfer stage for exactly the assigned
   PUF-tax targets and Schedule-D parent, following pkg3's scoped-binding shape.
 - Add assigned/non-assigned invocation coverage, then run the complete suite,

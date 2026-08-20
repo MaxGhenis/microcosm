@@ -51,15 +51,19 @@ import hashlib
 import inspect
 import json
 import os
+import random
 import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
+from math import ceil
+from numbers import Integral, Real
 
 import numpy as np
 import pandas as pd
 from quantile_forest import RandomForestQuantileRegressor
 from quantile_forest._quantile_forest_fast import calc_weighted_quantile
+from quantile_forest._utils import group_indices_by_value
 from sklearn.ensemble import HistGradientBoostingClassifier
 
 from microcosm.fit.model import (
@@ -350,6 +354,11 @@ def _require_ragged_qrf_private_contract() -> None:
             calc_weighted_quantile,
             ("inputs", "weights", "quantiles", "interpolation", "issorted"),
         ),
+        (
+            "quantile_forest._utils.group_indices_by_value",
+            group_indices_by_value,
+            ("a",),
+        ),
     )
     for name, function, expected_parameters in contracts:
         try:
@@ -357,15 +366,13 @@ def _require_ragged_qrf_private_contract() -> None:
         except (TypeError, ValueError) as error:
             raise RuntimeError(
                 f"Ragged QRF cannot inspect the required private contract {name}; "
-                "install the tested quantile-forest interface or use an explicit "
-                "max_samples_leaf."
+                "install the tested quantile-forest interface."
             ) from error
         if actual_parameters != expected_parameters:
             raise RuntimeError(
                 f"Ragged QRF requires private contract {name}"
                 f"{expected_parameters}, got {actual_parameters}. Install a "
-                "compatible quantile-forest release or use an explicit "
-                "max_samples_leaf."
+                "compatible quantile-forest release."
             )
 
     # Signature stability is necessary but not sufficient for a private
@@ -395,8 +402,7 @@ def _require_ragged_qrf_private_contract() -> None:
     if not np.array_equal(ragged_probe, dense_probe):
         raise RuntimeError(
             "Ragged QRF's private weighted-quantile behavior contract changed. "
-            "Install a compatible quantile-forest release or use an explicit "
-            "max_samples_leaf."
+            "Install a compatible quantile-forest release."
         )
 
 
@@ -416,21 +422,29 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
     multiplicities in a ragged target-value representation, including the
     first sorted-row slot needed to preserve the installed interpolation rule.
     Prediction pools visited summaries in linear time and calls the same
-    installed Cython weighted-quantile routine.  No sample is truncated and no
-    random stream is added, so draws are bit-identical to the stock
-    unlimited-leaf backend.
+    installed Cython weighted-quantile routine. Unlimited leaves retain every
+    bootstrap occurrence. For a bound, the subclass runs the installed
+    implementation's per-tree Python ``random`` shuffle over leaves in the same
+    node-id order, then compresses that exact selected multiset. Thus it adds no
+    random stream or truncation beyond the configured upstream cap, and draws
+    are bit-identical to either stock backend.
 
     The implementation intentionally supports only Microcosm's forest contract:
-    one output, bootstrap trees, no direct RF sample weights, unlimited leaf
-    retention, and the default pooled weighted-quantile prediction.  Unsupported
-    modes fail closed.  Explicit ``max_samples_leaf`` configurations retain the
-    installed dense implementation, including the existing near-discrete guard.
+    one output, bootstrap trees, no direct RF sample weights, and the default
+    pooled weighted-quantile prediction. Unsupported modes fail closed. The
+    installed special ``max_samples_leaf == 1`` path remains dense so it can
+    predict through NumPy's separate unweighted-quantile implementation. The
+    ordinary integer value ``1`` has bounded width. Upstream also compares the
+    fractional value ``1.0`` equal here despite resolving it to ``n_samples``
+    during membership construction; that exact-compatible spelling therefore
+    remains memory-pathological and should not be used.
     """
 
     def fit(self, X, y, sample_weight=None, sparse_pickle=False):  # noqa: N803
         """Fit only after validating the private hook/kernel boundary."""
 
-        if self.max_samples_leaf is None:
+        use_ragged = self.max_samples_leaf != 1
+        if use_ragged:
             _require_ragged_qrf_private_contract()
         fitted = super().fit(
             X,
@@ -438,12 +452,12 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
             sample_weight=sample_weight,
             sparse_pickle=sparse_pickle,
         )
-        if self.max_samples_leaf is None:
+        if use_ragged:
             if not hasattr(self, "_ragged_leaf_membership_"):
                 raise RuntimeError(
                     "Ragged QRF's private leaf-membership hook was not invoked "
                     "by quantile-forest during fit. Install a compatible "
-                    "quantile-forest release or use an explicit max_samples_leaf."
+                    "quantile-forest release."
                 )
             placeholder_shape = np.asarray(self.forest_.y_train_leaves).shape
             expected_shape = (len(self.estimators_), 1, 1, 1)
@@ -452,7 +466,7 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
                     "Ragged QRF's private QuantileForest constructor contract "
                     f"changed: expected placeholder shape {expected_shape}, got "
                     f"{placeholder_shape}. Install a compatible quantile-forest "
-                    "release or use an explicit max_samples_leaf."
+                    "release."
                 )
         return fitted
 
@@ -465,11 +479,12 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
     ) -> np.ndarray:
         """Build exact ragged memberships and return a one-slot dummy tensor."""
 
-        # Explicit caps (including Microcosm's seeded near-discrete cap) have
-        # different membership semantics and remain owned by the installed
-        # backend.  Clear a prior ragged fit if callers reuse an estimator.
+        # Raw values equal to one use a separate NumPy prediction implementation
+        # in quantile-forest. Integer 1 is memory-safe; fractional 1.0 resolves
+        # to n_samples upstream but must remain here for exact compatibility.
+        # Clear a prior ragged fit if callers reuse an estimator.
         self.__dict__.pop("_ragged_leaf_membership_", None)
-        if self.max_samples_leaf is not None:
+        if self.max_samples_leaf == 1:
             return super()._get_y_train_leaves(
                 X,
                 y,
@@ -502,6 +517,22 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
         n_samples = int(X.shape[0])
         n_outputs = int(y.shape[1])
         n_trees = len(self.estimators_)
+        if isinstance(self.max_samples_leaf, (Integral, np.integer)):
+            effective_max_samples_leaf = int(self.max_samples_leaf)
+            leaf_subsample = True
+        elif isinstance(self.max_samples_leaf, Real):
+            effective_max_samples_leaf = int(ceil(self.max_samples_leaf * n_samples))
+            leaf_subsample = True
+        elif self.max_samples_leaf is None:
+            effective_max_samples_leaf = None
+            leaf_subsample = False
+        else:
+            # BaseForestQuantileRegressor validates this before calling the
+            # hook. Keep the private boundary defensive if that order changes.
+            raise ValueError(
+                "`max_samples_leaf` must be of integer, float, or None type, "
+                f"got {type(self.max_samples_leaf)}."
+            )
 
         # sklearn's public authority for the actual per-tree bootstrap draws.
         # In sklearn 1.9 the private bootstrap helpers gained a required
@@ -567,7 +598,9 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
 
         trees: list[_RaggedTreeLeafMembership] = []
         max_node_count = 0
-        max_leaf_members = 0
+        max_leaf_members = (
+            0 if effective_max_samples_leaf is None else effective_max_samples_leaf
+        )
         for tree_index, (estimator, raw_bootstrap_indices) in enumerate(
             zip(self.estimators_, estimator_samples, strict=True)
         ):
@@ -587,23 +620,73 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
                 raise RuntimeError(
                     "Ragged QRF received malformed indices from estimators_samples_."
                 )
-            leaf_nodes = np.asarray(
+            bootstrap_leaf_nodes = np.asarray(
                 x_leaves[bootstrap_indices, tree_index], dtype=np.int64
             )
-            sorted_target_indices = np.asarray(
-                original_to_sorted[bootstrap_indices], dtype=np.int64
-            )
 
-            leaf_sizes = np.bincount(leaf_nodes, minlength=node_count)
-            max_leaf_members = max(max_leaf_members, int(leaf_sizes.max()))
+            leaf_sizes = np.bincount(bootstrap_leaf_nodes, minlength=node_count)
+            if not leaf_subsample:
+                max_leaf_members = max(max_leaf_members, int(leaf_sizes.max()))
+
+            # This is the installed 1.4.2 slice algorithm, stopped before its
+            # padded ``(max_node_count, max_samples_leaf)`` allocation. The
+            # compiled grouper determines both ascending node order and the
+            # initial within-leaf order. Python's module-global RNG is then
+            # seeded once per tree and consumed serially across those leaves.
+            # Keeping that global side effect is part of exact compatibility.
+            leaf_indices, leaf_positions_list = group_indices_by_value(
+                bootstrap_leaf_nodes
+            )
+            if leaf_subsample:
+                random.seed(estimator.random_state)
+
+            retained_node_parts: list[np.ndarray] = []
+            retained_target_parts: list[np.ndarray] = []
+            for leaf_node, raw_leaf_positions in zip(
+                leaf_indices,
+                leaf_positions_list,
+                strict=True,
+            ):
+                leaf_positions = raw_leaf_positions
+                if leaf_subsample and len(leaf_positions) > effective_max_samples_leaf:
+                    random.shuffle(leaf_positions)
+                    leaf_positions = leaf_positions[:effective_max_samples_leaf]
+                retained_node_parts.append(
+                    np.full(len(leaf_positions), leaf_node, dtype=np.int64)
+                )
+                retained_target_parts.append(
+                    np.asarray(
+                        original_to_sorted[bootstrap_indices[leaf_positions]],
+                        dtype=np.int64,
+                    )
+                )
+
+            leaf_nodes = np.concatenate(retained_node_parts)
+            sorted_target_indices = np.concatenate(retained_target_parts)
+            retained_sample_count = len(sorted_target_indices)
+            expected_retained_count = (
+                int(
+                    np.minimum(leaf_sizes, effective_max_samples_leaf).sum(
+                        dtype=np.int64
+                    )
+                )
+                if leaf_subsample
+                else n_samples_bootstrap
+            )
+            if retained_sample_count != expected_retained_count:
+                raise AssertionError(
+                    "Ragged QRF capped membership retained "
+                    f"{retained_sample_count} samples, expected "
+                    f"{expected_retained_count}."
+                )
 
             # Sort by node, then by sorted-y row.  Adjacent equal pairs are the
-            # exact bootstrap duplicates that the dense backend later sums into
+            # exact selected duplicates that the dense backend later sums into
             # one leaf_weights slot.
             order = np.lexsort((sorted_target_indices, leaf_nodes))
             ordered_nodes = leaf_nodes[order]
             ordered_targets = sorted_target_indices[order]
-            pair_start = np.empty(n_samples_bootstrap, dtype=bool)
+            pair_start = np.empty(retained_sample_count, dtype=bool)
             pair_start[0] = True
             pair_start[1:] = (ordered_nodes[1:] != ordered_nodes[:-1]) | (
                 ordered_targets[1:] != ordered_targets[:-1]
@@ -612,7 +695,7 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
             pair_nodes = ordered_nodes[pair_starts]
             pair_targets = ordered_targets[pair_starts].astype(np.int32, copy=False)
             pair_multiplicities = np.diff(
-                np.append(pair_starts, n_samples_bootstrap)
+                np.append(pair_starts, retained_sample_count)
             ).astype(np.uint32, copy=False)
 
             # Collapse equal target values within a leaf, retaining both total
@@ -649,9 +732,9 @@ class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
             node_offsets[1:] = np.cumsum(
                 np.bincount(group_nodes, minlength=node_count), dtype=np.int64
             )
-            if int(total_multiplicities.sum(dtype=np.uint64)) != n_samples_bootstrap:
+            if int(total_multiplicities.sum(dtype=np.uint64)) != retained_sample_count:
                 raise AssertionError(
-                    "Ragged QRF membership lost bootstrap multiplicity."
+                    "Ragged QRF membership lost selected leaf multiplicity."
                 )
             for array in (
                 node_offsets,

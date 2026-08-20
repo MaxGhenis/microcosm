@@ -10,6 +10,8 @@ input, and that a fixed seed makes a freshly fitted model reproducible.
 from __future__ import annotations
 
 import json
+import random
+from math import ceil
 
 import numpy as np
 import pandas as pd
@@ -19,6 +21,7 @@ from quantile_forest import RandomForestQuantileRegressor
 from microcosm.fit import QRFChainState, Regime, RegimeGatedQRF, fit
 from microcosm.fit.qrf import (
     _DISCRETE_Y_LEAF_BOUND,
+    _QUANTILE_GRID,
     _fit_n_jobs,
     _RaggedRandomForestQuantileRegressor,
     detect_regime,
@@ -472,6 +475,162 @@ def test_ragged_leaf_predictions_are_bit_exact_to_dense_backend(target_kind) -> 
     np.testing.assert_array_equal(
         ragged.predict(probe, quantiles=[0.5]),
         dense.predict(probe, quantiles=[0.5]),
+    )
+
+
+@pytest.mark.parametrize("forest_seed", [0, 5989])
+@pytest.mark.parametrize("target_kind", ["continuous", "repeated"])
+@pytest.mark.parametrize("max_samples_leaf", [1, 7, 0.02, 1.0])
+def test_capped_ragged_predictions_are_bit_exact_to_dense_backend(
+    forest_seed,
+    target_kind,
+    max_samples_leaf,
+) -> None:
+    """Integer/float caps preserve seeded membership and every readout bit."""
+
+    rng = np.random.default_rng(847)
+    n = 360
+    x = rng.normal(size=(n, 5))
+    if target_kind == "continuous":
+        y = rng.normal(2_000.0, 700.0, size=n)
+    else:
+        y = rng.choice(np.array([-9.0, -2.0, 4.0, 11.0]), size=n)
+
+    kwargs = {
+        "n_estimators": 13,
+        "max_samples_leaf": max_samples_leaf,
+        "min_samples_leaf": 24,
+        "random_state": forest_seed,
+        "n_jobs": 1,
+    }
+    dense = RandomForestQuantileRegressor(**kwargs).fit(x, y)
+    ragged = _RaggedRandomForestQuantileRegressor(**kwargs).fit(x, y)
+    probe = np.vstack([x[:40], rng.normal(size=(20, x.shape[1]))])
+    quantiles = np.concatenate(([0.0], _QUANTILE_GRID, [1.0])).tolist()
+
+    np.testing.assert_array_equal(
+        ragged.predict(probe, quantiles=quantiles),
+        dense.predict(probe, quantiles=quantiles),
+    )
+
+    # Raw values equal to one use quantile-forest's distinct NumPy branch.
+    # Integer 1 is bounded; fractional 1.0 deliberately retains upstream's
+    # exact but memory-pathological n_samples-wide membership behavior.
+    if max_samples_leaf == 1:
+        assert not hasattr(ragged, "_ragged_leaf_membership_")
+        return
+
+    store = ragged._ragged_leaf_membership_
+    dense_tensor = np.asarray(dense.forest_.y_train_leaves)
+    resolved_cap = (
+        max_samples_leaf
+        if isinstance(max_samples_leaf, int)
+        else ceil(max_samples_leaf * n)
+    )
+    assert store.dense_projection_shape == dense_tensor.shape
+    assert store.dense_projection_shape[-1] == resolved_cap
+    assert store.dense_projection_nbytes == dense_tensor.nbytes
+
+    x_leaves = ragged.apply(x)
+    expected_retained = 0
+    for tree_index, bootstrap_indices in enumerate(ragged.estimators_samples_):
+        leaf_counts = np.bincount(x_leaves[bootstrap_indices, tree_index])
+        expected_retained += int(
+            np.minimum(leaf_counts, resolved_cap).sum(dtype=np.int64)
+        )
+    actual_retained = sum(
+        int(tree.total_multiplicities.sum(dtype=np.uint64)) for tree in store.trees
+    )
+    assert actual_retained == expected_retained
+
+
+def test_capped_ragged_consumes_exact_upstream_python_random_stream() -> None:
+    """Leaf shuffles retain quantile-forest's per-tree global-RNG side effect."""
+
+    rng = np.random.default_rng(391)
+    x = rng.normal(size=(300, 4))
+    y = rng.choice(np.array([-3.0, 1.0, 7.0, 15.0]), size=len(x))
+    kwargs = {
+        "n_estimators": 9,
+        "max_samples_leaf": 7,
+        "min_samples_leaf": 20,
+        "random_state": 71,
+        "n_jobs": 1,
+    }
+
+    random.seed(123_456)
+    RandomForestQuantileRegressor(**kwargs).fit(x, y)
+    dense_state = random.getstate()
+    random.seed(123_456)
+    _RaggedRandomForestQuantileRegressor(**kwargs).fit(x, y)
+    ragged_state = random.getstate()
+
+    assert ragged_state == dense_state
+
+
+def test_production_4096_cap_is_bit_exact_when_a_leaf_exceeds_the_bound() -> None:
+    """The production cap shuffles a giant leaf without changing any quantile."""
+
+    rng = np.random.default_rng(578)
+    n = 5_200
+    x = np.zeros((n, 3), dtype=np.float64)
+    y = rng.choice(np.array([-11.0, -3.0, 2.0, 9.0]), size=n)
+    kwargs = {
+        "n_estimators": 5,
+        "max_samples_leaf": _DISCRETE_Y_LEAF_BOUND,
+        "random_state": 41,
+        "n_jobs": 1,
+    }
+    dense = RandomForestQuantileRegressor(**kwargs).fit(x, y)
+    ragged = _RaggedRandomForestQuantileRegressor(**kwargs).fit(x, y)
+    quantiles = np.concatenate(([0.0], _QUANTILE_GRID, [1.0])).tolist()
+
+    np.testing.assert_array_equal(
+        ragged.predict(x[:3], quantiles=quantiles),
+        dense.predict(x[:3], quantiles=quantiles),
+    )
+    assert all(
+        int(tree.total_multiplicities.sum(dtype=np.uint64)) == _DISCRETE_Y_LEAF_BOUND
+        for tree in ragged._ragged_leaf_membership_.trees
+    )
+
+
+@pytest.mark.parametrize("max_samples_leaf", [None, 7, 0.02])
+def test_ragged_keeps_direct_sample_weights_fail_closed(max_samples_leaf) -> None:
+    """Microcosm materializes weights; private upstream filtering stays out."""
+
+    x = np.arange(120.0).reshape(60, 2)
+    y = np.arange(60.0)
+    with pytest.raises(NotImplementedError, match="direct RF sample_weight"):
+        _RaggedRandomForestQuantileRegressor(
+            n_estimators=3,
+            max_samples_leaf=max_samples_leaf,
+            random_state=19,
+            n_jobs=1,
+        ).fit(x, y, sample_weight=np.ones(len(y)))
+
+
+def test_estate_like_capped_ragged_store_avoids_15_gib_dense_projection() -> None:
+    """A 32-atom production analogue keeps exact membership in a few MiB."""
+
+    rng = np.random.default_rng(123)
+    n = 12_000
+    x = rng.normal(size=(n, 4))
+    y = rng.integers(0, 32, size=n).astype(np.float64)
+    model = _RaggedRandomForestQuantileRegressor(
+        n_estimators=48,
+        max_samples_leaf=_DISCRETE_Y_LEAF_BOUND,
+        random_state=17,
+        n_jobs=1,
+    ).fit(x, y)
+    store = model._ragged_leaf_membership_
+
+    assert store.dense_projection_nbytes > 15 * 2**30
+    assert store.nbytes < 32 * 2**20
+    assert np.asarray(model.forest_.y_train_leaves).shape == (48, 1, 1, 1)
+    assert (
+        sum(int(tree.total_multiplicities.sum(dtype=np.uint64)) for tree in store.trees)
+        == 48 * n
     )
 
 
