@@ -201,3 +201,11 @@ Pinned local inputs for both builds:
   pass. The repository-wide formatting audit reports 49 pre-existing unrelated
   files; they remain untouched. No continuation 1% build was run, so the host
   retains the frozen branch/baseline comparison.
+- A fresh independent verification at implementation HEAD `d9a38965` re-ran
+  the four load-bearing wiring fixtures, the complete 110-test ACS
+  calibration/transfer/Schedule-D set, and the repository suite. The full run
+  exited zero in 53:11 with 6,551 passed, 74 skipped, 1,890 established
+  warnings, and an empty `lastfailed` cache (6,625 collected). Separate scope
+  and call-flow audits found no default-stacked leakage or unwired assigned
+  target; the explicit retiring `--legacy-two-spine` compatibility route is
+  intentionally unchanged and remains outside this remedy.

@@ -10,7 +10,7 @@ derive stage. Independent scope and integration reviews are closed; the
 Schedule-D mutation contract now explicitly declares both its parent rewrite
 and derived leaf, and its role-authority digest covers the final role counts.
 All 73 ACS transfer tests, the 1,020-test touched-runtime set, and the complete
-6,623-test repository collection are green. No frozen gate parameter or band
+6,625-test repository collection are green. No frozen gate parameter or band
 has changed, no continuation build was run, and the host owns the next 1%
 comparison.
 
@@ -165,6 +165,19 @@ comparison.
   names 49 pre-existing unrelated files, which were left untouched.
 - Finalized this terminal journal and `FINAL_REPORT.md` for the committed host
   handoff.
+- Independently re-audited the committed wiring against pkg3's scoped-binding
+  precedent and the production call graph. Both reviews found no unassigned
+  target leakage: the default stacked build reaches all 20 assigned targets
+  (7 early and 13 late), including mixed suffixed batches, and reaches the
+  Schedule-D kernel only in the later derive stage. The retiring explicit
+  `--legacy-two-spine` compatibility route remains byte-stable and outside this
+  default-production remedy.
+- Re-ran the four load-bearing wiring fixtures and the complete 110-test ACS
+  calibration/transfer/Schedule-D kernel set; both exited zero. A fresh full
+  repository run at implementation HEAD `d9a38965` then completed in 53:11
+  with 6,551 passed, 74 skipped, 1,890 established warnings, and an empty
+  `lastfailed` cache (6,625 collected). Full Ruff, lock freshness, and
+  `git diff --check` pass.
 
 ## Next
 
