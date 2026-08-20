@@ -107,10 +107,10 @@ changed.
   auxiliary semantics explicit.
 - Re-audited comparator and reviewed-exclusion source claims independently and
   hardened two citation edges: the distinct US terminal-gate names and the UK
-  binding-evidence-to-signed-attestation path. This changed no row, value,
-  classification, work package, or recommendation.
+  binding-evidence-to-attestation path, including signing-key conditionality.
+  This changed no row, value, classification, work package, or recommendation.
 - Final report SHA-256:
-  `6d5c1dfe2daafc066361b8985371d6fe1e7090687db0cddea25b34ff2755e955`;
+  `83c9971d45fc084407a6e9900118d065ac8d20d4beed5a2097d35068bfdcf1ab`;
   JSON SHA-256:
   `fdd5415f78a5634f12b597778070f5d1df760b7ae837f28e07fb22bb631a3629`.
 
