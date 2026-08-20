@@ -2,8 +2,8 @@
 
 ## State
 
-The authority inventory and stochastic audit are complete and committed in
-coherent steps. The F1 dispatch-charter draft is in progress.
+All three analysis artifacts are complete. Final verification of counts,
+commits, links, and worktree state is in progress.
 Dependencies are synced with both locked country extras. The worktree is detached at
 the locally cached `origin/main` SHA
 `164027e21cfa58a71d701b43211d009d6182e39d` (2026-08-19 15:28:43 -0400).
@@ -45,8 +45,12 @@ are the locally cached references.
 - Reconciled source-stage seeds 0/42/43 with runtime behavior and separated the
   historical take-up fitting seed 42 from live seed-0 assignments.
 - Wrote `_UK-FLIP-PREP/STOCHASTIC-AUDIT.md`.
+- Drafted the UK F1 dispatch charter as a one-day post-US-certification
+  playbook, with an explicit pre-dispatch P0 schema/compiler closure gate.
+- Embedded the final analysis report, headline counts, and top risks in
+  `_UK-FLIP-PREP/UK-F1-CHARTER-DRAFT.md` so no fourth output is required.
 
 ## Next
 
-- Write and commit the UK F1 charter draft, finalize the output-file report,
-  and verify counts, links, and worktree state.
+- Commit the charter step, run non-build document/count checks, and record the
+  final clean state and commit sequence.
