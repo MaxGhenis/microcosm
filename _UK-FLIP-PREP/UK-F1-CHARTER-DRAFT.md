@@ -1,7 +1,7 @@
 # UK F1 — make the compiled UK bundle authoritative
 
 **Status:** dispatch draft. Do not dispatch until the certified US F1
-executor/broker ABI is pinned, every N01–N12 schema prerequisite in
+executor/broker ABI is pinned, every N01–N11 schema prerequisite in
 `AUTHORITY-INVENTORY.md` has landed, and the existing US-specific battery,
 calibration, publication-rung, and spine pipeline fields accept the UK bundle.
 The seed, geography, clock, gate, and consumer blockers below must be closed by
@@ -29,7 +29,7 @@ Start only when all of the following are true:
   immutable projection/patch/diff executor; RNG, file, environment, and clock
   brokers; seed-site coverage scanner; execution ABI; plan lock; comparator;
   and resume predicate.
-- A UK-capable, country-neutral schema has closed N01–N12. In particular, it
+- A UK-capable, country-neutral schema has closed N01–N11. In particular, it
   represents multiple physical pipelines, executable source-stage nodes,
   source-family sampling, named geography routes/clone policy, target catalogs,
   UK release dimensions, and artifact/checkpoint protocols.
@@ -49,10 +49,19 @@ Start only when all of the following are true:
   objective/mass constraints, initialization, optimizer/schedule/dtype,
   stopping, infeasibility, priorities, and attainment. In particular, the OA
   ladder gate is no longer absent from the compiled battery.
-- The generation-0 UK oracle commit, policyengine-uk environment, licensed
-  inputs, public-source bytes, OA ladder/crosswalk, exclusion registers, and
-  signing/evidence inputs are content-pinned and available locally.
-- The two preflight artifacts remain current: 30 authority groups/12 missing
+- The generation-0 UK oracle commit, licensed inputs, public-source bytes, OA
+  ladder/crosswalk, all gate resources (coverage manifest, parity
+  reference/gaps, WAS support bounds, and three exclusion registers), and
+  signing/evidence inputs are content-pinned and available locally. The
+  installed `policyengine-uk` and `policyengine-core` versions are verified and
+  enter the engine ABI; a `uv.lock` digest alone is insufficient.
+- A31–A33 have machine-decidable bindings: the exclusion-evaluation date is
+  injected once; the rowwise/candidate executor plan/reuse identity includes
+  the oracle code/engine ABI pin rather than recording it only in Logbook; and
+  Logbook predecessor, spool root, remote-sink mode, URL, timeout, and secret
+  capability are sealed and brokered. Gate-signing-key presence and attestation
+  ABI are likewise sealed.
+- The two preflight artifacts remain current: 33 authority groups/11 missing
   field paths and an independent 87-physical-site stochastic/hash/ambient
   baseline. Every source delta since that audit is adjudicated before a run.
 - A generated dependency inventory identifies every UK closure, segment, and
@@ -92,9 +101,10 @@ source manifests, or reinterpret a declared seed.
 
 The lane is sized for these reviewed surfaces:
 
-- **30 semantic authority groups** across the national, geography, rowwise,
-  calibration, gate, publication, checkpoint, and artifact paths.
-- **12 schema field paths** that must be present before dispatch, plus
+- **33 semantic authority groups** across the national, geography, rowwise,
+  calibration, gate, publication, checkpoint, identity, clock, Logbook, and
+  artifact paths.
+- **11 schema field paths** that must be present before dispatch, plus
   country-neutral generalization of existing US-specific battery, calibration,
   publication-rung, and spine pipeline fields.
 - **87 physical UK-file callsites**: 48 stochastic/seeded, 17 deterministic
@@ -116,7 +126,7 @@ unexplained addition, deletion, or reclassification fails.
   brokers, capabilities, seed protocol machinery, coverage scanner, plan lock,
   comparator, artifact collection, and resume semantics. UK does not fork them.
 - **UK schema/compiler prerequisite owner:** before dispatch, lands the complete
-  resources, UK executable graph/nodes, physical pipeline ABI, N01–N12 fields,
+  resources, UK executable graph/nodes, physical pipeline ABI, N01–N11 fields,
   seed sites, geography profiles, release dimensions, target catalog,
   compile-back projection, and field-usage coverage. The one-day flip lane
   verifies and consumes this work; it does not author missing schema/specs.
@@ -162,9 +172,9 @@ deliberately, making live defaults and certification overrides explicit:
 | SPI/HMRC | separate ledger sites for support replacement 42, age jitter 42, donor bootstrap 42, QRF stage 1 seed 42, and QRF stage 2 seed 43; exact donor size and ordered targets |
 | CGT | seed base 552 mixed with target period; exact ordered allocation/band surface |
 | Rowwise geography | production route `ladder`; two clones; run seed 42; constituency vintage `2024_pcon`; exact ladder content pin; preserved clone/ID/weight semantics |
-| Crosswalk fixture | named compatibility route; run seed 42; exact pinned crosswalk bytes; collision policy and 50-retry cap; never live-download during certification |
+| Crosswalk fixture | named compatibility route; run seed 42; exact pinned crosswalk bytes; incumbent best-effort collision policy, 50-retry cap, and residual-collision acceptance; never live-download during certification |
 | Candidate solve | target family `census_households/constituency`; epochs 512; learning rate 0.15; free mass; target records null; L0 0; budget iterations 10; loss cap 10; max weight ratio 100; seed 42; preserve the incumbent hardcoded candidate receipt/build rung tag `f100` pending a separate owner ruling |
-| Operational | fresh output/checkpoint roots per cold run; no pending production logbook chain; injected exclusion-evaluation date; no live network after dependency sync; heavy runs serialized; aggregate process-tree watchdog soft-stops at 12 GiB and hard-kills at 14 GiB, with stop-before-launch telemetry headroom as the primary fence |
+| Operational | verified installed `policyengine-uk`/`policyengine-core` versions in the engine ABI; oracle code pin inside rowwise/candidate executor plan/reuse identity; fresh output/checkpoint/Logbook-spool roots per cold run; predecessor `null`; remote ledger disabled by broker for certification; exact signing-capability presence; injected exclusion-evaluation date; no live network after dependency sync; heavy runs serialized; aggregate process-tree watchdog soft-stops at 12 GiB and hard-kills at 14 GiB, with stop-before-launch telemetry headroom as the primary fence |
 
 Filesystem paths and licensed handles are operational bindings. Route, source
 identity, seed, vintage, clone count, solver behavior, gate posture, and release
@@ -199,11 +209,13 @@ Every numbered step is one coherent commit and updates the lane journal.
 
 Pin the certified upstream F1 ABI/evidence and the generation-0 oracle. Run
 `uv sync --all-packages --extra us --extra uk`, then deny live network for all
-certification processes. Run the relevant constants baseline/tests, copy the two UK
-preflight reports into the lane evidence, seal the run request, and prove the
-tree is clean. Resolve every N01–N12 field and every source delta before moving
-on. Freeze the dispatch card's fully expanded commands and verify cold-f001
-stage telemetry, the 24-hour budget, and the 12/14/15-GiB process-tree fences.
+certification processes. Verify the resolved installed engine ABI against the
+lock and plan (including `policyengine-uk`/`policyengine-core`). Run the relevant
+constants baseline/tests, copy the two UK preflight reports into the lane
+evidence, seal the run request and broker capabilities, and prove the tree is
+clean. Resolve every N01–N11 field and every source delta before moving on.
+Freeze the dispatch card's fully expanded commands and verify cold-f001 stage
+telemetry, the 24-hour budget, and the 12/14/15-GiB process-tree fences.
 
 ### 1. Compile and prove coverage
 
@@ -212,7 +224,7 @@ Compile the complete UK bundle and require:
 - exact compile-back to the generation-0 payload;
 - a nonempty executable node for every national, rowwise, candidate, gate, and
   artifact stage;
-- exact ownership of all 30 inventory rows;
+- exact ownership of all 33 inventory rows;
 - no ignored or fallback-owned authority fields;
 - country-neutral validation of the UK battery/calibration/publication
   resources; and
@@ -269,14 +281,23 @@ The ladder route is the restricted certification route. The crosswalk route
 must have a pinned fixture-scale dual-mode proof; if it is not supported for
 production, retain it as an explicitly typed compatibility profile rather than
 silently dropping it. Never fetch mutable source URLs during equality runs.
+Preserve the incumbent best-effort 50-retry collision behavior exactly.
+
+Preserve both publication protocols rather than collapsing them: the candidate
+publishes five staged artifacts transactionally with rollback/no-overwrite;
+the rowwise dataset writes/replaces H5 before coverage and manifest with no
+bundle rollback. Any future unification is a separately reviewed behavior
+change.
 
 ### 5. Complete stage receipts and adversarial fixtures
 
-For all 30 authority rows, produce a constants/bundle receipt with equal
+For all 33 authority rows, produce a constants/bundle receipt with equal
 normative digest and no unexplained structural difference. Include adversarial
 tests for out-of-scope writes, missing source declarations, changed group/row
 order, geography vintage mismatch, seed cursor drift, undeclared gate, missing
-FitWeightRecord, and changed checkpoint identity.
+FitWeightRecord, changed checkpoint identity, omitted code/engine ABI from an
+executor reuse key, unexpected Logbook network access, and partial publication
+at every candidate/dataset artifact boundary.
 
 Land a secrets-free PR-CI gate that executes cold dual-mode fixtures for all
 three drivers and both geography profiles and requires an empty normative diff.
@@ -342,6 +363,14 @@ expected identities. Do not push or publish.
   semantics enumerated in the dispatch condition.
 - Per-logical-stage synthetic dual-mode receipts and every declared UK gate run
   with identical threshold, direction, status, and detail.
+- Engine-ABI tests proving installed `policyengine-uk`/`policyengine-core` and
+  the oracle code pin enter executor plan/reuse identity; no lock-only or
+  Logbook-only code identity is accepted.
+- Broker tests for the injected exclusion date, gate-signing capability,
+  predecessor conflict/genesis, durable local spool, remote-ledger denial, and
+  exact best-effort remote-failure disposition.
+- Failure-injection tests at every candidate and rowwise-dataset publication
+  boundary, preserving their distinct rollback/overwrite semantics.
 - Four cold certification graphs with f001 national inputs and incumbent
   `f100` candidate receipt tags, plus one separate fixture-scale kill/resume
   proof, with commands, environment/code/spec pins, artifact identities,
@@ -378,13 +407,16 @@ normalization row; it must not appear opportunistically in UK F1.
 
 ## Acceptance
 
-- All N01–N12 prerequisites resolved and the complete UK producer graph compiles
+- All N01–N11 prerequisites resolved and the complete UK producer graph compiles
   with zero ignored authority fields.
-- Every one of the 30 authority rows is constructed from compiled IR in bundle
+- Every one of the 33 authority rows is constructed from compiled IR in bundle
   mode; constants mode remains untouched.
 - Independent stochastic coverage is complete; all declared/runtime seeds and
   reset boundaries reconcile; the semantic clock is injected; direct network is
   denied; exact release tier/cardinality/id precedence is sealed and tested.
+- Installed engine versions and code pin are covered by executor identity;
+  signing and Logbook ambient inputs are brokered; the certification Logbook is
+  local-spool-only with predecessor `null`.
 - Fixture and stage receipts show no normative differences.
 - The secrets-free PR-CI dual-mode gate and the generated UK consumer-retarget
   inventory are green.
@@ -401,14 +433,18 @@ Stop immediately and leave the last coherent commit/test state if:
 
 - US F1 is uncertified, its ABI/evidence pin is missing, or an upstream drift is
   unexplained;
-- any N01–N12 path is unresolved, compile-back differs, executable UK nodes are
+- any N01–N11 path is unresolved, compile-back differs, executable UK nodes are
   absent, or field usage reports an ignored/fallback authority;
 - any physical stochastic/hash/ambient delta lacks a reviewed ledger binding or
   typed exemption;
 - active `hmrc_spi_income` still obtains 42/43 from CLI/code rather than the
   compiled selected node, WAS reset boundaries are not explicit, or geography
   seed 0 versus 42 is unresolved;
-- the exclusion-evaluation date remains ambient;
+- the exclusion-evaluation date, signing capability, or Logbook chain/sink
+  routing remains ambient;
+- the installed `policyengine-uk`/`policyengine-core` versions are absent from
+  the verified engine ABI, or the rowwise/candidate executor identity omits the
+  oracle code pin;
 - within-mode nondeterminism, cross-mode normative mismatch, gate difference,
   unlisted receipt difference, hidden reuse, or resume-predicate failure occurs;
 - required licensed/pinned inputs, signing/evidence, or authenticated geography
