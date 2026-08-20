@@ -191,9 +191,13 @@ Pinned local inputs for both builds:
   the derived leaf, while the role-authority SHA covers its final row counts.
   Live registry checks confirmed the expanded derive contract does not enter
   the early or late ACS transfer surfaces; no remaining review blocker exists.
-- Validation so far: four load-bearing assigned/unassigned and Schedule-D
-  wiring fixtures pass; all 73 ACS transfer tests pass; and 1,020 touched-runtime
-  tests covering both pure kernels, multispine/stacked execution, the late DAG,
-  CLI checkpoint identity, and source-blindness reach 100% and exit zero. Only
-  established pandas fragmentation warnings appear. The complete repository
-  suite remains the final gate before handoff.
+- Final validation: four load-bearing assigned/unassigned and Schedule-D wiring
+  fixtures pass; all 73 ACS transfer tests pass; 1,020 touched-runtime tests
+  pass; and the complete 6,623-test repository collection reaches 100% with no
+  failure/error marker and an empty pytest `lastfailed` cache. The macOS
+  `time -l` wrapper alone returns 1 after completion because its sandboxed
+  `sysctl kern.clockrate` probe fails, reproducible with `time -l true`.
+- Full Ruff, lock freshness, changed-file formatting, and `git diff --check`
+  pass. The repository-wide formatting audit reports 49 pre-existing unrelated
+  files; they remain untouched. No continuation 1% build was run, so the host
+  retains the frozen branch/baseline comparison.

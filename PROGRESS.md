@@ -2,16 +2,17 @@
 
 ## State
 
-Continuation active on branch `battery-pkg1-puf-tax`. The PUF-tax kernels now
+Continuation complete on branch `battery-pkg1-puf-tax`. The PUF-tax kernels now
 run at the common post-decode, pre-fill ACS seam for an explicit default-empty
 exact-target selection, and the stacked early/late owners bind only their active
 assigned keys. Schedule-D parent reconciliation runs in the default stacked
 derive stage. Independent scope and integration reviews are closed; the
 Schedule-D mutation contract now explicitly declares both its parent rewrite
 and derived leaf, and its role-authority digest covers the final role counts.
-All 73 ACS transfer tests and the 1,020-test touched-runtime set pass; the
-complete repository suite is next. No frozen gate parameter or band has
-changed, and the host owns the next 1% comparison.
+All 73 ACS transfer tests, the 1,020-test touched-runtime set, and the complete
+6,623-test repository collection are green. No frozen gate parameter or band
+has changed, no continuation build was run, and the host owns the next 1%
+comparison.
 
 ## Done
 
@@ -152,11 +153,20 @@ changed, and the host owns the next 1% comparison.
   kernel receipt repeats that exact surface, and the transient role-authority
   SHA covers the disclosed role counts. Re-review confirmed this later derive
   contract cannot enter any early or late ACS transfer surface.
+- Committed the scoped production integration and its load-bearing regressions
+  as `51054801` (`Wire scoped ACS transfer calibration`).
+- Ran the complete repository collection with all fit/BLAS widths pinned to
+  one: 6,623 tests reached 100% with no failure/error marker and pytest's
+  `lastfailed` cache is empty. The surrounding macOS `time -l` process returned
+  1 only after pytest because its own `sysctl kern.clockrate` probe is forbidden
+  by the sandbox; `time -l true` reproduces that wrapper-only status.
+- Full Ruff and lock freshness pass; all 13 changed Python files pass Ruff
+  formatting and `git diff --check`. The repository-wide format audit still
+  names 49 pre-existing unrelated files, which were left untouched.
+- Finalized this terminal journal and `FINAL_REPORT.md` for the committed host
+  handoff.
 
 ## Next
 
-- Commit the independently reviewed wired runtime boundary.
-- Run the complete repository suite, full Ruff, formatting, and diff checks;
-  fix and commit any failures without running a 1% build.
-- Finalize this journal and `FINAL_REPORT.md`; leave the next 1% build and result
-  diff to the host.
+- Host: rerun the frozen 1% branch build, compare it with the `origin/main` 1%
+  baseline, and adjudicate the assigned failure-set delta.

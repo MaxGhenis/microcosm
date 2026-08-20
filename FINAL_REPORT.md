@@ -1,111 +1,84 @@
-# Final report: microcosm #462 register alignment
+# Final report: pkg1 ACS calibration wiring
 
 ## Outcome
 
-Completed the split-PR remediation on `loss-contract-alignment`, based on
-`origin/main` at `7b6e10b`. The change is now register alignment only: one
-shared critical-target register, one shared congressional-district classifier,
-two consumers, builder contract-row gating, and behavioral containment of the
-publish contract.
+Completed the wiring continuation on `battery-pkg1-puf-tax`. The PUF-tax
+calibration kernels now execute in the production ACS transfer path for exactly
+the assigned 20 targets (15 carrier checks and 23 conditional-amount checks,
+38 assigned rows total), with the Schedule-D joint-parent repair executing in
+the default stacked derive path.
 
-The critical-row loss multiplier was removed entirely per
-[microcosm#492](https://github.com/PolicyEngine/microcosm/issues/492). There is no
-constant, CLI option, validation, loss overlay, telemetry, diagnostics/scorer
-provenance, or historical replay pin left. `_fiscal_target_loss_weights` is
-source-identical to `origin/main`, and its output therefore preserves main's
-bit-level behavior for the same registry and family multipliers.
+No frozen battery band, incidence threshold, QED ceiling, quantile, seed, fold,
+or comparator changed. No continuation 1% build was run; the host retains the
+next frozen branch/baseline comparison.
 
-## Sol round-1 findings
+## Production wiring
 
-1. **Table 1.4 selector parity:** removed the builder-only
-   `accepted_name_prefixes=("irs_soi.",)` constraint. The adapter now has
-   exactly the shared requirement's substring and suffix selectors. The
-   outside-prefix reproduction is builder-rejected.
-2. **Congressional-district parity:** added exported, stdlib-only
-   `is_congressional_district_target(name, metadata)` and made the publisher
-   and builder classifiers thin wrappers. It ORs layout dimension, source-id
-   token, geography level, geography scope, truthy CD GEOID, and name token.
-   The builder's exact/semantic, Table 1.4, and zero-support paths now see the
-   same registry metadata.
-3. **Recorded relative-error shape:** a matched row with missing/`None`
-   `relative_error` now fails with the publish-contract message instead of
-   silently passing after recomputation. Existing non-numeric and stale-value
-   checks remain.
-4. **Behavioral anti-drift:** the load-bearing test now runs adversarial rows
-   through both consumers for exact-name, family+role, Table pattern,
-   missing/non-finite values, and a disallowed incumbent escape at the 0.25
-   hard stop. A production Ledger compile supplies six separate CD evidence
-   rows; builder and publisher exclude identical six-name sets and counts.
-   Field comparisons remain as fast checks, and any added conjunctive prefix
-   is proven to trip the guard.
+- `transfer_acs_inputs` now calibrates decoded QRF predictions at the common
+  banked/non-banked seam before null-only recipient filling.
+- Activation is a default-empty exact `(entity, target)` selector, following
+  pkg3's scoped-binding pattern. It fails closed outside both the caller's
+  requested transfer surface and the frozen pkg1 policy.
+- The stacked early and late owners pass only their active assigned keys and
+  bind source-aware recipient scopes plus the exact frozen reference rows.
+  Unassigned siblings in the same QRF family never enter a calibration kernel.
+- Schedule-D reconciliation consumes transient source-neutral clone-0 roles in
+  `_complete_schedule_d_input`, removes the marker, byte-preserves the
+  long-term parent, and uses exact-equal-weight swaps for the mutable
+  `non_sch_d_capital_gains` parent before deriving the leaf.
+- The Schedule-D operator contract and kernel receipt explicitly disclose both
+  the mutable parent and derived leaf. Its role-authority SHA covers the final
+  role counts. Independent review confirmed this derive-only declaration does
+  not enter any early or late ACS transfer surface.
 
-The [#490](https://github.com/PolicyEngine/microcosm/issues/490) medical 0.25
-adjudication tolerance and its adjacent comment in `us_critical_targets.py`
-remain byte-for-byte unchanged, as required.
+## Load-bearing regression
 
-## Reproduction receipts
+The fixture wiring test places assigned `qualified_dividend_income` beside
+unassigned `taxable_interest_income` in the same `puf_tax_itemization` batch and
+records the production-imported magnitude kernel:
 
-The Table 1.4 prefix reproduction now returns:
+- default selection: zero calibration calls;
+- assigned selection: calls only with the assigned target/reference;
+- unassigned sibling: bit-equal raw output and no reconciliation receipt;
+- attempted unassigned selection: rejected before fitting.
 
-```text
-SOI Table 1.4 national dollar fit failed: other.table_1_4.all.bad_amount@2024: relative_error=1 exceeds 0.25 for SOI Pub 1304 Table 1.4 national dollar rows (soi_table_1_4_national_dollar_rows); target=100.0, final_estimate=200.0.
-```
-
-The missing-relative-error reproduction now returns:
-
-```text
-SOI Table 1.4 national dollar fit failed: irs_soi.ty2023.table_1_4.all.adversarial_amount@2024: missing recorded relative_error; the publish contract requires a numeric value.
-```
-
-The CD reproduction has the owner-mandated exclusion result:
-
-```text
-builder_excluded=True
-publisher_excluded=True
-builder_failures=[]
-```
-
-Calling that row "rejected" would contradict the required OR-union exclusion
-semantics. The two malformed critical rows are rejected; the CD row is
-symmetrically excluded by both consumers.
+The stacked mixed-family regression independently verifies that the production
+owner passes only the assigned tuple and emits a receipt only for that target.
+The Schedule-D regressions prove real invocation, role consumption/removal,
+parent preservation, and legacy no-op behavior without the transient marker.
 
 ## Verification
 
-The requested suite ran with `UV_NO_SYNC=1` to use the already-synced workspace
-environment in the network-restricted sandbox:
+- Four load-bearing assigned/unassigned and Schedule-D wiring fixtures: pass.
+- Complete ACS transfer module: 73 tests pass.
+- Touched runtime modules: 1,020 tests pass.
+- Complete repository: 6,623 tests collected and reached 100% with no failure
+  or error marker; pytest's `lastfailed` cache is `{}`. Expected skips and known
+  warnings only.
+- Full `ruff check .`: pass.
+- `uv lock --check`: pass.
+- Ruff format check on all 13 changed Python files: pass.
+- `git diff --check`: pass.
 
-```text
-uv run --package microcosm-build --extra us --group dev python -m pytest packages/microcosm-data/tests packages/microcosm-build/tests/test_us_fiscal_refresh_builder.py packages/microcosm-build/tests/test_us_state_files_scorer.py -q
-264 passed, 3 skipped (267 collected)
-```
+The full suite was wrapped in macOS `/usr/bin/time -l` to seek an RSS receipt.
+After pytest completed, that wrapper returned 1 because its own
+`sysctl kern.clockrate` probe is forbidden by the sandbox; `time -l true`
+reproduces the same wrapper-only failure. The pytest run itself reached 100%
+with no failures, and no local build was launched. The repository-wide format
+audit also lists 49 pre-existing unrelated files; they were not changed.
 
-Additional receipts:
+## Commits
 
-- Complete `test_gates.py`: passed.
-- Required multiplier grep: zero Python hits.
-- Ruff check: clean on all ten touched Python files.
-- Ruff format check: clean on the eight non-exempt touched Python files; the
-  two historical experiment files were not reformatted, as instructed.
-- `git diff --check`: clean.
-- The medical adjudication block compares byte-for-byte equal to pre-fix
-  commit `068854d`.
-- Pytest emitted non-failing macOS temporary-directory cleanup warnings; no
-  test failed.
+- `56fd9bf6` — add sign-aware calibration primitives.
+- `974f36c3` — bound exact QRF leaf storage.
+- `209eae98` — journal ACS calibration wiring continuation.
+- `e16b8b50` — support exact capped ragged QRF leaves.
+- `51054801` — wire scoped ACS transfer calibration.
 
-## Remediation commits
+## Host handoff
 
-- `5077f95` — start microcosm#462 Sol remediation progress.
-- `c48ba37` — remove the microcosm#462 loss multiplier per microcosm#492.
-- `afa910a` — fix Sol finding 1 selector parity.
-- `89f74f4` — fix Sol finding 2 CD classifier parity.
-- `77040fb` — fix Sol finding 3 relative-error shape.
-- `bad7145` — fix Sol finding 4 behavioral containment.
-- `3c96514` — apply the finding-2 classifier's required Ruff formatting.
-
-Nothing was pushed at the time of this report; the branch was subsequently
-pushed and merged as #491 (2026-07-22).
-
-The sandbox rejected writing
-`/Users/maxghenis/PolicyEngine/_reviews/sol-491-fix-out.md` with `Operation not
-permitted`; the full completion report is therefore committed here and will be
-printed to stdout as the requested fallback.
+Run the frozen 1% build for this branch, compare it against the existing
+`origin/main` 1% baseline, and diff the assigned failure set. Unlike the prior
+identical 127-line result, the build now traverses the calibrated production
+seam; the committed fixture makes a green test run impossible if that assigned
+invocation is removed or leaks to an unassigned target.
