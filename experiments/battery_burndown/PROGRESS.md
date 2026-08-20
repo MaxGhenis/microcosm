@@ -171,15 +171,20 @@ publication state was changed.
   identities. The zero-exclusion conclusion, ten-package partition, necessary
   current-red minimal set, full-rerun qualification, and both top-five rankings
   are defensible without changes.
+- Closed a final source-locality and rendered-schema audit. Expanded the ACS
+  donor-fit citation, separated gate constants from tool wiring, added the
+  direct QBI target/producer/operator/reconciliation definitions, and restored
+  the synthesis citation in the rendered Keogh row. All 93 dispositions,
+  values, movements, counts, and named actions are unchanged.
 - Prior closed-report SHA-256 at commit `2b4b3778` (superseded by the
   attestation wording correction):
   `02c4c26b96d60688a91a75ef63290e8148479adc5c277ed136fba5398d27e0ff`;
   prior JSON SHA-256:
   `57de9ba5867e440077ff7b6888138bc45dc45db2a9b9697820eecac4e3b5240d`.
 - Final report SHA-256:
-  `05d5fdc49427bce5a2e898555ebba88461bf63911dc0c4a762712678f54d3be9`;
+  `fd209fefaa66f53ec54a42b9a481784c157b6dbfc4f2240da7eff6a27d9f11c7`;
   final JSON SHA-256:
-  `91f6dbc34bf796861947ae4995457be086383248a95c0aecaeea4ce0e8a3d35f`.
+  `48f8da37248b183006ce2496706143405e17683d3c3a7e8a97e337795675bbdc`.
 
 ## Next
 
