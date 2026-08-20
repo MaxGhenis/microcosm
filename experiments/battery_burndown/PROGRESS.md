@@ -5,8 +5,9 @@
 Analysis is complete on branch `battery-burndown`, based on `arm-split-base` at
 `7d6749990933ac072ac257ae76d666aa16b84d25`. The owner-facing,
 machine-readable, and progress reports include the final independent artifact,
-source, exclusion, and QBI checkpoint-authentication audits. No builds or pushes
-were performed, and no code, gate, band, or threshold was changed.
+source, exclusion, classification, and QBI checkpoint-authentication audits. No
+builds or pushes were performed, and no code, gate, band, or threshold was
+changed.
 
 ## Done
 
@@ -73,6 +74,18 @@ were performed, and no code, gate, band, or threshold was changed.
   share/exclusivity formula, and first-person allocation; corrected adult-care
   to its mutable-carrier clearing path, which preserves immutable positives and
   leaves surviving magnitudes unchanged.
+- Added the categorical-TVD comparator path to the mechanism overview and
+  hardened the canonical transfer citation through the fitted-output return.
+- Made the ten work packages an explicit coverage partition rather than a claim
+  of ten independent fixes. Clearing all 93 current failures is necessary, but
+  certification still requires rerunning all 211 legs because isolated arms
+  demonstrate that a remedy can create new red legs.
+- Ranked the top five workstreams by current-red coverage, including physical
+  legs: PUF tax 38/25, retirement 16/11, source operators 13/7, combined QBI
+  10/6, and rare signed tails 9/5 (checks/physical legs).
+- Made every generic fitted-surface FIX action receipt-first and required
+  coupled-identity guardrails plus a full 211-leg rerun, avoiding an unsupported
+  assumption that each realized fit used a gated regime.
 - Revalidated exact baseline ordering, Markdown/JSON row parity, class and
   package arithmetic, arm winners and deltas, all four artifact hashes,
   mirrored terminal payloads, 132 comparisons/211 legs, and all source-line
@@ -83,15 +96,16 @@ were performed, and no code, gate, band, or threshold was changed.
   UK exclusion ownership. The stricter QBI audit changed exactly two
   dispositions from conditional reviewed exclusions to concrete fixes.
 - Final report SHA-256:
-  `197c84be6eeeff4d61131cbc91a4f3fdc73f48b0ea8e9849da87cd22dd6b7a65`;
+  `8d777ebae419a4d4be2935550a8b4dedcd70f35d56ab5ed174eb7ba0bd4a675d`;
   JSON SHA-256:
-  `e7858a0b5704201881e08ae9a386e80856ec994533e05674f57b94405e0bead4`.
+  `ddf27f49c4bbe85e84469f72639c01be96e379917fafc8e927e3be360d689073`.
 
 ## Next
 
-- Prioritize the five resolution packages in `ADJUDICATION.md`, starting with
-  the 38-check PUF-tax fitted-regime/quantile cluster and the 16-check baseline
-  retirement audit/refit plus bundle-factorial guardrail.
+- Prioritize the five coverage-ranked workstreams in `ADJUDICATION.md`, starting
+  with the 38-check/25-leg PUF-tax cluster and the 16-check/11-leg baseline
+  retirement audit/refit. Keep the future retirement bundle factorial as a
+  separate landing guardrail; it clears no baseline red.
 - Implement the two QBI terminal-role fixes with continuously enforced clone-1
   comparisons and coupled identities; do not replace them with exclusions.
 - Implement and rebuild only in separately authorized change lanes; publication
