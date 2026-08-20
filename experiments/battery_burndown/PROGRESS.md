@@ -101,10 +101,14 @@ changed.
   and zero conventions, target routing, the proposed retirement factorial, and
   UK exclusion ownership. The stricter QBI audit changed exactly two
   dispositions from conditional reviewed exclusions to concrete fixes.
+- Completed a final independent mechanism/classification audit with no count or
+  disposition changes. Added the exact QRF regime taxonomy and Boolean encoder
+  citations, narrowed the UK receipt-attestation account, and made tied-arm
+  auxiliary semantics explicit.
 - Final report SHA-256:
-  `84bf2f0ec2f0c33517076e87b9e1df88bb263b29d28481f55e8302b67300fddf`;
+  `c1bc741da2a4d695682151b38114bc46a756f174eaa81890a984af463ea6dbd8`;
   JSON SHA-256:
-  `355cfa85321eb8ba4fc98c70c362f392bf33e8bb28431784b508006616ccab29`.
+  `7878e26e2cc38e1f9092d13676d6fb3eefe28f3ec1ec3e811b70a8a86a3f9b82`.
 
 ## Next
 

@@ -93,7 +93,7 @@
     "C04": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11860-11930",
     "C05": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11990-12021",
     "C06": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:896-916",
-    "C07": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1003-1097,1100-1227,1461-1538,1581-1648,1692-1703,2951-3035",
+    "C07": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1003-1097,1100-1227,1461-1538,1581-1648,1692-1703,2748-2805,2951-3035",
     "C08": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:654-713,1100-1117,1205-1227",
     "C09": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:605-651",
     "C10": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1246-1264,1299-1305,1360-1363",
@@ -116,7 +116,7 @@
     "C27": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1324-1358,1450-1487",
     "C28": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:3026-3030",
     "C29": "tools/build_uk_national_dataset.py:385-443",
-    "C30": "packages/microcosm-fit/src/microcosm/fit/qrf.py:950-1003,1333-1380,1389-1429",
+    "C30": "packages/microcosm-fit/src/microcosm/fit/qrf.py:92-150,950-1003,1333-1380,1389-1429",
     "C31": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11744-11748",
     "C32": "packages/microcosm-build/src/microcosm/build/uk/qrf_tail_reviewed_exclusions.json:1-5",
     "C33": "packages/microcosm-build/src/microcosm/build/uk/input_mass_reviewed_exclusions.json:1-5",
@@ -172,7 +172,7 @@
       "C38"
     ],
     "best_arm_method": "minimum multiplicative log-distance to incidence band, normalized QED exceedance, or dead-status indicator; exact ties retained",
-    "best_arm_tie_auxiliary": "When tied criterion winners disagree on a non-ranking auxiliary field, candidate_ratio_band_status is mixed_by_arm and auxiliary_by_arm preserves each result.",
+    "best_arm_tie_auxiliary": "When tied QED winners have different auxiliary incidence-band statuses, candidate_ratio_band_status is mixed_by_arm and auxiliary_by_arm preserves each arm's incidence ratio, band status, and QED. Raw incidence-ratio differences that remain in the same band are not expanded.",
     "terminal_pass_rule_citations": [
       "C31",
       "C13",
@@ -417,7 +417,7 @@
     },
     "why_no_sparse_candidates": "All 48 red QEDs have minima of 48 ASEC carriers and 519 ACS carriers, above the five-carrier skip. Keogh is one-sided at 2 ASEC carrier rows and 0 ACS carrier rows, so QED is skipped after incidence still fails; it is policy-relevant and remains a real blocker.",
     "structural_absence_distinction": "US declared structural-absence rules remove only authority-bound rows after an exact equation check; a mismatch emits a failure. They are not reviewed defect exceptions.",
-    "uk_precedent_attestation_limitation": "The UK loader and gates validate and evaluate all five schema-2 receipt fields, but binding evidence is not uniform: degenerate exposes full resolved records, input mass hashes only its reference, and QRF tail has no evidence hook. Any future US machinery should seal full resolved receipts.",
+    "uk_precedent_attestation_limitation": "The UK loader validates all five schema-2 receipt fields and the gates enforce the reason/date window, but binding evidence is not uniform: degenerate exposes full resolved records, input mass hashes only its reference, and QRF tail has no evidence hook. Approver and adjudication remain receipt metadata/failure context rather than uniformly attested binding evidence. Any future US machinery should seal full resolved receipts.",
     "citations": [
       "C12",
       "C14",
