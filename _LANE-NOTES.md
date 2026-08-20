@@ -234,3 +234,7 @@
 - The exact-row ledger, static f001 proof, charter, progress journal, and final
   report are committed together at `6d5efead`. No artifact or measurement is
   implied by that documentation commit.
+- Final audit moved the future Phase-P verdict/report paths under each ignored
+  fresh arm output directory. The removal directory is closed and preserved
+  before the broad checkout, while the tracked worktree remains clean for the
+  broad preflight.

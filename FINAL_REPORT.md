@@ -141,7 +141,9 @@ The owner charter pins both implementation SHAs, the six input paths and
 hashes, frozen OOS config hash, baseline artifacts, exact serial command, full
 artifact/report schema, and abort conditions. It requires a 14 GiB fail-closed
 root-plus-descendant guard and expressly prohibits the Logbook predecessor
-argument and any contact with `logbook-pending-chain.txt`.
+argument and any contact with `logbook-pending-chain.txt`. Each future gate
+writes its verdict/report inside the ignored fresh arm directory before that
+directory is closed, preserving a clean worktree for the next arm.
 
 ## Commits and publication
 

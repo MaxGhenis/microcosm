@@ -88,6 +88,9 @@ arm-split environment with this worktree's package sources forced on
   gate settings, serial off-chain execution, and a 14 GiB fail-closed guard.
 - Committed the evidence ledger, static f001 receipt, owner charter, completed
   lane notes, and final report as `6d5efead`.
+- Final read-only audit corrected the charter's gate outputs to remain inside
+  each ignored fresh arm directory, so the preserved removal evidence cannot
+  dirty the broad arm's clean-worktree preflight.
 
 ## Next (2026-08-19)
 

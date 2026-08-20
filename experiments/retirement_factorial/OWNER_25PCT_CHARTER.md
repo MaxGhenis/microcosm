@@ -217,7 +217,8 @@ complete, the two gate aliases are byte-equivalent as parsed JSON, and no
 not a red-but-measured arm
 (`tools/build_us_multispine_pool.py:4371-4408`).
 
-Hash every retained artifact and receipt after closure. Never edit a closed
+After all build, gate, and completion outputs are written, hash every retained
+artifact and receipt, then mark the arm directory closed. Never edit a closed
 artifact directory. Preserve an aborted directory and label it `ABORTED`; a
 new attempt gets a new `rN` suffix.
 
@@ -287,21 +288,29 @@ For each arm, run the candidate-bound gate under the same hard RSS guard:
 .venv/bin/python /ABSOLUTE/PATH/TO/AUDITED/predictor_set_oos_gate.py \
   --baseline /Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1 \
   --candidate "$OUT_DIR" \
-  --output "experiments/retirement_factorial/f025/$ARM_SLUG/verdict.json" \
-  --markdown-output "experiments/retirement_factorial/f025/$ARM_SLUG/report.md"
+  --output "$OUT_DIR/phase_p/verdict.json" \
+  --markdown-output "$OUT_DIR/phase_p/report.md"
 ```
 
-Use `ARM_SLUG=removal_only` for removal and
-`ARM_SLUG=broad_add_retains_direct` for broad. The runner's interface is
-exactly these four paths and returns nonzero for a failed verdict
+Run once with `OUT_DIR` bound to the current arm-specific directory declared
+above. The runner's interface is exactly these four paths and returns nonzero
+for a failed verdict
 (`arm-order:tools/predictor_set_oos_gate.py:3498-3528`). A clause FAIL is valid
 measured evidence; `measurement_integrity` failure, exception, RSS stop, or
 incomplete output is an abort.
 
+Keep each arm directory open through this gate and its completion receipt,
+then hash every retained file and mark the directory closed. The generated
+verdict/report stay inside that arm's fresh ignored `_buildo-runtime/out/`
+directory; do not write them under tracked `experiments/`. This preserves the
+clean-worktree preflight when switching from removal to broad without deleting
+or modifying the closed removal evidence.
+
 Accept a gate result only if it contains the complete, authenticated
 `32-family / 118-target / 74-money-target / 211-battery-leg` sweep. Any missing,
 extra, duplicate, or unexpectedly untestable row aborts. Gate the removal
-artifact and close its report before checking out the broad revision.
+artifact, write its completion receipt, and close its directory before checking
+out the broad revision.
 
 ## Sixteen assigned BLOCKER checks
 
