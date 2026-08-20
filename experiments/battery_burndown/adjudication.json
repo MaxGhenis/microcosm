@@ -58,16 +58,16 @@
     "C04": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11860-11930",
     "C05": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11990-12021",
     "C06": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:896-916",
-    "C07": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1003-1043,1581-1648,1692-1703,2951-3003",
+    "C07": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1003-1071,1100-1227,1581-1648,1692-1703,2951-3035",
     "C08": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1100-1117,1205-1227",
     "C09": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1130-1202",
-    "C10": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1246-1264",
-    "C11": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1495-1533",
+    "C10": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1246-1264,1299-1305,1360-1363",
+    "C11": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1377-1405,1450-1533",
     "C12": "tools/build_us_multispine_pool.py:3264-3274,3383-3384,3710-3720,3731",
     "C13": "packages/microcosm-build/src/microcosm/build/gates.py:180-203,299-309",
     "C14": "packages/microcosm-build/src/microcosm/build/uk_runtime/weighted_integrity.py:182-321,405-477",
     "C15": "packages/microcosm-build/src/microcosm/build/uk_runtime/battery_bindings.py:219-286,379-437",
-    "C16": "experiments/phase_p_arm_split/SYNTHESIS.md:5-32,354-361",
+    "C16": "experiments/phase_p_arm_split/SYNTHESIS.md:5-32,153-154,354-361",
     "C17": "experiments/phase_p_arm_split/SYNTHESIS.md:346-352,378-379",
     "C18": "experiments/phase_p_arm_split/SYNTHESIS.md:370-380",
     "C19": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11912-11917",
@@ -91,10 +91,14 @@
     "C37": "packages/microcosm-build/src/microcosm/build/gates.py:1152-1279,2505-2648",
     "C38": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:2867-2871,2964-2970",
     "C39": "experiments/phase_p_arm_split/SYNTHESIS.md:45",
-    "C40": "packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2808-2864"
+    "C40": "packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2808-2864",
+    "C41": "packages/microcosm-build/src/microcosm/build/uk_runtime/battery_bindings.py:271-286,410-416,477-482,519-540",
+    "C42": "tools/build_us_multispine_pool.py:3374-3379",
+    "C43": "tools/build_us_multispine_pool.py:310-326,3907-3915",
+    "C44": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11629-11640,11716-11724,11976-11987"
   },
   "definitions": {
-    "ratio": "weighted ACS nonzero incidence / weighted ASEC nonzero incidence",
+    "ratio": "[sum ACS weight on nonzero/sign leg / sum ACS origin-scope weight] / [sum ASEC weight on nonzero/sign leg / sum ASEC origin-scope weight]",
     "ratio_band_inclusive": [
       0.8,
       1.25
@@ -107,15 +111,30 @@
       0.75,
       0.9
     ],
+    "comparator_formula_and_support_citations": [
+      "C03",
+      "C04",
+      "C05",
+      "C19",
+      "C28",
+      "C44"
+    ],
     "best_arm_method": "minimum multiplicative log-distance to incidence band, normalized QED exceedance, or dead-status indicator; exact ties retained",
     "best_arm_tie_auxiliary": "When tied criterion winners disagree on a non-ranking auxiliary field, candidate_ratio_band_status is mixed_by_arm and auxiliary_by_arm preserves each result.",
     "terminal_pass_rule_citations": [
       "C31",
-      "C13"
+      "C13",
+      "C43"
     ],
     "terminal_wiring_citations": [
       "C12",
       "C13"
+    ],
+    "post_draw_transfer_citations": [
+      "C06",
+      "C07",
+      "C30",
+      "C42"
     ]
   },
   "summary": {
@@ -304,19 +323,20 @@
     ]
   },
   "reviewed_exclusion_support": {
-    "us_f025_supports_reviewed_exclusions": false,
+    "us_f025_by_origin_battery_supports_reviewed_exclusions": false,
     "candidate_counts": {
       "measurement-mismatch": 2,
       "sparse-artifact": 0
     },
     "why_no_sparse_candidates": "All 48 red QEDs have minima of 48 ASEC carriers and 519 ACS carriers, above the five-carrier skip. Keogh is one-sided at ASEC 2 / ACS 0, so QED is skipped but incidence still fails; it is policy-relevant and remains a real blocker.",
     "structural_absence_distinction": "US declared structural-absence rules remove only authority-bound rows after an exact equation check; a mismatch emits a failure. They are not reviewed defect exceptions.",
+    "uk_precedent_attestation_limitation": "The UK loader and gates validate and evaluate all five schema-2 receipt fields, but binding evidence is not uniform: degenerate exposes full resolved records, input mass hashes only its reference, and QRF tail has no evidence hook. New US machinery should seal full resolved receipts.",
     "required_before_approval": [
       "US schema-2 register keyed exact leg+criterion",
       "exact schema-2 fields: reason, approved_by, adjudication, approved_on, expires_on",
       "stale/expired/premature/dormant checks",
       "no waiver for missing/null/invalid or real artifact defects",
-      "sealed digest and resolved receipts in terminal manifest"
+      "fully sealed digest and resolved receipts in terminal manifest"
     ],
     "citations": [
       "C12",
@@ -339,7 +359,8 @@
       "C35",
       "C36",
       "C37",
-      "C38"
+      "C38",
+      "C41"
     ]
   },
   "arm_attribution_constraints": {
@@ -523,7 +544,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "The QRF sample-weighted class gate is drawn stochastically and transferred without a target/origin marginal prevalence calibration.",
+      "mechanism_hypothesis": "For this zero-inflated boolean target, the QRF fits a sample-weighted class gate, draws it stochastically, and transfers it without a target/origin marginal prevalence calibration.",
       "mechanism_citations": [
         "C03",
         "C06",
@@ -569,7 +590,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "The QRF sample-weighted class gate is drawn stochastically and transferred without a target/origin marginal prevalence calibration.",
+      "mechanism_hypothesis": "For this zero-inflated boolean target, the QRF fits a sample-weighted class gate, draws it stochastically, and transfers it without a target/origin marginal prevalence calibration.",
       "mechanism_citations": [
         "C03",
         "C06",
@@ -615,7 +636,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "The QRF sample-weighted class gate is drawn stochastically and transferred without a target/origin marginal prevalence calibration.",
+      "mechanism_hypothesis": "For this zero-inflated boolean target, the QRF fits a sample-weighted class gate, draws it stochastically, and transfers it without a target/origin marginal prevalence calibration.",
       "mechanism_citations": [
         "C03",
         "C06",
@@ -661,7 +682,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.1042830540037244
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -707,7 +728,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.10526315789473684
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -757,7 +778,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.3333333333333334
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -806,7 +827,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.33333333333333337
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -854,7 +875,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -902,7 +923,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -949,7 +970,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.3811938276017271
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -996,7 +1017,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.39228295819935693
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1044,7 +1065,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7305910198561216
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1091,7 +1112,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7305910198561216
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1138,7 +1159,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142856
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1184,7 +1205,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142856
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1232,7 +1253,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.12389380530973454
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1279,7 +1300,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.19679633867276888
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1325,7 +1346,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5157232704402516
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1372,7 +1393,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.1576011157601116
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1418,7 +1439,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.1576011157601116
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1466,7 +1487,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.255813953488372
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1513,7 +1534,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.255813953488372
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1561,7 +1582,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.9842613410924481
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1609,7 +1630,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42105263157894735
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1655,7 +1676,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1702,7 +1723,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.38758495268324233
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1748,7 +1769,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.38758495268324233
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1796,7 +1817,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.1061359867330014
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1842,7 +1863,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.7140974967061922
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1889,7 +1910,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.5739471187902996
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1936,7 +1957,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4489795918367348
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1984,7 +2005,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4489795918367348
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2032,7 +2053,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7285129604365621
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2079,7 +2100,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2125,7 +2146,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2172,7 +2193,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.128297200347897
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2218,7 +2239,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.128297200347897
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2266,7 +2287,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3840000000000001
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2313,7 +2334,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3840000000000001
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2361,7 +2382,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.9084830756372754
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2408,7 +2429,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2455,7 +2476,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.6363636363636365
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2501,7 +2522,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.6363636363636365
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2548,7 +2569,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7524229074889868
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2595,7 +2616,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.5416178194607267
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2642,7 +2663,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7586206896551726
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2690,7 +2711,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2737,7 +2758,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4727168490819514
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2784,7 +2805,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.45700108495153513
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2832,7 +2853,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.20653353169759264
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2878,7 +2899,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5127201565557731
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2925,7 +2946,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3609910128200268
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2972,7 +2993,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.4812878320039546
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3419,7 +3440,7 @@
         "C38"
       ],
       "classification": "REVIEWED-EXCLUSION-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility/investment: unchanged to dead_comparison. Both-zero clone-0/native scope is an intentional measurement mismatch only if clone-1 PUF-role signal and identities are independently live; otherwise this becomes a BLOCKER. No current US hook can waive it.",
+      "classification_rationale": "Best arm order/eligibility/investment: unchanged to dead_comparison. Both-zero clone-0/native scope is an intentional measurement mismatch only if clone-1 PUF-role signal and identities are independently live; otherwise this becomes a BLOCKER. No current US by-origin-battery criterion hook can exclude it.",
       "concrete_change_or_needed_work": "Conditionally document clone-0/native as the wrong SSTB observation scope only after clone-1 PUF-role signal/identity proof; first add US schema-2 criterion-level exclusion plumbing with anti-rot checks.",
       "action_group": "us_exclusion_machinery_and_qbi_scope_adjudication",
       "reviewed_exclusion_class": "measurement-mismatch",
@@ -3468,7 +3489,7 @@
         "C38"
       ],
       "classification": "REVIEWED-EXCLUSION-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility/investment: unchanged to dead_comparison. Both-zero clone-0/native scope is an intentional measurement mismatch only if clone-1 PUF-role signal and identities are independently live; otherwise this becomes a BLOCKER. No current US hook can waive it.",
+      "classification_rationale": "Best arm order/eligibility/investment: unchanged to dead_comparison. Both-zero clone-0/native scope is an intentional measurement mismatch only if clone-1 PUF-role signal and identities are independently live; otherwise this becomes a BLOCKER. No current US by-origin-battery criterion hook can exclude it.",
       "concrete_change_or_needed_work": "Conditionally document clone-0/native as the wrong SSTB observation scope only after clone-1 PUF-role signal/identity proof; first add US schema-2 criterion-level exclusion plumbing with anti-rot checks.",
       "action_group": "us_exclusion_machinery_and_qbi_scope_adjudication",
       "reviewed_exclusion_class": "measurement-mismatch",
@@ -3506,7 +3527,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142857
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3554,7 +3575,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142857
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3601,7 +3622,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42424242424242425
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3647,7 +3668,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42424242424242425
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3695,7 +3716,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5741444866920152
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3742,7 +3763,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3789,7 +3810,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3836,7 +3857,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.9920159680638723
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3884,7 +3905,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.9920159680638723
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3933,7 +3954,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3979,7 +4000,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.44627239393814416
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4025,7 +4046,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.44627239393814416
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4072,7 +4093,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.4639175257731958
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4137,7 +4158,7 @@
           }
         }
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4184,7 +4205,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7696335078534031
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4232,7 +4253,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7696335078534031
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4279,7 +4300,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3448275862068966
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4325,7 +4346,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3448275862068966
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4373,7 +4394,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.99800099950025
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4419,7 +4440,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.4042553191489362
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4467,7 +4488,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4539877300613497
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4513,7 +4534,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.24486408921047648
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4560,7 +4581,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.31579401331890994
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4607,7 +4628,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.296143753739345
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4654,7 +4675,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.2941176470588236
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4701,7 +4722,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.8427184466019417
       },
-      "mechanism_hypothesis": "The QRF draws sign-conditional forest magnitudes and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4748,7 +4769,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.21844644367235277
       },
-      "mechanism_hypothesis": "The QRF fits a sample-weighted sign gate and stochastically draws sign before sign-conditional magnitude, but the transfer has no post-draw target/origin marginal carrier calibration; the ratio tests weighted carrier prevalence, not dollar mass.",
+      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
       "mechanism_citations": [
         "C04",
         "C06",

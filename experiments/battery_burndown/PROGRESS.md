@@ -3,10 +3,10 @@
 ## State
 
 Analysis is complete on branch `battery-burndown`, based on `arm-split-base` at
-`7d6749990933ac072ac257ae76d666aa16b84d25`. The owner-facing and
-machine-readable reports, including the independent source/data audit, are
-committed through `a0ab70c7`. No builds or pushes were
-performed, and no code, gate, band, or threshold was changed.
+`7d6749990933ac072ac257ae76d666aa16b84d25`. The owner-facing,
+machine-readable, and progress reports include the final independent
+artifact/source audit. No builds or pushes were performed, and no code, gate,
+band, or threshold was changed.
 
 ## Done
 
@@ -44,8 +44,9 @@ performed, and no code, gate, band, or threshold was changed.
   variable-specific health actions, tied-arm auxiliary evidence, exact UK
   wiring, clone-role provenance, QBI identity coverage, and Keogh support
   semantics.
-- Corrected the QRF mechanism account: the fitter already has a
-  sample-weighted regime/sign gate, so FIX actions calibrate existing gate
+- Corrected the QRF mechanism account: applicable zero-inflated/sign-mixed
+  regimes already have a sample-weighted regime/sign gate, while degenerate and
+  single-sign regimes bypass it; FIX actions therefore calibrate existing gate
   probabilities and post-draw conditional quantiles rather than proposing a
   new hurdle.
 - Separated the already-red baseline retirement repair from the synthesis's
@@ -59,6 +60,10 @@ performed, and no code, gate, band, or threshold was changed.
   empty and that the sole live schema-2 entry is the degenerate
   `household.source_year` exclusion; the US candidates borrow machinery
   precedent, not a substantive tail/mass waiver.
+- Recorded the UK precedent's attestation limit: degenerate binding evidence
+  exposes full resolved receipts, while input-mass evidence hashes only its
+  reference and QRF-tail declares no binding evidence hook. Any future US
+  criterion machinery must fully seal resolved receipts.
 - Tightened QBI claims to the canonical clone-0 battery declaration, explicit
   post-transfer QBI reconciliation order, and the need for independent
   clone-1 signal/identity proof before either measurement-mismatch candidate
@@ -67,10 +72,14 @@ performed, and no code, gate, band, or threshold was changed.
   package arithmetic, arm winners and deltas, all four artifact hashes,
   mirrored terminal payloads, 132 comparisons/211 legs, and all source-line
   endpoints.
+- Independently recomputed every baseline value and arm winner with zero
+  discrepancies, then corrected source-audit wording for clone/origin scope,
+  the proposed retirement factorial, exact comparator formulas/support, and UK
+  exclusion ownership without changing any adjudication.
 - Final report SHA-256:
-  `3dba8b78b334c3306c6a0b5f548c81848e8512791d6b213bdcc3dd01595f6b4b`;
+  `bcc8f41ce0808731c4a9d81bed7e3ebd3dee99934338b73ad22d0125e059e76c`;
   JSON SHA-256:
-  `76ded5d327b6400b67bb0c91def098f502889a3309924c31e272cc38b4088390`.
+  `65107896d57f87a749edeaec3d3786c74d20f0860c4fcb52f1d5081493c2591a`.
 
 ## Next
 
