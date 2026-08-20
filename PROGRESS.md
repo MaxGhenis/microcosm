@@ -2,13 +2,12 @@
 
 ## State
 
-In progress on branch `battery-pkg1-puf-tax`: the pure weighted kernels are
-committed, and the exact ragged QRF leaf store is verified and ready to commit.
-The locked complete repository suite, focused exactness/compatibility fixtures,
-stress probes, Ruff, lock freshness, and targeted formatting checks pass. The
-PUF-tax and Schedule-D runtime integration is preserved outside this commit
-boundary so a genuine pre-remedy control can be built first. No frozen gate
-parameter has changed.
+Continuation active on branch `battery-pkg1-puf-tax`. The host's paired 1%
+evidence showed identical 127-line failure sets because the committed PUF-tax
+and Schedule-D calibration kernels have no production caller. The carried
+exact capped-leaf QRF correction is still uncommitted and will be revalidated
+and committed before the transfer wiring changes. No frozen gate parameter or
+band has changed, and the host owns the next 1% comparison.
 
 ## Done
 
@@ -83,12 +82,50 @@ parameter has changed.
   The offline builder cannot resolve uncached `hatchling`, and outbound DNS was
   already unavailable during setup; no wheel was produced and no dependency
   or check was bypassed.
+- Committed the unlimited-leaf support boundary as `974f36c3`.
+- Started a fresh off-chain 1% pre-remedy control with the exact frozen sample
+  and clone seeds, no predecessor logbook digest, and both QRF widths pinned to
+  one. The first 41 primary targets succeeded; continuous targets that had
+  previously projected 29--64 GB recorded only 1.03--1.28 GB peaks.
+- Stopped that run immediately after
+  `estate_income_would_be_qualified` recorded a 55,823,466,496-byte peak. Its
+  five-value target activates the unchanged 4,096-sample near-discrete cap;
+  the ragged subclass still delegated every explicit cap to the inherited
+  `(trees, max_nodes, outputs, cap)` dense tensor. The partial build is invalid
+  and will not be accepted or resumed.
+- Extended exact ragged membership to configured integer and fractional caps,
+  preserving quantile-forest 1.4.2's compiled leaf grouping, ascending leaf
+  order, per-tree Python RNG seed/shuffle stream, selected bootstrap positions,
+  inverse-sorter mapping, and resolved `ceil(fraction * n)` width. The frozen
+  4,096 cap, its seed, and all selected occurrences remain unchanged.
+- Added dense/ragged bit-equality coverage over capped continuous and repeated
+  targets, integer and fractional caps, multiple seeds, both endpoints, the
+  production quantile grid, selected counts, projection shapes, and global RNG
+  state. A dedicated fixture exercises a 5,200-member leaf under the exact
+  production 4,096 cap.
+- Verified a 12,000-row, 48-tree, 32-atom capped stress case: the inherited
+  dense tensor projects to 21,801,467,904 bytes while the exact ragged payload
+  retains 10,623,840 bytes and peaks at 273,088,512 bytes RSS. Independent fuzz
+  review found all 160 capped and 100 unlimited comparisons bit-identical.
+- The expanded QRF module, Ruff check, targeted format check, and
+  `git diff --check` pass. The complete repository suite is running for the
+  capped-support commit boundary.
+- Received the host's paired 1% result: branch and `origin/main` each produced
+  the same 127 failure lines, with zero fixed and zero introduced. Direct source
+  and log inspection established that `acs_transfer_calibration.py` is never
+  called by the ACS transfer build path, so the kernel cannot affect artifacts.
+- Began the wiring continuation under the frozen gate: inspect pkg3's scoped ACS
+  binding pattern, bind only the assigned PUF-tax rows plus Schedule-D parent,
+  and add a fixture regression that fails if assigned invocation disappears or
+  leaks to an unassigned target. No local 1% build is authorized for this
+  continuation.
 
 ## Next
 
-- Commit the exact QRF support boundary.
-- Build the genuine off-chain 1% pre-remedy control at sample fraction `0.01`
-  and sample seed `578`, with every process below 15 GiB RSS.
-- Restore, review, and commit the PUF-tax / Schedule-D runtime integration.
-- Build the matching 1% after artifact, record all 39 before/after results in
-  `_LANE-NOTES.md`, run final verification, and write `FINAL_REPORT.md`.
+- Revalidate and commit the carried exact capped-leaf storage correction.
+- Wire the calibration seam into the ACS transfer stage for exactly the assigned
+  PUF-tax targets and Schedule-D parent, following pkg3's scoped-binding shape.
+- Add assigned/non-assigned invocation coverage, then run the complete suite,
+  Ruff, formatting/diff checks, and commit each coherent boundary.
+- Update this journal and `FINAL_REPORT.md`; leave the next 1% build and result
+  diff to the host.
