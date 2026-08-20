@@ -137,7 +137,7 @@
     "C48": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:313-333",
     "C49": "tools/build_us_multispine_pool.py:3053-3061,3182-3188",
     "C50": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11309,11934-11973",
-    "C51": "packages/microcosm-fit/src/microcosm/fit/qrf.py:882-903,1225-1230",
+    "C51": "packages/microcosm-fit/src/microcosm/fit/qrf.py:649-680,882-903,1225-1230",
     "C52": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:405-475,1629-1648",
     "C53": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8245-8275,9362-9379",
     "C54": "packages/microcosm-build/src/microcosm/build/gate_battery.py:601-626,924-1002",
@@ -373,7 +373,7 @@
       },
       {
         "rank": 2,
-        "title": "Baseline retirement source/label audit and dense regime-gated refit",
+        "title": "Baseline retirement source/label audit and dense regime-appropriate refit",
         "checks_addressed": 16,
         "physical_legs_addressed": 11,
         "action_group": "retirement_model_and_data",

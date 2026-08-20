@@ -109,10 +109,16 @@ changed.
   hardened two citation edges: the distinct US terminal-gate names and the UK
   binding-evidence-to-attestation path, including signing-key conditionality.
   This changed no row, value, classification, work package, or recommendation.
+- Closed three independent final audits covering gate arithmetic and arm
+  movement, source mechanisms, and classification/actionability with no
+  substantive discrepancy. Added the missing QRF chain-state citation,
+  distinguished UK stale-entry probes from dormant-entry classification, and
+  renamed the retirement refit as regime-appropriate; counts and dispositions
+  are unchanged.
 - Final report SHA-256:
-  `83c9971d45fc084407a6e9900118d065ac8d20d4beed5a2097d35068bfdcf1ab`;
+  `b4ece1c78d00bc9b02567aaf17dc19b99bac97ce589e09d7723f981e62e793d6`;
   JSON SHA-256:
-  `fdd5415f78a5634f12b597778070f5d1df760b7ae837f28e07fb22bb631a3629`.
+  `ce4f2fd91cece8b6795ae46e73a04a5bc379578679b6b3f75fc896aa3fc899cc`.
 
 ## Next
 
