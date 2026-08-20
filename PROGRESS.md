@@ -2,12 +2,20 @@
 
 ## State
 
-Complete from detached cached `origin/main` commit
+Independent validation is in progress over the completed draft from detached cached `origin/main` commit
 `164027e21cfa58a71d701b43211d009d6182e39d` in the isolated worktree
 `/Users/maxghenis/PolicyEngine/microcosm/.worktrees/microcosm-uk-flip-prep`.
 All three requested analysis artifacts and this journal are committed. No
 package or UK source file was edited, no dataset build was run, and nothing was
 pushed.
+
+On 2026-08-20, a fresh reviewer resumed this clean lane after finding the
+pre-existing committed draft. The reviewer rechecked ancestry/scope and retried
+`uv sync --all-packages --extra us --extra uk` with a writable temporary cache.
+The lock resolved all 118 packages, then installation stopped at the managed
+network boundary while fetching `policyengine-core==3.26.11` from PyPI. No
+dataset build ran. Three independent read-only reviews of authority coverage,
+the stochastic census, and the charter are in progress.
 
 The requested `git fetch origin main spec-engine-schema` could not resolve
 `github.com` in the managed sandbox. The requested sibling worktree path was
