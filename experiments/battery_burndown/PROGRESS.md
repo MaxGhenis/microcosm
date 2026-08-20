@@ -48,9 +48,10 @@ changed.
   semantics.
 - Corrected the QRF mechanism account: a realized gated zero-inflated/sign-mixed
   regime already has a donor-sample-weighted sign gate, while degenerate and
-  single-sign regimes bypass it. Per-target regime claims are hypotheses pending
-  fitted-receipt inspection, and all calibration actions now require terminal
-  clone-0 by-origin verification rather than assuming donor-pattern fidelity.
+  single-sign regimes bypass it. `QRFChainStepResult` exposes the realized
+  regime, but the ACS-transfer provenance and checkpoint types do not persist
+  it. Per-target regime claims are therefore hypotheses until recomputed from
+  frozen donor support, and future receipts must persist the result.
 - Separated the already-red baseline retirement repair from the synthesis's
   bundle-only predictor-replacement factorial, which remains a future landing
   guardrail rather than an explanation for baseline failures.
@@ -80,12 +81,17 @@ changed.
   of ten independent fixes. Clearing all 93 current failures is necessary, but
   certification still requires rerunning all 211 legs because isolated arms
   demonstrate that a remedy can create new red legs.
-- Ranked the top five workstreams by current-red coverage, including physical
-  legs: PUF tax 38/25, retirement 16/11, source operators 13/7, combined QBI
-  10/6, and rare signed tails 9/5 (checks/physical legs).
-- Made every generic fitted-surface FIX action receipt-first and required
-  coupled-identity guardrails plus a full 211-leg rerun, avoiding an unsupported
-  assumption that each realized fit used a gated regime.
+- Ranked five non-overlapping work packages by current-red coverage, including
+  physical legs: PUF tax 38/25, retirement 16/11, source operators 13/7, rare
+  signed tails 9/5, and QBI source/joint model 8/4 (checks/physical legs). The
+  separate two-check QBI terminal-role FIX is not combined to inflate ranking.
+- Made every generic transfer-surface action regime-recomputation-first and
+  required future regime receipts, coupled-identity guardrails, and a full
+  211-leg rerun, avoiding an unsupported assumption that each realized fit used
+  a gated regime.
+- Incorporated the final source audit: narrowed the generic mechanism to the
+  transfer surface, documented the missing realized-regime receipt, added the
+  operative Schedule-D citation, and cited the manifest readiness conjunction.
 - Revalidated exact baseline ordering, Markdown/JSON row parity, class and
   package arithmetic, arm winners and deltas, all four artifact hashes,
   mirrored terminal payloads, 132 comparisons/211 legs, and all source-line
@@ -96,9 +102,9 @@ changed.
   UK exclusion ownership. The stricter QBI audit changed exactly two
   dispositions from conditional reviewed exclusions to concrete fixes.
 - Final report SHA-256:
-  `8d777ebae419a4d4be2935550a8b4dedcd70f35d56ab5ed174eb7ba0bd4a675d`;
+  `84bf2f0ec2f0c33517076e87b9e1df88bb263b29d28481f55e8302b67300fddf`;
   JSON SHA-256:
-  `ddf27f49c4bbe85e84469f72639c01be96e379917fafc8e927e3be360d689073`.
+  `355cfa85321eb8ba4fc98c70c362f392bf33e8bb28431784b508006616ccab29`.
 
 ## Next
 
