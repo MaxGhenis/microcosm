@@ -13,9 +13,10 @@ mode runnable as the oracle.
 
 The intended day-of exercise is a one-day country binding and evidence rerun,
 not a second generic-executor project. On the inspected schema snapshot that
-is **not yet possible**: the UK compiler emits zero nodes, UK kernels are
-contract-only, and the real gate/take-up/target/evidence resources are dropped
-as `legacy_json`. The P0 package makes the one-day claim honest.
+is **not yet possible**: typed UK sources/spine/geography normalize, but the
+compiler does not turn those source stages into executable nodes; UK kernels
+are contract-only; and compatibility gate/take-up/target/evidence resources
+remain dropped `legacy_json`. The P0 package makes the one-day claim honest.
 
 ## Binding inputs
 
@@ -25,9 +26,11 @@ Read these fully, in order, before dispatch:
    producer graph, identity surfaces, Decisions D1-D5, and Rollout F1.
 2. The final US F1 charter, lane notes, certification JSON/Markdown, exact
    executor/broker commits, seed protocol/map digests, and QRF repair.
-3. `_UK-FLIP-PREP/AUTHORITY-INVENTORY.md` — 87 rows and 14 schema fields.
-4. `_UK-FLIP-PREP/STOCHASTIC-AUDIT.md` — 78 physical calls, 34 logical
-   ledger rows, and 38 typed exemptions.
+3. `_UK-FLIP-PREP/AUTHORITY-INVENTORY.md` — 87 grouped rows, 11 new
+   schema/IR fields, and five existing-field generalizations.
+4. `_UK-FLIP-PREP/STOCHASTIC-AUDIT.md` — 79 actual scoped callsites (80 AST
+   candidates including one false positive), 34 logical ledger rows, 38 true
+   exemptions, and one required policy-clock binding.
 5. All three UK drivers and every `uk_runtime` module at the dispatch base.
 
 If upstream changes move any cited line, rerun the AST and authority scanners;
@@ -41,9 +44,10 @@ starts only after all of the following are true:
 
 1. The certified US executor/brokers and the shared QRF state-restore repair
    are present at known commits and their US certification remains green.
-2. The 14 fields in the authority inventory's schema-gap register validate,
-   normalize, compile, and lock. In particular, UK has executable pipeline and
-   node records, typed 17-gate battery invocations, UK target surfaces,
+2. The 11 new fields/additions and five generalizations in the authority
+   inventory validate, normalize, compile, and lock. In particular, UK has an
+   executable physical pipeline and sealed comparison vector, populated
+   existing node records, typed 17-gate battery invocations, UK target surfaces,
    geography routes/clone contract, take-up rates/resolution, evidence
    resources, and resolved run-request parameters.
 3. CGT is absorbed from `cgt_source_stages.json` into the canonical typed
@@ -57,13 +61,17 @@ starts only after all of the following are true:
    sites plus two reset-only controls) with complete owner bindings. The five
    stable-identity helper calls expand to 18 named output sites. The dormant
    firm rows may instead have a sealed `out_of_selected_pipeline` disposition.
-6. The constants-mode artifact vector and the compiler-emitted bundle vector
-   are sealed. The plan lock contains the two-tier comparison rules, including
-   all UUID/clock/path/host fields, and rejects any unlisted difference.
-7. UK release-line ownership is resolved before dispatch. This draft preserves
+6. The constants-mode artifact vector and compiler-emitted bundle vector are
+   sealed in `plan_lock.comparison_vector`. It contains the two-tier rules,
+   including all UUID/temp-name/clock/path/host fields, and rejects any
+   unlisted difference.
+7. UK publication schema is generalized before dispatch: it must express the
+   UK three-rung set (0.01/0.10/1.0), canonical tier enum, and grandfathered
+   June release ID as one closed grammar; it must not require the five US
+   tokens. Release-line ownership must also be resolved. This draft preserves
    the constants `populace-uk-*` line in both modes for exact legacy behavior;
-   changing to a `microcosm-uk-*` line requires a separate owner ruling and a
-   sealed prefix-comparison rule, not an improvised day-of decision.
+   changing to a `microcosm-uk-*` line requires a separate owner ruling and
+   sealed prefix rule, not an improvised day-of decision.
 8. Restricted FRS/SPI/HMRC/CGT inputs, frozen comparison references, ladder,
    crosswalk fixture, and writable output volume are preflighted read-only.
    A fixture-scale path must not download geography inputs during comparison.
@@ -111,12 +119,14 @@ do not call the lane a one-day flip.
 
 | Surface | Pre-flip census | Dispatch acceptance |
 | --- | ---: | --- |
-| Authority surfaces | 87 total | All 86 selected-path/support rows have one compiled owner; A087 firm is compiled or sealed out-of-path |
-| Schema gaps | 14 fields | All validate, normalize, compile, and appear in plan/spec locks |
-| Scoped physical calls | 78 | Every call remains classified; any delta has a reviewed row |
+| Authority groups / ledger rows | 87 total | All 86 selected-path/support rows have one compiled owner; A087 firm is compiled or sealed out-of-path |
+| New schema/IR fields | 11 (9 authored + 2 plan/lock) | All validate, normalize, compile, and appear in plan/spec locks; five listed existing fields are generalized |
+| Actual scoped callsites | 79 | Every call remains classified; any delta has a reviewed row |
+| Scanner-classified AST candidates | 80 | The extra node is the documented deterministic `np.power` false positive |
 | Ledger-bound physical calls | 40 | Every call is reached only through an owned broker token/control binding |
 | Logical ledger rows | 34 | 32 draw/hash-draw + two reset-only controls, all owner-bound |
-| Typed exemptions | 38 | 17 hashes, 7 UUIDs, 12 operational clocks, one brokered policy clock, one deterministic math false positive |
+| True exemptions | 38 | 17 hashes, 9 operational nonces (7 UUID + 2 temp-name), and 12 operational clocks |
+| Required non-ledger binding | 1 | Policy-significant evaluation clock; inject and receipt it |
 
 The policy-significant date fallback at `weighted_integrity.py:474` is not an
 operational exemption: bundle execution must inject the evaluation date and
@@ -165,15 +175,18 @@ the work to P0; the day-of lane is not the design forum.
 - Bind H001-H018 stable hash sites, R019-R032 draws, and C033-C034 resets to
   the certified RNG broker with exact family, seed material, order, and reset
   boundary.
-- Inject clock/date through the clock broker; operational UUID/timing access
-  must be logged but excluded from numerical/node identity.
+- Resolve and inject the policy evaluation date through the clock broker as a
+  normative run input; include it in affected gate-node identity/reuse keys.
+- Log operational clocks and UUID/temp-name nonces, but exclude those
+  operational values from numerical/node identity.
 - Capture constants-mode vectors for at least five independent real families:
   one stable hash, CGT PCG64, geography PCG64, SPI QRF 42/43, and WAS's
   three-reset chain. Include candidate calibration reset and no-draw proof.
 
 Commit criterion: captured draws/results agree exactly; private RNG and ambient
-access probes fail closed; broker receipt does not enter `spec_sha256` or
-`node_reuse_key`.
+access probes fail closed; broker receipts do not enter `spec_sha256` or
+`node_reuse_key`, while the resolved policy evaluation date enters every
+affected gate-node reuse key.
 
 ### D4. Flip national staging authority
 
@@ -217,8 +230,9 @@ request supplies them and receipts their provenance. Test route exclusivity,
 same-artifact target binding, mass-log continuity, clone identity, collision
 retry consumption, and checkpoint/resume for all three branches.
 
-Commit criterion: both geography routes and the candidate pipeline are
-fixture-byte-identical across modes; route selection and resume are compiled.
+Commit criterion: both geography routes and the candidate pipeline have an
+exact normative raw-byte vector across modes; their operational vectors match
+the sealed structural rules; route selection and resume are compiled.
 
 ### D6. Cold dual-mode fixture certification
 
@@ -307,13 +321,16 @@ The US owner ruling's two-tier model applies:
    plan-declared publication artifact must match.
 2. **Provenance/operational vector — structural comparison under the sealed
    plan lock.** Generation/config-authority fields, allowed prefix differences
-   if separately ruled, absolute paths, durations, seven UUID sites, 12
-   operational clock/timing sites, host/executable strings, and broker access
-   logs each have an explicit rule. Any unlisted difference fails.
+   if separately ruled, absolute paths, durations, nine operational nonce
+   sites (seven UUID and two temp-name), 12 operational clock/timing sites,
+   host/executable strings, and broker access logs each have an explicit rule.
+   Any unlisted difference fails.
 3. The injected weighted-integrity evaluation date is policy-significant and
    therefore equal in both modes, not operationally excluded.
 4. `node_reuse_key` is byte-equal across modes and excludes provenance,
-   operational nonces, and clocks.
+   operational nonces, and operational clocks. The injected policy evaluation
+   date is a behavior-relevant run input and enters every affected gate node's
+   reuse key.
 
 ## Required checks
 
@@ -332,12 +349,14 @@ delete prior evidence to make a rerun look clean.
 
 - P0 was green before dispatch and remained green after the certified US F1
   integration.
-- All 87 authorities have a compiled owner or the explicit A087 out-of-path
-  disposition; all 14 schema fields are locked and consumed.
+- All 87 authority groups have a compiled owner or the explicit A087
+  out-of-path disposition; all 11 new fields are locked/consumed and all five
+  existing-field generalizations validate UK values.
 - UK compilation has a nonempty executable graph and zero release-affecting
   `legacy_json` fallbacks.
-- All 78 scoped callsites are closed: 40 broker/control-bound and 38 typed;
-  all 34 logical ledger rows have owners. The policy clock is injected.
+- All 79 actual scoped callsites are closed: 40 RNG/control-bound, 38 exempt,
+  and one policy clock broker-bound; all 34 logical ledger rows have owners.
+  The 80th scanner candidate remains the proven deterministic false positive.
 - Constants and bundle full suites pass; no generic core code contains UK or
   program-specific dispatch names.
 - Both fixture routes and the candidate path are exact; resume passes.
@@ -352,16 +371,19 @@ seed, ordering, or input to make bundle mode pass.
 
 ## Final analysis report for dispatch
 
-The preparatory analysis found **87 authority surfaces**, **78 scoped physical
-callsites**, and **14 required schema fields**. The highest risks are the
-current zero-node UK IR; manual three-stage national and dual-route local
-orchestration; seed authority drift (especially legacy CLI seed versus SPI
-42/43 and geography 0 versus 42); UK gate/take-up/target shapes that do not fit
-the US-closed schemas; QRF/firm ambient RNG behavior; operational UUID/clock
-bytes plus the policy-significant gate clock; and rowwise pipelines without
-resume. P0 converts those from day-of design work into reviewed inputs. Only
-then is the UK flip credibly a one-day executor/broker binding and evidence
-rerun.
+The preparatory analysis found **87 authority groups / ledger rows**, **79
+actual scoped callsites (80 AST candidates including one false positive)**,
+and **11 new schema/IR fields** plus five existing-field generalizations. The
+highest risks are the current zero-node UK IR; manual three-stage national and
+dual-route local orchestration; seed authority drift (especially legacy CLI
+seed versus SPI 42/43 and geography 0 versus 42); UK gate/take-up/target shapes
+that do not fit the US-closed schemas; the publication schema's five-rung and
+`microcosm-*` constraints plus missing tier/grandfathered-ID semantics versus
+the UK release grammar;
+QRF/firm ambient RNG behavior; operational UUID/temp-name/clock bytes plus the
+policy-significant gate clock; and rowwise pipelines without resume. P0
+converts those from day-of design work into reviewed inputs. Only then is the
+UK flip credibly a one-day executor/broker binding and evidence rerun.
 
 Prepared artifacts:
 

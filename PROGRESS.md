@@ -2,8 +2,9 @@
 
 ## State
 
-All three analysis artifacts are complete. Final verification of counts,
-commits, links, and worktree state is in progress.
+All three analysis artifacts are complete. Independent review findings have
+been reconciled; final mechanical verification and clean-state recording are
+in progress.
 Dependencies are synced with both locked country extras. The worktree is detached at
 the locally cached `origin/main` SHA
 `164027e21cfa58a71d701b43211d009d6182e39d` (2026-08-19 15:28:43 -0400).
@@ -35,13 +36,14 @@ are the locally cached references.
 - Read `docs/spec-engine.md` from the cached `origin/spec-engine-schema`
   reference, including the Kernels and Rollout F1 sections.
 - Read the US F1 authority-inventory template and charter, all three specified
-  UK drivers, and all 57 `uk_runtime` modules.
-- Completed the 87-row UK authority census and mapped it to compiled owners,
-  including 14 concrete schema gaps.
+  UK drivers, and all 55 `uk_runtime` modules.
+- Completed the 87-group UK authority ledger and mapped it to compiled owners,
+  including 11 new schema/IR fields and five existing-field generalizations.
 - Wrote `_UK-FLIP-PREP/AUTHORITY-INVENTORY.md`.
-- Closed the AST/semantic stochastic census at 78 physical calls: 40
-  ledger-bound calls and 38 typed exemptions, lowering to 34 logical ledger
-  rows (32 draw/hash-draw, two reset-only controls).
+- Closed the AST/semantic stochastic census at 79 actual scoped calls (80 AST
+  candidates including one deterministic false positive): 40 ledger-bound
+  calls, 38 true exemptions, and one required policy-clock binding, lowering
+  to 34 logical ledger rows (32 draw/hash-draw, two reset-only controls).
 - Reconciled source-stage seeds 0/42/43 with runtime behavior and separated the
   historical take-up fitting seed 42 from live seed-0 assignments.
 - Wrote `_UK-FLIP-PREP/STOCHASTIC-AUDIT.md`.
@@ -49,8 +51,12 @@ are the locally cached references.
   playbook, with an explicit pre-dispatch P0 schema/compiler closure gate.
 - Embedded the final analysis report, headline counts, and top risks in
   `_UK-FLIP-PREP/UK-F1-CHARTER-DRAFT.md` so no fourth output is required.
+- Reconciled two independent adversarial reviews: corrected exact compiled
+  owner paths and schema taxonomy, added two implicit temp-name nonce sites,
+  separated the policy evaluation date from operational clocks in cache-key
+  doctrine, and closed the UK tier/grandfathered-release grammar.
 
 ## Next
 
-- Commit the charter step, run non-build document/count checks, and record the
-  final clean state and commit sequence.
+- Commit the review reconciliation, run final non-build document/count checks,
+  and commit the completed journal state.

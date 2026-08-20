@@ -2,20 +2,24 @@
 
 ## Result and method
 
-The closed scoped surface is **78 AST `Call` nodes**:
+The scanner classified **80 AST `Call` nodes**, of which **79 are actual
+scoped stochastic/hash/ambient/control callsites** and one (`np.power`) is a
+deterministic lexical false positive:
 
 - **40 stochastic/control/model calls** covered by a proposed draw ledger;
-- **38 typed exemptions**: 17 deterministic content/integrity hashes, seven
-  operational UUID nonces, 12 operational clock/timing calls, one
-  policy-significant ambient clock that must be brokered, and one deterministic
-  `np.power` scanner false positive.
+- **38 true exemptions**: 17 deterministic hashes, nine operational nonces
+  (seven explicit UUIDs and two implicit temporary-name allocations), and 12
+  operational clocks/timers;
+- **one policy-significant ambient clock** that must be brokered and bound;
+- **one scanner-only false positive**, reported for census reproducibility.
 
 Those 40 physical calls lower to **34 logical ledger rows**: 32 rows that can
 draw or hash-draw and two reset-only calibration-control rows. Five physical
 stable-identity helper calls expand to 18 logical output streams. Counts in
-this report always distinguish physical AST calls from logical sites.
+this report distinguish 80 classified AST candidates, 79 actual scoped
+callsites, and 34 logical ledger sites.
 
-Scope is all 57 `uk_runtime/*.py` modules plus:
+Scope is all 55 `uk_runtime/*.py` modules plus:
 
 - `tools/build_uk_national_dataset.py`;
 - `tools/build_uk_rowwise_candidate.py`;
@@ -24,11 +28,18 @@ Scope is all 57 `uk_runtime/*.py` modules plus:
 The audit used the US F1 `_CallsiteVisitor` lexical classes (`np.random`,
 `default_rng`, `RandomState`, framework/model constructors, hashes, UUIDs),
 then an AST semantic-boundary pass for five stable-identity calls, two dynamic
-QRF constructors, two shared calibrator calls, and the shared frame sampler,
-then an explicit clock pass. No scoped use of stdlib `random`, `RandomState`,
-`SeedSequence`/BitGenerator construction, built-in `hash()`, `secrets`, or
-explicit OS entropy was found. Ordinary hashes are listed as exemptions
-rather than being silently discarded.
+QRF constructors, two shared calibrator calls, the shared frame sampler, and
+two temporary-name allocations, then an explicit clock pass. No scoped use of
+stdlib `random`, `RandomState`, `SeedSequence`/BitGenerator construction,
+built-in `hash()`, `secrets`, or explicit OS entropy outside those temp-name
+helpers was found. Ordinary hashes are listed as exemptions rather than being
+silently discarded.
+
+The count reproduces as 55 F1-lexical calls (30 stochastic/control/model, 17
+deterministic hashes, seven UUIDs, and one `np.power` false positive), plus ten
+stochastic semantic-boundary calls, plus two temp-name semantic-boundary calls,
+plus 13 clock/time calls (12 operational and one policy-significant):
+55 + 10 + 2 + 13 = 80.
 
 ## Proposed draw-site ledger
 
@@ -61,7 +72,7 @@ consume a second draw.
 | R019 | CGT allocation quantiles (`uk_runtime/cgt_imputation.py:471,517`) | NumPy `Generator/PCG64` | tuple `(552, int(time_period))` | one uniform per allocated gainer in nested declared band/plan order; gains-descending/person-ID tie order downstream | once per CGT stage invocation |
 | R020 | Firm Torch pre-solve generator (`uk_runtime/firm_generation.py:711,857,859,865-866,899,902,905,936,1384-1385`) | global Torch default generator; device/backend/version sensitive | firm config seed, default 42 | exact execution order: turnover/base inputs, employment, VAT; draw branches consume conditionally | reset at `manual_seed` line 711 |
 | R021 | Firm NumPy employment shuffle (`uk_runtime/firm_generation.py:712,910`) | NumPy legacy global MT19937 | firm config seed, default 42 | base-employment shuffle; a zero-turnover shuffle continues the same stream if reached | reset once at line 712 |
-| R022 | Firm Torch zero-turnover continuation (`uk_runtime/firm_generation.py:1072` then shared draw lines 899,902,905) | global Torch default generator | firm config seed, default 42 | zero-turnover additions in execution order | reset at line 1072 |
+| R022 | Firm post-solve zero-turnover Torch stream, reset at the calibration boundary (`uk_runtime/firm_generation.py:1072` then shared draw lines 899,902,905) | global Torch default generator | firm config seed, default 42 | current calibration consumes no RNG; later zero-turnover employment draws in execution order. If calibration posture changes, optimizer draws advance this same stream. | reset at line 1072 immediately before calibration |
 | R023 | OA-ladder geography (`uk_runtime/geography_ladder.py:658,689,703`) | NumPy `Generator/PCG64` | effective driver seed; CLI default 42, function default 0 | sorted regions -> weighted constituency choices; sorted chosen constituencies -> OA population choices | once per assignment invocation |
 | R024 | Crosswalk rowwise geography (`uk_runtime/rowwise_geography.py:312,704,731`) | NumPy `Generator/PCG64` | driver seed, default 42 | clone index ascending and sorted country/region keys; initial draw, then retry rounds 0..49 consume only collision set | once per assignment invocation |
 | R025 | Initial SPI support selection (`uk_runtime/spi_support.py:676,678`) | NumPy `Generator/PCG64` | 42 | no-replacement positions, then restore source-row order; skipped when IDs supplied/count absent | once per support-table build |
@@ -82,8 +93,10 @@ drivers. They remain ledger rows because the requested scope includes every
 ## Physical callsite closure
 
 This table proves that every one of the **40 ledger-bound AST calls** maps to
-at least one row above. A shared physical call can sit under two reset contexts
-(the firm draw helpers), but it is counted once here.
+at least one row above. The shared firm calls at lines 899, 902, and 905 run
+under the line-711 reset before solve and, when adding zero-turnover firms,
+under the line-1072 calibration-boundary reset; each physical call is counted
+once here.
 
 | Physical callsite(s) | Ledger row(s) |
 | --- | --- |
@@ -106,7 +119,7 @@ The physical total is 5 stable-identity calls + 2 CGT + 14 firm + 3 ladder
 + 3 crosswalk + 4 SPI-support + 5 SPI-income + 1 WAS + 1 national sampler +
 2 calibrators = 40.
 
-## Typed exemptions
+## Non-ledger classifications
 
 ### Deterministic content and integrity hashes (17)
 
@@ -133,7 +146,7 @@ pandas hashing in particular depends on algorithm/key/version.
 | E016 | `tools/build_uk_rowwise_dataset.py:231` `hashlib.sha256` | `rowwise_identity`; deterministic canonical JSON |
 | E017 | `tools/build_uk_rowwise_dataset.py:1439` `hashlib.sha256` | `artifact_integrity` |
 
-### Operational nonce UUIDs (7)
+### Operational nonces (9)
 
 | ID | Callsite | Exemption and constraint |
 | --- | --- | --- |
@@ -144,8 +157,10 @@ pandas hashing in particular depends on algorithm/key/version.
 | E022 | `tools/build_uk_national_dataset.py:1138` `uuid.uuid4` | `operational_nonce`; atomic JSON temp path |
 | E023 | `tools/build_uk_rowwise_candidate.py:116` `uuid.uuid4` | `operational_nonce`; candidate build ID |
 | E024 | `tools/build_uk_rowwise_dataset.py:206` `uuid.uuid4` | `operational_nonce`; rowwise build ID |
+| E025 | `uk_runtime/hmrc_replay.py:816` `tempfile.NamedTemporaryFile` | `operational_nonce`; implicit random atomic temp name only |
+| E026 | `tools/build_uk_rowwise_candidate.py:667` `tempfile.mkdtemp` | `operational_nonce`; implicit random staging-directory name only |
 
-All seven are barred from numerical identity and node-reuse keys. Any raw
+All nine are barred from numerical identity and node-reuse keys. Any raw
 dual-mode receipt comparison must freeze them or apply the sealed operational
 normalization vector; calling an entire manifest byte-identical while leaving
 these live would be contradictory.
@@ -154,18 +169,18 @@ these live would be contradictory.
 
 | ID | Callsite | Exemption and constraint |
 | --- | --- | --- |
-| E025 | `uk_runtime/geography_sources.py:1663` `time.sleep` | `operational_retry_timing`; no numerical identity |
-| E026 | `tools/build_uk_national_dataset.py:529` `time.perf_counter` | `operational_duration` |
-| E027 | `tools/build_uk_national_dataset.py:530` `datetime.now` | `manifest_timestamp` |
-| E028 | `tools/build_uk_rowwise_candidate.py:266` `time.perf_counter` | `operational_duration` |
-| E029 | `tools/build_uk_rowwise_candidate.py:267` `datetime.now` | `manifest_timestamp` |
-| E030 | `tools/build_uk_rowwise_candidate.py:746` `datetime.now` | `manifest_timestamp` |
-| E031 | `tools/build_uk_rowwise_dataset.py:298` `time.perf_counter` | `operational_duration` |
-| E032 | `tools/build_uk_rowwise_dataset.py:299` `datetime.now` | `manifest_timestamp` |
-| E033 | `tools/build_uk_rowwise_dataset.py:472` `datetime.now` | `manifest_timestamp` |
-| E034 | `tools/build_uk_rowwise_dataset.py:792` `datetime.now` | `manifest_timestamp` |
-| E035 | `tools/build_uk_rowwise_dataset.py:930` `datetime.now` | `manifest_timestamp` |
-| E036 | `tools/build_uk_rowwise_dataset.py:1064` `datetime.now` | `manifest_timestamp` |
+| E027 | `uk_runtime/geography_sources.py:1663` `time.sleep` | `operational_retry_timing`; no numerical identity |
+| E028 | `tools/build_uk_national_dataset.py:529` `time.perf_counter` | `operational_duration` |
+| E029 | `tools/build_uk_national_dataset.py:530` `datetime.now` | `manifest_timestamp` |
+| E030 | `tools/build_uk_rowwise_candidate.py:266` `time.perf_counter` | `operational_duration` |
+| E031 | `tools/build_uk_rowwise_candidate.py:267` `datetime.now` | `manifest_timestamp` |
+| E032 | `tools/build_uk_rowwise_candidate.py:746` `datetime.now` | `manifest_timestamp` |
+| E033 | `tools/build_uk_rowwise_dataset.py:298` `time.perf_counter` | `operational_duration` |
+| E034 | `tools/build_uk_rowwise_dataset.py:299` `datetime.now` | `manifest_timestamp` |
+| E035 | `tools/build_uk_rowwise_dataset.py:472` `datetime.now` | `manifest_timestamp` |
+| E036 | `tools/build_uk_rowwise_dataset.py:792` `datetime.now` | `manifest_timestamp` |
+| E037 | `tools/build_uk_rowwise_dataset.py:930` `datetime.now` | `manifest_timestamp` |
+| E038 | `tools/build_uk_rowwise_dataset.py:1064` `datetime.now` | `manifest_timestamp` |
 
 These calls must be brokered or normalized in operational receipts and must
 not enter normative artifacts or reuse identities.
@@ -174,8 +189,8 @@ not enter normative artifacts or reuse identities.
 
 | ID | Callsite | Classification and required disposition |
 | --- | --- | --- |
-| E037 | `uk_runtime/weighted_integrity.py:474` `datetime.now(UTC).date()` | `policy_significant_clock`: the fallback changes exclusion expiry and therefore gate pass/fail. Inject/freeze the bundle evaluation date and receipt it; this is not an operational exemption at the flip. |
-| E038 | `uk_runtime/cgt_imputation.py:272` `np.power` | `deterministic_math_false_positive`; Pareto quantile math, no ambient state |
+| E039 | `uk_runtime/weighted_integrity.py:474` `datetime.now(UTC).date()` | `policy_significant_clock`: the fallback changes exclusion expiry and therefore gate pass/fail. Inject/freeze the bundle evaluation date and receipt it; this is not an operational exemption at the flip. |
+| E040 | `uk_runtime/cgt_imputation.py:272` `np.power` | `deterministic_math_false_positive`; Pareto quantile math, no ambient state |
 
 ## Declared-seed reconciliation
 
@@ -200,8 +215,9 @@ helper for fit/draw restoration. The ambient entropy should not affect result
 bytes because state is immediately replaced, but it violates the broker
 contract. The US F1 repair replaces it with `Generator(PCG64(0))`; the UK lane
 must inherit and verify that certified kernel repair before dual-mode evidence.
-It is not included in the 78-callsite count because the requested physical
-scope was UK runtime plus the three drivers.
+It is not included in either the 79-callsite count or the 80-candidate AST
+census because the requested physical scope was UK runtime plus the three
+drivers.
 
 ## Highest-risk findings
 
@@ -212,5 +228,6 @@ scope was UK runtime plus the three drivers.
 3. The shared QRF restore helper touches ambient entropy, and WAS has three
    identical-seed resets rather than one stream.
 4. Firm generation uses global Torch/NumPy state and backend-sensitive draws.
-5. UUIDs and clocks contaminate raw receipt bytes; weighted-integrity's
-   fallback date can additionally change the release verdict.
+5. UUID/temp-name nonces and clocks contaminate raw receipt bytes;
+   weighted-integrity's fallback date can additionally change the release
+   verdict.
