@@ -773,7 +773,7 @@ requires-dist = [
     { name = "microcosm-frame", editable = "packages/microcosm-frame" },
     { name = "numpy", specifier = ">=2" },
     { name = "pandas", specifier = ">=2.3" },
-    { name = "quantile-forest", specifier = ">=1.4.2" },
+    { name = "quantile-forest", specifier = "==1.4.2" },
     { name = "scikit-learn", specifier = ">=1.5" },
 ]
 

@@ -48,8 +48,10 @@ Past that resolution the two paths are the same model.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
+import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
@@ -57,6 +59,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 import pandas as pd
 from quantile_forest import RandomForestQuantileRegressor
+from quantile_forest._quantile_forest_fast import calc_weighted_quantile
 from sklearn.ensemble import HistGradientBoostingClassifier
 
 from microcosm.fit.model import (
@@ -265,6 +268,740 @@ def _interp_rows(
 
 
 @dataclass(frozen=True)
+class _RaggedTreeLeafMembership:
+    """Exact value-group summaries for one tree's nonempty leaves.
+
+    ``node_offsets`` is a CSR-style index by the sklearn node id.  Each aligned
+    slice has one entry per distinct target value in that leaf.  ``value_indices``
+    addresses the store-wide sorted unique values and ``total_multiplicities``
+    records all bootstrap occurrences of that value.
+
+    A total alone is not sufficient for bit-identical weighted interpolation:
+    quantile-forest keeps one weight slot per sorted training row, and the
+    transition into a run of equal values depends on the first nonzero slot's
+    weight.  ``first_target_indices`` identifies that slot and
+    ``first_multiplicities`` records its leaf-local weight.  When leaves are
+    pooled, the global first slot and its combined weight can therefore be
+    reconstructed exactly; the remainder of the equal-value run can be safely
+    collapsed because interpolation within it returns the same value.
+    """
+
+    node_offsets: np.ndarray
+    value_indices: np.ndarray
+    total_multiplicities: np.ndarray
+    first_target_indices: np.ndarray
+    first_multiplicities: np.ndarray
+
+    @property
+    def nbytes(self) -> int:
+        """Return the exact NumPy payload bytes owned by this tree."""
+
+        return int(
+            self.node_offsets.nbytes
+            + self.value_indices.nbytes
+            + self.total_multiplicities.nbytes
+            + self.first_target_indices.nbytes
+            + self.first_multiplicities.nbytes
+        )
+
+
+@dataclass(frozen=True)
+class _RaggedLeafMembership:
+    """Compact exact replacement for quantile-forest's padded leaf tensor."""
+
+    trees: tuple[_RaggedTreeLeafMembership, ...]
+    y_sorted: np.ndarray
+    unique_y_values: np.ndarray
+    dense_projection_shape: tuple[int, int, int, int]
+    dense_projection_nbytes: int
+
+    @property
+    def nbytes(self) -> int:
+        """Return the exact NumPy payload bytes retained by the ragged store."""
+
+        return int(
+            self.y_sorted.nbytes
+            + self.unique_y_values.nbytes
+            + sum(tree.nbytes for tree in self.trees)
+        )
+
+
+def _require_ragged_qrf_private_contract() -> None:
+    """Fail before fitting if quantile-forest's private API has drifted.
+
+    The ragged backend necessarily replaces quantile-forest's private leaf-map
+    hook and calls its compiled weighted-quantile kernel. The package pins
+    quantile-forest 1.4.2; these checks are defense in depth so a mismatched or
+    locally patched installation fails clearly instead of corrupting draws.
+
+    Raises:
+        RuntimeError: If either private callable's parameter contract differs
+            from the one implemented by this backend.
+    """
+
+    contracts = (
+        (
+            "RandomForestQuantileRegressor._get_y_train_leaves",
+            RandomForestQuantileRegressor._get_y_train_leaves,
+            ("self", "X", "y", "sorter", "sample_weight"),
+        ),
+        (
+            "quantile_forest._quantile_forest_fast.calc_weighted_quantile",
+            calc_weighted_quantile,
+            ("inputs", "weights", "quantiles", "interpolation", "issorted"),
+        ),
+    )
+    for name, function, expected_parameters in contracts:
+        try:
+            actual_parameters = tuple(inspect.signature(function).parameters)
+        except (TypeError, ValueError) as error:
+            raise RuntimeError(
+                f"Ragged QRF cannot inspect the required private contract {name}; "
+                "install the tested quantile-forest interface or use an explicit "
+                "max_samples_leaf."
+            ) from error
+        if actual_parameters != expected_parameters:
+            raise RuntimeError(
+                f"Ragged QRF requires private contract {name}"
+                f"{expected_parameters}, got {actual_parameters}. Install a "
+                "compatible quantile-forest release or use an explicit "
+                "max_samples_leaf."
+            )
+
+    # Signature stability is necessary but not sufficient for a private
+    # compiled kernel.  Pin the behavior this backend's compression relies on:
+    # zero-weight gaps may be removed, equal-y runs may retain first + remainder
+    # weights, and one leading zero-weight sentinel preserves q=0's initialized
+    # interpolation bracket.  A same-signature semantic change fails closed.
+    probe_quantiles = [0.0, 1e-6, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1.0]
+    dense_probe = np.asarray(
+        calc_weighted_quantile(
+            np.array([-2.79, -1.43, -1.43, -0.98, -0.88, -0.65, 0.01, 0.04, 0.26]),
+            np.array([0.0, 2.0, 3.0, 0.0, 4.0, 0.0, 0.0, 1.0, 0.0]),
+            probe_quantiles,
+            b"linear",
+            True,
+        )
+    )
+    ragged_probe = np.asarray(
+        calc_weighted_quantile(
+            np.array([-2.79, -1.43, -1.43, -0.88, 0.04]),
+            np.array([0.0, 2.0, 3.0, 4.0, 1.0]),
+            probe_quantiles,
+            b"linear",
+            True,
+        )
+    )
+    if not np.array_equal(ragged_probe, dense_probe):
+        raise RuntimeError(
+            "Ragged QRF's private weighted-quantile behavior contract changed. "
+            "Install a compatible quantile-forest release or use an explicit "
+            "max_samples_leaf."
+        )
+
+
+class _RaggedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
+    """Single-output QRF with exact ragged leaf membership.
+
+    ``quantile_forest==1.4.2`` represents memberships as an int64 tensor with
+    shape ``(trees, largest_node_count, outputs, largest_leaf)``.  Both the node
+    and leaf dimensions are global maxima, so a forest containing one large
+    pure leaf and many ordinary nodes can require tens of GiB even though every
+    tree contains only ``n_samples`` bootstrap occurrences.  Its builder first
+    retains one padded tensor per tree and then copies that list into the final
+    four-dimensional array, doubling the construction peak.
+
+    This subclass intercepts the private membership hook *after* sklearn has
+    fitted the identical trees.  For every leaf it stores exact bootstrap
+    multiplicities in a ragged target-value representation, including the
+    first sorted-row slot needed to preserve the installed interpolation rule.
+    Prediction pools visited summaries in linear time and calls the same
+    installed Cython weighted-quantile routine.  No sample is truncated and no
+    random stream is added, so draws are bit-identical to the stock
+    unlimited-leaf backend.
+
+    The implementation intentionally supports only Microcosm's forest contract:
+    one output, bootstrap trees, no direct RF sample weights, unlimited leaf
+    retention, and the default pooled weighted-quantile prediction.  Unsupported
+    modes fail closed.  Explicit ``max_samples_leaf`` configurations retain the
+    installed dense implementation, including the existing near-discrete guard.
+    """
+
+    def fit(self, X, y, sample_weight=None, sparse_pickle=False):  # noqa: N803
+        """Fit only after validating the private hook/kernel boundary."""
+
+        if self.max_samples_leaf is None:
+            _require_ragged_qrf_private_contract()
+        fitted = super().fit(
+            X,
+            y,
+            sample_weight=sample_weight,
+            sparse_pickle=sparse_pickle,
+        )
+        if self.max_samples_leaf is None:
+            if not hasattr(self, "_ragged_leaf_membership_"):
+                raise RuntimeError(
+                    "Ragged QRF's private leaf-membership hook was not invoked "
+                    "by quantile-forest during fit. Install a compatible "
+                    "quantile-forest release or use an explicit max_samples_leaf."
+                )
+            placeholder_shape = np.asarray(self.forest_.y_train_leaves).shape
+            expected_shape = (len(self.estimators_), 1, 1, 1)
+            if placeholder_shape != expected_shape:
+                raise RuntimeError(
+                    "Ragged QRF's private QuantileForest constructor contract "
+                    f"changed: expected placeholder shape {expected_shape}, got "
+                    f"{placeholder_shape}. Install a compatible quantile-forest "
+                    "release or use an explicit max_samples_leaf."
+                )
+        return fitted
+
+    def _get_y_train_leaves(
+        self,
+        X,  # noqa: N803 - match sklearn's private override signature
+        y,
+        sorter=None,
+        sample_weight=None,
+    ) -> np.ndarray:
+        """Build exact ragged memberships and return a one-slot dummy tensor."""
+
+        # Explicit caps (including Microcosm's seeded near-discrete cap) have
+        # different membership semantics and remain owned by the installed
+        # backend.  Clear a prior ragged fit if callers reuse an estimator.
+        self.__dict__.pop("_ragged_leaf_membership_", None)
+        if self.max_samples_leaf is not None:
+            return super()._get_y_train_leaves(
+                X,
+                y,
+                sorter=sorter,
+                sample_weight=sample_weight,
+            )
+
+        if not self.bootstrap:
+            raise NotImplementedError(
+                "Ragged QRF leaf membership requires bootstrap=True."
+            )
+        if sample_weight is not None:
+            raise NotImplementedError(
+                "Ragged QRF leaf membership does not support direct RF "
+                "sample_weight; Microcosm materializes weights before fit."
+            )
+        if sorter is None:
+            raise NotImplementedError(
+                "Ragged QRF leaf membership requires the fitted target sorter."
+            )
+        if y.ndim != 2 or y.shape[1] != 1:
+            raise NotImplementedError(
+                "Ragged QRF leaf membership supports exactly one output."
+            )
+        if not isinstance(X, np.ndarray) or X.ndim != 2:
+            raise NotImplementedError(
+                "Ragged QRF leaf membership supports dense two-dimensional X."
+            )
+
+        n_samples = int(X.shape[0])
+        n_outputs = int(y.shape[1])
+        n_trees = len(self.estimators_)
+
+        # sklearn's public authority for the actual per-tree bootstrap draws.
+        # In sklearn 1.9 the private bootstrap helpers gained a required
+        # sample_weight argument; this property owns that version distinction
+        # and regenerates the exact indices used to fit each tree.  Reading it
+        # also avoids taking a second direct dependency on sklearn internals.
+        try:
+            estimator_samples = list(self.estimators_samples_)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                "Ragged QRF requires sklearn's fitted estimators_samples_ "
+                "bootstrap-index property."
+            ) from error
+        if len(estimator_samples) != n_trees:
+            raise RuntimeError(
+                "Ragged QRF requires one estimators_samples_ index array per "
+                f"tree; got {len(estimator_samples)} arrays for {n_trees} trees."
+            )
+        bootstrap_lengths = {np.asarray(indices).size for indices in estimator_samples}
+        if len(bootstrap_lengths) != 1:
+            raise RuntimeError(
+                "Ragged QRF requires equal bootstrap sample counts across trees."
+            )
+        n_samples_bootstrap = int(bootstrap_lengths.pop())
+        if n_samples > np.iinfo(np.int32).max:
+            raise OverflowError(
+                "Ragged QRF sorted training indices require at most int32 rows."
+            )
+        if n_samples_bootstrap > np.iinfo(np.uint32).max:
+            raise OverflowError(
+                "Ragged QRF bootstrap multiplicities require at most uint32 rows."
+            )
+        if n_trees * n_samples_bootstrap >= 2**53:
+            raise OverflowError(
+                "Ragged QRF pooled bootstrap multiplicities must be exactly "
+                "representable as float64."
+            )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            x_leaves = self.apply(X)
+
+        sorter_array = np.asarray(sorter)
+        if sorter_array.shape != (n_samples, 1):
+            raise NotImplementedError(
+                "Ragged QRF requires a one-column sorter aligned to X."
+            )
+        if (y[1:, 0] < y[:-1, 0]).any():
+            raise RuntimeError(
+                "Ragged QRF requires quantile-forest to sort y before invoking "
+                "its private leaf-membership hook."
+            )
+        # quantile_forest stores indices into y_sorted.  Invert its sorter once
+        # so an internally bootstrapped original row maps to that same slot.
+        original_to_sorted = np.argsort(sorter_array, axis=0)[:, 0]
+
+        y_sorted = np.asarray(y[:, 0], dtype=np.float64).copy()
+        value_start = np.empty(n_samples, dtype=bool)
+        value_start[0] = True
+        value_start[1:] = y_sorted[1:] != y_sorted[:-1]
+        unique_y_values = y_sorted[value_start].copy()
+        sorted_to_value = np.cumsum(value_start, dtype=np.int64) - 1
+
+        trees: list[_RaggedTreeLeafMembership] = []
+        max_node_count = 0
+        max_leaf_members = 0
+        for tree_index, (estimator, raw_bootstrap_indices) in enumerate(
+            zip(self.estimators_, estimator_samples, strict=True)
+        ):
+            node_count = int(estimator.tree_.node_count)
+            max_node_count = max(max_node_count, node_count)
+            bootstrap_indices = np.asarray(raw_bootstrap_indices)
+            if bootstrap_indices.ndim != 1 or not np.issubdtype(
+                bootstrap_indices.dtype, np.integer
+            ):
+                raise RuntimeError(
+                    "Ragged QRF requires each estimators_samples_ entry to be a "
+                    "one-dimensional integer array."
+                )
+            if len(bootstrap_indices) != n_samples_bootstrap or (
+                (bootstrap_indices < 0).any() or (bootstrap_indices >= n_samples).any()
+            ):
+                raise RuntimeError(
+                    "Ragged QRF received malformed indices from estimators_samples_."
+                )
+            leaf_nodes = np.asarray(
+                x_leaves[bootstrap_indices, tree_index], dtype=np.int64
+            )
+            sorted_target_indices = np.asarray(
+                original_to_sorted[bootstrap_indices], dtype=np.int64
+            )
+
+            leaf_sizes = np.bincount(leaf_nodes, minlength=node_count)
+            max_leaf_members = max(max_leaf_members, int(leaf_sizes.max()))
+
+            # Sort by node, then by sorted-y row.  Adjacent equal pairs are the
+            # exact bootstrap duplicates that the dense backend later sums into
+            # one leaf_weights slot.
+            order = np.lexsort((sorted_target_indices, leaf_nodes))
+            ordered_nodes = leaf_nodes[order]
+            ordered_targets = sorted_target_indices[order]
+            pair_start = np.empty(n_samples_bootstrap, dtype=bool)
+            pair_start[0] = True
+            pair_start[1:] = (ordered_nodes[1:] != ordered_nodes[:-1]) | (
+                ordered_targets[1:] != ordered_targets[:-1]
+            )
+            pair_starts = np.flatnonzero(pair_start)
+            pair_nodes = ordered_nodes[pair_starts]
+            pair_targets = ordered_targets[pair_starts].astype(np.int32, copy=False)
+            pair_multiplicities = np.diff(
+                np.append(pair_starts, n_samples_bootstrap)
+            ).astype(np.uint32, copy=False)
+
+            # Collapse equal target values within a leaf, retaining both total
+            # weight and the first nonzero sorted-row slot.  Those two weights
+            # are sufficient to reproduce the Cython kernel exactly: movement
+            # within an equal-value run returns that value, while movement into
+            # the run depends only on its first slot and movement out depends on
+            # its total cumulative weight.
+            pair_values = sorted_to_value[pair_targets]
+            group_start = np.empty(len(pair_starts), dtype=bool)
+            group_start[0] = True
+            group_start[1:] = (pair_nodes[1:] != pair_nodes[:-1]) | (
+                pair_values[1:] != pair_values[:-1]
+            )
+            group_starts = np.flatnonzero(group_start)
+            group_nodes = pair_nodes[group_starts]
+            value_indices = pair_values[group_starts].astype(np.int32, copy=False)
+            first_target_indices = pair_targets[group_starts]
+            first_multiplicities = pair_multiplicities[group_starts]
+            total_multiplicities_u64 = np.add.reduceat(
+                pair_multiplicities,
+                group_starts,
+                dtype=np.uint64,
+            )
+            if int(total_multiplicities_u64.max()) > np.iinfo(np.uint32).max:
+                raise OverflowError(
+                    "Ragged QRF leaf-value multiplicity exceeds uint32."
+                )
+            total_multiplicities = total_multiplicities_u64.astype(
+                np.uint32, copy=False
+            )
+
+            node_offsets = np.zeros(node_count + 1, dtype=np.int64)
+            node_offsets[1:] = np.cumsum(
+                np.bincount(group_nodes, minlength=node_count), dtype=np.int64
+            )
+            if int(total_multiplicities.sum(dtype=np.uint64)) != n_samples_bootstrap:
+                raise AssertionError(
+                    "Ragged QRF membership lost bootstrap multiplicity."
+                )
+            for array in (
+                node_offsets,
+                value_indices,
+                total_multiplicities,
+                first_target_indices,
+                first_multiplicities,
+            ):
+                array.setflags(write=False)
+            trees.append(
+                _RaggedTreeLeafMembership(
+                    node_offsets=node_offsets,
+                    value_indices=value_indices,
+                    total_multiplicities=total_multiplicities,
+                    first_target_indices=first_target_indices,
+                    first_multiplicities=first_multiplicities,
+                )
+            )
+
+        y_sorted.setflags(write=False)
+        unique_y_values.setflags(write=False)
+        dense_projection_shape = (
+            n_trees,
+            max_node_count,
+            n_outputs,
+            max_leaf_members,
+        )
+        dense_projection_nbytes = int(
+            np.dtype(np.int64).itemsize
+            * n_trees
+            * max_node_count
+            * n_outputs
+            * max_leaf_members
+        )
+        self._ragged_leaf_membership_ = _RaggedLeafMembership(
+            trees=tuple(trees),
+            y_sorted=y_sorted,
+            unique_y_values=unique_y_values,
+            dense_projection_shape=dense_projection_shape,
+            dense_projection_nbytes=dense_projection_nbytes,
+        )
+
+        # BaseForestQuantileRegressor.fit constructs its Cython QuantileForest
+        # after this hook.  Monotonic bounds are disabled on Microcosm's model,
+        # and this subclass owns predict, so a one-slot-per-tree placeholder is
+        # sufficient without materializing any padded node/leaf dimension.
+        return np.zeros((n_trees, 1, n_outputs, 1), dtype=np.int64)
+
+    def predict(
+        self,
+        X,  # noqa: N803 - match sklearn's public estimator signature
+        quantiles=None,
+        interpolation="linear",
+        weighted_quantile=True,
+        weighted_leaves=False,
+        aggregate_leaves_first=True,
+        oob_score=False,
+        indices=None,
+        duplicates=None,
+    ) -> np.ndarray:
+        """Predict with the exact pooled ECDF over ragged leaf memberships."""
+
+        store = getattr(self, "_ragged_leaf_membership_", None)
+        if store is None:
+            return super().predict(
+                X,
+                quantiles=quantiles,
+                interpolation=interpolation,
+                weighted_quantile=weighted_quantile,
+                weighted_leaves=weighted_leaves,
+                aggregate_leaves_first=aggregate_leaves_first,
+                oob_score=oob_score,
+                indices=indices,
+                duplicates=duplicates,
+            )
+
+        if (
+            weighted_quantile is not True
+            or weighted_leaves is not False
+            or aggregate_leaves_first is not True
+            or oob_score is not False
+            or indices is not None
+            or duplicates is not None
+        ):
+            raise NotImplementedError(
+                "Ragged QRF predict supports only weighted_quantile=True, "
+                "weighted_leaves=False, aggregate_leaves_first=True, "
+                "oob_score=False, indices=None, and duplicates=None."
+            )
+
+        if quantiles is None:
+            quantiles = (
+                ["mean"] if self.default_quantiles is None else self.default_quantiles
+            )
+        if not isinstance(quantiles, list):
+            quantiles = [quantiles]
+        if quantiles == ["mean"]:
+            raise NotImplementedError(
+                "Ragged QRF predict requires explicit numeric quantiles."
+            )
+        for quantile in quantiles:
+            if not isinstance(quantile, (float, int)) or not 0 <= quantile <= 1:
+                raise ValueError(
+                    f"Quantiles must be in the range [0, 1], got {quantile}."
+                )
+
+        if not isinstance(interpolation, (bytes, bytearray)):
+            interpolation = interpolation.encode()
+        if interpolation != b"linear":
+            raise NotImplementedError(
+                "Ragged QRF predict supports only linear interpolation."
+            )
+
+        validated_x = self._validate_X_predict(X)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            x_leaves = self.apply(validated_x)
+        if x_leaves.shape[1] != len(store.trees):
+            raise AssertionError(
+                "Ragged QRF tree count changed between fit and predict."
+            )
+
+        predictions = np.empty(
+            (len(validated_x), 1, len(quantiles)),
+            dtype=np.float64,
+        )
+        signature_cache: dict[bytes, int] = {}
+        for row_index, row_leaves in enumerate(x_leaves):
+            # Repeated predictor rows traverse the same leaf in every tree.
+            # Cache their already-computed grid within this predict call; this
+            # turns the giant-pure-leaf case from one O(membership) reduction
+            # per recipient into one per distinct forest leaf signature.
+            signature = row_leaves.tobytes()
+            cached_row = signature_cache.get(signature)
+            if cached_row is not None:
+                predictions[row_index] = predictions[cached_row]
+                continue
+            signature_cache[signature] = row_index
+
+            entry_count = 0
+            for tree, node in zip(store.trees, row_leaves, strict=True):
+                node_index = int(node)
+                entry_count += int(
+                    tree.node_offsets[node_index + 1] - tree.node_offsets[node_index]
+                )
+            if entry_count == 0:
+                raise AssertionError(
+                    "Ragged QRF prediction reached no bootstrap leaf members."
+                )
+
+            value_indices = np.empty(entry_count, dtype=np.int32)
+            total_multiplicities = np.empty(entry_count, dtype=np.uint32)
+            first_target_indices = np.empty(entry_count, dtype=np.int32)
+            first_multiplicities = np.empty(entry_count, dtype=np.uint32)
+            cursor = 0
+            for tree, node in zip(store.trees, row_leaves, strict=True):
+                node_index = int(node)
+                start = int(tree.node_offsets[node_index])
+                stop = int(tree.node_offsets[node_index + 1])
+                size = stop - start
+                destination = slice(cursor, cursor + size)
+                value_indices[destination] = tree.value_indices[start:stop]
+                total_multiplicities[destination] = tree.total_multiplicities[
+                    start:stop
+                ]
+                first_target_indices[destination] = tree.first_target_indices[
+                    start:stop
+                ]
+                first_multiplicities[destination] = tree.first_multiplicities[
+                    start:stop
+                ]
+                cursor += size
+
+            # Pool adaptively.  Ordinary deep-tree leaves visit far fewer
+            # entries than there are training values, so sorting that small
+            # list avoids clearing n_values bins per recipient.  Giant leaves
+            # use O(entries + n_values) bincount aggregation and avoid the
+            # catastrophic O(entries log entries) per-recipient sort.
+            # Integer counts are below 2**53 (checked at fit), so float64 sums
+            # are exact just like the installed kernel's leaf_weights array.
+            n_values = len(store.unique_y_values)
+            values_are_unique = n_values == len(store.y_sorted)
+            if entry_count >= n_values:
+                pooled_totals_by_value = np.bincount(
+                    value_indices,
+                    weights=total_multiplicities,
+                    minlength=n_values,
+                )
+                active_values = np.flatnonzero(pooled_totals_by_value)
+                pooled_totals = pooled_totals_by_value[active_values]
+
+                if values_are_unique:
+                    first_weights = pooled_totals
+                else:
+                    # Any visited leaf containing the global minimum row must
+                    # expose it as that leaf's first row.  Sum the first-slot
+                    # multiplicities for leaves sharing that minimum.
+                    pooled_first_indices = np.full(
+                        n_values,
+                        len(store.y_sorted),
+                        dtype=np.int32,
+                    )
+                    np.minimum.at(
+                        pooled_first_indices,
+                        value_indices,
+                        first_target_indices,
+                    )
+                    contributes_first = (
+                        first_target_indices == pooled_first_indices[value_indices]
+                    )
+                    pooled_first_by_value = np.bincount(
+                        value_indices[contributes_first],
+                        weights=first_multiplicities[contributes_first],
+                        minlength=n_values,
+                    )
+                    first_weights = pooled_first_by_value[active_values]
+            else:
+                order = np.argsort(value_indices, kind="stable")
+                ordered_values = value_indices[order]
+                ordered_totals = total_multiplicities[order]
+                group_start = np.empty(entry_count, dtype=bool)
+                group_start[0] = True
+                group_start[1:] = ordered_values[1:] != ordered_values[:-1]
+                group_starts = np.flatnonzero(group_start)
+                active_values = ordered_values[group_starts]
+                pooled_totals = np.add.reduceat(
+                    ordered_totals,
+                    group_starts,
+                    dtype=np.uint64,
+                ).astype(np.float64)
+
+                if values_are_unique:
+                    first_weights = pooled_totals
+                else:
+                    ordered_first_indices = first_target_indices[order]
+                    ordered_first_weights = first_multiplicities[order]
+                    minimum_first_indices = np.minimum.reduceat(
+                        ordered_first_indices,
+                        group_starts,
+                    )
+                    group_lengths = np.diff(np.append(group_starts, entry_count))
+                    contributes_first = ordered_first_indices == np.repeat(
+                        minimum_first_indices,
+                        group_lengths,
+                    )
+                    first_weights = np.add.reduceat(
+                        np.where(contributes_first, ordered_first_weights, 0),
+                        group_starts,
+                        dtype=np.uint64,
+                    ).astype(np.float64)
+
+            remaining_weights = pooled_totals - first_weights
+            if (first_weights <= 0).any() or (remaining_weights < 0).any():
+                raise AssertionError(
+                    "Ragged QRF could not reconstruct pooled target weights."
+                )
+
+            # Two slots per value reproduce the dense ECDF: the first retains
+            # transition interpolation and the optional remainder retains the
+            # group's total cumulative mass.  Zero remainders are removed.
+            synthetic_values = np.repeat(
+                store.unique_y_values[active_values],
+                2,
+            )
+            synthetic_weights = np.empty(2 * len(active_values), dtype=np.float64)
+            synthetic_weights[0::2] = first_weights
+            synthetic_weights[1::2] = remaining_weights
+            positive_weight = synthetic_weights > 0
+            synthetic_values = synthetic_values[positive_weight]
+            synthetic_weights = synthetic_weights[positive_weight]
+
+            # The installed dense kernel initializes its q=0 bracket at sorted
+            # row zero even when that row has zero pooled weight.  Removing all
+            # leading zero slots is distributionally equivalent but can move
+            # the interpolated endpoint by one ULP.  Retain one global-minimum
+            # zero sentinel exactly when dense leaf_weights would begin with
+            # zero; further zero slots are immaterial.
+            if int(first_target_indices.min()) > 0:
+                synthetic_values = np.insert(
+                    synthetic_values,
+                    0,
+                    store.y_sorted[0],
+                )
+                synthetic_weights = np.insert(synthetic_weights, 0, 0.0)
+            predictions[row_index, 0, :] = calc_weighted_quantile(
+                synthetic_values,
+                synthetic_weights,
+                quantiles,
+                interpolation,
+                True,
+            )
+
+        if predictions.shape[2] == 1:
+            predictions = np.squeeze(predictions, axis=2)
+        if predictions.shape[1] == 1:
+            predictions = np.squeeze(predictions, axis=1)
+        return predictions
+
+    def quantile_ranks(
+        self,
+        X,  # noqa: N803 - match sklearn's public estimator signature
+        y,
+        kind="rank",
+        aggregate_leaves_first=True,
+        oob_score=False,
+        indices=None,
+        duplicates=None,
+    ) -> np.ndarray:
+        """Fail closed when ranks would otherwise read the dummy dense tensor."""
+
+        if hasattr(self, "_ragged_leaf_membership_"):
+            raise NotImplementedError(
+                "Ragged QRF leaf membership does not support quantile_ranks."
+            )
+        return super().quantile_ranks(
+            X,
+            y,
+            kind=kind,
+            aggregate_leaves_first=aggregate_leaves_first,
+            oob_score=oob_score,
+            indices=indices,
+            duplicates=duplicates,
+        )
+
+    def proximity_counts(
+        self,
+        X,  # noqa: N803 - match sklearn's public estimator signature
+        max_proximities=None,
+        return_sorted=True,
+        oob_score=False,
+        indices=None,
+        duplicates=None,
+    ):
+        """Fail closed when proximities would read the dummy dense tensor."""
+
+        if hasattr(self, "_ragged_leaf_membership_"):
+            raise NotImplementedError(
+                "Ragged QRF leaf membership does not support proximity_counts."
+            )
+        return super().proximity_counts(
+            X,
+            max_proximities=max_proximities,
+            return_sorted=return_sorted,
+            oob_score=oob_score,
+            indices=indices,
+            duplicates=duplicates,
+        )
+
+
+@dataclass(frozen=True)
 class _Forest:
     """A fitted quantile forest plus the feature columns it was fit on."""
 
@@ -288,12 +1025,12 @@ class _Forest:
 
         The predict is chunked over rows (:data:`_PREDICT_CHUNK_ROWS`) so the
         ``(n_rows x n_grid)`` prediction matrix never has to materialize whole —
-        at 3M+ rows that matrix alone would be tens of GB — and the chunks run
-        **in parallel** across a thread pool (:func:`_predict_workers`).
-        ``quantile_forest``'s Cython ``predict`` releases the GIL over its
-        per-sample aggregation, so the threads run that aggregation — the serial
-        bottleneck when ``max_samples_leaf`` keeps full leaf populations — truly
-        concurrently, without serializing the fitted forest to any worker.
+        at 3M+ rows that matrix alone would be tens of GB — and the chunks can run
+        across a thread pool (:func:`_predict_workers`) without serializing the
+        fitted forest. The exact ragged backend assembles each visited leaf's
+        multiplicities in Python before calling the installed Cython quantile
+        kernel, so production builds may pin this outer width to one when memory
+        isolation matters more than draw throughput.
 
         The parallel draw is **bit-identical** to a serial one: each row's value
         depends only on that row (the forest predict is pure per row), so the
@@ -501,7 +1238,7 @@ def _fit_forest(
             f"max_samples_leaf at {_DISCRETE_Y_LEAF_BOUND} for this forest.",
             flush=True,
         )
-    model = RandomForestQuantileRegressor(
+    model = _RaggedRandomForestQuantileRegressor(
         n_estimators=n_estimators,
         max_samples_leaf=effective_max_samples_leaf,
         random_state=seed,

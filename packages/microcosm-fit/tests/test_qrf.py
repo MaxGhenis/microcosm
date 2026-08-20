@@ -14,9 +14,15 @@ import json
 import numpy as np
 import pandas as pd
 import pytest
+from quantile_forest import RandomForestQuantileRegressor
 
 from microcosm.fit import QRFChainState, Regime, RegimeGatedQRF, fit
-from microcosm.fit.qrf import _DISCRETE_Y_LEAF_BOUND, _fit_n_jobs, detect_regime
+from microcosm.fit.qrf import (
+    _DISCRETE_Y_LEAF_BOUND,
+    _fit_n_jobs,
+    _RaggedRandomForestQuantileRegressor,
+    detect_regime,
+)
 
 # ----------------------------------------------------------------------------
 # Regime detection: structural, unweighted support classification
@@ -424,6 +430,262 @@ def test_high_quantile_draw_reaches_the_observed_max() -> None:
     assert interior_top < 0.5 * observed_max
     # And the endpoint of the live grid is the one that closes the gap.
     assert _QUANTILE_GRID[-1] > interior_grid[-1]
+
+
+@pytest.mark.parametrize("target_kind", ["continuous", "repeated", "negative"])
+def test_ragged_leaf_predictions_are_bit_exact_to_dense_backend(target_kind) -> None:
+    """Ragged membership reproduces the installed dense pooled ECDF exactly."""
+
+    rng = np.random.default_rng(93)
+    x = rng.normal(size=(360, 5))
+    if target_kind == "continuous":
+        y = rng.normal(2_000.0, 700.0, size=len(x))
+    elif target_kind == "repeated":
+        y = rng.choice(
+            np.array([10.0, 10.0, 10.0, 25.0, 50.0, 100.0]),
+            size=len(x),
+        )
+    else:
+        # A sign-specific negative forest: RegimeGatedQRF passes these signed
+        # values unchanged to its negative conditional forest.
+        y = -np.abs(rng.normal(2_000.0, 700.0, size=len(x)))
+
+    dense = RandomForestQuantileRegressor(
+        n_estimators=13,
+        max_samples_leaf=None,
+        random_state=17,
+        n_jobs=1,
+    ).fit(x, y)
+    ragged = _RaggedRandomForestQuantileRegressor(
+        n_estimators=13,
+        max_samples_leaf=None,
+        random_state=17,
+        n_jobs=1,
+    ).fit(x, y)
+    probe = np.vstack([x[:40], rng.normal(size=(20, x.shape[1]))])
+    quantiles = [1e-6, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1 - 1e-6]
+
+    np.testing.assert_array_equal(
+        ragged.predict(probe, quantiles=quantiles),
+        dense.predict(probe, quantiles=quantiles),
+    )
+    np.testing.assert_array_equal(
+        ragged.predict(probe, quantiles=[0.5]),
+        dense.predict(probe, quantiles=[0.5]),
+    )
+
+
+def test_ragged_leaf_store_avoids_dense_padding_without_losing_membership() -> None:
+    """One large pure leaf no longer multiplies every node in every tree."""
+
+    rng = np.random.default_rng(101)
+    n = 480
+    x = rng.normal(size=(n, 3))
+    x[:340] = 0.0
+    y = np.concatenate([np.full(340, 7.0), rng.normal(20.0, 3.0, n - 340)])
+    kwargs = {
+        "n_estimators": 11,
+        "max_samples_leaf": None,
+        "random_state": 29,
+        "n_jobs": 1,
+    }
+    dense = RandomForestQuantileRegressor(**kwargs).fit(x, y)
+    ragged = _RaggedRandomForestQuantileRegressor(**kwargs).fit(x, y)
+
+    dense_tensor = np.asarray(dense.forest_.y_train_leaves)
+    store = ragged._ragged_leaf_membership_
+    # BaseForestQuantileRegressor sorts y before invoking the overridden leaf
+    # hook. Pin that exact indexing authority against its retained Cython model.
+    np.testing.assert_array_equal(
+        store.y_sorted,
+        np.asarray(dense.forest_.y_train)[0],
+    )
+    assert store.dense_projection_shape == dense_tensor.shape
+    assert store.dense_projection_nbytes == dense_tensor.nbytes
+    assert np.asarray(ragged.forest_.y_train_leaves).shape == (11, 1, 1, 1)
+    assert store.nbytes * 20 < dense_tensor.nbytes
+    assert (
+        sum(int(tree.total_multiplicities.sum(dtype=np.uint64)) for tree in store.trees)
+        == 11 * n
+    )
+
+    with pytest.raises(NotImplementedError, match="weighted_leaves=False"):
+        ragged.predict(x[:2], quantiles=[0.5], weighted_leaves=True)
+    with pytest.raises(NotImplementedError, match="quantile_ranks"):
+        ragged.quantile_ranks(x[:2], y[:2])
+    with pytest.raises(NotImplementedError, match="proximity_counts"):
+        ragged.proximity_counts(x[:2])
+
+
+def test_ragged_equal_value_compression_preserves_transition_interpolation() -> None:
+    """Equal-y runs retain the dense backend's first-slot interpolation weight."""
+
+    # Every tree has one leaf, while repeated values receive nonuniform bootstrap
+    # multiplicities at their individual sorted-row slots.  Collapsing each value
+    # to only its total weight changes the transition interpolation; the ragged
+    # store's first-slot plus remainder representation must remain exactly equal.
+    x = np.zeros((120, 2), dtype=np.float64)
+    y = np.repeat(np.array([-9.0, -2.0, 4.0, 11.0]), [13, 29, 47, 31])
+    kwargs = {
+        "n_estimators": 9,
+        "max_samples_leaf": None,
+        "random_state": 71,
+        "n_jobs": 1,
+    }
+    dense = RandomForestQuantileRegressor(**kwargs).fit(x, y)
+    ragged = _RaggedRandomForestQuantileRegressor(**kwargs).fit(x, y)
+    quantiles = np.linspace(0.0, 1.0, 1_001).tolist()
+
+    np.testing.assert_array_equal(
+        ragged.predict(x[:3], quantiles=quantiles),
+        dense.predict(x[:3], quantiles=quantiles),
+    )
+    assert all(
+        len(tree.value_indices) == 4 for tree in ragged._ragged_leaf_membership_.trees
+    )
+
+
+def test_ragged_q_zero_preserves_dense_leading_zero_weight_sentinel() -> None:
+    """The public q=0 endpoint remains bit-exact with an unvisited global min."""
+
+    # This fixed reproducer reaches leaves whose pooled dense weights begin
+    # [0, 5, ...]. quantile-forest initializes the q=0 bracket at sorted row
+    # zero even though its weight is zero; deleting that slot changes -1.43 by
+    # one ULP. The ragged backend retains one leading zero-weight sentinel.
+    x = np.array(
+        [
+            [0.91, -0.61],
+            [0.33, 0.23],
+            [-1.22, 1.88],
+            [-0.64, -1.36],
+            [0.18, 1.18],
+            [-0.35, 1.11],
+            [-1.50, -0.63],
+            [-2.31, 0.43],
+            [0.11, 0.32],
+            [0.33, -0.23],
+        ]
+    )
+    y = np.array([-0.88, 0.04, 0.26, -0.98, 0.01, -2.79, 0.80, 1.19, -0.65, -1.43])
+    probe = np.array([[1.53, -0.29]])
+    kwargs = {
+        "n_estimators": 4,
+        "random_state": 5989,
+        "n_jobs": 1,
+        "max_samples_leaf": None,
+        "min_samples_leaf": 1,
+    }
+    dense = RandomForestQuantileRegressor(**kwargs).fit(x, y)
+    ragged = _RaggedRandomForestQuantileRegressor(**kwargs).fit(x, y)
+
+    dense_q_zero = dense.predict(probe, quantiles=[0.0])
+    ragged_q_zero = ragged.predict(probe, quantiles=[0.0])
+    np.testing.assert_array_equal(ragged_q_zero, dense_q_zero)
+    assert float(ragged_q_zero[0]).hex() == "-0x1.6e147ae147ae2p+0"
+
+
+def test_ragged_reads_sklearns_public_fitted_bootstrap_indices() -> None:
+    """Membership uses estimators_samples_, not versioned private helpers."""
+
+    class _TrackingSamplesRegressor(_RaggedRandomForestQuantileRegressor):
+        @property
+        def estimators_samples_(self):
+            self.estimator_samples_reads = (
+                getattr(self, "estimator_samples_reads", 0) + 1
+            )
+            return super().estimators_samples_
+
+    rng = np.random.default_rng(117)
+    x = rng.normal(size=(80, 3))
+    y = rng.normal(size=len(x))
+    model = _TrackingSamplesRegressor(
+        n_estimators=5,
+        max_samples_leaf=None,
+        random_state=19,
+        n_jobs=1,
+    ).fit(x, y)
+
+    assert model.estimator_samples_reads >= 1
+
+
+def test_ragged_fails_closed_on_malformed_public_bootstrap_indices() -> None:
+    """A changed estimators_samples_ contract cannot silently corrupt leaves."""
+
+    class _MissingTreeSamplesRegressor(_RaggedRandomForestQuantileRegressor):
+        @property
+        def estimators_samples_(self):
+            return super().estimators_samples_[:-1]
+
+    rng = np.random.default_rng(118)
+    x = rng.normal(size=(60, 2))
+    y = rng.normal(size=len(x))
+    with pytest.raises(RuntimeError, match="one estimators_samples_ index array"):
+        _MissingTreeSamplesRegressor(
+            n_estimators=4,
+            max_samples_leaf=None,
+            random_state=23,
+            n_jobs=1,
+        ).fit(x, y)
+
+
+def test_ragged_fails_closed_on_quantile_forest_private_signature_drift(
+    monkeypatch,
+) -> None:
+    """An unreviewed future private-hook signature is rejected before fit."""
+
+    def changed_hook(
+        self,
+        X,  # noqa: N803 - deliberately mirror the private hook
+        y,
+        sorter=None,
+        sample_weight=None,
+        new_private_argument=None,
+    ):
+        raise AssertionError("the changed hook must never be called")
+
+    monkeypatch.setattr(
+        RandomForestQuantileRegressor,
+        "_get_y_train_leaves",
+        changed_hook,
+    )
+    with pytest.raises(RuntimeError, match="requires private contract"):
+        _RaggedRandomForestQuantileRegressor(
+            n_estimators=2,
+            max_samples_leaf=None,
+            random_state=3,
+            n_jobs=1,
+        ).fit(np.arange(20.0).reshape(10, 2), np.arange(10.0))
+
+
+def test_ragged_fails_closed_on_quantile_kernel_semantic_drift(monkeypatch) -> None:
+    """A same-signature kernel change must fail the behavioral contract probe."""
+
+    import microcosm.fit.qrf as qrf_module
+
+    original_kernel = qrf_module.calc_weighted_quantile
+
+    def changed_kernel(
+        inputs,
+        weights,
+        quantiles,
+        interpolation=b"linear",
+        issorted=False,
+    ):
+        result = np.asarray(
+            original_kernel(inputs, weights, quantiles, interpolation, issorted)
+        ).copy()
+        if len(inputs) == 5:
+            result[0] = np.nextafter(result[0], np.inf)
+        return result
+
+    monkeypatch.setattr(qrf_module, "calc_weighted_quantile", changed_kernel)
+    with pytest.raises(RuntimeError, match="weighted-quantile behavior contract"):
+        _RaggedRandomForestQuantileRegressor(
+            n_estimators=2,
+            max_samples_leaf=None,
+            random_state=5,
+            n_jobs=1,
+        ).fit(np.arange(20.0).reshape(10, 2), np.arange(10.0))
 
 
 # ----------------------------------------------------------------------------
