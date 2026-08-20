@@ -2,12 +2,13 @@
 
 ## State
 
-Analysis is complete on branch `battery-burndown`, based on `arm-split-base` at
-`7d6749990933ac072ac257ae76d666aa16b84d25`. The owner-facing,
-machine-readable, and progress reports include the final independent artifact,
-source, exclusion, classification, and QBI checkpoint-authentication audits. No
-builds or pushes were performed, and no code, gate, band, or threshold was
-changed.
+An independent final revalidation is in progress on branch
+`battery-burndown`, based on `arm-split-base` at
+`7d6749990933ac072ac257ae76d666aa16b84d25`. The existing owner-facing and
+machine-readable reports have passed a fresh frozen-artifact arithmetic audit;
+source, exclusion, and classification checks are being repeated before close.
+No builds or pushes have been performed, and no code, gate, band, or threshold
+has been changed.
 
 ## Done
 
@@ -115,6 +116,14 @@ changed.
   distinguished UK stale-entry probes from dormant-entry classification, and
   renamed the retirement refit as regime-appropriate; counts and dispositions
   are unchanged.
+- Reopened the completed report for a final independent revalidation on
+  2026-08-20. Confirmed that `battery-burndown` descends from the requested
+  `arm-split-base` commit and preserved the two unrelated untracked charter
+  files.
+- Re-read all four frozen gates artifacts and independently reconstructed the
+  baseline failure IDs, exact stored criterion values, best-arm winners, and
+  movement directions. All 93 ordered rows match; the recomputed movement
+  split is 8 green, 42 improved-red, 42 unchanged-red, and 1 worsened-red.
 - Final report SHA-256:
   `b4ece1c78d00bc9b02567aaf17dc19b99bac97ce589e09d7723f981e62e793d6`;
   JSON SHA-256:
@@ -122,11 +131,9 @@ changed.
 
 ## Next
 
-- Prioritize the five coverage-ranked workstreams in `ADJUDICATION.md`, starting
-  with the 38-check/25-leg PUF-tax cluster and the 16-check/11-leg baseline
-  retirement audit/refit. Keep the future retirement bundle factorial as a
-  separate landing guardrail; it clears no baseline red.
-- Implement the two QBI terminal-role fixes with continuously enforced clone-1
-  comparisons and coupled identities; do not replace them with exclusions.
-- Implement and rebuild only in separately authorized change lanes; publication
-  remains gated until a future release battery is green.
+- Complete the fresh source-line and UK reviewed-exclusion audit.
+- Recheck every classification, named resolution, coverage partition, and
+  Markdown/JSON parity; correct and commit only substantiated report defects.
+- Close the journal with final hashes and owner priorities. Implementation and
+  rebuilds remain separate, explicitly authorized work; publication remains
+  gated until a future release battery is green.
