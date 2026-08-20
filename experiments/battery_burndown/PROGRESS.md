@@ -4,9 +4,9 @@
 
 Analysis is complete on branch `battery-burndown`, based on `arm-split-base` at
 `7d6749990933ac072ac257ae76d666aa16b84d25`. The owner-facing,
-machine-readable, and progress reports include the final independent
-artifact/source audit. No builds or pushes were performed, and no code, gate,
-band, or threshold was changed.
+machine-readable, and progress reports include the final independent artifact,
+source, exclusion, and QBI checkpoint-authentication audits. No builds or pushes
+were performed, and no code, gate, band, or threshold was changed.
 
 ## Done
 
@@ -30,13 +30,14 @@ band, or threshold was changed.
 - Enumerated every failed criterion once in `ADJUDICATION.md` and
   `adjudication.json`, including baseline evidence, best-arm movement,
   line-cited mechanism, disposition, named work, and S/M/L effort.
-- Classified the 93 checks as 55 FIX-CANDIDATE, 2 conditional
+- Classified the 93 checks as 57 FIX-CANDIDATE, 0
   REVIEWED-EXCLUSION-CANDIDATE, and 36 BLOCKER; the corresponding physical-leg
-  counts are 35, 2, and 23.
-- Found zero sparse-artifact exclusion candidates. The two measurement-mismatch
-  candidates are clone-0/native QBI dead booleans and remain conditional on
-  clone-1 PUF-role signal/identity proof plus new authenticated US exclusion
-  machinery.
+  counts are 37, 0, and 23.
+- Found zero sparse-artifact and zero measurement-mismatch exclusion candidates.
+  Release-authenticated checkpoint evidence proves both dead clone-0/native QBI
+  booleans are live, green clone-1 PUF-role signals with all nine coupled
+  identities reconciled; waiving clone 0 would remove the only pool-terminal
+  signal checks, so both are comparator role-scope FIX-CANDIDATEs.
 - Established that all 93 checks/60 physical legs must be resolved and grouped
   them into ten owner work packages; a conjunctive battery has no smaller red
   subset whose resolution alone makes it pass.
@@ -44,11 +45,11 @@ band, or threshold was changed.
   variable-specific health actions, tied-arm auxiliary evidence, exact UK
   wiring, clone-role provenance, QBI identity coverage, and Keogh support
   semantics.
-- Corrected the QRF mechanism account: applicable zero-inflated/sign-mixed
-  regimes already have a sample-weighted regime/sign gate, while degenerate and
-  single-sign regimes bypass it; FIX actions therefore calibrate existing gate
-  probabilities and post-draw conditional quantiles rather than proposing a
-  new hurdle.
+- Corrected the QRF mechanism account: a realized gated zero-inflated/sign-mixed
+  regime already has a donor-sample-weighted sign gate, while degenerate and
+  single-sign regimes bypass it. Per-target regime claims are hypotheses pending
+  fitted-receipt inspection, and all calibration actions now require terminal
+  clone-0 by-origin verification rather than assuming donor-pattern fidelity.
 - Separated the already-red baseline retirement repair from the synthesis's
   bundle-only predictor-replacement factorial, which remains a future landing
   guardrail rather than an explanation for baseline failures.
@@ -58,35 +59,40 @@ band, or threshold was changed.
   predictors and directly calibrates the positive-amount quantiles.
 - Confirmed that the current UK QRF-tail and input-mass exclusion registers are
   empty and that the sole live schema-2 entry is the degenerate
-  `household.source_year` exclusion; the US candidates borrow machinery
-  precedent, not a substantive tail/mass waiver.
+  `household.source_year` exclusion; the audit uses UK only as machinery
+  precedent, not as a substantive US waiver.
 - Recorded the UK precedent's attestation limit: degenerate binding evidence
   exposes full resolved receipts, while input-mass evidence hashes only its
   reference and QRF-tail declares no binding evidence hook. Any future US
   criterion machinery must fully seal resolved receipts.
-- Tightened QBI claims to the canonical clone-0 battery declaration, explicit
-  post-transfer QBI reconciliation order, and the need for independent
-  clone-1 signal/identity proof before either measurement-mismatch candidate
-  could be approved.
+- Authenticated the baseline simulated checkpoint through its publication
+  manifest, release/run IDs, checkpoint identity, and QBI transition authority;
+  independently extracted green clone-1 incidences for both SSTB flags and zero
+  violations across all nine coupled QBI identities.
+- Corrected Schedule-D to its operative tax-unit parent aggregation,
+  share/exclusivity formula, and first-person allocation; corrected adult-care
+  to its mutable-carrier clearing path, which preserves immutable positives and
+  leaves surviving magnitudes unchanged.
 - Revalidated exact baseline ordering, Markdown/JSON row parity, class and
   package arithmetic, arm winners and deltas, all four artifact hashes,
   mirrored terminal payloads, 132 comparisons/211 legs, and all source-line
   endpoints.
 - Independently recomputed every baseline value and arm winner with zero
-  discrepancies, then corrected source-audit wording for clone/origin scope,
-  the proposed retirement factorial, exact comparator formulas/support, and UK
-  exclusion ownership without changing any adjudication.
+  discrepancies, then corrected clone/origin scope, exact comparator formulas
+  and zero conventions, target routing, the proposed retirement factorial, and
+  UK exclusion ownership. The stricter QBI audit changed exactly two
+  dispositions from conditional reviewed exclusions to concrete fixes.
 - Final report SHA-256:
-  `bcc8f41ce0808731c4a9d81bed7e3ebd3dee99934338b73ad22d0125e059e76c`;
+  `197c84be6eeeff4d61131cbc91a4f3fdc73f48b0ea8e9849da87cd22dd6b7a65`;
   JSON SHA-256:
-  `65107896d57f87a749edeaec3d3786c74d20f0860c4fcb52f1d5081493c2591a`.
+  `e7858a0b5704201881e08ae9a386e80856ec994533e05674f57b94405e0bead4`.
 
 ## Next
 
-- Owner adjudicates the two conditional QBI scope candidates; absent the stated
-  proof and new US machinery, treat them as BLOCKERs rather than exclusions.
 - Prioritize the five resolution packages in `ADJUDICATION.md`, starting with
-  the 38-check PUF-tax regime-gate/quantile cluster and the 16-check baseline
+  the 38-check PUF-tax fitted-regime/quantile cluster and the 16-check baseline
   retirement audit/refit plus bundle-factorial guardrail.
+- Implement the two QBI terminal-role fixes with continuously enforced clone-1
+  comparisons and coupled identities; do not replace them with exclusions.
 - Implement and rebuild only in separately authorized change lanes; publication
   remains gated until a future release battery is green.

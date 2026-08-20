@@ -49,18 +49,53 @@
     "arm_synthesis": {
       "path": "experiments/phase_p_arm_split/SYNTHESIS.md",
       "sha256": "a12d7d599ac25493197123347ab73ba1fe00e2dd838009fd0da2f9b4a3eb4215"
+    },
+    "baseline_qbi_scope_evidence": {
+      "publication_manifest": "/Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1/populace_us_2024_stacked_pool.manifest.json",
+      "simulated_checkpoint": "/Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1/populace_us_2024_stacked_pool.checkpoints/stacked/9be8ecdf82356f38998e8b620ee36d9134f554fe89a8eafd8406f438e2b5aad6/simulated.checkpoint.h5",
+      "checkpoint_manifest": "/Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1/populace_us_2024_stacked_pool.checkpoints/stacked/9be8ecdf82356f38998e8b620ee36d9134f554fe89a8eafd8406f438e2b5aad6/simulated.checkpoint.manifest.json",
+      "checkpoint_sha256": "5b47eb0ded02f4031e235b7a6e07506b5bd38f87827644752d26f4263e492f5a",
+      "identity_sha256": "55c9c86613a91c12affc38e7b238d6a35b1fa6ee81340afdeeec1ed1db2c5ee7",
+      "qbi_transition_authority_sha256": "524656612a137acfd236753c51b5ddec98ff58d57de1ad262594763919fdfb6d",
+      "release_id": "populace-us-2024-stacked-f025-s578-asec42213-acs382903-20260816T145820Z-80e26cb5",
+      "publication_run_id": "378f7af26eb24667be35de7cfe595d27",
+      "clone_1_weighted_incidence": {
+        "sstb_self_employment_income_would_be_qualified": {
+          "asec": 0.035074744589335766,
+          "acs": 0.037286945170707374,
+          "ratio_acs_over_asec": 1.0630710389276565,
+          "positive_rows": {
+            "asec": 3735,
+            "acs": 33902
+          }
+        },
+        "business_is_sstb": {
+          "asec": 0.035241300643183086,
+          "acs": 0.03755763086691639,
+          "ratio_acs_over_asec": 1.0657277166693153,
+          "positive_rows": {
+            "asec": 3749,
+            "acs": 34166
+          }
+        }
+      },
+      "qbi_coupled_invariants": {
+        "checked": 9,
+        "nonzero_violation_counts": 0
+      },
+      "extraction": "Decoded exact tag-7 UTF-8 support channels; scoped person_support_clone_index==1; mapped person households to w00000; recomputed weighted incidence and qbi_inputs.py identity equations at 1e-8."
     }
   },
   "citation_registry": {
     "C01": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11305-11309",
-    "C02": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11523-11580",
-    "C03": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11819-11856",
+    "C02": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11312-11321,11523-11580",
+    "C03": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11819-11856,11976-11987",
     "C04": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11860-11930",
     "C05": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11990-12021",
     "C06": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:896-916",
-    "C07": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1003-1071,1100-1227,1581-1648,1692-1703,2951-3035",
-    "C08": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1100-1117,1205-1227",
-    "C09": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1130-1202",
+    "C07": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1003-1071,1100-1227,1461-1538,1581-1648,1692-1703,2951-3035",
+    "C08": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:654-713,1100-1117,1205-1227",
+    "C09": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:605-651",
     "C10": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1246-1264,1299-1305,1360-1363",
     "C11": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1377-1405,1450-1533",
     "C12": "tools/build_us_multispine_pool.py:3264-3274,3383-3384,3710-3720,3731",
@@ -70,7 +105,7 @@
     "C16": "experiments/phase_p_arm_split/SYNTHESIS.md:5-32,153-154,354-361",
     "C17": "experiments/phase_p_arm_split/SYNTHESIS.md:346-352,378-379",
     "C18": "experiments/phase_p_arm_split/SYNTHESIS.md:370-380",
-    "C19": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11912-11917",
+    "C19": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11902-11917",
     "C20": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1281-1316",
     "C21": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11366-11378",
     "C22": "packages/microcosm-build/src/microcosm/build/uk/gates.json:37-44,183-207",
@@ -89,13 +124,16 @@
     "C35": "tools/build_uk_national_dataset.py:821-834,901-922",
     "C36": "packages/microcosm-build/src/microcosm/build/uk_runtime/national_build.py:521-540",
     "C37": "packages/microcosm-build/src/microcosm/build/gates.py:1152-1279,2505-2648",
-    "C38": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:2867-2871,2964-2970",
+    "C38": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:2867-2871,2964-2970,11312-11321",
     "C39": "experiments/phase_p_arm_split/SYNTHESIS.md:45",
-    "C40": "packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2808-2864",
+    "C40": "packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2808-2864,2868-2945",
     "C41": "packages/microcosm-build/src/microcosm/build/uk_runtime/battery_bindings.py:271-286,410-416,477-482,519-540",
     "C42": "tools/build_us_multispine_pool.py:3374-3379",
     "C43": "tools/build_us_multispine_pool.py:310-326,3907-3915",
-    "C44": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11629-11640,11716-11724,11976-11987"
+    "C44": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11629-11640,11655-11665,11716-11724,11843-11849,11899-11917",
+    "C45": "packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:692-794,814-844",
+    "C46": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:7591-7612,7663-7682",
+    "C47": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8245-8275,8353-8432,8450-8455,8518-8538"
   },
   "definitions": {
     "ratio": "[sum ACS weight on nonzero/sign leg / sum ACS origin-scope weight] / [sum ASEC weight on nonzero/sign leg / sum ASEC origin-scope weight]",
@@ -112,6 +150,7 @@
       0.9
     ],
     "comparator_formula_and_support_citations": [
+      "C01",
       "C03",
       "C04",
       "C05",
@@ -134,8 +173,12 @@
       "C06",
       "C07",
       "C30",
-      "C42"
-    ]
+      "C42",
+      "C45",
+      "C46",
+      "C47"
+    ],
+    "quantile_envelope_zero_denominator": "A quantile pair with |q_ASEC|+|q_ACS| equal to zero contributes distance zero."
   },
   "summary": {
     "baseline_failure_checks": 93,
@@ -149,14 +192,14 @@
       "dead": 2
     },
     "class_counts_failed_checks": {
-      "FIX-CANDIDATE": 55,
+      "FIX-CANDIDATE": 57,
       "BLOCKER": 36,
-      "REVIEWED-EXCLUSION-CANDIDATE": 2
+      "REVIEWED-EXCLUSION-CANDIDATE": 0
     },
     "class_counts_physical_legs": {
-      "FIX-CANDIDATE": 35,
+      "FIX-CANDIDATE": 37,
       "BLOCKER": 23,
-      "REVIEWED-EXCLUSION-CANDIDATE": 2
+      "REVIEWED-EXCLUSION-CANDIDATE": 0
     },
     "family_counts_failed_checks": {
       "adult_care": 2,
@@ -197,11 +240,11 @@
       }
     },
     "minimal_green_set": {
-      "statement": "All 93 checks/60 physical legs must stop emitting failures; GateReport is all-results and the battery is passed=not failures, so no smaller check subset can green it.",
+      "statement": "All 93 checks/60 physical legs must stop emitting failures; the battery uses passed=not failures and pool readiness conjuncts its two uniquely named terminal gates, so no smaller check subset can green it.",
       "check_selector": "all adjudications[]",
       "work_packages": [
         {
-          "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+          "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
           "failed_checks": 38,
           "class_counts": {
             "FIX-CANDIDATE": 38
@@ -250,10 +293,10 @@
           }
         },
         {
-          "action_group": "us_exclusion_machinery_and_qbi_scope_adjudication",
+          "action_group": "qbi_terminal_role_scope",
           "failed_checks": 2,
           "class_counts": {
-            "REVIEWED-EXCLUSION-CANDIDATE": 2
+            "FIX-CANDIDATE": 2
           }
         },
         {
@@ -271,14 +314,14 @@
           }
         }
       ],
-      "reviewed_candidate_prerequisite": "Each dead QBI candidate needs either a real artifact fix or new authenticated US criterion-level exclusion plumbing plus approval."
+      "scope_fix_requirement": "The two dead SSTB checks require a terminal role-scope fix, not an exclusion: compare their declared PUF-owned signal on clone 1 and continuously enforce the coupled QBI identities."
     },
     "top_five_highest_leverage": [
       {
         "rank": 1,
-        "title": "PUF-tax regime-gate probability plus conditional-quantile calibration",
+        "title": "PUF-tax fitted-regime carrier/sign plus conditional-quantile calibration",
         "checks_addressed": 38,
-        "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+        "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
         "disposition_mix": {
           "FIX-CANDIDATE": 38
         }
@@ -303,12 +346,12 @@
       },
       {
         "rank": 4,
-        "title": "Establish QBI ownership, refit the coupled surface, and adjudicate clone scope",
+        "title": "Establish QBI ownership, repair terminal role scope, and refit the coupled surface",
         "checks_addressed": 10,
-        "action_group": "qbi_source_and_joint_model + scope adjudication",
+        "action_group": "qbi_source_and_joint_model + qbi_terminal_role_scope",
         "disposition_mix": {
           "BLOCKER": 8,
-          "REVIEWED-EXCLUSION-CANDIDATE": 2
+          "FIX-CANDIDATE": 2
         }
       },
       {
@@ -325,19 +368,17 @@
   "reviewed_exclusion_support": {
     "us_f025_by_origin_battery_supports_reviewed_exclusions": false,
     "candidate_counts": {
-      "measurement-mismatch": 2,
+      "measurement-mismatch": 0,
       "sparse-artifact": 0
     },
-    "why_no_sparse_candidates": "All 48 red QEDs have minima of 48 ASEC carriers and 519 ACS carriers, above the five-carrier skip. Keogh is one-sided at ASEC 2 / ACS 0, so QED is skipped but incidence still fails; it is policy-relevant and remains a real blocker.",
+    "rejected_measurement_mismatch_claims": {
+      "failed_checks": 2,
+      "reason": "The clone-0 dead results reveal a comparator role-ownership defect. Authenticated clone-1 evidence is already green and coupled identities reconcile; waiving clone 0 without a continuously enforced clone-1 replacement would remove the pool terminal signal check and could hide future regressions.",
+      "required_fix": "Add per-target clone-role ownership to the canonical metric authority, assign the two SSTB flags to clone 1, and terminally enforce their clone-1 by-origin comparisons plus coupled QBI identities."
+    },
+    "why_no_sparse_candidates": "All 48 red QEDs have minima of 48 ASEC carriers and 519 ACS carriers, above the five-carrier skip. Keogh is one-sided at 2 ASEC carrier rows and 0 ACS carrier rows, so QED is skipped after incidence still fails; it is policy-relevant and remains a real blocker.",
     "structural_absence_distinction": "US declared structural-absence rules remove only authority-bound rows after an exact equation check; a mismatch emits a failure. They are not reviewed defect exceptions.",
-    "uk_precedent_attestation_limitation": "The UK loader and gates validate and evaluate all five schema-2 receipt fields, but binding evidence is not uniform: degenerate exposes full resolved records, input mass hashes only its reference, and QRF tail has no evidence hook. New US machinery should seal full resolved receipts.",
-    "required_before_approval": [
-      "US schema-2 register keyed exact leg+criterion",
-      "exact schema-2 fields: reason, approved_by, adjudication, approved_on, expires_on",
-      "stale/expired/premature/dormant checks",
-      "no waiver for missing/null/invalid or real artifact defects",
-      "fully sealed digest and resolved receipts in terminal manifest"
-    ],
+    "uk_precedent_attestation_limitation": "The UK loader and gates validate and evaluate all five schema-2 receipt fields, but binding evidence is not uniform: degenerate exposes full resolved records, input mass hashes only its reference, and QRF tail has no evidence hook. Any future US machinery should seal full resolved receipts.",
     "citations": [
       "C12",
       "C14",
@@ -360,7 +401,8 @@
       "C36",
       "C37",
       "C38",
-      "C41"
+      "C41",
+      "C44"
     ]
   },
   "arm_attribution_constraints": {
@@ -412,14 +454,14 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.8095238095238095
       },
-      "mechanism_hypothesis": "Post-fit statute reconciliation can change the transferred carrier and amount distributions.",
+      "mechanism_hypothesis": "Adult-care reconciliation clears newly imputed ineligible or duplicate carriers, preserves immutable positives, and leaves surviving magnitudes unchanged.",
       "mechanism_citations": [
         "C04",
         "C08"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 1.3312517679593314. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Rake qualifying-carrier selection to donor-weighted prevalence.",
+      "classification_rationale": "Best arm order/investment: unchanged to 1.3312517679593314. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate qualifying mutable-carrier selection before reconciliation and terminally verify clone-0 by-origin incidence while preserving immutable positives.",
       "action_group": "adult_care_post_reconciliation",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -456,14 +498,14 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7974683544303798
       },
-      "mechanism_hypothesis": "Post-fit statute reconciliation can change the transferred carrier and amount distributions.",
+      "mechanism_hypothesis": "Adult-care reconciliation clears newly imputed ineligible or duplicate carriers, preserves immutable positives, and leaves surviving magnitudes unchanged.",
       "mechanism_citations": [
         "C04",
         "C08"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 1.7974683544303798. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map surviving positive amounts after one-per-tax-unit reconciliation while preserving carriers.",
+      "classification_rationale": "Best arm eligibility: toward_green to 1.7974683544303798. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map mutable positive amounts before one-carrier reconciliation and terminally verify surviving clone-0 by-origin QED without changing immutable positives.",
       "action_group": "adult_care_post_reconciliation",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -500,14 +542,16 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4615384615384616
       },
-      "mechanism_hypothesis": "A deterministic joint-parent/exclusivity derivation, not an independent fit, controls this carrier rate.",
+      "mechanism_hypothesis": "The pool disables the transfer leaf, sums the two capital-gain parents to tax-unit grain, applies the share/exclusivity formula, writes the derived amount to the first person when a unit is wholly missing, and zeros other missing members.",
       "mechanism_citations": [
         "C04",
-        "C09"
+        "C09",
+        "C40",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 1.378181995856025. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Jointly reconcile capital-gain parents and route exclusivity to preserve the donor-weighted Schedule-D carrier rate before applying the share.",
+      "classification_rationale": "Best arm eligibility: toward_green to 1.378181995856025. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Jointly reconcile the two tax-unit capital-gain parents and the deterministic first-person allocation, then terminally verify the clone-0 by-origin Schedule-D carrier rate.",
       "action_group": "schedule_d_joint_parent_reconciliation",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -544,12 +588,15 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "For this zero-inflated boolean target, the QRF fits a sample-weighted class gate, draws it stochastically, and transfers it without a target/origin marginal prevalence calibration.",
+      "mechanism_hypothesis": "This target is on the canonical transfer surface. The hypothesized fitted regime is a weighted class gate whose stochastic draws are transferred without a post-draw clone-0 by-origin prevalence constraint.",
       "mechanism_citations": [
         "C03",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 3.073913028899138. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
@@ -590,12 +637,15 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "For this zero-inflated boolean target, the QRF fits a sample-weighted class gate, draws it stochastically, and transfers it without a target/origin marginal prevalence calibration.",
+      "mechanism_hypothesis": "This target is on the canonical transfer surface. The hypothesized fitted regime is a weighted class gate whose stochastic draws are transferred without a post-draw clone-0 by-origin prevalence constraint.",
       "mechanism_citations": [
         "C03",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order: away_from_green to 2.6857091512329117. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
@@ -636,12 +686,15 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "For this zero-inflated boolean target, the QRF fits a sample-weighted class gate, draws it stochastically, and transfers it without a target/origin marginal prevalence calibration.",
+      "mechanism_hypothesis": "This target is on the canonical transfer surface. The hypothesized fitted regime is a weighted class gate whose stochastic draws are transferred without a post-draw clone-0 by-origin prevalence constraint.",
       "mechanism_citations": [
         "C03",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order: toward_green to 3.341705287585759. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
@@ -682,16 +735,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.1042830540037244
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order: unchanged to 1.5540575408000976. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -728,13 +784,16 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.10526315789473684
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Eligibility greens this check but is not the fix: the synthesis records a statistically significant unemployment money-OOS regression of +0.037372427142322806 and broader battery exits. A target-only post-draw quantile map directly addresses QED while preserving the baseline predictive model; verify both battery and money gates.",
@@ -778,18 +837,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.3333333333333334
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.3333333333333334. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.3333333333333334. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -827,18 +889,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.33333333333333337
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.33333333333333337. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.33333333333333337. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -875,17 +940,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.5315554414071882. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.5315554414071882. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -923,18 +991,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.3333333333333333. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.3333333333333333. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -970,18 +1041,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.3811938276017271
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.3811938276017271. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.3811938276017271. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -1017,18 +1091,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.39228295819935693
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.39228295819935693. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.39228295819935693. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -1065,16 +1142,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7305910198561216
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 0.6881515663221003. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1112,17 +1192,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7305910198561216
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.7305910198561216. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1159,17 +1242,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142856
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.47092763947320365. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.47092763947320365. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -1205,18 +1291,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142856
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.2857142857142856. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.2857142857142856. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -1253,16 +1342,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.12389380530973454
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.5633139716502966. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1300,16 +1392,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.19679633867276888
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.3692265605479346. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1346,17 +1441,20 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5157232704402516
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 0.5157232704402516. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1393,16 +1491,19 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.1576011157601116
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: to_green to 0.8326474987808791. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1439,17 +1540,20 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.1576011157601116
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 1.1576011157601116. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1487,16 +1591,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.255813953488372
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.6270067039916964. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1534,17 +1641,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.255813953488372
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.255813953488372. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1582,17 +1692,20 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.9842613410924481
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 0.9842613410924481. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1630,16 +1743,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42105263157894735
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 4.462499005968677. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1676,17 +1792,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 0.4. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1723,17 +1842,20 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.38758495268324233
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: to_green to 0.860463498932752. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: to_green to 0.860463498932752. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -1769,18 +1891,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.38758495268324233
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.38758495268324233. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.38758495268324233. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -1817,17 +1942,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.1061359867330014
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.6607973658266934. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.6607973658266934. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -1863,18 +1991,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.7140974967061922
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.7140974967061922. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.7140974967061922. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -1910,17 +2041,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.5739471187902996
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 1.5739471187902996. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1957,17 +2091,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4489795918367348
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 1.2931604101755942. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 1.2931604101755942. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2005,18 +2142,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4489795918367348
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.4489795918367348. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.4489795918367348. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2053,18 +2193,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7285129604365621
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.7285129604365621. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.7285129604365621. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2100,17 +2243,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 1.3140437033522925. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 1.3140437033522925. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2146,18 +2292,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.6666666666666666. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.6666666666666666. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2193,17 +2342,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.128297200347897
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.7689226485749855. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.7689226485749855. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2239,18 +2391,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.128297200347897
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 1.128297200347897. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 1.128297200347897. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2287,17 +2442,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3840000000000001
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.5021703509929722. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.5021703509929722. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2334,18 +2492,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3840000000000001
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 1.3840000000000001. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 1.3840000000000001. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2382,18 +2543,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.9084830756372754
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.9084830756372754. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.9084830756372754. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2429,18 +2593,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 1.3333333333333333. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 1.3333333333333333. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2476,16 +2643,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.6363636363636365
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 3.7524385834181144. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2522,17 +2692,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.6363636363636365
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 1.6363636363636365. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2569,17 +2742,20 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7524229074889868
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: to_green to 0.9106337491341161. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: to_green to 0.9106337491341161. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2616,18 +2792,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.5416178194607267
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.5416178194607267. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.5416178194607267. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2663,18 +2842,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7586206896551726
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.7586206896551726. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.7586206896551726. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2711,18 +2893,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.4. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.4. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2758,17 +2943,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4727168490819514
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.7243176514009675. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.7243176514009675. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2805,18 +2993,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.45700108495153513
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.45700108495153513. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.45700108495153513. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2853,17 +3044,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.20653353169759264
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.707473672306071. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.707473672306071. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2899,17 +3093,20 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5127201565557731
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: to_green to 0.8228566859737348. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: to_green to 0.8228566859737348. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2946,18 +3143,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3609910128200268
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.3609910128200268. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.3609910128200268. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -2993,18 +3193,21 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.4812878320039546
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.4812878320039546. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.4812878320039546. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -3040,18 +3243,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3266613654308181
       },
-      "mechanism_hypothesis": "The transferred QRF surface is subsequently reconciled into coupled QBI flags and amount identities, so this margin is not independent.",
+      "mechanism_hypothesis": "The PUF producer owns this target on clone 1; late post-PUF transfer fills the producer complement, including clone-0 recipients, and whole-pool QBI reconciliation then enforces coupled flags and amount identities. The clone-0 by-origin margin is therefore not independent.",
       "mechanism_citations": [
         "C04",
-        "C07",
-        "C30",
         "C20",
         "C27",
-        "C40"
+        "C30",
+        "C40",
+        "C45",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 0.3374391053010042. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit and establish PUF-QBI source/classifier ownership, then jointly refit flags and amounts and rerun signal/identity gates.",
+      "concrete_change_or_needed_work": "Establish PUF-QBI source/classifier ownership; identify whether each red margin originates in the clone-1 producer or late cross-role transfer; refit or calibrate that layer; then rerun whole-pool reconciliation and terminal clone-0 by-origin aggregate and identity checks.",
       "action_group": "qbi_source_and_joint_model",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3089,18 +3293,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.751361328298312
       },
-      "mechanism_hypothesis": "The transferred QRF surface is subsequently reconciled into coupled QBI flags and amount identities, so this margin is not independent.",
+      "mechanism_hypothesis": "The PUF producer owns this target on clone 1; late post-PUF transfer fills the producer complement, including clone-0 recipients, and whole-pool QBI reconciliation then enforces coupled flags and amount identities. The clone-0 by-origin margin is therefore not independent.",
       "mechanism_citations": [
         "C04",
-        "C07",
-        "C30",
         "C20",
         "C27",
-        "C40"
+        "C30",
+        "C40",
+        "C45",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 0.751361328298312. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit and establish PUF-QBI source/classifier ownership, then jointly refit flags and amounts and rerun signal/identity gates.",
+      "concrete_change_or_needed_work": "Establish PUF-QBI source/classifier ownership; identify whether each red margin originates in the clone-1 producer or late cross-role transfer; refit or calibrate that layer; then rerun whole-pool reconciliation and terminal clone-0 by-origin aggregate and identity checks.",
       "action_group": "qbi_source_and_joint_model",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3138,18 +3343,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.1576246415399343
       },
-      "mechanism_hypothesis": "The transferred QRF surface is subsequently reconciled into coupled QBI flags and amount identities, so this margin is not independent.",
+      "mechanism_hypothesis": "The PUF producer owns this target on clone 1; late post-PUF transfer fills the producer complement, including clone-0 recipients, and whole-pool QBI reconciliation then enforces coupled flags and amount identities. The clone-0 by-origin margin is therefore not independent.",
       "mechanism_citations": [
         "C04",
-        "C07",
-        "C30",
         "C20",
         "C27",
-        "C40"
+        "C30",
+        "C40",
+        "C45",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 0.44658482815239. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit and establish PUF-QBI source/classifier ownership, then jointly refit flags and amounts and rerun signal/identity gates.",
+      "concrete_change_or_needed_work": "Establish PUF-QBI source/classifier ownership; identify whether each red margin originates in the clone-1 producer or late cross-role transfer; refit or calibrate that layer; then rerun whole-pool reconciliation and terminal clone-0 by-origin aggregate and identity checks.",
       "action_group": "qbi_source_and_joint_model",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3187,18 +3393,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.1576246415399343
       },
-      "mechanism_hypothesis": "The transferred QRF surface is subsequently reconciled into coupled QBI flags and amount identities, so this margin is not independent.",
+      "mechanism_hypothesis": "The PUF producer owns this target on clone 1; late post-PUF transfer fills the producer complement, including clone-0 recipients, and whole-pool QBI reconciliation then enforces coupled flags and amount identities. The clone-0 by-origin margin is therefore not independent.",
       "mechanism_citations": [
         "C04",
-        "C07",
-        "C30",
         "C20",
         "C27",
-        "C40"
+        "C30",
+        "C40",
+        "C45",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.1576246415399343. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit and establish PUF-QBI source/classifier ownership, then jointly refit flags and amounts and rerun signal/identity gates.",
+      "concrete_change_or_needed_work": "Establish PUF-QBI source/classifier ownership; identify whether each red margin originates in the clone-1 producer or late cross-role transfer; refit or calibrate that layer; then rerun whole-pool reconciliation and terminal clone-0 by-origin aggregate and identity checks.",
       "action_group": "qbi_source_and_joint_model",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3236,18 +3443,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.5901547288221703
       },
-      "mechanism_hypothesis": "The transferred QRF surface is subsequently reconciled into coupled QBI flags and amount identities, so this margin is not independent.",
+      "mechanism_hypothesis": "The PUF producer owns this target on clone 1; late post-PUF transfer fills the producer complement, including clone-0 recipients, and whole-pool QBI reconciliation then enforces coupled flags and amount identities. The clone-0 by-origin margin is therefore not independent.",
       "mechanism_citations": [
         "C04",
-        "C07",
-        "C30",
         "C20",
         "C27",
-        "C40"
+        "C30",
+        "C40",
+        "C45",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 0.7745478326179687. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit and establish PUF-QBI source/classifier ownership, then jointly refit flags and amounts and rerun signal/identity gates.",
+      "concrete_change_or_needed_work": "Establish PUF-QBI source/classifier ownership; identify whether each red margin originates in the clone-1 producer or late cross-role transfer; refit or calibrate that layer; then rerun whole-pool reconciliation and terminal clone-0 by-origin aggregate and identity checks.",
       "action_group": "qbi_source_and_joint_model",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3284,18 +3492,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.5364809269862754
       },
-      "mechanism_hypothesis": "The transferred QRF surface is subsequently reconciled into coupled QBI flags and amount identities, so this margin is not independent.",
+      "mechanism_hypothesis": "The PUF producer owns this target on clone 1; late post-PUF transfer fills the producer complement, including clone-0 recipients, and whole-pool QBI reconciliation then enforces coupled flags and amount identities. The clone-0 by-origin margin is therefore not independent.",
       "mechanism_citations": [
         "C04",
-        "C07",
-        "C30",
         "C20",
         "C27",
-        "C40"
+        "C30",
+        "C40",
+        "C45",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 0.5364809269862754. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit and establish PUF-QBI source/classifier ownership, then jointly refit flags and amounts and rerun signal/identity gates.",
+      "concrete_change_or_needed_work": "Establish PUF-QBI source/classifier ownership; identify whether each red margin originates in the clone-1 producer or late cross-role transfer; refit or calibrate that layer; then rerun whole-pool reconciliation and terminal clone-0 by-origin aggregate and identity checks.",
       "action_group": "qbi_source_and_joint_model",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3333,18 +3542,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3371284036777606
       },
-      "mechanism_hypothesis": "The transferred QRF surface is subsequently reconciled into coupled QBI flags and amount identities, so this margin is not independent.",
+      "mechanism_hypothesis": "The PUF producer owns this target on clone 1; late post-PUF transfer fills the producer complement, including clone-0 recipients, and whole-pool QBI reconciliation then enforces coupled flags and amount identities. The clone-0 by-origin margin is therefore not independent.",
       "mechanism_citations": [
         "C04",
-        "C07",
-        "C30",
         "C20",
         "C27",
-        "C40"
+        "C30",
+        "C40",
+        "C45",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 0.7609745871477333. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit and establish PUF-QBI source/classifier ownership, then jointly refit flags and amounts and rerun signal/identity gates.",
+      "concrete_change_or_needed_work": "Establish PUF-QBI source/classifier ownership; identify whether each red margin originates in the clone-1 producer or late cross-role transfer; refit or calibrate that layer; then rerun whole-pool reconciliation and terminal clone-0 by-origin aggregate and identity checks.",
       "action_group": "qbi_source_and_joint_model",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3381,18 +3591,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.2289611581637836
       },
-      "mechanism_hypothesis": "The transferred QRF surface is subsequently reconciled into coupled QBI flags and amount identities, so this margin is not independent.",
+      "mechanism_hypothesis": "The PUF producer owns this target on clone 1; late post-PUF transfer fills the producer complement, including clone-0 recipients, and whole-pool QBI reconciliation then enforces coupled flags and amount identities. The clone-0 by-origin margin is therefore not independent.",
       "mechanism_citations": [
         "C04",
-        "C07",
-        "C30",
         "C20",
         "C27",
-        "C40"
+        "C30",
+        "C40",
+        "C45",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 1.2289611581637836. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit and establish PUF-QBI source/classifier ownership, then jointly refit flags and amounts and rerun signal/identity gates.",
+      "concrete_change_or_needed_work": "Establish PUF-QBI source/classifier ownership; identify whether each red margin originates in the clone-1 producer or late cross-role transfer; refit or calibrate that layer; then rerun whole-pool reconciliation and terminal clone-0 by-origin aggregate and identity checks.",
       "action_group": "qbi_source_and_joint_model",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3431,20 +3642,21 @@
         "candidate_ratio_band_status": "not_ratio_comparable",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "Both-zero booleans block as dead, while QBI policy intentionally makes clone-0/native (ASEC-compatible operator-role) SSTB flags false on both origins.",
+      "mechanism_hypothesis": "The canonical registry hard-codes every declared target to clone 0, where QBI reconciliation intentionally forces these native-role SSTB flags false on both origins; authenticated baseline evidence shows the PUF-owned signal is live and green on clone 1 with all coupled identities reconciled.",
       "mechanism_citations": [
         "C03",
         "C10",
         "C11",
         "C26",
+        "C27",
         "C38"
       ],
-      "classification": "REVIEWED-EXCLUSION-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility/investment: unchanged to dead_comparison. Both-zero clone-0/native scope is an intentional measurement mismatch only if clone-1 PUF-role signal and identities are independently live; otherwise this becomes a BLOCKER. No current US by-origin-battery criterion hook can exclude it.",
-      "concrete_change_or_needed_work": "Conditionally document clone-0/native as the wrong SSTB observation scope only after clone-1 PUF-role signal/identity proof; first add US schema-2 criterion-level exclusion plumbing with anti-rot checks.",
-      "action_group": "us_exclusion_machinery_and_qbi_scope_adjudication",
-      "reviewed_exclusion_class": "measurement-mismatch",
-      "estimated_effort": "L"
+      "classification": "FIX-CANDIDATE",
+      "classification_rationale": "Clone-1 weighted incidence is green in the authenticated baseline checkpoint and all nine QBI identity violations are zero. A clone-0 waiver would remove the only pool-terminal signal check and could hide later regressions, so this is a comparator role-scope defect, not a reviewed exclusion.",
+      "concrete_change_or_needed_work": "Add per-target role ownership to the canonical battery metric authority, assign this SSTB flag to clone 1, and continuously enforce its clone-1 ASEC/ACS comparison plus the coupled QBI identities.",
+      "action_group": "qbi_terminal_role_scope",
+      "reviewed_exclusion_class": null,
+      "estimated_effort": "M"
     },
     {
       "ordinal": 66,
@@ -3480,20 +3692,21 @@
         "candidate_ratio_band_status": "not_ratio_comparable",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "Both-zero booleans block as dead, while QBI policy intentionally makes clone-0/native (ASEC-compatible operator-role) SSTB flags false on both origins.",
+      "mechanism_hypothesis": "The canonical registry hard-codes every declared target to clone 0, where QBI reconciliation intentionally forces these native-role SSTB flags false on both origins; authenticated baseline evidence shows the PUF-owned signal is live and green on clone 1 with all coupled identities reconciled.",
       "mechanism_citations": [
         "C03",
         "C10",
         "C11",
         "C26",
+        "C27",
         "C38"
       ],
-      "classification": "REVIEWED-EXCLUSION-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility/investment: unchanged to dead_comparison. Both-zero clone-0/native scope is an intentional measurement mismatch only if clone-1 PUF-role signal and identities are independently live; otherwise this becomes a BLOCKER. No current US by-origin-battery criterion hook can exclude it.",
-      "concrete_change_or_needed_work": "Conditionally document clone-0/native as the wrong SSTB observation scope only after clone-1 PUF-role signal/identity proof; first add US schema-2 criterion-level exclusion plumbing with anti-rot checks.",
-      "action_group": "us_exclusion_machinery_and_qbi_scope_adjudication",
-      "reviewed_exclusion_class": "measurement-mismatch",
-      "estimated_effort": "L"
+      "classification": "FIX-CANDIDATE",
+      "classification_rationale": "Clone-1 weighted incidence is green in the authenticated baseline checkpoint and all nine QBI identity violations are zero. A clone-0 waiver would remove the only pool-terminal signal check and could hide later regressions, so this is a comparator role-scope defect, not a reviewed exclusion.",
+      "concrete_change_or_needed_work": "Add per-target role ownership to the canonical battery metric authority, assign this SSTB flag to clone 1, and continuously enforce its clone-1 ASEC/ACS comparison plus the coupled QBI identities.",
+      "action_group": "qbi_terminal_role_scope",
+      "reviewed_exclusion_class": null,
+      "estimated_effort": "M"
     },
     {
       "ordinal": 67,
@@ -3527,16 +3740,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142857
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.710945719004939. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing family-scoped regime-gate probabilities to donor-weighted carrier marginals while preserving source reconciliation.",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.710945719004939. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable family-scoped regime gate to donor-weighted carrier marginals while preserving source reconciliation, then terminally verify clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3575,17 +3791,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142857
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.2857142857142857. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation.",
+      "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.2857142857142857. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation, then terminally verify clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3622,16 +3841,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42424242424242425
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.7778178241530005. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing family-scoped regime-gate probabilities to donor-weighted carrier marginals while preserving source reconciliation.",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.7778178241530005. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable family-scoped regime gate to donor-weighted carrier marginals while preserving source reconciliation, then terminally verify clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3668,17 +3890,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42424242424242425
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.42424242424242425. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation.",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.42424242424242425. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation, then terminally verify clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3716,17 +3941,20 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5741444866920152
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.5741444866920152. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation.",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.5741444866920152. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation, then terminally verify clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3763,16 +3991,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm investment: toward_green to 1.3353195684335395. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing family-scoped regime-gate probabilities to donor-weighted carrier marginals while preserving source reconciliation.",
+      "classification_rationale": "Best arm investment: toward_green to 1.3353195684335395. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable family-scoped regime gate to donor-weighted carrier marginals while preserving source reconciliation, then terminally verify clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3810,17 +4041,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/eligibility: unchanged to 0.4. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation.",
+      "classification_rationale": "Best arm order/eligibility: unchanged to 0.4. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation, then terminally verify clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3857,16 +4091,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.9920159680638723
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm investment: toward_green to 2.736722966954884. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3905,17 +4142,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.9920159680638723
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.9920159680638723. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, then fit a target-specific rare-event/sign model.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3954,16 +4194,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.0. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4000,16 +4243,19 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.44627239393814416
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: to_green to 0.8040497478924599. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4046,17 +4292,20 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.44627239393814416
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 0.44627239393814416. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4093,16 +4342,19 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.4639175257731958
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: to_green to 1.0545176582599016. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4158,17 +4410,20 @@
           }
         }
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.4639175257731958. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4205,16 +4460,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7696335078534031
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 17.03625555679432. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4253,17 +4511,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7696335078534031
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.7696335078534031. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, carrier prevalence, and amount tails on a dense rung; then refit and calibrate the existing regime-gated model. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4300,16 +4561,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3448275862068966
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.19275386071894426. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing family-scoped regime-gate probabilities to donor-weighted carrier marginals while preserving source reconciliation.",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.19275386071894426. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable family-scoped regime gate to donor-weighted carrier marginals while preserving source reconciliation, then terminally verify clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4346,17 +4610,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3448275862068966
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.3448275862068966. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation.",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.3448275862068966. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation, then terminally verify clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4394,16 +4661,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.99800099950025
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.5799327234761872. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing family-scoped regime-gate probabilities to donor-weighted carrier marginals while preserving source reconciliation.",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.5799327234761872. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable family-scoped regime gate to donor-weighted carrier marginals while preserving source reconciliation, then terminally verify clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4440,17 +4710,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.4042553191489362
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 1.4042553191489362. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation.",
+      "classification_rationale": "Best arm eligibility: toward_green to 1.4042553191489362. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation, then terminally verify clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4488,16 +4761,19 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4539877300613497
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.7525809265807542. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing family-scoped regime-gate probabilities to donor-weighted carrier marginals while preserving source reconciliation.",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.7525809265807542. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable family-scoped regime gate to donor-weighted carrier marginals while preserving source reconciliation, then terminally verify clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4534,17 +4810,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.24486408921047648
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: to_green to 0.24486408921047648. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation.",
+      "classification_rationale": "Best arm eligibility: to_green to 0.24486408921047648. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation, then terminally verify clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4581,17 +4860,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.31579401331890994
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.780019260947369. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.780019260947369. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -4628,18 +4910,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.296143753739345
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.296143753739345. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.296143753739345. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -4675,17 +4960,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.2941176470588236
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.7955270134638868. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.7955270134638868. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -4722,18 +5010,21 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.8427184466019417
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF draws carrier magnitudes from the applicable sign-conditional forest and transfers them without a post-draw target/sign marginal quantile calibration; QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm order/investment: unchanged to 0.8427184466019417. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Quantile-map the target/sign conditional draw at weighted p10/p25/p50/p75/p90 while preserving calibrated carriers.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm order/investment: unchanged to 0.8427184466019417. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers, then terminally verify clone-0 by-origin QED.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     },
@@ -4769,17 +5060,20 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.21844644367235277
       },
-      "mechanism_hypothesis": "For this zero-inflated/sign-mixed target, the QRF fits a sample-weighted regime/sign gate and stochastically draws it before sign-conditional magnitude; the transfer has no post-draw target/origin marginal carrier calibration, and the ratio tests weighted carrier prevalence rather than dollar mass.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
         "C07",
-        "C30"
+        "C30",
+        "C45",
+        "C46",
+        "C47"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Best arm eligibility: toward_green to 0.7710390500234685. This is a measured artifact mismatch and the named change directly targets its comparator mechanism; it is not an exclusion.",
-      "concrete_change_or_needed_work": "Post-calibrate the existing weighted regime-gate probabilities to donor-weighted target/sign marginals within each availability pattern before stochastic sign draws.",
-      "action_group": "puf_tax_regime_gate_and_quantile_calibration",
+      "classification_rationale": "Best arm eligibility: toward_green to 0.7710390500234685. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
+      "concrete_change_or_needed_work": "Calibrate the applicable weighted regime gate to donor target/sign marginals within each availability pattern, then add terminal clone-0 by-origin aggregate verification against the frozen incidence band.",
+      "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
     }
