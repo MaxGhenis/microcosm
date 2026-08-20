@@ -2,12 +2,12 @@
 
 ## State
 
-Complete on branch `battery-burndown`, based on `arm-split-base` at
-`7d6749990933ac072ac257ae76d666aa16b84d25`. The owner-facing and
-machine-readable reports have passed independent frozen-artifact arithmetic,
-source/citation, reviewed-exclusion, actionability, and Markdown/JSON parity
-audits. No builds or pushes were performed, and no code, gate, band, threshold,
-or publication state was changed.
+Revalidation in progress on branch `battery-burndown`, based on
+`arm-split-base` at `7d6749990933ac072ac257ae76d666aa16b84d25`.
+The existing owner-facing and machine-readable reports are being checked again
+against all four frozen gate artifacts, the Phase P synthesis, and current
+comparator/exclusion source. No builds or pushes are authorized, and no code,
+gate, band, threshold, or publication state is being changed.
 
 ## Done
 
@@ -153,11 +153,10 @@ or publication state was changed.
 
 ## Next
 
-- Owner sequence: start with the five concrete FIX-CANDIDATE packages in
-  `ADJUDICATION.md`; Schedule-D is the tied 1/1 runner-up.
-- In parallel, commission the named data/ownership/model investigations for the
-  36 BLOCKER checks; do not convert them into exclusions without new evidence
-  and criterion-level machinery.
-- Implementation and rebuilds require separate authorization. Certification
-  must rerun all 211 battery legs after every current red clears; publication
-  remains gated until that future release battery is green.
+- Recompute the 93-row gate arithmetic and best-arm movement from the frozen
+  JSON artifacts.
+- Re-read and audit the comparator, transfer, and reviewed-exclusion source
+  citations plus the Phase P attribution constraints.
+- Audit row actionability, summary arithmetic, minimal-resolution set, and
+  top-five ranking; correct only the report if evidence requires it.
+- Close the journal with final hashes and the owner handoff.
