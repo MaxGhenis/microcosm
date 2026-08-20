@@ -25,11 +25,11 @@
 - The assigned 16 BLOCKER checks all use the monetary sign-separated battery:
   weighted carrier incidence is compared to the fixed inclusive ratio band,
   and supported legs use weighted conditional quantiles and fixed QED
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11860-11930,11990-12021`).
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11517-11533,11952-12023,12075-12113`).
 - The transferred artifact is generated per predictor-availability pattern by
   a deterministic chained QRF fit/draw; predictors enter the donor and
   recipient model frames at the fit call
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:896-916,1581-1648`).
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1438-1581,1606-1775,1991-2088`).
 
 ### Environment receipt
 
@@ -52,17 +52,20 @@
 - The global optional predictor declaration must remain unchanged; selecting
   a per-family ordered predictor surface only at the early transfer isolates
   the treatment. The early call is distinct from the late transfer
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:7673-7682,8420-8432`).
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:181-212,438-467`;
+  `packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:1918-1952,7750-7760,8512-8524`).
 - Removal-only resolves early `person/puf_tax_itemization` to employment,
   self-employment, household-head, and tenure predictors. Broad-addition-only
   retains baseline employment, self-employment, social-security, retirement,
   household-head, and tenure predictors, then appends the 14 synthesized
   non-veteran predictors. Predictor order is part of the availability-pattern
   seed identity
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1792-1811,2907-2922`).
+  (`1a8ad451:packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:151-167,374-403`;
+  `539e415:packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:191-212,438-467`;
+  `packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1991-2016,3569-3578`).
 - Every other early family keeps its realized baseline surface. The late PUF
   transfer receives no explicit predictor set, preserving its legacy contract
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8420-8432`).
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8512-8524`).
 
 ### Resource finding
 
@@ -91,15 +94,15 @@
   and retirement analogues only when the entity is `person` and the family is
   `puf_tax_itemization`; it also omits the already unavailable investment
   feature from every realized early surface
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:374-403`).
+  (`1a8ad451:packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:374-403`).
 - Explicit sets are normalized with exact entity/family coverage and direct
   target-overlap rejection, then selected in declared order for ordinary and
   banked fits
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1031-1145,1375-1590,1949-1996,2495-2570`).
+  (`1a8ad451:packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1031-1145,1375-1590,1949-1996,2495-2570`).
 - The early gap-fill call forwards the authority-bound declaration, while the
   post-PUF call still supplies no `predictor_sets` argument and therefore keeps
   the legacy execution contract
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:1696-1701,1820-1870,2210-2230,7746-7762,8509-8522`).
+  (`1a8ad451:packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:1696-1701,1820-1870,2210-2230,7746-7762,8509-8522`).
 
 ### Verification
 
@@ -125,7 +128,7 @@
 ### State
 
 - Broad-addition-only is implemented, independently reviewed, and fully
-  suite-green. It is ready for its coherent commit.
+  suite-green.
 
 ### Surgery and mechanism evidence
 
@@ -164,3 +167,67 @@
 - The complete broad tree collected 6,571 tests and exited 0, with expected
   skips and pre-existing warnings only. Repository-wide `ruff check .`, final
   diff hygiene, and the frozen-control scan pass.
+
+### Snapshot
+
+- Broad-addition-only is committed at
+  `539e415defb27bf103a40081239f123ce9d76c6d`.
+
+## 2026-08-19 — f001 wiring proof and measurement disposition
+
+### Static f001 wiring proof
+
+- The pre-input configured identity binds the six configured input hashes,
+  `sample_fraction`, fraction token, sample seed, clone controls, and the full
+  stacked authority. Its canonical digest selects a non-mixing checkpoint
+  namespace
+  (`tools/build_us_multispine_pool.py:1031-1040,1150-1178`).
+- The stacked authority serializes each direction's ordered predictor sets and
+  seals their canonical component digests
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:2211-2240,2426-2455,3335-3461`).
+- At exact `f001`/seed `578`, removal resolves to the four optional predictors
+  employment, self-employment, household head, and tenure. Its authority SHA
+  is `16892c623844c21955ddcd4b39b829613db749b195922cbe2b5337aeb8c4cbdd`,
+  gap-fill-plan SHA is
+  `6ad7b75b193950cfb273daa1660df7e94440cc24e0806963bff5c333a94b0fdd`,
+  and configured namespace digest is
+  `490866d5bfdc5981e6ff376375f0d414ed3800bb7c81abb98d27d41128f26549`.
+- At the same controls, broad resolves to the declared 20 optional predictors,
+  retaining Social Security and retirement and adding exactly the 14 reviewed
+  non-veteran features
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:191-212,438-467`).
+  Its authority SHA is
+  `7f6eab189fa51627c4e78c3cfcd2517f723a909d9197e538fbfec888261d564a`,
+  gap-fill-plan SHA is
+  `642646981e96fe67cc29e687a8a8362691bcc571c5c491426243e836f16202d6`,
+  and configured namespace digest is
+  `adce8ee394cc2315422c00f3cc2838a866215e3a6ff90cb79a55b68c7a6c4c95`.
+- This proof is deliberately pre-input: the CLI computes that identity before
+  verifying/loading inputs and discovering an authenticated resume
+  (`tools/build_us_multispine_pool.py:4138-4221`). It proves exact f001 wiring
+  and cache separation, not a materialized artifact, gate verdict, or check
+  value.
+
+### Sixteen-check disposition
+
+- The official f025 before values and exact check IDs are recorded in
+  `experiments/retirement_factorial/ASSIGNED_CHECKS.md`: 16 BLOCKER/FAIL rows,
+  comprising 9 incidence and 7 QED criteria across 11 physical legs.
+- No cold f001 build was launched. The historical f001 stage receipt records
+  84,729,479,168 bytes peak RSS, so a run through the same cold path would
+  knowingly violate this lane's `<15 GiB` rule. Removal and broad after values
+  are therefore `NOT_RUN_RSS_CAP / not measured` for every check; no measurable
+  improvement is claimed.
+- A guard kill would be an aborted measurement, not evidence. The owner must
+  first demonstrate a memory-safe build/resume path, then populate the exact
+  rows from authenticated artifacts without changing any comparator or frozen
+  control.
+
+### Owner handoff
+
+- `experiments/retirement_factorial/OWNER_25PCT_CHARTER.md` pins both arm SHAs,
+  all six source paths/hashes, the frozen Phase-P configuration, a strictly
+  serial off-chain protocol, and a 14 GiB fail-closed process-tree guard.
+- The charter explicitly forbids a cold 25% launch until the memory-safe
+  prerequisite is demonstrated. It never passes a Logbook predecessor digest
+  and never reads or writes `logbook-pending-chain.txt`.

@@ -2,10 +2,17 @@
 
 ## State (2026-08-19)
 
-The `battery-retirement-factorial` lane is active from clean `origin/main` at
-`164027e2`. Removal-only is committed at `1a8ad451`; broad-addition-only is
-implemented, independently reviewed, and suite-green. It is ready for its
-coherent commit. No frozen gate control has changed.
+The `battery-retirement-factorial` implementation is complete from clean
+`origin/main` at `164027e2`. Removal-only is committed at `1a8ad451`; the
+independently runnable broad-addition-only snapshot is committed at
+`539e415d`. Both complete trees are suite-green, and no frozen gate control has
+changed.
+
+Both arms have static configured-identity proof at the exact `f001`/seed-578
+controls, but neither has a materialized 1% artifact or gate measurement. The
+known cold path has exceeded the mandatory `<15 GiB` ceiling at 1%, so every
+one of the 16 arm result cells remains honestly not measured. The exact-row
+ledger and a fail-closed owner 25% charter are being closed out.
 
 The required `uv sync --all-packages --extra us` was attempted first. The
 default cache was sandbox-denied; retrying with `UV_CACHE_DIR` under `/tmp`
@@ -25,9 +32,9 @@ arm-split environment with this worktree's package sources forced on
 - Confirmed the 16 checks are artifact measurements: monetary incidence is
   weighted ACS/ASEC carrier prevalence and QED is the maximum normalized
   p10/p25/p50/p75/p90 carrier-amount separation
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11860-11930,11990-12021`),
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11952-12023,12075-12113`),
   while the artifact values come from availability-pattern chained-QRF draws
-  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:896-916,1581-1648`).
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1438-1581,1606-1775,1991-2088`).
 - Attempted the GitNexus exploration/impact workflow; no GitNexus MCP graph is
   exposed in this session, so direct history, source, tests, and diff checks
   are the evidence fallback.
@@ -66,16 +73,25 @@ arm-split environment with this worktree's package sources forced on
 - The complete broad tree passes all 6,571 collected tests (exit 0, expected
   skips/warnings only). Repository-wide `ruff check .`, `git diff --check`, and
   the final frozen-control scan pass.
+- Committed the independently runnable broad-addition-only snapshot as
+  `539e415defb27bf103a40081239f123ce9d76c6d`.
+- Proved both configured `f001`/seed-578 identities without loading survey
+  data. Removal resolves to the exact four-feature early-PUF optional tuple,
+  while broad resolves to the exact 20-feature tuple; each has its own
+  canonical authority, gap-fill-plan, and configured namespace digest.
+- Extracted all 16 authoritative BLOCKER checks exactly once (9 incidence, 7
+  QED, 11 physical legs), preserving the official f025 before values and
+  marking both unrun arm cells `NOT_RUN_RSS_CAP / not measured`.
+- Drafted the owner-run 25% protocol with exact revisions and inputs, frozen
+  gate settings, serial off-chain execution, and a 14 GiB fail-closed guard.
 
 ## Next (2026-08-19)
 
-1. Commit the suite-green broad-addition snapshot and record its exact SHA.
-2. Preserve both arms' wiring proofs; do not cold-launch the known over-cap 1%
-   materialization path.
-3. Write the fail-closed owner-run 25% build-and-gate charter, including the
-   prerequisite memory-safe path and serial RAM-guarded protocol.
-4. Report every assigned check honestly as measured or not measured, finish
-   `_LANE-NOTES.md`, and write `FINAL_REPORT.md`.
+1. Finish and commit the evidence package, lane notes, and `FINAL_REPORT.md`.
+2. Before any artifact run, demonstrate a cold or authenticated-resume path
+   that remains below 15 GiB under the specified fail-closed guard.
+3. Run the two 1% artifacts at the frozen controls and fill all 16 after cells;
+   only then may the owner run the two 25% arms serially under the charter.
 
 ## Historical base entry
 
