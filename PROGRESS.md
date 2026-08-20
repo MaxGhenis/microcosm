@@ -14,8 +14,11 @@ pre-existing committed draft. The reviewer rechecked ancestry/scope and retried
 `uv sync --all-packages --extra us --extra uk` with a writable temporary cache.
 The lock resolved all 118 packages, then installation stopped at the managed
 network boundary while fetching `policyengine-core==3.26.11` from PyPI. No
-dataset build ran. Three independent read-only reviews of authority coverage,
-the stochastic census, and the charter are in progress.
+dataset build ran. Independent read-only reviews of authority coverage and the
+stochastic census are in progress. The charter review is complete: it hardened
+machine-decidable seed/gate/consumer dispatch conditions, network brokering,
+release-identity sealing, PR-CI fixtures, the concrete resume predicate, and the
+15-GiB/24-hour preflight envelope.
 
 The requested `git fetch origin main spec-engine-schema` could not resolve
 `github.com` in the managed sandbox. The requested sibling worktree path was
