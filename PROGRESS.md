@@ -1,4 +1,61 @@
-# Progress
+# Retirement factorial progress
+
+## State (2026-08-19)
+
+The `battery-retirement-factorial` lane is active from clean `origin/main` at
+`164027e2`. The two exact early-PUF predictor surfaces and their minimal
+early-only wiring are resolved from source and arm history. No experiment code
+or gate setting has been changed yet; the removal-only implementation is next.
+
+The required `uv sync --all-packages --extra us` was attempted first. The
+default cache was sandbox-denied; retrying with `UV_CACHE_DIR` under `/tmp`
+created `.venv` but dependency download stopped because this sandbox has no
+DNS/network access. Baseline verification therefore used the provisioned
+arm-split environment with this worktree's package sources forced on
+`PYTHONPATH`.
+
+## Done (2026-08-19)
+
+- Confirmed the worktree was clean and `HEAD == origin/main == 164027e2`.
+- Read `CLAUDE.md`, the arm-split adjudication Markdown/JSON, all 16 assigned
+  `retirement_model_and_data` rows, and their cited comparator/QRF source.
+- Read the arm-split synthesis treatment boundary and prescribed next
+  factorial (`experiments/phase_p_arm_split/SYNTHESIS.md:27-32,346-352,376-380`
+  in the read-only arm-split worktree).
+- Confirmed the 16 checks are artifact measurements: monetary incidence is
+  weighted ACS/ASEC carrier prevalence and QED is the maximum normalized
+  p10/p25/p50/p75/p90 carrier-amount separation
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11860-11930,11990-12021`),
+  while the artifact values come from availability-pattern chained-QRF draws
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:896-916,1581-1648`).
+- Attempted the GitNexus exploration/impact workflow; no GitNexus MCP graph is
+  exposed in this session, so direct history, source, tests, and diff checks
+  are the evidence fallback.
+- Resolved the removal arm as early `person/puf_tax_itemization` baseline minus
+  only the two direct-income predictors, and the broad arm as the baseline
+  surface retaining those predictors plus the 14 synthesized non-veteran
+  fields. All other early families and the late transfer remain baseline.
+- Established a clean baseline suite: 6,525 tests collected, exit 0, with
+  expected skips/warnings only. The focused QRF-chain suite separately passed
+  26 tests in 302.42 seconds.
+- Audited historical build receipts: the old 1% process reached
+  84,729,479,168 bytes RSS and a 25% arm reached 81,026,367,488 bytes. A cold
+  build is therefore forbidden by this lane's `<15 GiB` standing order; this
+  is an evidence blocker, not permission to weaken the memory ceiling.
+
+## Next (2026-08-19)
+
+1. Implement and suite-test the removal-only arm; commit the coherent snapshot.
+2. Record its exact commit and wiring proof; do not cold-launch the known
+   over-cap 1% materialization path.
+3. Transform the snapshot into broad-addition-only while retaining both direct
+   predictors; suite-test and commit it.
+4. Write the fail-closed owner-run 25% build-and-gate charter, including the
+   prerequisite memory-safe path and serial RAM-guarded protocol.
+5. Report every assigned check honestly as measured or not measured, finish
+   `_LANE-NOTES.md`, and write `FINAL_REPORT.md`.
+
+## Historical base entry
 
 ## State
 
