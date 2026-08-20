@@ -105,10 +105,14 @@ changed.
   disposition changes. Added the exact QRF regime taxonomy and Boolean encoder
   citations, narrowed the UK receipt-attestation account, and made tied-arm
   auxiliary semantics explicit.
+- Re-audited comparator and reviewed-exclusion source claims independently and
+  hardened two citation edges: the distinct US terminal-gate names and the UK
+  binding-evidence-to-signed-attestation path. This changed no row, value,
+  classification, work package, or recommendation.
 - Final report SHA-256:
-  `c1bc741da2a4d695682151b38114bc46a756f174eaa81890a984af463ea6dbd8`;
+  `6d5c1dfe2daafc066361b8985371d6fe1e7090687db0cddea25b34ff2755e955`;
   JSON SHA-256:
-  `7878e26e2cc38e1f9092d13676d6fb3eefe28f3ec1ec3e811b70a8a86a3f9b82`.
+  `fdd5415f78a5634f12b597778070f5d1df760b7ae837f28e07fb22bb631a3629`.
 
 ## Next
 

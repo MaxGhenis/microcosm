@@ -100,7 +100,7 @@
     "C11": "packages/microcosm-build/src/microcosm/build/us_runtime/qbi_inputs.py:1377-1405,1450-1533",
     "C12": "tools/build_us_multispine_pool.py:3264-3274,3383-3384,3710-3720,3731",
     "C13": "packages/microcosm-build/src/microcosm/build/gates.py:180-203,299-309",
-    "C14": "packages/microcosm-build/src/microcosm/build/uk_runtime/weighted_integrity.py:182-321,405-477",
+    "C14": "packages/microcosm-build/src/microcosm/build/uk_runtime/weighted_integrity.py:182-321,343-403,405-477",
     "C15": "packages/microcosm-build/src/microcosm/build/uk_runtime/battery_bindings.py:219-286,379-437",
     "C16": "experiments/phase_p_arm_split/SYNTHESIS.md:5-32,153-154,354-361",
     "C17": "experiments/phase_p_arm_split/SYNTHESIS.md:346-352,378-379",
@@ -139,7 +139,9 @@
     "C50": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11309,11934-11973",
     "C51": "packages/microcosm-fit/src/microcosm/fit/qrf.py:882-903,1225-1230",
     "C52": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:405-475,1629-1648",
-    "C53": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8245-8275,9362-9379"
+    "C53": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8245-8275,9362-9379",
+    "C54": "packages/microcosm-build/src/microcosm/build/gate_battery.py:601-626,924-1002",
+    "C55": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:10688-10689,11305-11309"
   },
   "definitions": {
     "ratio": "[sum ACS weight on nonzero/sign leg / sum ACS origin-scope weight] / [sum ASEC weight on nonzero/sign leg / sum ASEC origin-scope weight]",
@@ -259,6 +261,13 @@
     },
     "minimal_green_set": {
       "statement": "Every one of the current 93 checks/60 red physical legs must stop emitting failures; the battery uses passed=not failures and pool readiness conjuncts its two uniquely named terminal gates, so no smaller current-red check subset can green it.",
+      "citations": [
+        "C12",
+        "C13",
+        "C31",
+        "C43",
+        "C55"
+      ],
       "check_selector": "all adjudications[]",
       "full_battery_rerun_required": {
         "comparison_objects": 132,
@@ -441,7 +450,8 @@
       "C37",
       "C38",
       "C41",
-      "C44"
+      "C44",
+      "C54"
     ]
   },
   "arm_attribution_constraints": {
