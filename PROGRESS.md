@@ -2,9 +2,9 @@
 
 ## State
 
-All three analysis artifacts are complete. Independent review findings have
-been reconciled; final mechanical verification and clean-state recording are
-in progress.
+Complete. All three analysis artifacts and the review reconciliation are
+committed. Final non-build verification passed on review commit `cdbadd15`;
+this journal update records the handoff state.
 Dependencies are synced with both locked country extras. The worktree is detached at
 the locally cached `origin/main` SHA
 `164027e21cfa58a71d701b43211d009d6182e39d` (2026-08-19 15:28:43 -0400).
@@ -55,8 +55,17 @@ are the locally cached references.
   owner paths and schema taxonomy, added two implicit temp-name nonce sites,
   separated the policy evaluation date from operational clocks in cache-key
   doctrine, and closed the UK tier/grandfathered-release grammar.
+- Verified 87 authority rows; 34 logical stochastic rows; 40 non-ledger
+  classifications (38 true exemptions, one policy-clock binding, one false
+  positive); the 9+2 new-field split and five generalizations; all 55 runtime
+  module mentions; exactly three output files; and `git diff --check`.
+- Confirmed the review commit had a clean worktree. Only `PROGRESS.md` and the
+  three requested analysis outputs changed from the fresh base. No source
+  edit, dataset build, test build, branch push, or María-owned worktree touch
+  occurred.
 
 ## Next
 
-- Commit the review reconciliation, run final non-build document/count checks,
-  and commit the completed journal state.
+- Owner collects the three files. A future UK F1 lane starts only after the US
+  F1 certification and every charter P0 prerequisite are green; there is no
+  remaining in-scope work for this analysis lane.
