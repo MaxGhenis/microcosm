@@ -231,3 +231,6 @@
 - The charter explicitly forbids a cold 25% launch until the memory-safe
   prerequisite is demonstrated. It never passes a Logbook predecessor digest
   and never reads or writes `logbook-pending-chain.txt`.
+- The exact-row ledger, static f001 proof, charter, progress journal, and final
+  report are committed together at `6d5efead`. No artifact or measurement is
+  implied by that documentation commit.

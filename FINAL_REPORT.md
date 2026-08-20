@@ -148,6 +148,8 @@ argument and any contact with `logbook-pending-chain.txt`.
 - `eac44dbe` — start the committed state/done/next journal.
 - `1a8ad451` — isolate the removal-only arm.
 - `539e415d` — isolate the broad-addition-only arm.
+- `6d5efead` — record the exact check ledger, f001 wiring proof, owner charter,
+  lane notes, and final report.
 
 Nothing was pushed. The owner retains publication authority.
 

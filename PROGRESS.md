@@ -12,7 +12,9 @@ Both arms have static configured-identity proof at the exact `f001`/seed-578
 controls, but neither has a materialized 1% artifact or gate measurement. The
 known cold path has exceeded the mandatory `<15 GiB` ceiling at 1%, so every
 one of the 16 arm result cells remains honestly not measured. The exact-row
-ledger and a fail-closed owner 25% charter are being closed out.
+ledger, wiring receipt, final report, and fail-closed owner 25% charter are
+committed at `6d5efead`. Implementation and handoff are complete; experimental
+acceptance remains blocked only on a demonstrated below-cap artifact path.
 
 The required `uv sync --all-packages --extra us` was attempted first. The
 default cache was sandbox-denied; retrying with `UV_CACHE_DIR` under `/tmp`
@@ -84,14 +86,17 @@ arm-split environment with this worktree's package sources forced on
   marking both unrun arm cells `NOT_RUN_RSS_CAP / not measured`.
 - Drafted the owner-run 25% protocol with exact revisions and inputs, frozen
   gate settings, serial off-chain execution, and a 14 GiB fail-closed guard.
+- Committed the evidence ledger, static f001 receipt, owner charter, completed
+  lane notes, and final report as `6d5efead`.
 
 ## Next (2026-08-19)
 
-1. Finish and commit the evidence package, lane notes, and `FINAL_REPORT.md`.
-2. Before any artifact run, demonstrate a cold or authenticated-resume path
+1. Before any artifact run, demonstrate a cold or authenticated-resume path
    that remains below 15 GiB under the specified fail-closed guard.
-3. Run the two 1% artifacts at the frozen controls and fill all 16 after cells;
+2. Run the two 1% artifacts at the frozen controls and fill all 16 after cells;
    only then may the owner run the two 25% arms serially under the charter.
+3. Interpret or land nothing until both authenticated arm artifacts and the
+   complete frozen-gate sweeps are available.
 
 ## Historical base entry
 
