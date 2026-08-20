@@ -2352,7 +2352,7 @@ def test_legacy_checkpoint_identity_excludes_stacked_late_producer_schedule(
     assert changed == current
 
 
-def test_stacked_checkpoint_identity_binds_v11_semantic_contracts(
+def test_stacked_checkpoint_identity_binds_v12_semantic_contracts(
     pool_tool: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -2385,7 +2385,7 @@ def test_stacked_checkpoint_identity_binds_v11_semantic_contracts(
 
     current = identity()
     pool_code = current["pool_code"]
-    assert current["materializer_version"] == 11
+    assert current["materializer_version"] == 12
     assert current["stacked_authority"]["version"] == 10
     assert pool_code["operator_order"] == [
         "assemble_stacked_spine",
@@ -2589,7 +2589,7 @@ def test_stacked_checkpoint_identity_binds_v11_semantic_contracts(
         )
     )
 
-    assert current["materializer_version"] == stale_qrf["materializer_version"] == 11
+    assert current["materializer_version"] == stale_qrf["materializer_version"] == 12
     assert stale_qrf["pool_code"]["primary_qrf_checkpoint_schema_version"] == 5
     assert (
         pool_tool._discover_stacked_checkpoint_identity(
@@ -2780,7 +2780,7 @@ def test_qbi_receipt_route_resolution_rejects_wrong_or_ambiguous_paths(
         )
 
 
-@pytest.mark.parametrize("legacy_version", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+@pytest.mark.parametrize("legacy_version", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11))
 def test_legacy_stacked_materializer_checkpoint_is_not_discovered(
     pool_tool: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
@@ -2834,7 +2834,7 @@ def test_legacy_stacked_materializer_checkpoint_is_not_discovered(
             )
         )
 
-    assert pool_tool._STACKED_CHECKPOINT_MATERIALIZER_VERSION == 11
+    assert pool_tool._STACKED_CHECKPOINT_MATERIALIZER_VERSION == 12
     assert (
         pool_tool._discover_stacked_checkpoint_identity(
             checkpoint_root,

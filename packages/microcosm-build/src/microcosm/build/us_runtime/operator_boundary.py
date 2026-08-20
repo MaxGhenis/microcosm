@@ -14,7 +14,6 @@ from typing import Any
 
 import pandas as pd
 
-from microcosm.build.us_runtime.acs_transfer import ACS_DERIVED_TRANSFER_INPUTS
 from microcosm.build.us_runtime.adult_care import US_ADULT_CARE_OUTPUT_COLUMNS
 from microcosm.build.us_runtime.child_support import (
     US_CHILD_SUPPORT_OUTPUT_COLUMNS,
@@ -86,6 +85,9 @@ from microcosm.build.us_runtime.retirement_distributions import (
 from microcosm.build.us_runtime.scf_wealth import (
     US_SCF_FINANCIAL_ASSET_OUTPUT_COLUMNS,
     US_SCF_NET_WORTH_OUTPUT_COLUMNS,
+)
+from microcosm.build.us_runtime.schedule_d_joint_reconciliation import (
+    SCHEDULE_D_RECONCILED_PERSON_COLUMNS,
 )
 from microcosm.build.us_runtime.weeks_unemployed import (
     US_WEEKS_UNEMPLOYED_OUTPUT_COLUMNS,
@@ -315,7 +317,7 @@ PRE_ASSEMBLY_OPERATOR_OUTPUT_FAMILIES: OperatorOutputFamilies = {
         ),
     },
     "capital_gain_distributions": {
-        "person": frozenset(ACS_DERIVED_TRANSFER_INPUTS),
+        "person": frozenset(SCHEDULE_D_RECONCILED_PERSON_COLUMNS),
     },
     "qbi_reconciliation": {
         "person": frozenset(US_QBI_RECONCILED_PERSON_COLUMNS),

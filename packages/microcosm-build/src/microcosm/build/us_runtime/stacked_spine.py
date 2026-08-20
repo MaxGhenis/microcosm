@@ -46,6 +46,7 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from importlib.resources import files
+from numbers import Integral
 from pathlib import Path
 from types import MappingProxyType
 
@@ -90,6 +91,8 @@ from microcosm.build.us_runtime.acs_income_universe import (
 from microcosm.build.us_runtime.acs_transfer import (
     ASEC_PUF_DONOR_SPINE,
     DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT,
+    PUF_TAX_TRANSFER_CALIBRATION_POLICY,
+    AcsTransferCalibrationReference,
     AcsTransferResult,
     AcsTransferTargetBank,
     TargetFamilies,
@@ -171,6 +174,12 @@ from microcosm.build.us_runtime.puf_support import (
     impute_us_puf_tax_detail_support,
     puf_tax_detail_tail_bound_quantiles_identity,
     validate_puf_clone_attachment,
+)
+from microcosm.build.us_runtime.schedule_d_joint_reconciliation import (
+    SCHEDULE_D_JOINT_ROLE_COLUMN,
+    SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+    SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+    SCHEDULE_D_JOINT_ROLE_REFERENCE,
 )
 from microcosm.build.us_runtime.spine_assembly import assemble_spines
 from microcosm.build.us_runtime.support_provenance import (
@@ -7632,6 +7641,9 @@ def _gap_fill_stacked_spine_evaluate(
             boundary="stacked gap-fill entry",
         )
     validate_stacked_spine_frame(frame, boundary="stacked gap-fill entry")
+    calibration_scope_ids, calibration_scope_authority = (
+        _puf_tax_calibration_scope_authority(frame)
+    )
     directions = authority.gap_fill_plan
     if not directions:
         raise ValueError("Stacked gap-fill requires at least one direction.")
@@ -7661,6 +7673,22 @@ def _gap_fill_stacked_spine_evaluate(
             direction=direction,
         )
         donor = _origin_projection(current, channel=direction.donor_channel)
+        calibration_reference_selections = (
+            _uniform_puf_tax_calibration_reference_selections(
+                current,
+                target_families=direction.target_families,
+                support_channel=direction.donor_channel,
+                support_clone_index=0,
+                authority="early_gap_fill_exact_donor_origin_clone_0",
+            )
+        )
+        calibration_references, calibration_reference_authority = (
+            _puf_tax_calibration_reference_authority(
+                current,
+                target_families=direction.target_families,
+                selections=calibration_reference_selections,
+            )
+        )
         donor_snapshot = {
             entity: _direction_targets_snapshot(
                 current,
@@ -7679,21 +7707,32 @@ def _gap_fill_stacked_spine_evaluate(
             n_estimators=n_estimators,
             max_targets_per_fit=max_targets_per_fit,
             target_bank=(target_banks or {}).get(direction.name),
+            calibration_targets=tuple(sorted(calibration_reference_selections)),
+            calibration_scope_ids=calibration_scope_ids,
+            calibration_references=calibration_references,
         )
         transfer_results[direction.name] = result
         current = result.frame
-        receipts[direction.name] = _verify_gap_fill_outcome(
+        direction_receipt = _verify_gap_fill_outcome(
             current,
             direction=direction,
             pre_counts=pre_counts,
             donor_snapshot=donor_snapshot,
             result=result,
         )
+        direction_receipt["calibration_reference_authority"] = (
+            calibration_reference_authority
+        )
+        receipts[direction.name] = direction_receipt
 
     validate_stacked_spine_frame(current, boundary="stacked gap-fill output")
     return GapFillResult(
         frame=current,
-        receipt={"authority": authority_receipt, "directions": receipts},
+        receipt={
+            "authority": authority_receipt,
+            "calibration_scope_authority": calibration_scope_authority,
+            "directions": receipts,
+        },
         transfer_results=transfer_results,
     )
 
@@ -8146,6 +8185,10 @@ def _verify_gap_fill_outcome(
                     "unmodeled_rows": unmodeled,
                     "residual_null_rows": residual_nulls,
                 }
+                if record is not None and record.reconciliation is not None:
+                    target_receipt["reconciliation"] = _json_ready(
+                        record.reconciliation
+                    )
                 rule = absence_rules.get((entity, target))
                 if rule is not None:
                     expected_absence, absence_receipt = _gap_fill_absence_rule_mask(
@@ -8311,6 +8354,373 @@ def transfer_stacked_post_puf_inputs(
     )
 
 
+def _puf_tax_calibration_scope_authority(
+    frame: Frame,
+) -> tuple[dict[str, np.ndarray], dict[str, object]]:
+    """Bind source-aware provenance pairs to source-neutral calibration IDs.
+
+    ``stacked_spine`` owns the support-channel and clone columns.  The transfer
+    operator instead receives only opaque, row-aligned IDs, so it can isolate
+    calibration capacity without learning or reconstructing source roles.
+    IDs are allocated over the canonical order of exact
+    ``(entity, support_channel, integral clone)`` identities; table row order
+    therefore cannot change either the authority receipt or an identity's ID.
+    """
+
+    normalized_provenance: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+    identities: list[tuple[str, str, int]] = []
+    entity_rows: dict[str, int] = {}
+    source_columns: dict[str, dict[str, str]] = {}
+    for entity in sorted(frame.entities):
+        table = frame.table(entity)
+        channel_column = support_channel_column(entity)
+        clone_column = support_clone_index_column(entity)
+        missing_columns = [
+            column for column in (channel_column, clone_column) if column not in table
+        ]
+        if missing_columns:
+            raise ValueError(
+                "PUF-tax calibration scope authority requires existing "
+                f"{entity} provenance columns; missing {missing_columns}."
+            )
+
+        raw_channels = table[channel_column].to_numpy(dtype=object)
+        invalid_channels = [
+            position
+            for position, value in enumerate(raw_channels.tolist())
+            if not isinstance(value, str) or not value.strip()
+        ]
+        if invalid_channels:
+            raise ValueError(
+                "PUF-tax calibration scope authority requires nonempty string "
+                f"{channel_column!r} values; invalid positions "
+                f"{invalid_channels[:5]}."
+            )
+        raw_clones = table[clone_column].to_numpy(dtype=object)
+        boolean_clones = [
+            position
+            for position, value in enumerate(raw_clones.tolist())
+            if isinstance(value, (bool, np.bool_))
+        ]
+        numeric_clones = pd.to_numeric(
+            table[clone_column],
+            errors="coerce",
+        ).to_numpy(dtype=np.float64)
+        if (
+            boolean_clones
+            or not np.isfinite(numeric_clones).all()
+            or (numeric_clones < 0.0).any()
+            or not np.equal(numeric_clones, np.floor(numeric_clones)).all()
+        ):
+            raise ValueError(
+                "PUF-tax calibration scope authority requires nonnegative "
+                f"integral {clone_column!r} values."
+            )
+        clones = numeric_clones.astype(np.int64)
+        channels = raw_channels.astype(object, copy=True)
+        normalized_provenance[entity] = (channels, clones)
+        entity_rows[entity] = len(table)
+        source_columns[entity] = {
+            "support_channel": channel_column,
+            "support_clone_index": clone_column,
+        }
+        identities.extend(
+            (entity, channel, clone)
+            for channel, clone in sorted(
+                {
+                    (str(channel), int(clone))
+                    for channel, clone in zip(channels, clones, strict=True)
+                },
+                key=lambda identity: (identity[0], identity[1]),
+            )
+        )
+
+    ordered_identities = tuple(sorted(identities, key=lambda value: value))
+    scope_id_by_identity = {
+        identity: f"puf_tax_calibration_scope_{position:04d}"
+        for position, identity in enumerate(ordered_identities)
+    }
+    ids_by_entity: dict[str, np.ndarray] = {}
+    scopes: dict[str, dict[str, object]] = {}
+    for entity, channel, clone in ordered_identities:
+        scope_id = scope_id_by_identity[(entity, channel, clone)]
+        channels, clones = normalized_provenance[entity]
+        selected = (channels == channel) & (clones == clone)
+        scopes[scope_id] = {
+            "entity": entity,
+            "support_channel": channel,
+            "support_clone_index": clone,
+            "row_count": int(selected.sum()),
+        }
+    for entity in sorted(frame.entities):
+        channels, clones = normalized_provenance[entity]
+        aligned = np.asarray(
+            [
+                scope_id_by_identity[(entity, str(channel), int(clone))]
+                for channel, clone in zip(channels, clones, strict=True)
+            ],
+            dtype=object,
+        )
+        aligned.setflags(write=False)
+        ids_by_entity[entity] = aligned
+
+    receipt: dict[str, object] = {
+        "schema_version": 1,
+        "method": "source_aware_support_channel_clone_partition_v1",
+        "scope_id_contract": "opaque_nonempty_string",
+        "identity_order": [
+            "entity",
+            "support_channel",
+            "support_clone_index",
+        ],
+        "source_columns": source_columns,
+        "entity_row_counts": entity_rows,
+        "scopes": scopes,
+    }
+    receipt["sha256"] = _canonical_sha256(receipt)
+    return ids_by_entity, receipt
+
+
+def _active_puf_tax_calibration_target_keys(
+    frame: Frame,
+    *,
+    target_families: TargetFamilies,
+) -> set[tuple[str, str]]:
+    """Return exactly the incomplete targets on the frozen remedy surface."""
+
+    active: set[tuple[str, str]] = set()
+    for entity, families in target_families.items():
+        table = frame.table(entity)
+        policy = PUF_TAX_TRANSFER_CALIBRATION_POLICY.get(entity, {})
+        for targets in families.values():
+            for target in targets:
+                if target not in policy:
+                    continue
+                if target not in table or table[target].isna().any():
+                    active.add((entity, target))
+    return active
+
+
+def _puf_tax_calibration_reference_authority(
+    frame: Frame,
+    *,
+    target_families: TargetFamilies,
+    selections: Mapping[tuple[str, str], Mapping[str, object]],
+) -> tuple[
+    dict[str, dict[str, AcsTransferCalibrationReference]],
+    dict[str, object],
+]:
+    """Bind source-aware target producers to source-neutral reference arrays.
+
+    ``selections`` is interpreted only here, where support provenance is
+    owned.  The transfer boundary receives opaque reference IDs and aligned
+    arrays; its receipt can be joined back to this source-aware authority by
+    ID and content hash without exposing a channel or clone to calibration.
+    """
+
+    active = _active_puf_tax_calibration_target_keys(
+        frame,
+        target_families=target_families,
+    )
+    missing = sorted(active - set(selections))
+    extra = sorted(set(selections) - active)
+    if missing or extra:
+        raise ValueError(
+            "PUF-tax calibration reference selections must exactly cover active "
+            f"targets; missing={missing}, extra={extra}."
+        )
+
+    references: dict[str, dict[str, AcsTransferCalibrationReference]] = {}
+    receipt_references: dict[str, dict[str, object]] = {}
+    for entity, target in sorted(active):
+        selection = selections[(entity, target)]
+        channel = selection.get("support_channel")
+        clone = selection.get("support_clone_index")
+        authority = selection.get("authority")
+        if not isinstance(channel, str) or not channel.strip():
+            raise ValueError(
+                f"PUF-tax calibration reference channel is invalid for "
+                f"{entity}.{target}."
+            )
+        if isinstance(clone, bool) or not isinstance(clone, Integral) or int(clone) < 0:
+            raise ValueError(
+                f"PUF-tax calibration reference clone is invalid for {entity}.{target}."
+            )
+        if not isinstance(authority, str) or not authority.strip():
+            raise ValueError(
+                f"PUF-tax calibration reference authority is invalid for "
+                f"{entity}.{target}."
+            )
+
+        table = frame.table(entity)
+        channel_column = support_channel_column(entity)
+        clone_column = support_clone_index_column(entity)
+        id_column = frame.schema.entity_id_column(entity)
+        required_columns = {channel_column, clone_column, id_column, target}
+        absent_columns = sorted(required_columns - set(table.columns))
+        if absent_columns:
+            raise ValueError(
+                "PUF-tax calibration reference authority cannot resolve "
+                f"{entity}.{target}; missing columns {absent_columns}."
+            )
+        clone_values = pd.to_numeric(table[clone_column], errors="coerce")
+        selected = table[channel_column].astype(str).eq(channel) & clone_values.eq(
+            int(clone)
+        )
+        if not selected.any():
+            raise ValueError(
+                "PUF-tax calibration reference authority selected no rows for "
+                f"{entity}.{target} at {channel}/clone_{int(clone)}."
+            )
+
+        values = pd.to_numeric(
+            table.loc[selected, target],
+            errors="coerce",
+        ).to_numpy(dtype=np.float64)
+        all_weights = np.asarray(
+            frame.resolve_weights(entity).values,
+            dtype=np.float64,
+        )
+        weights = all_weights[selected.to_numpy(dtype=bool)]
+        stable_ids = table.loc[selected, id_column].to_numpy(copy=True)
+        content = pd.DataFrame(
+            {
+                "stable_id": stable_ids,
+                "value": values,
+                "weight": weights,
+            }
+        ).sort_values("stable_id", kind="mergesort", ignore_index=True)
+        content_sha256 = _late_table_values_sha256(
+            content,
+            normalize_strings=True,
+        )
+        identity = {
+            "entity": entity,
+            "target": target,
+            "support_channel": channel,
+            "support_clone_index": int(clone),
+            "authority": authority,
+            "content_sha256": content_sha256,
+        }
+        reference_id = f"puf_tax_calibration_reference_{_canonical_sha256(identity)}"
+        references.setdefault(entity, {})[target] = AcsTransferCalibrationReference(
+            reference_id=reference_id,
+            values=values,
+            weights=weights,
+            stable_ids=stable_ids,
+        )
+        receipt_references[reference_id] = {
+            **identity,
+            "rows": int(selected.sum()),
+            "positive_weight_rows": int((weights > 0.0).sum()),
+            "entity_id_column": id_column,
+        }
+
+    receipt: dict[str, object] = {
+        "schema_version": 1,
+        "method": "source_aware_target_specific_frozen_reference_v1",
+        "transfer_payload": [
+            "opaque_reference_id",
+            "values",
+            "effective_weights",
+            "stable_ids",
+        ],
+        "references": receipt_references,
+    }
+    receipt["sha256"] = _canonical_sha256(receipt)
+    return references, receipt
+
+
+def _uniform_puf_tax_calibration_reference_selections(
+    frame: Frame,
+    *,
+    target_families: TargetFamilies,
+    support_channel: str,
+    support_clone_index: int,
+    authority: str,
+) -> dict[tuple[str, str], dict[str, object]]:
+    """Build one exact producer selection for every active remedy target."""
+
+    return {
+        (entity, target): {
+            "support_channel": support_channel,
+            "support_clone_index": support_clone_index,
+            "authority": authority,
+        }
+        for entity, target in _active_puf_tax_calibration_target_keys(
+            frame,
+            target_families=target_families,
+        )
+    }
+
+
+def _post_puf_tax_calibration_reference_selections(
+    frame: Frame,
+    *,
+    target_families: TargetFamilies,
+    puf_producer_families: TargetFamilies,
+    source_producer_families: TargetFamilies,
+) -> dict[tuple[str, str], dict[str, object]]:
+    """Resolve each late target to its exact frozen comparator producer.
+
+    PUF-only targets use the ASEC-origin clone-1 producer which also remains
+    the unchanged QRF donor.  A declared post-clone source producer owns the
+    ASEC-origin clone-0 comparator.  That source-finalized role takes explicit
+    precedence for the reviewed PUF/source overlap (including self-employed
+    pension contributions); the overlap is therefore not inferred from data.
+    """
+
+    active = _active_puf_tax_calibration_target_keys(
+        frame,
+        target_families=target_families,
+    )
+    puf_keys = set(_surface_target_keys(puf_producer_families))
+    source_keys = set(_surface_target_keys(source_producer_families))
+    family_by_target: dict[tuple[str, str], str] = {}
+    for entity, families in target_families.items():
+        for family, targets in families.items():
+            for target in targets:
+                target_key = (entity, target)
+                if target_key not in active:
+                    continue
+                previous = family_by_target.get(target_key)
+                if previous is not None and previous != family:
+                    raise ValueError(
+                        "PUF-tax calibration target appears in multiple post-PUF "
+                        f"families: {target_key} in {previous!r} and {family!r}."
+                    )
+                family_by_target[target_key] = family
+
+    selections: dict[tuple[str, str], dict[str, object]] = {}
+    for entity, target in sorted(active):
+        family = family_by_target[(entity, target)]
+        key = (entity, family, target, 0)
+        puf_produced = key in puf_keys
+        source_produced = key in source_keys
+        if not puf_produced and not source_produced:
+            raise ValueError(
+                "PUF-tax calibration cannot resolve a declared post-PUF "
+                f"producer for {entity}/{family}/{target}."
+            )
+        if source_produced:
+            selections[(entity, target)] = {
+                "support_channel": BASE_ASEC_SUPPORT_CHANNEL,
+                "support_clone_index": 0,
+                "authority": (
+                    "post_puf_declared_source_final_owner_overlap"
+                    if puf_produced
+                    else "post_puf_declared_source_final_owner"
+                ),
+            }
+        else:
+            selections[(entity, target)] = {
+                "support_channel": BASE_ASEC_SUPPORT_CHANNEL,
+                "support_clone_index": PUF_TAX_DETAIL_CLONE_INDEX,
+                "authority": "post_puf_declared_puf_clone_producer",
+            }
+    return selections
+
+
 def _transfer_stacked_post_puf_inputs_with_test_authority(
     frame: Frame,
     *,
@@ -8372,6 +8782,9 @@ def _transfer_stacked_post_puf_inputs_evaluate(
         frame,
         boundary="stacked post-PUF transfer attachment",
     )
+    calibration_scope_ids, calibration_scope_authority = (
+        _puf_tax_calibration_scope_authority(frame)
+    )
     surface = (
         authority.post_puf_transfer_surface
         if target_families is None
@@ -8402,6 +8815,19 @@ def _transfer_stacked_post_puf_inputs_evaluate(
         puf_producer_families=puf_producer_surface,
         source_producer_families=source_producer_surface,
     )
+    calibration_reference_selections = _post_puf_tax_calibration_reference_selections(
+        frame,
+        target_families=surface,
+        puf_producer_families=puf_producer_surface,
+        source_producer_families=source_producer_surface,
+    )
+    calibration_references, calibration_reference_authority = (
+        _puf_tax_calibration_reference_authority(
+            frame,
+            target_families=surface,
+            selections=calibration_reference_selections,
+        )
+    )
     donor = _post_puf_donor_projection(frame)
     puf_producer_keys = set(_surface_target_keys(puf_producer_surface))
     source_producer_keys = set(_surface_target_keys(source_producer_surface))
@@ -8429,6 +8855,9 @@ def _transfer_stacked_post_puf_inputs_evaluate(
         target_bank=target_bank,
         derive_schedule_d=derive_schedule_d,
         execution_contract=execution_contract,
+        calibration_targets=tuple(sorted(calibration_reference_selections)),
+        calibration_scope_ids=calibration_scope_ids,
+        calibration_references=calibration_references,
     )
     target_receipts = _verify_post_puf_transfer_outcome(
         transfer.frame,
@@ -8453,6 +8882,8 @@ def _transfer_stacked_post_puf_inputs_evaluate(
             "recipient_selection": (
                 "target_specific_complement_of_declared_producer_rows"
             ),
+            "calibration_scope_authority": calibration_scope_authority,
+            "calibration_reference_authority": calibration_reference_authority,
             "resolved_donor_channel": transfer.resolved_donor_channel,
             "targets": target_receipts,
             "fit_records": [
@@ -8720,6 +9151,11 @@ def _verify_post_puf_transfer_outcome(
                     "imputed_rows": imputed,
                     "unmodeled_rows": unmodeled,
                     "residual_null_rows": residual_nulls,
+                    **(
+                        {"reconciliation": _json_ready(record.reconciliation)}
+                        if record is not None and record.reconciliation is not None
+                        else {}
+                    ),
                 }
     if failures:
         raise ValueError(
@@ -10210,17 +10646,72 @@ def _bind_stacked_tail_origin_receipt(
 
 
 def prepare_stacked_tail_derivation(frame: Frame) -> tuple[Frame, dict[str, object]]:
-    """Clear the clone-2 Schedule-D leaf so derive recomputes it from the tail."""
+    """Clear clone-2 Schedule-D and route clone-0 origins through neutral roles."""
 
     validate_stacked_spine_frame(frame, boundary="stacked tail derivation entry")
     person = frame.table("person").copy()
+    if SCHEDULE_D_JOINT_ROLE_COLUMN in person.columns:
+        raise ValueError(
+            "Stacked tail derivation found a pre-existing transient Schedule-D "
+            f"role column {SCHEDULE_D_JOINT_ROLE_COLUMN!r}."
+        )
     clone_column = support_clone_index_column("person")
-    clone_two = pd.to_numeric(person[clone_column], errors="raise").eq(2)
+    clone_index = pd.to_numeric(person[clone_column], errors="raise")
+    clone_two = clone_index.eq(2)
     if not clone_two.any():
         raise ValueError(
             "Stacked tail derivation requires clone-2 rows from the capital-gains "
             "tail pass."
         )
+    channel_column = support_channel_column("person")
+    channel = person[channel_column].astype(str)
+    native = clone_index.eq(0)
+    reference = native & channel.eq(BASE_ASEC_SUPPORT_CHANNEL)
+    recipient = native & channel.eq(ACS_STACKED_SUPPORT_CHANNEL)
+    if not reference.any() or not recipient.any():
+        raise ValueError(
+            "Stacked tail derivation requires nonempty ASEC and ACS clone-0 "
+            "Schedule-D role populations."
+        )
+    roles = np.full(
+        len(person),
+        SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+        dtype=np.int8,
+    )
+    roles[reference.to_numpy(dtype=bool)] = SCHEDULE_D_JOINT_ROLE_REFERENCE
+    roles[recipient.to_numpy(dtype=bool)] = SCHEDULE_D_JOINT_ROLE_RECIPIENT
+    person[SCHEDULE_D_JOINT_ROLE_COLUMN] = roles
+
+    role_authority: dict[str, object] = {
+        "schema_version": 1,
+        "method": "source_aware_native_origin_roles_v1",
+        "role_column": SCHEDULE_D_JOINT_ROLE_COLUMN,
+        "role_dtype": "int8",
+        "transient": True,
+        "encoding": {
+            "excluded": SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+            "reference": SCHEDULE_D_JOINT_ROLE_REFERENCE,
+            "recipient": SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+        },
+        "reference_selection": {
+            "support_channel": BASE_ASEC_SUPPORT_CHANNEL,
+            "support_clone_index": 0,
+        },
+        "recipient_selection": {
+            "support_channel": ACS_STACKED_SUPPORT_CHANNEL,
+            "support_clone_index": 0,
+        },
+        "person_rows_by_role": {
+            "excluded": int(np.count_nonzero(roles == SCHEDULE_D_JOINT_ROLE_EXCLUDED)),
+            "reference": int(
+                np.count_nonzero(roles == SCHEDULE_D_JOINT_ROLE_REFERENCE)
+            ),
+            "recipient": int(
+                np.count_nonzero(roles == SCHEDULE_D_JOINT_ROLE_RECIPIENT)
+            ),
+        },
+    }
+    role_authority["sha256"] = _canonical_sha256(role_authority)
     column = "schedule_d_capital_gain_distributions"
     if column not in person:
         previously_observed = 0
@@ -10244,6 +10735,7 @@ def prepare_stacked_tail_derivation(frame: Frame) -> tuple[Frame, dict[str, obje
         "previously_observed_rows": previously_observed,
         "column_was_present": column in frame.table("person"),
         "reason": "rederive_from_clone_2_tail_owned_parents",
+        "schedule_d_joint_role_authority": role_authority,
     }
 
 

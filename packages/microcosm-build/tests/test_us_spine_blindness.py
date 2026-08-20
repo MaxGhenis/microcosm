@@ -71,9 +71,11 @@ _US_RUNTIME_IMPORT_PREFIX = "microcosm.build.us_runtime"
 _SPINE_BLIND_BUILD_TOOLS = (_REPOSITORY_ROOT / "tools" / "build_us_multispine_pool.py",)
 _REQUIRED_POOL_RUNTIME_MODULES = frozenset(
     {
+        "acs_transfer_calibration.py",
         "late_producer_dag.py",
         "multispine_pool.py",
         "puf_support.py",
+        "schedule_d_joint_reconciliation.py",
         "spine_agreement.py",
         "spine_assembly.py",
         "us_late_overlap_ownership.py",
@@ -3280,8 +3282,8 @@ def test_pool_build_tool_import_graph_is_source_spine_blind() -> None:
 
     for tool in _SPINE_BLIND_BUILD_TOOLS:
         runtime_graph, missing_modules = _us_runtime_import_graph(tool)
-        assert len(runtime_graph) == 64, (
-            f"{tool.name} must reach the pinned 64-module runtime graph; "
+        assert len(runtime_graph) == 66, (
+            f"{tool.name} must reach the pinned 66-module runtime graph; "
             f"reached {len(runtime_graph)}"
         )
         assert not missing_modules, (

@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from functools import lru_cache
 from importlib.metadata import version
 from typing import Protocol
@@ -92,12 +93,21 @@ from microcosm.build.us_runtime.retirement_contributions import (
 from microcosm.build.us_runtime.retirement_distributions import (
     with_us_retirement_distribution_inputs,
 )
+from microcosm.build.us_runtime.schedule_d_joint_reconciliation import (
+    SCHEDULE_D_JOINT_ROLE_COLUMN,
+    SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+    SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+    SCHEDULE_D_JOINT_ROLE_REFERENCE,
+    SCHEDULE_D_RECONCILED_PERSON_COLUMNS,
+    reconcile_schedule_d_joint_parents,
+)
 from microcosm.build.us_runtime.spine_agreement import (
     default_spine_agreement_registry,
     spine_agreement_gate,
 )
 from microcosm.build.us_runtime.spine_assembly import assemble_spines
 from microcosm.build.us_runtime.support_provenance import (
+    PERSON_SUPPORT_CHANNEL_COLUMN,
     SPINE_ASSEMBLY_MANIFEST_KEY,
     spine_assembly_receipt,
     spine_provenance_counts,
@@ -345,9 +355,9 @@ POOL_ENGINE_INPUT_PROJECTION_CONTRACT = PoolEngineInputProjectionContract(
 """Exact installed input registry scanned by the disposable projection."""
 
 POOL_REMAINING_STAGE_INPUT_MANIFEST_SHA256 = (
-    "8247a93e5f8f63d3ae71c1de681c29524d4bb8f07e3c6a50dcaf431b1377020f"
+    "b9d6fc10d86bf7f6f5e43cfec958dee2b034d8268154f32bb6397edae539147e"
 )
-"""Pinned content digest of all 993 post-transfer consumer/input rows."""
+"""Pinned content digest of all 995 post-transfer consumer/input rows."""
 
 
 @dataclass(frozen=True)
@@ -597,7 +607,8 @@ POOL_OPERATOR_CONTRACTS: Mapping[str, SourceOperatorContract] = {
     "_complete_schedule_d_input": SourceOperatorContract(
         "capital_gain_distributions",
         (_POST_CLONE_PHASE,),
-        "transferred tax-unit parents exist only on the physically cloned pool",
+        "transferred tax-unit parents and a neutral joint-carrier role are "
+        "available only on the physically cloned pool",
         execution_scope=_WHOLE_POOL_EXECUTION_SCOPE,
     ),
     "with_us_qbi_input_reconciliation": SourceOperatorContract(
@@ -1128,8 +1139,17 @@ def pool_remaining_stage_input_manifest(
             )
         return f"pool_input_surface:{declaration.family}"
 
-    # The stacked tail step reads only clone provenance and the optional memo
-    # leaf that it deliberately clears before deterministic re-derivation.
+    # The stacked tail step translates source channel plus clone provenance to
+    # a transient, source-neutral role and clears the optional clone-2 memo leaf.
+    register(
+        "derive",
+        "prepare_stacked_tail_derivation",
+        "person",
+        PERSON_SUPPORT_CHANNEL_COLUMN,
+        execution_scope="whole_pool",
+        provision="assembly_support_provenance",
+        available_by="assembled",
+    )
     register(
         "derive",
         "prepare_stacked_tail_derivation",
@@ -1185,6 +1205,16 @@ def pool_remaining_stage_input_manifest(
         provision="optional_transferred_or_schedule_d_derived",
         available_by="transferred",
         fallback="derive_from_finite_transferred_parents",
+    )
+    register(
+        "derive",
+        "_complete_schedule_d_input",
+        "person",
+        SCHEDULE_D_JOINT_ROLE_COLUMN,
+        execution_scope="whole_pool",
+        provision="prepare_stacked_tail_derivation_transient_role",
+        available_by="tail_derivation_prepared",
+        fallback="absent_on_nonstacked_derive_route",
     )
 
     for variable in US_QBI_RECONCILED_PERSON_COLUMNS:
@@ -2865,6 +2895,446 @@ def derive_multispine_pool_inputs(frame: Frame) -> PoolStageOutput:
     )
 
 
+def _schedule_d_subset_bytes_equal(
+    before: np.ndarray,
+    after: np.ndarray,
+    mask: np.ndarray,
+) -> bool:
+    """Compare selected numeric cells without equating opposite signed zeros."""
+
+    if before.dtype != after.dtype:
+        return False
+    return (
+        np.ascontiguousarray(before[mask]).tobytes()
+        == np.ascontiguousarray(after[mask]).tobytes()
+    )
+
+
+def _schedule_d_changed_rows(before: np.ndarray, after: np.ndarray) -> np.ndarray:
+    """Return byte-level row changes for same-dtype one-dimensional arrays."""
+
+    if before.dtype != after.dtype:
+        raise AssertionError("Schedule-D reconciliation changed the parent dtype.")
+    before_bytes = np.ascontiguousarray(before).view(np.uint8).reshape(len(before), -1)
+    after_bytes = np.ascontiguousarray(after).view(np.uint8).reshape(len(after), -1)
+    return np.any(before_bytes != after_bytes, axis=1)
+
+
+def _schedule_d_weight_sum(values: np.ndarray, *, name: str) -> float:
+    """Accumulate one audited weight numerator without overflow or order drift."""
+
+    try:
+        result = math.fsum(float(value) for value in values)
+    except OverflowError as error:
+        raise ValueError(f"Schedule-D {name} must have a finite total.") from error
+    if not math.isfinite(result):
+        raise ValueError(f"Schedule-D {name} must have a finite total.")
+    return result
+
+
+def _schedule_d_incidence_ratio(
+    numerator_incidence: float,
+    denominator_incidence: float,
+) -> float | None:
+    """Return a JSON-ready incidence ratio, or ``None`` for a zero reference."""
+
+    if denominator_incidence == 0.0:
+        return None
+    return numerator_incidence / denominator_incidence
+
+
+def _reconcile_schedule_d_joint_parent_geometry(
+    frame: Frame,
+    *,
+    person: pd.DataFrame,
+    numeric_sources: pd.DataFrame,
+    grouped: pd.DataFrame,
+    tax_unit_ids: pd.Series,
+    observed: pd.Series,
+    membership_column: str,
+    source_columns: tuple[str, str],
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, object], np.ndarray | None]:
+    """Consume a neutral role marker and reconcile recipient parent geometry."""
+
+    if SCHEDULE_D_JOINT_ROLE_COLUMN not in person.columns:
+        return (
+            person,
+            grouped,
+            {
+                "schema_version": 1,
+                "status": "not_requested",
+                "role_column": SCHEDULE_D_JOINT_ROLE_COLUMN,
+                "role_column_present": False,
+                "role_column_consumed": False,
+                "role_column_removed": False,
+            },
+            None,
+        )
+
+    role_series = person[SCHEDULE_D_JOINT_ROLE_COLUMN]
+    if role_series.dtype != np.dtype(np.int8):
+        raise ValueError(
+            "Schedule-D joint reconciliation role column must have exact int8 "
+            f"dtype; got {role_series.dtype!r}."
+        )
+    roles = role_series.to_numpy(dtype=np.int8, copy=True)
+    allowed_roles = {
+        SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+        SCHEDULE_D_JOINT_ROLE_REFERENCE,
+        SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+    }
+    observed_roles = {int(value) for value in np.unique(roles).tolist()}
+    if not observed_roles <= allowed_roles:
+        raise ValueError(
+            "Schedule-D joint reconciliation role column contains unknown "
+            f"value(s) {sorted(observed_roles - allowed_roles)}."
+        )
+    for required_role, label in (
+        (SCHEDULE_D_JOINT_ROLE_REFERENCE, "reference"),
+        (SCHEDULE_D_JOINT_ROLE_RECIPIENT, "recipient"),
+    ):
+        if not np.any(roles == required_role):
+            raise ValueError(
+                "Schedule-D joint reconciliation requires a nonempty neutral "
+                f"{label} population."
+            )
+
+    membership = person[membership_column].to_numpy()
+    role_groups = pd.Series(roles).groupby(membership, sort=False)
+    role_nunique = role_groups.nunique(dropna=False).reindex(tax_unit_ids.to_numpy())
+    if role_nunique.isna().any() or not role_nunique.eq(1).all():
+        conflicting_ids = tax_unit_ids.loc[
+            role_nunique.fillna(0).to_numpy(dtype=np.int64) != 1
+        ]
+        raise ValueError(
+            "Schedule-D joint reconciliation requires exactly one neutral role "
+            "per tax unit; conflicting tax_unit_id values include "
+            f"{conflicting_ids.head(5).tolist()}."
+        )
+    unit_roles = (
+        role_groups.first().reindex(tax_unit_ids.to_numpy()).to_numpy(dtype=np.int8)
+    )
+    reference_units = unit_roles == SCHEDULE_D_JOINT_ROLE_REFERENCE
+    recipient_units = unit_roles == SCHEDULE_D_JOINT_ROLE_RECIPIENT
+    if not reference_units.any() or not recipient_units.any():
+        raise ValueError(
+            "Schedule-D joint reconciliation requires reference and recipient "
+            "tax units after grouping the neutral person roles."
+        )
+
+    long_term_column, direct_column = source_columns
+    long_term_raw = person[long_term_column].to_numpy(copy=True)
+    direct_raw = person[direct_column].to_numpy(copy=True)
+    if long_term_raw.dtype.kind not in "iuf" or direct_raw.dtype.kind not in "iuf":
+        raise ValueError(
+            "Schedule-D joint reconciliation requires real numeric parent dtypes "
+            "so unchanged cells can be certified byte-for-byte."
+        )
+
+    person_weights = np.asarray(
+        frame.resolve_weights("person").values,
+        dtype=np.float64,
+    )
+    tax_unit_weights = np.asarray(
+        frame.resolve_weights("tax_unit").values,
+        dtype=np.float64,
+    )
+    reference_rows = roles == SCHEDULE_D_JOINT_ROLE_REFERENCE
+    recipient_rows = roles == SCHEDULE_D_JOINT_ROLE_RECIPIENT
+    role_rows = reference_rows | recipient_rows
+    tax_unit_weight_by_id = pd.Series(
+        tax_unit_weights,
+        index=tax_unit_ids.to_numpy(),
+    )
+    mapped_tax_unit_weights = (
+        pd.Series(membership).map(tax_unit_weight_by_id).to_numpy(dtype=np.float64)
+    )
+    all_role_person_weights_match_tax_unit_weights = _schedule_d_subset_bytes_equal(
+        person_weights,
+        mapped_tax_unit_weights,
+        role_rows,
+    )
+    if not all_role_person_weights_match_tax_unit_weights:
+        raise ValueError(
+            "Schedule-D joint reconciliation requires every reference and "
+            "recipient person's effective weight to equal its tax-unit weight."
+        )
+    reference_person_weight = _schedule_d_weight_sum(
+        person_weights[reference_rows],
+        name="reference person weight",
+    )
+    recipient_person_weight = _schedule_d_weight_sum(
+        person_weights[recipient_rows],
+        name="recipient person weight",
+    )
+    if reference_person_weight <= 0.0 or recipient_person_weight <= 0.0:
+        raise ValueError(
+            "Schedule-D joint reconciliation requires positive reference and "
+            "recipient person weight."
+        )
+
+    grouped_values = grouped.loc[:, list(source_columns)].to_numpy(dtype=np.float64)
+    condition_before = (grouped_values[:, 0] > 0.0) & (grouped_values[:, 1] <= 0.0)
+    reference_positive_weight = _schedule_d_weight_sum(
+        tax_unit_weights[reference_units & condition_before],
+        name="reference positive-condition weight",
+    )
+    reference_incidence = reference_positive_weight / reference_person_weight
+    target_recipient_weight = reference_incidence * recipient_person_weight
+
+    recipient_unit_positions = np.flatnonzero(recipient_units)
+    recipient_long_term = grouped_values[recipient_unit_positions, 0].copy()
+    recipient_direct = grouped_values[recipient_unit_positions, 1].copy()
+    recipient_weights = tax_unit_weights[recipient_unit_positions]
+    recipient_ids = tax_unit_ids.to_numpy()[recipient_unit_positions]
+    mutable = np.zeros(len(recipient_unit_positions), dtype=bool)
+    representative_positions = np.full(
+        len(recipient_unit_positions), -1, dtype=np.int64
+    )
+    person_ids = person[frame.schema.person_id_column].to_numpy()
+    observed_rows = observed.to_numpy(dtype=bool)
+    positions_by_unit = person.groupby(membership_column, sort=False).indices
+    direct_numeric_values = numeric_sources[direct_column].to_numpy(dtype=np.float64)
+    simple_units = 0
+    wholly_missing_units = 0
+    negative_direct_units = 0
+    multiple_positive_units = 0
+
+    for local_position, unit_position in enumerate(recipient_unit_positions.tolist()):
+        tax_unit_id = tax_unit_ids.iloc[unit_position]
+        positions = np.asarray(positions_by_unit[tax_unit_id], dtype=np.int64)
+        direct_cells = direct_numeric_values[positions]
+        wholly_missing = not observed_rows[positions].any()
+        if wholly_missing:
+            wholly_missing_units += 1
+        has_negative = bool(np.any(direct_cells < 0.0))
+        positive_positions = positions[direct_cells > 0.0]
+        if has_negative:
+            negative_direct_units += 1
+        if len(positive_positions) > 1:
+            multiple_positive_units += 1
+        simple = not has_negative and len(positive_positions) <= 1
+        if simple:
+            simple_units += 1
+        if not simple or not wholly_missing or recipient_weights[local_position] <= 0.0:
+            continue
+        if len(positive_positions) == 1:
+            representative = int(positive_positions[0])
+            if float(direct_cells[direct_cells > 0.0][0]) != float(
+                recipient_direct[local_position]
+            ):
+                raise AssertionError(
+                    "Schedule-D simple-unit representative does not equal its "
+                    "grouped direct parent."
+                )
+        else:
+            try:
+                representative = min(
+                    positions.tolist(),
+                    key=lambda position: person_ids[position],
+                )
+            except TypeError as error:
+                raise ValueError(
+                    "Schedule-D joint reconciliation person IDs must have one "
+                    "stable comparable type within each tax unit."
+                ) from error
+        representative_positions[local_position] = representative
+        if (
+            np.float64(person_weights[representative]).tobytes()
+            != np.float64(recipient_weights[local_position]).tobytes()
+        ):
+            raise AssertionError(
+                "Schedule-D representative person weight differs from its "
+                "tax-unit weight."
+            )
+        recipient_direct[local_position] = float(direct_raw[representative])
+        mutable[local_position] = True
+
+    allocation = reconcile_schedule_d_joint_parents(
+        recipient_long_term,
+        recipient_direct,
+        recipient_weights,
+        recipient_ids,
+        mutable_non_schedule_d=mutable,
+        target_schedule_d_positive_weight=target_recipient_weight,
+    )
+    if not _schedule_d_subset_bytes_equal(
+        recipient_long_term,
+        allocation.long_term_values,
+        np.ones(len(recipient_long_term), dtype=bool),
+    ):
+        raise AssertionError(
+            "Schedule-D joint reconciliation changed grouped long-term parents."
+        )
+    if not _schedule_d_subset_bytes_equal(
+        recipient_direct,
+        allocation.non_schedule_d_values,
+        ~mutable,
+    ):
+        raise AssertionError(
+            "Schedule-D joint reconciliation changed an immutable recipient unit."
+        )
+
+    direct_after = direct_raw.copy()
+    representative_rows = np.zeros(len(person), dtype=bool)
+    for local_position in np.flatnonzero(mutable).tolist():
+        representative = int(representative_positions[local_position])
+        if representative < 0:
+            raise AssertionError(
+                "Schedule-D mutable unit has no stable person representative."
+            )
+        representative_rows[representative] = True
+        direct_after[representative] = allocation.non_schedule_d_values[local_position]
+
+    long_term_preserved = _schedule_d_subset_bytes_equal(
+        long_term_raw,
+        person[long_term_column].to_numpy(copy=False),
+        np.ones(len(person), dtype=bool),
+    )
+    nonrecipient_direct_preserved = _schedule_d_subset_bytes_equal(
+        direct_raw,
+        direct_after,
+        ~recipient_rows,
+    )
+    nonrepresentative_direct_preserved = _schedule_d_subset_bytes_equal(
+        direct_raw,
+        direct_after,
+        recipient_rows & ~representative_rows,
+    )
+    changed_rows = _schedule_d_changed_rows(direct_raw, direct_after)
+    representative_only_writeback = not np.any(changed_rows & ~representative_rows)
+    if not (
+        long_term_preserved
+        and nonrecipient_direct_preserved
+        and nonrepresentative_direct_preserved
+        and representative_only_writeback
+    ):
+        raise AssertionError(
+            "Schedule-D joint reconciliation violated person-cell preservation."
+        )
+
+    adjusted_person = person.copy()
+    adjusted_person[direct_column] = direct_after
+    stored_direct = adjusted_person[direct_column].to_numpy(copy=False)
+    writeback_column_bytes_match = _schedule_d_subset_bytes_equal(
+        direct_after,
+        stored_direct,
+        np.ones(len(person), dtype=bool),
+    )
+    if not writeback_column_bytes_match:
+        raise AssertionError(
+            "Schedule-D person-table writeback changed reconciled direct values."
+        )
+    adjusted_numeric_sources = numeric_sources.copy()
+    adjusted_numeric_sources[direct_column] = pd.to_numeric(
+        adjusted_person[direct_column],
+        errors="coerce",
+    ).to_numpy(dtype=np.float64)
+    grouped_after = adjusted_numeric_sources.groupby(
+        adjusted_person[membership_column],
+        sort=False,
+    ).sum()
+    grouped_after = grouped_after.reindex(tax_unit_ids.to_numpy())
+    if grouped_after.isna().any().any():
+        raise AssertionError(
+            "Schedule-D reconciled parents no longer align to every tax unit."
+        )
+    grouped_after_values = grouped_after.loc[:, list(source_columns)].to_numpy(
+        dtype=np.float64
+    )
+    condition_after = (grouped_after_values[:, 0] > 0.0) & (
+        grouped_after_values[:, 1] <= 0.0
+    )
+    if not np.array_equal(
+        condition_before[reference_units],
+        condition_after[reference_units],
+    ):
+        raise AssertionError(
+            "Schedule-D reconciliation changed the reference parent condition."
+        )
+    recipient_before_weight = _schedule_d_weight_sum(
+        tax_unit_weights[recipient_units & condition_before],
+        name="recipient before positive-condition weight",
+    )
+    recipient_after_weight = _schedule_d_weight_sum(
+        tax_unit_weights[recipient_units & condition_after],
+        name="recipient after positive-condition weight",
+    )
+    recipient_before_incidence = recipient_before_weight / recipient_person_weight
+    recipient_after_incidence = recipient_after_weight / recipient_person_weight
+
+    receipt: dict[str, object] = {
+        "schema_version": 1,
+        "status": "applied",
+        "role_column": SCHEDULE_D_JOINT_ROLE_COLUMN,
+        "role_column_present": True,
+        "role_column_consumed": True,
+        "role_column_removed": True,
+        "role_encoding": {
+            "excluded": SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+            "reference": SCHEDULE_D_JOINT_ROLE_REFERENCE,
+            "recipient": SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+        },
+        "reference": {
+            "person_rows": int(reference_rows.sum()),
+            "tax_units": int(reference_units.sum()),
+            "person_weight": reference_person_weight,
+            "positive_parent_condition_weight": reference_positive_weight,
+            "positive_parent_condition_incidence": reference_incidence,
+        },
+        "recipient": {
+            "person_rows": int(recipient_rows.sum()),
+            "tax_units": int(recipient_units.sum()),
+            "person_weight": recipient_person_weight,
+            "before_positive_parent_condition_weight": recipient_before_weight,
+            "requested_positive_parent_condition_weight": target_recipient_weight,
+            "after_positive_parent_condition_weight": recipient_after_weight,
+            "before_positive_parent_condition_incidence": (recipient_before_incidence),
+            "requested_positive_parent_condition_incidence": reference_incidence,
+            "after_positive_parent_condition_incidence": recipient_after_incidence,
+            "before_incidence_ratio_to_reference": _schedule_d_incidence_ratio(
+                recipient_before_incidence,
+                reference_incidence,
+            ),
+            "after_incidence_ratio_to_reference": _schedule_d_incidence_ratio(
+                recipient_after_incidence,
+                reference_incidence,
+            ),
+        },
+        "unit_shape": {
+            "simple_recipient_tax_units": simple_units,
+            "wholly_missing_leaf_recipient_tax_units": wholly_missing_units,
+            "negative_direct_parent_recipient_tax_units": negative_direct_units,
+            "multiple_positive_direct_parent_recipient_tax_units": (
+                multiple_positive_units
+            ),
+            "mutable_recipient_tax_units": int(mutable.sum()),
+            "immutable_recipient_tax_units": int(len(mutable) - mutable.sum()),
+        },
+        "allocation": asdict(allocation.receipt),
+        "preservation": {
+            "long_term_person_cells_byte_preserved": long_term_preserved,
+            "nonrecipient_direct_person_cells_byte_preserved": (
+                nonrecipient_direct_preserved
+            ),
+            "recipient_nonrepresentative_direct_person_cells_byte_preserved": (
+                nonrepresentative_direct_preserved
+            ),
+            "representative_only_writeback": representative_only_writeback,
+            "writeback_column_bytes_match_reconciled_values": (
+                writeback_column_bytes_match
+            ),
+            "all_role_person_weights_match_tax_unit_weights": (
+                all_role_person_weights_match_tax_unit_weights
+            ),
+            "representative_person_weights_match_tax_unit_weights": True,
+            "role_person_weight_rows_verified": int(role_rows.sum()),
+            "changed_direct_person_rows": int(changed_rows.sum()),
+        },
+    }
+    return adjusted_person, grouped_after, receipt, roles
+
+
 def _complete_schedule_d_input(frame: Frame) -> PoolStageOutput:
     person = frame.table("person")
     membership_column = frame.schema.membership_column("tax_unit")
@@ -2901,10 +3371,6 @@ def _complete_schedule_d_input(frame: Frame) -> PoolStageOutput:
         raise ValueError(
             "Schedule D pool derivation could not align every tax unit to people."
         )
-    derived, derivation_receipt = derive_acs_schedule_d_capital_gain_distributions(
-        grouped
-    )
-    derived_by_tax_unit = dict(zip(tax_unit_ids.to_numpy(), derived, strict=True))
 
     output_column = "schedule_d_capital_gain_distributions"
     if output_column in person:
@@ -2919,10 +3385,27 @@ def _complete_schedule_d_input(frame: Frame) -> PoolStageOutput:
         output = pd.Series(np.nan, index=person.index, dtype=np.float64)
         observed = pd.Series(False, index=person.index)
 
+    adjusted_person, grouped, joint_receipt, joint_roles = (
+        _reconcile_schedule_d_joint_parent_geometry(
+            frame,
+            person=person,
+            numeric_sources=numeric_sources,
+            grouped=grouped,
+            tax_unit_ids=tax_unit_ids,
+            observed=observed,
+            membership_column=membership_column,
+            source_columns=source_columns,
+        )
+    )
+    derived, derivation_receipt = derive_acs_schedule_d_capital_gain_distributions(
+        grouped
+    )
+    derived_by_tax_unit = dict(zip(tax_unit_ids.to_numpy(), derived, strict=True))
+
     derived_units = 0
     partially_observed_units = 0
     filled_rows = 0
-    for tax_unit_id, row_indices in person.groupby(
+    for tax_unit_id, row_indices in adjusted_person.groupby(
         membership_column,
         sort=False,
     ).groups.items():
@@ -2941,9 +3424,38 @@ def _complete_schedule_d_input(frame: Frame) -> PoolStageOutput:
         filled_rows += len(missing)
 
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["person"] = adjusted_person.copy()
     tables["person"][output_column] = pd.to_numeric(output, errors="raise").to_numpy(
         dtype=np.float64
     )
+    if SCHEDULE_D_JOINT_ROLE_COLUMN in tables["person"].columns:
+        tables["person"] = tables["person"].drop(columns=[SCHEDULE_D_JOINT_ROLE_COLUMN])
+    if joint_roles is not None:
+        person_weights = np.asarray(
+            frame.resolve_weights("person").values,
+            dtype=np.float64,
+        )
+        final_values = tables["person"][output_column].to_numpy(dtype=np.float64)
+        final_leaf: dict[str, object] = {}
+        for label, role in (
+            ("reference", SCHEDULE_D_JOINT_ROLE_REFERENCE),
+            ("recipient", SCHEDULE_D_JOINT_ROLE_RECIPIENT),
+        ):
+            role_rows = joint_roles == role
+            role_weight = _schedule_d_weight_sum(
+                person_weights[role_rows],
+                name=f"{label} final-leaf person weight",
+            )
+            positive_weight = _schedule_d_weight_sum(
+                person_weights[role_rows & (final_values > 0.0)],
+                name=f"{label} final-leaf positive weight",
+            )
+            final_leaf[label] = {
+                "positive_weight": positive_weight,
+                "positive_incidence": positive_weight / role_weight,
+            }
+        joint_receipt = {**joint_receipt, "final_leaf": final_leaf}
+
     completed = Frame(
         tables,
         frame.schema,
@@ -2956,12 +3468,14 @@ def _complete_schedule_d_input(frame: Frame) -> PoolStageOutput:
         completed,
         {
             "entity": "person",
+            "declared_person_columns": list(SCHEDULE_D_RECONCILED_PERSON_COLUMNS),
             "source_grain": "tax_unit",
             "source_columns": list(source_columns),
             "preserved_nonnull_rows": int(observed.sum()),
             "filled_rows": filled_rows,
             "derived_tax_units": derived_units,
             "partially_observed_tax_units_filled_with_zero": (partially_observed_units),
+            "joint_parent_reconciliation": joint_receipt,
             "derivation": derivation_receipt,
         },
     )

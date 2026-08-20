@@ -282,11 +282,13 @@ _STACKED_SAMPLE_RUNG_TOKENS: Mapping[float, str] = {
     1.00: "f100",
 }
 _STACKED_PIPELINE = "us-stacked-pool"
-# Version 11 additionally binds the primary-PUF whole-pool universe semantics.
-# Earlier checkpoints must rebuild rather than resume with a nullable
-# s_corp_income leaf. Version 10 bound the complete late-resource semantics and
-# corrected outer order (the primary PUF callback is nested inside the DAG).
-_STACKED_CHECKPOINT_MATERIALIZER_VERSION = 11
+# Version 12 binds exact-target ACS transfer calibration plus the downstream
+# Schedule-D parent reconciliation/derivation semantics. Version 11 bound the
+# primary-PUF whole-pool universe semantics; earlier checkpoints must rebuild
+# rather than resume with a nullable s_corp_income leaf. Version 10 bound the
+# complete late-resource semantics and corrected outer order (the primary PUF
+# callback is nested inside the DAG).
+_STACKED_CHECKPOINT_MATERIALIZER_VERSION = 12
 _STACKED_RELEASE_ID_PATTERN = re.compile(
     r"^populace-us-2024-stacked-f(?:001|004|010|025|100)-s[0-9]+-"
     r"asec[0-9]+-acs[0-9]+-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"

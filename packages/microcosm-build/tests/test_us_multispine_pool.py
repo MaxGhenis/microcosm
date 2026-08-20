@@ -84,6 +84,13 @@ from microcosm.build.us_runtime.qbi_inputs import (
     us_qbi_reconciliation_change_receipt,
     with_us_qbi_input_reconciliation,
 )
+from microcosm.build.us_runtime.schedule_d_joint_reconciliation import (
+    SCHEDULE_D_JOINT_ROLE_COLUMN,
+    SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+    SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+    SCHEDULE_D_JOINT_ROLE_REFERENCE,
+    SCHEDULE_D_RECONCILED_PERSON_COLUMNS,
+)
 from microcosm.build.us_runtime.spine_agreement import (
     SpineAgreementSpec,
     default_spine_agreement_registry,
@@ -1419,6 +1426,7 @@ def test_remaining_stage_manifest_covers_every_derive_read() -> None:
 
     assert by_consumer == {
         "prepare_stacked_tail_derivation": {
+            ("person", "person_support_channel"),
             ("person", "person_support_clone_index"),
             ("person", "schedule_d_capital_gain_distributions"),
         },
@@ -1427,6 +1435,7 @@ def test_remaining_stage_manifest_covers_every_derive_read() -> None:
             ("person", "non_sch_d_capital_gains"),
             ("person", "person_tax_unit_id"),
             ("person", "schedule_d_capital_gain_distributions"),
+            ("person", SCHEDULE_D_JOINT_ROLE_COLUMN),
             ("tax_unit", "tax_unit_id"),
         },
         "with_us_qbi_input_reconciliation": {
@@ -1643,9 +1652,9 @@ def test_simulation_projection_defaults_match_pinned_engine_surface() -> None:
 def test_remaining_stage_manifest_is_unique_complete_and_stable() -> None:
     manifest = pool_remaining_stage_input_manifest(_installed_variable_metadata_index())
 
-    assert len(manifest) == 993
+    assert len(manifest) == 995
     assert Counter(entry.stage for entry in manifest) == Counter(
-        {"derive": 34, "seed": 29, "simulate": 930}
+        {"derive": 36, "seed": 29, "simulate": 930}
     )
     assert len(
         {
@@ -1658,9 +1667,9 @@ def test_remaining_stage_manifest_is_unique_complete_and_stable() -> None:
     receipt = pool_remaining_stage_input_manifest_receipt(
         _installed_variable_metadata_index()
     )
-    assert receipt["entry_count"] == 993
+    assert receipt["entry_count"] == 995
     assert receipt["stage_counts"] == {
-        "derive": 34,
+        "derive": 36,
         "seed": 29,
         "simulate": 930,
     }
@@ -3038,9 +3047,9 @@ def test_derive_stage_keeps_whole_pool_qbi_reconciliation() -> None:
     derived = result.frame.table("person")
 
     assert result.receipt["operator_order"] == list(POOL_DERIVE_OPERATOR_ORDER)
-    assert result.receipt["remaining_stage_input_manifest"]["entry_count"] == 993
+    assert result.receipt["remaining_stage_input_manifest"]["entry_count"] == 995
     assert result.receipt["remaining_stage_input_manifest"]["stage_counts"] == {
-        "derive": 34,
+        "derive": 36,
         "seed": 29,
         "simulate": 930,
     }
@@ -3681,6 +3690,211 @@ def test_schedule_d_derivation_preserves_existing_values_and_receipt() -> None:
     assert completed.metadata == frame.metadata
     assert receipt["preserved_nonnull_rows"] == 1
     assert receipt["filled_rows"] == len(person) - 1
+
+
+def _schedule_d_joint_reconciliation_frame() -> Frame:
+    """Build equal-weight tax units with visible role and mutability geometry."""
+
+    unit_rows = (
+        # ASEC reference: one positive Schedule-D unit over four person-weights.
+        (1, SCHEDULE_D_JOINT_ROLE_REFERENCE, [(101, 100.0, 0.0, np.nan)]),
+        (
+            2,
+            SCHEDULE_D_JOINT_ROLE_REFERENCE,
+            [
+                (201, 0.0, 0.0, np.nan),
+                (202, 0.0, 0.0, np.nan),
+                (203, 0.0, 0.0, np.nan),
+            ],
+        ),
+        # ACS recipients: the first two zero-direct units are mutable
+        # destinations; unit 12 supplies the exactly weight-matched positive.
+        (10, SCHEDULE_D_JOINT_ROLE_RECIPIENT, [(1001, 100.0, 0.0, np.nan)]),
+        (
+            11,
+            SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+            [(1101, 200.0, 0.0, np.nan), (1102, 0.0, 0.0, np.nan)],
+        ),
+        (12, SCHEDULE_D_JOINT_ROLE_RECIPIENT, [(1201, -5.0, 11.0, np.nan)]),
+        # Negative and multiple-positive direct-parent shapes are immutable.
+        (13, SCHEDULE_D_JOINT_ROLE_RECIPIENT, [(1301, 100.0, -2.0, np.nan)]),
+        (
+            14,
+            SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+            [(1401, -5.0, 7.0, np.nan), (1402, 0.0, 8.0, np.nan)],
+        ),
+        # A pre-existing memo leaf also makes an otherwise simple unit immutable.
+        (15, SCHEDULE_D_JOINT_ROLE_RECIPIENT, [(1501, -10.0, 13.0, -0.0)]),
+        (20, SCHEDULE_D_JOINT_ROLE_EXCLUDED, [(2001, 100.0, 77.0, np.nan)]),
+    )
+    person_rows: list[dict[str, object]] = []
+    unit_ids: list[int] = []
+    for unit_id, role, members in unit_rows:
+        unit_ids.append(unit_id)
+        for person_id, long_term, direct, leaf in members:
+            person_rows.append(
+                {
+                    "person_id": person_id,
+                    "person_household_id": unit_id,
+                    "person_tax_unit_id": unit_id,
+                    "person_spm_unit_id": unit_id,
+                    "person_family_id": unit_id,
+                    "person_marital_unit_id": unit_id,
+                    "long_term_capital_gains_before_response": long_term,
+                    "non_sch_d_capital_gains": direct,
+                    "schedule_d_capital_gain_distributions": leaf,
+                    SCHEDULE_D_JOINT_ROLE_COLUMN: np.int8(role),
+                }
+            )
+    tables = {
+        "person": pd.DataFrame(person_rows),
+        **{
+            entity: pd.DataFrame({f"{entity}_id": unit_ids})
+            for entity in US_SCHEMA.group_entities
+        },
+    }
+    return Frame(
+        tables,
+        US_SCHEMA,
+        {
+            "household": Weights(
+                np.ones(len(unit_ids), dtype=np.float64),
+                WeightKind.DESIGN,
+            )
+        },
+    )
+
+
+def _weighted_positive_schedule_d_parent_distribution(
+    frame: Frame,
+) -> list[tuple[float, float]]:
+    person = frame.table("person")
+    tax_unit = frame.table("tax_unit")
+    direct = (
+        person.groupby("person_tax_unit_id", sort=False)["non_sch_d_capital_gains"]
+        .sum()
+        .reindex(tax_unit["tax_unit_id"].to_numpy())
+        .to_numpy(dtype=np.float64)
+    )
+    weights = frame.resolve_weights("tax_unit").values
+    return sorted(
+        (float(value), float(weight))
+        for value, weight in zip(direct, weights, strict=True)
+        if value > 0.0
+    )
+
+
+def test_schedule_d_joint_reconciliation_consumes_roles_and_preserves_parents() -> None:
+    frame = _schedule_d_joint_reconciliation_frame()
+    before = frame.table("person")
+    before_long_term_bytes = np.ascontiguousarray(
+        before["long_term_capital_gains_before_response"].to_numpy()
+    ).tobytes()
+    before_distribution = _weighted_positive_schedule_d_parent_distribution(frame)
+
+    result = _complete_schedule_d_input(frame)
+
+    person = result.frame.table("person")
+    joint = result.receipt["joint_parent_reconciliation"]
+    assert result.receipt["declared_person_columns"] == list(
+        SCHEDULE_D_RECONCILED_PERSON_COLUMNS
+    )
+    assert PRE_ASSEMBLY_OPERATOR_OUTPUT_FAMILIES["capital_gain_distributions"] == {
+        "person": frozenset(SCHEDULE_D_RECONCILED_PERSON_COLUMNS)
+    }
+    assert SCHEDULE_D_JOINT_ROLE_COLUMN not in person
+    assert joint["status"] == "applied"
+    assert joint["role_column_consumed"] is True
+    assert joint["role_column_removed"] is True
+    assert joint["reference"] == {
+        "person_rows": 4,
+        "tax_units": 2,
+        "person_weight": 4.0,
+        "positive_parent_condition_weight": 1.0,
+        "positive_parent_condition_incidence": 0.25,
+    }
+    assert joint["recipient"]["person_rows"] == 8
+    assert joint["recipient"]["person_weight"] == 8.0
+    assert joint["recipient"]["before_positive_parent_condition_weight"] == 3.0
+    assert joint["recipient"]["requested_positive_parent_condition_weight"] == 2.0
+    assert joint["recipient"]["after_positive_parent_condition_weight"] == 2.0
+    assert joint["recipient"]["after_incidence_ratio_to_reference"] == 1.0
+    assert joint["final_leaf"]["reference"]["positive_incidence"] == 0.25
+    assert joint["final_leaf"]["recipient"]["positive_incidence"] == 0.25
+
+    # Stable tax-unit IDs select unit 10 as the sole zero destination for unit
+    # 12's positive direct value. Complex and observed-leaf units cannot move.
+    by_person_id = person.set_index("person_id")
+    assert by_person_id.loc[1001, "non_sch_d_capital_gains"] == 11.0
+    assert by_person_id.loc[1201, "non_sch_d_capital_gains"] == 0.0
+    immutable_person_ids = [1301, 1401, 1402, 1501, 2001]
+    pd.testing.assert_series_equal(
+        by_person_id.loc[immutable_person_ids, "non_sch_d_capital_gains"],
+        before.set_index("person_id").loc[
+            immutable_person_ids, "non_sch_d_capital_gains"
+        ],
+    )
+    assert joint["unit_shape"] == {
+        "simple_recipient_tax_units": 4,
+        "wholly_missing_leaf_recipient_tax_units": 5,
+        "negative_direct_parent_recipient_tax_units": 1,
+        "multiple_positive_direct_parent_recipient_tax_units": 1,
+        "mutable_recipient_tax_units": 3,
+        "immutable_recipient_tax_units": 3,
+    }
+    assert joint["allocation"]["selected_swaps"] == 1
+    assert joint["preservation"]["changed_direct_person_rows"] == 2
+
+    assert (
+        np.ascontiguousarray(
+            person["long_term_capital_gains_before_response"].to_numpy()
+        ).tobytes()
+        == before_long_term_bytes
+    )
+    assert (
+        _weighted_positive_schedule_d_parent_distribution(result.frame)
+        == before_distribution
+    )
+    assert joint["allocation"]["weighted_direct_carrier_preserved"] is True
+    assert joint["allocation"]["weighted_positive_distribution_preserved"] is True
+
+    # Re-derivation keeps the packaged share and writes a tax-unit value only
+    # to its stable first person; a pre-existing leaf remains byte-for-byte.
+    share = result.receipt["derivation"]["share"]
+    assert by_person_id.loc[1101, "schedule_d_capital_gain_distributions"] == (
+        share * 200.0
+    )
+    assert by_person_id.loc[1102, "schedule_d_capital_gain_distributions"] == 0.0
+    assert by_person_id.loc[1501, "schedule_d_capital_gain_distributions"] == 0.0
+    assert np.signbit(by_person_id.loc[1501, "schedule_d_capital_gain_distributions"])
+
+
+def test_schedule_d_joint_reconciliation_is_legacy_noop_without_role_marker() -> None:
+    frame = _schedule_d_joint_reconciliation_frame()
+    person = frame.table("person").drop(columns=[SCHEDULE_D_JOINT_ROLE_COLUMN])
+    frame = _replace_person(frame, person)
+    parents_before = person.loc[
+        :,
+        [
+            "long_term_capital_gains_before_response",
+            "non_sch_d_capital_gains",
+        ],
+    ].copy()
+
+    result = _complete_schedule_d_input(frame)
+
+    pd.testing.assert_frame_equal(
+        result.frame.table("person").loc[:, parents_before.columns],
+        parents_before,
+    )
+    assert result.receipt["joint_parent_reconciliation"] == {
+        "schema_version": 1,
+        "status": "not_requested",
+        "role_column": SCHEDULE_D_JOINT_ROLE_COLUMN,
+        "role_column_present": False,
+        "role_column_consumed": False,
+        "role_column_removed": False,
+    }
 
 
 class _FakeEngine:

@@ -348,18 +348,29 @@ def map_sign_preserving_weighted_magnitudes(
             reference_cdf /= reference_cdf[-1]
 
             immutable_positions = np.flatnonzero(recipient_weighted & fixed)
-            immutable_magnitudes = np.abs(raw[immutable_positions])
-            immutable_weights = calibrated_weights[immutable_positions]
-            immutable_cdf_weight = np.asarray(
-                [
-                    _checked_sum(
-                        immutable_weights[immutable_magnitudes <= reference_magnitude],
-                        name="immutable conditional CDF weights",
-                    )
-                    for reference_magnitude in reference_magnitudes
-                ],
+            immutable_order = sorted(
+                immutable_positions.tolist(),
+                key=lambda index: (abs(raw[index]), id_keys[index]),
+            )
+            immutable_order_array = np.asarray(immutable_order, dtype=np.int64)
+            immutable_magnitudes = np.abs(raw[immutable_order_array])
+            immutable_cumulative_weight = np.cumsum(
+                calibrated_weights[immutable_order_array],
                 dtype=np.float64,
             )
+            immutable_right_edges = np.searchsorted(
+                immutable_magnitudes,
+                reference_magnitudes,
+                side="right",
+            )
+            immutable_cdf_weight = np.zeros(
+                len(reference_magnitudes),
+                dtype=np.float64,
+            )
+            has_immutable_mass = immutable_right_edges > 0
+            immutable_cdf_weight[has_immutable_mass] = immutable_cumulative_weight[
+                immutable_right_edges[has_immutable_mass] - 1
+            ]
             desired_recipient_cdf_weight = reference_cdf * recipient_weight
             raw_residual_cdf_weight = (
                 desired_recipient_cdf_weight - immutable_cdf_weight

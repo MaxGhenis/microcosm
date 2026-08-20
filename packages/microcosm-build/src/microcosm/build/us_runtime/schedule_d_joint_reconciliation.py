@@ -26,11 +26,34 @@ from typing import TypeVar
 import numpy as np
 
 __all__ = [
+    "SCHEDULE_D_JOINT_ROLE_COLUMN",
+    "SCHEDULE_D_JOINT_ROLE_EXCLUDED",
+    "SCHEDULE_D_JOINT_ROLE_RECIPIENT",
+    "SCHEDULE_D_JOINT_ROLE_REFERENCE",
+    "SCHEDULE_D_RECONCILED_PERSON_COLUMNS",
     "ScheduleDJointReconciliation",
     "ScheduleDJointReconciliationError",
     "ScheduleDJointReconciliationReceipt",
     "reconcile_schedule_d_joint_parents",
 ]
+
+SCHEDULE_D_RECONCILED_PERSON_COLUMNS: tuple[str, ...] = (
+    "non_sch_d_capital_gains",
+    "schedule_d_capital_gain_distributions",
+)
+"""Complete person-column mutation/output surface of Schedule-D reconciliation."""
+
+SCHEDULE_D_JOINT_ROLE_COLUMN = "schedule_d_joint_reconciliation_role"
+"""Transient person-table column carrying source-neutral reconciliation roles."""
+
+SCHEDULE_D_JOINT_ROLE_EXCLUDED = 0
+"""Rows outside the clone-0 by-origin comparison and adjustment populations."""
+
+SCHEDULE_D_JOINT_ROLE_REFERENCE = 1
+"""Rows defining the comparison incidence supplied by the source-aware caller."""
+
+SCHEDULE_D_JOINT_ROLE_RECIPIENT = 2
+"""Rows whose joint-parent carrier geometry the source-blind kernel may adjust."""
 
 _T = TypeVar("_T", bound=np.generic)
 

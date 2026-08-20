@@ -20,6 +20,8 @@ from microcosm.build.us_runtime.acs_transfer import (
     ACS_NATIVE_PERSON_INPUTS,
     ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
     ACS_PERSON_TRANSFER_PREDICTORS,
+    PUF_TAX_TRANSFER_CALIBRATION_POLICY,
+    AcsTransferCalibrationReference,
     AcsTransferResult,
     declared_acs_transfer_target_families,
     default_acs_transfer_target_families,
@@ -30,6 +32,10 @@ from microcosm.build.us_runtime.acs_transfer_bank import (
 )
 from microcosm.build.us_runtime.puf_support import clone_us_frame_for_puf_support
 from microcosm.build.us_runtime.spine_assembly import assemble_spines
+from microcosm.build.us_runtime.support_provenance import (
+    support_channel_column,
+    support_clone_index_column,
+)
 from microcosm.frame import US_SCHEMA, EntitySchema, Frame, WeightKind, Weights
 from microcosm.frame.adapters.policyengine_us import (
     PolicyEngineUSVariableMetadataIndex,
@@ -497,6 +503,7 @@ def _run_bank_fixture(
         seed=37,
         n_estimators=1,
         target_bank=target_bank,
+        calibration_targets=(("person", "qualified_dividend_income"),),
     )
 
 
@@ -658,6 +665,204 @@ def test_default_families_exclude_runtime_owned_take_up_columns() -> None:
         "first_home_mortgage_balance" in (families["tax_unit"]["puf_tax_itemization"])
     )
     assert "benefit_participation" not in families["tax_unit"]
+
+
+def test_puf_tax_calibration_registry_and_execution_contract_are_exact() -> None:
+    carrier_legs = {
+        (entity, target, sign)
+        for entity, targets in PUF_TAX_TRANSFER_CALIBRATION_POLICY.items()
+        for target, specification in targets.items()
+        for sign in specification["carrier_signs"]
+    }
+    amount_legs = {
+        (entity, target, sign)
+        for entity, targets in PUF_TAX_TRANSFER_CALIBRATION_POLICY.items()
+        for target, specification in targets.items()
+        for sign in specification["amount_signs"]
+    }
+    assert carrier_legs == {
+        ("person", "alimony_expense", "positive"),
+        ("person", "estate_income", "negative"),
+        ("person", "estate_income", "positive"),
+        ("person", "farm_rent_income", "positive"),
+        ("person", "investment_income_elected_form_4952", "positive"),
+        ("person", "non_sch_d_capital_gains", "positive"),
+        ("person", "partnership_income", "negative"),
+        ("person", "partnership_income", "positive"),
+        (
+            "person",
+            "partnership_self_employment_net_earnings",
+            "positive",
+        ),
+        ("person", "rental_income", "negative"),
+        (
+            "person",
+            "self_employed_pension_contributions_desired",
+            "positive",
+        ),
+        ("person", "tax_exempt_interest_income", "positive"),
+        ("tax_unit", "domestic_production_ald", "positive"),
+        ("tax_unit", "health_savings_account_ald", "positive"),
+        ("tax_unit", "unrecaptured_section_1250_gain", "positive"),
+    }
+    assert amount_legs == {
+        ("person", "alimony_expense", "positive"),
+        ("person", "estate_income", "negative"),
+        ("person", "estate_income", "positive"),
+        ("person", "farm_income", "positive"),
+        ("person", "farm_operations_income", "positive"),
+        ("person", "farm_rent_income", "negative"),
+        ("person", "farm_rent_income", "positive"),
+        ("person", "investment_income_elected_form_4952", "positive"),
+        ("person", "long_term_capital_gains_before_response", "positive"),
+        ("person", "miscellaneous_income", "positive"),
+        ("person", "non_qualified_dividend_income", "positive"),
+        ("person", "non_sch_d_capital_gains", "positive"),
+        ("person", "partnership_income", "positive"),
+        (
+            "person",
+            "partnership_self_employment_net_earnings",
+            "negative",
+        ),
+        (
+            "person",
+            "partnership_self_employment_net_earnings",
+            "positive",
+        ),
+        ("person", "qualified_dividend_income", "positive"),
+        ("person", "rental_income", "negative"),
+        ("person", "rental_income", "positive"),
+        (
+            "person",
+            "self_employed_pension_contributions_desired",
+            "positive",
+        ),
+        ("person", "short_term_capital_gains", "positive"),
+        ("person", "tax_exempt_interest_income", "positive"),
+        ("tax_unit", "domestic_production_ald", "positive"),
+        ("tax_unit", "unrecaptured_section_1250_gain", "positive"),
+    }
+    assert (
+        sum(len(targets) for targets in PUF_TAX_TRANSFER_CALIBRATION_POLICY.values())
+        == 20
+    )
+    assert len(carrier_legs) == 15
+    assert len(amount_legs) == 23
+
+    serialized_policy = {
+        entity: {
+            target: {
+                "carrier_signs": list(specification["carrier_signs"]),
+                "amount_signs": list(specification["amount_signs"]),
+            }
+            for target, specification in targets.items()
+        }
+        for entity, targets in PUF_TAX_TRANSFER_CALIBRATION_POLICY.items()
+    }
+    identity = acs_transfer_module.acs_transfer_execution_contract_identity()
+    assert identity["schema_version"] == 3
+    assert identity["puf_tax_sign_hurdle_and_quantile_calibration"] == {
+        "target_count": 20,
+        "carrier_check_count": 15,
+        "amount_check_count": 23,
+        "zero_atol": 1e-6,
+        "recipient_scope": "caller_bound_neutral_scope_id",
+        "recipient_scope_authority": (
+            "source_owner_exact_support_channel_clone_partition"
+        ),
+        "fixture_scope_fallback": "single_unpartitioned_scope",
+        "reference": (
+            "caller_bound_target_authority_or_explicit_fixture_selected_donor"
+        ),
+        "activation": "caller_selected_exact_entity_target_subset",
+        "default_selection": "empty",
+        "stage_order": ["carrier_or_sign", "conditional_magnitude"],
+        "policy": serialized_policy,
+    }
+
+
+def test_calibration_kernel_is_invoked_only_for_selected_assigned_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An assigned and unassigned target may share a batch without scope leak."""
+
+    assigned = "qualified_dividend_income"
+    unassigned = "taxable_interest_income"
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {
+            assigned: np.arange(101.0, 109.0),
+            unassigned: np.arange(1_001.0, 1_009.0),
+        },
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            assigned: pd.array([pd.NA] * 6, dtype="Float64"),
+            unassigned: pd.array([pd.NA] * 6, dtype="Float64"),
+        },
+    )
+    family = {"person": {"puf_tax_itemization": (assigned, unassigned)}}
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    actual_kernel = acs_transfer_module.map_sign_preserving_weighted_magnitudes
+    kernel_reference_values: list[np.ndarray] = []
+
+    def record_kernel(*args: object, **kwargs: object) -> object:
+        kernel_reference_values.append(np.asarray(args[3], dtype=np.float64).copy())
+        return actual_kernel(*args, **kwargs)
+
+    monkeypatch.setattr(
+        acs_transfer_module,
+        "map_sign_preserving_weighted_magnitudes",
+        record_kernel,
+    )
+
+    baseline = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families=family,
+        donor_channel=None,
+        n_estimators=1,
+    )
+    assert kernel_reference_values == []
+
+    selected = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families=family,
+        donor_channel=None,
+        n_estimators=1,
+        calibration_targets=(("person", assigned),),
+    )
+
+    assert kernel_reference_values
+    expected_reference = donor.person[assigned].to_numpy(dtype=np.float64)
+    assert all(
+        np.array_equal(reference, expected_reference)
+        for reference in kernel_reference_values
+    )
+    baseline_unassigned = baseline.frame.person[unassigned]
+    pd.testing.assert_series_equal(
+        selected.frame.person[unassigned],
+        baseline_unassigned,
+    )
+    provenance = {record.column: record for record in selected.imputed_inputs}
+    assert provenance[assigned].reconciliation is not None
+    assert provenance[unassigned].reconciliation is None
+
+    calls_before_rejection = len(kernel_reference_values)
+    with pytest.raises(ValueError, match="outside the frozen PUF-tax"):
+        transfer_acs_inputs(
+            recipient,
+            donor,
+            target_families=family,
+            donor_channel=None,
+            n_estimators=1,
+            calibration_targets=(("person", unassigned),),
+        )
+    assert len(kernel_reference_values) == calls_before_rejection
 
 
 def test_explicit_declared_plan_preserves_deferred_geography(
@@ -915,6 +1120,26 @@ def test_target_bank_cold_output_matches_unbanked_monolith(
     banked = _run_bank_fixture(bank)
 
     _assert_transfer_results_exact(banked, monolithic)
+    for result in (monolithic, banked):
+        provenance = next(
+            item
+            for item in result.imputed_inputs
+            if item.column == "qualified_dividend_income"
+        )
+        assert provenance.reconciliation is not None
+        receipt = provenance.reconciliation[
+            "puf_tax_sign_hurdle_and_quantile_calibration"
+        ]
+        assert receipt["policy"] == {
+            "carrier_signs": [],
+            "amount_signs": ["positive"],
+        }
+        scopes = [
+            scope for pattern in receipt["patterns"] for scope in pattern["scopes"]
+        ]
+        assert scopes
+        assert all(scope["fixture_fallback"] is True for scope in scopes)
+        assert all(scope["conditional_amount"] is not None for scope in scopes)
     _assert_bank_receipt(
         bank,
         sources=("rebuilt", "rebuilt", "rebuilt"),
@@ -1533,6 +1758,7 @@ def test_auto_channel_excludes_artificial_asec_zeros(
         target_families=families,
         seed=5,
         n_estimators=1,
+        calibration_targets=(("person", "qualified_dividend_income"),),
     )
 
     assert auto.frame.table("person")["qualified_dividend_income"].eq(100.0).all()
@@ -1552,8 +1778,18 @@ def test_auto_channel_excludes_artificial_asec_zeros(
         donor_channel=None,
         seed=5,
         n_estimators=1,
+        calibration_targets=(("person", "qualified_dividend_income"),),
     )
-    assert whole.frame.table("person")["qualified_dividend_income"].eq(50.0).all()
+    # The raw whole-donor fit still sees the artificial ASEC zeros and therefore
+    # predicts their mean.  Conditional-amount calibration then maps those
+    # positive draws onto the whole donor's positive support instead of leaving
+    # the unconditional mean as the emitted amount.
+    assert len(_MeanQRF.calls) == 1
+    fitted_target = _MeanQRF.calls[0]["targets"]["qualified_dividend_income"]
+    assert len(fitted_target) == 2 * len(base.person)
+    assert fitted_target.eq(0.0).sum() == len(base.person)
+    assert fitted_target.mean() == 50.0
+    assert whole.frame.table("person")["qualified_dividend_income"].eq(100.0).all()
     assert whole.resolved_donor_channel is None
     assert whole.imputed_inputs[0].donor_channel is None
     assert whole.imputed_inputs[0].patterns[0].donor_rows == 2 * len(base.person)
@@ -1624,6 +1860,7 @@ def test_pattern_fits_use_observed_native_and_complete_donor_analogs(
         },
         seed=23,
         n_estimators=1,
+        calibration_targets=(("person", "qualified_dividend_income"),),
     )
 
     provenance = result.imputed_inputs[0]
@@ -1654,8 +1891,637 @@ def test_pattern_fits_use_observed_native_and_complete_donor_analogs(
     ]
     assert investment_calls
     assert all(len(call["features"]) < len(donor.person) for call in investment_calls)
+    assert provenance.reconciliation is not None
+    receipt = provenance.reconciliation["puf_tax_sign_hurdle_and_quantile_calibration"]
+    assert {pattern["name"] for pattern in receipt["patterns"]} == {
+        pattern.name for pattern in provenance.patterns
+    }
+    scopes = [scope for pattern in receipt["patterns"] for scope in pattern["scopes"]]
+    assert len(scopes) == len(provenance.patterns)
+    assert all(scope["fixture_fallback"] is True for scope in scopes)
+    assert all(
+        scope["carrier"]["reason"] == "policy_has_no_carrier_check" for scope in scopes
+    )
+    assert all(
+        scope["conditional_amount"]["mapped_signs"] == ["positive"] for scope in scopes
+    )
     for column, before in native_columns.items():
         pd.testing.assert_series_equal(result.frame.person[column], before)
+
+
+def test_puf_tax_calibration_scopes_carrier_amount_and_native_rows_by_origin_clone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = "tax_exempt_interest_income"
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {target: [0.0, 10.0, 0.0, 20.0, 0.0, 30.0, 0.0, 40.0]},
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            target: pd.array(
+                [pd.NA, pd.NA, 777.0, pd.NA, 888.0, 0.0],
+                dtype="Float64",
+            ),
+            support_channel_column("person"): [
+                "acs",
+                "acs",
+                "asec",
+                "acs",
+                "acs",
+                "acs",
+            ],
+            support_clone_index_column("person"): [0, 0, 0, 0, 1, 0],
+        },
+    )
+    # Force one availability pattern so this fixture isolates provenance-scope
+    # calibration rather than optional-predictor partitioning.
+    for column in (
+        "employment_income_before_lsr",
+        "self_employment_income_before_lsr",
+    ):
+        donor = _drop_column(donor, "person", column)
+        recipient = _drop_column(recipient, "person", column)
+    before = recipient.person[target].copy()
+    scope_ids = np.asarray(
+        (
+            "calibration_scope_acs_0",
+            "calibration_scope_acs_0",
+            "calibration_scope_asec_0",
+            "calibration_scope_acs_0",
+            "calibration_scope_acs_1",
+            "calibration_scope_acs_0",
+        ),
+        dtype=object,
+    )
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    _MeanQRF.calls = []
+
+    result = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"person": {"tax_detail": (target,)}},
+        donor_channel=None,
+        n_estimators=1,
+        calibration_targets=(("person", target),),
+        calibration_scope_ids={"person": scope_ids},
+    )
+
+    assert len(_MeanQRF.calls) == 1
+    assert _MeanQRF.calls[0]["targets"][target].mean() == 12.5
+    after = result.frame.person[target]
+    observed = before.notna()
+    pd.testing.assert_series_equal(after.loc[observed], before.loc[observed])
+    np.testing.assert_array_equal(
+        after.to_numpy(dtype=np.float64),
+        [20.0, 40.0, 777.0, 0.0, 888.0, 0.0],
+    )
+    scope = (
+        result.frame.person[support_channel_column("person")].eq("acs").to_numpy()
+        & result.frame.person[support_clone_index_column("person")].eq(0).to_numpy()
+    )
+    weights = result.frame.resolve_weights("person").values
+    donor_weights = donor.resolve_weights("person").values
+    donor_values = donor.person[target].to_numpy(dtype=np.float64)
+    donor_share = float(donor_weights[donor_values > 0.0].sum() / donor_weights.sum())
+    raw_qrf_share = float(
+        weights[scope & before.isna().to_numpy()].sum() / weights[scope].sum()
+    )
+    calibrated_share = float(
+        weights[scope & after.gt(0.0).to_numpy()].sum() / weights[scope].sum()
+    )
+    assert donor_share == 0.5
+    assert abs(calibrated_share - donor_share) < abs(raw_qrf_share - donor_share)
+    assert after.loc[before.isna()].gt(0.0).sum() == 2
+    provenance = result.imputed_inputs[0]
+    assert provenance.reconciliation is not None
+    receipt = provenance.reconciliation["puf_tax_sign_hurdle_and_quantile_calibration"]
+    assert receipt["policy"] == {
+        "carrier_signs": ["positive"],
+        "amount_signs": ["positive"],
+    }
+    assert receipt["reference"]["selection"] == (
+        "fixture_selected_donor_target_complete_rows"
+    )
+    assert receipt["reference"]["reference_id"] is None
+    assert receipt["reference"]["fixture_fallback"] is True
+    assert receipt["reference"]["rows"] == len(donor.person)
+    receipt_scopes = [
+        item for pattern in receipt["patterns"] for item in pattern["scopes"]
+    ]
+    assert len(receipt_scopes) == 1
+    receipt_scope = receipt_scopes[0]
+    assert receipt_scope["scope_id"] == "calibration_scope_acs_0"
+    assert receipt_scope["fixture_fallback"] is False
+    assert receipt_scope["domain_rows"] == 4
+    assert receipt_scope["mutable_rows"] == 3
+    assert receipt_scope["immutable_rows"] == 1
+    assert receipt_scope["carrier"]["requested_signs"] == ["positive"]
+    assert receipt_scope["carrier"]["applied_signs"] == ["positive"]
+    assert receipt_scope["carrier"]["method"] == "binary_carrier_selection"
+    assert receipt_scope["conditional_amount"]["mapped_signs"] == ["positive"]
+
+
+def test_puf_tax_calibration_uses_bound_authority_while_qrf_donor_is_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = "tax_exempt_interest_income"
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {target: [0.0, 10.0, 0.0, 20.0, 0.0, 30.0, 0.0, 40.0]},
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {target: pd.array([pd.NA] * 6, dtype="Float64")},
+    )
+    for column in (
+        "employment_income_before_lsr",
+        "self_employment_income_before_lsr",
+    ):
+        donor = _drop_column(donor, "person", column)
+        recipient = _drop_column(recipient, "person", column)
+    reference_id = "opaque_authority_reference_0001"
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    _MeanQRF.calls = []
+
+    result = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"person": {"tax_detail": (target,)}},
+        donor_channel=None,
+        n_estimators=1,
+        calibration_targets=(("person", target),),
+        calibration_references={
+            "person": {
+                target: AcsTransferCalibrationReference(
+                    reference_id=reference_id,
+                    values=np.asarray([1_000.0, 2_000.0, 3_000.0, 4_000.0]),
+                    weights=np.ones(4, dtype=np.float64),
+                    stable_ids=np.asarray(["r1", "r2", "r3", "r4"]),
+                )
+            }
+        },
+    )
+
+    # The fit still sees the selected donor verbatim; only the post-decode
+    # calibration reference differs.
+    assert len(_MeanQRF.calls) == 1
+    assert _MeanQRF.calls[0]["targets"][target].mean() == 12.5
+    calibrated = result.frame.person[target].to_numpy(dtype=np.float64)
+    assert (calibrated >= 1_000.0).all()
+    assert set(calibrated).issubset({1_000.0, 2_000.0, 3_000.0, 4_000.0})
+    reconciliation = result.imputed_inputs[0].reconciliation
+    assert reconciliation is not None
+    reference = reconciliation["puf_tax_sign_hurdle_and_quantile_calibration"][
+        "reference"
+    ]
+    assert reference == {
+        "selection": "caller_bound_source_neutral_reference",
+        "reference_id": reference_id,
+        "fixture_fallback": False,
+        "rows": 4,
+        "positive_weight_rows": 4,
+        "weight_total": 4.0,
+        "sign_weight": {"negative": 0.0, "zero": 0.0, "positive": 4.0},
+        "sign_share": {"negative": 0.0, "zero": 0.0, "positive": 1.0},
+    }
+
+
+def test_puf_tax_calibration_reference_coverage_is_exact() -> None:
+    target = "qualified_dividend_income"
+    payload = AcsTransferCalibrationReference(
+        reference_id="opaque_reference",
+        values=np.asarray([1.0]),
+        weights=np.asarray([1.0]),
+        stable_ids=np.asarray(["row"]),
+    )
+
+    with pytest.raises(ValueError, match=r"exactly cover.*missing=.*qualified"):
+        acs_transfer_module._normalize_calibration_references(
+            {},
+            required_targets={("person", target)},
+        )
+    with pytest.raises(ValueError, match=r"exactly cover.*extra=.*qualified"):
+        acs_transfer_module._normalize_calibration_references(
+            {"person": {target: payload}},
+            required_targets=set(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("payload", "match"),
+    (
+        (
+            AcsTransferCalibrationReference(
+                "ref_ndim",
+                np.asarray([[1.0]]),
+                np.asarray([1.0]),
+                np.asarray(["row"]),
+            ),
+            "one-dimensional",
+        ),
+        (
+            AcsTransferCalibrationReference(
+                "ref_alignment",
+                np.asarray([1.0, 2.0]),
+                np.asarray([1.0]),
+                np.asarray(["row"]),
+            ),
+            "aligned",
+        ),
+        (
+            AcsTransferCalibrationReference(
+                "ref_values",
+                np.asarray([np.inf]),
+                np.asarray([1.0]),
+                np.asarray(["row"]),
+            ),
+            "values must be finite",
+        ),
+        (
+            AcsTransferCalibrationReference(
+                "ref_weights",
+                np.asarray([1.0]),
+                np.asarray([-1.0]),
+                np.asarray(["row"]),
+            ),
+            "weights must be finite and nonnegative",
+        ),
+        (
+            AcsTransferCalibrationReference(
+                "ref_ids",
+                np.asarray([1.0, 2.0]),
+                np.asarray([1.0, 1.0]),
+                np.asarray(["same", "same"]),
+            ),
+            "stable IDs must be unique",
+        ),
+    ),
+)
+def test_puf_tax_calibration_reference_rejects_malformed_arrays(
+    payload: AcsTransferCalibrationReference,
+    match: str,
+) -> None:
+    target = "qualified_dividend_income"
+
+    with pytest.raises(ValueError, match=match):
+        acs_transfer_module._normalize_calibration_references(
+            {"person": {target: payload}},
+            required_targets={("person", target)},
+        )
+
+
+def test_puf_tax_calibration_reference_copies_arrays_read_only() -> None:
+    target = "qualified_dividend_income"
+    values = np.asarray([1.0, 2.0])
+    weights = np.asarray([3.0, 4.0])
+    stable_ids = np.asarray(["one", "two"], dtype=object)
+
+    normalized = acs_transfer_module._normalize_calibration_references(
+        {
+            "person": {
+                target: AcsTransferCalibrationReference(
+                    "opaque_reference",
+                    values,
+                    weights,
+                    stable_ids,
+                )
+            }
+        },
+        required_targets={("person", target)},
+    )["person"][target]
+    values[:] = 99.0
+    weights[:] = 99.0
+    stable_ids[:] = "changed"
+
+    np.testing.assert_array_equal(normalized.values, [1.0, 2.0])
+    np.testing.assert_array_equal(normalized.weights, [3.0, 4.0])
+    np.testing.assert_array_equal(normalized.stable_ids, ["one", "two"])
+    assert not np.asarray(normalized.values).flags.writeable
+    assert not np.asarray(normalized.weights).flags.writeable
+    assert not np.asarray(normalized.stable_ids).flags.writeable
+
+
+def test_puf_tax_three_sign_calibration_separates_signs_and_conditional_amounts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = "estate_income"
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {
+            target: [
+                -100.0,
+                0.0,
+                -200.0,
+                0.0,
+                10.0,
+                20.0,
+                -300.0,
+                40.0,
+            ]
+        },
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            target: pd.array(
+                [pd.NA, -901.0, pd.NA, 777.0, pd.NA, pd.NA],
+                dtype="Float64",
+            )
+        },
+    )
+    # Force one availability pattern and isolate the carrier/amount stages.
+    for column in (
+        "employment_income_before_lsr",
+        "self_employment_income_before_lsr",
+    ):
+        donor = _drop_column(donor, "person", column)
+        recipient = _drop_column(recipient, "person", column)
+    recipient = Frame(
+        {entity: recipient.table(entity).copy() for entity in recipient.entities},
+        recipient.schema,
+        {
+            # The first household's missing row must retain the raw QRF draw:
+            # zero-weight rows provide no calibration capacity.
+            "household": Weights(
+                np.asarray([0.0, 60.0, 70.0]),
+                WeightKind.DESIGN,
+            )
+        },
+        recipient.strata,
+        mass_log=recipient.mass_log,
+        metadata=recipient.metadata,
+    )
+    before = recipient.person[target].copy()
+    scope_ids = np.full(
+        len(recipient.person),
+        "calibration_scope_0000",
+        dtype=object,
+    )
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    _MeanQRF.calls = []
+
+    result = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"person": {"tax_detail": (target,)}},
+        donor_channel=None,
+        n_estimators=1,
+        calibration_targets=(("person", target),),
+        calibration_scope_ids={"person": scope_ids},
+    )
+
+    assert len(_MeanQRF.calls) == 1
+    assert _MeanQRF.calls[0]["targets"][target].mean() == -66.25
+    after = result.frame.person[target]
+    observed = before.notna()
+    pd.testing.assert_series_equal(after.loc[observed], before.loc[observed])
+    # The hurdle first realizes every fitted sign. The amount stage then maps
+    # each mutable carrier onto the matching donor sign's conditional support.
+    np.testing.assert_array_equal(
+        after.to_numpy(dtype=np.float64),
+        [-66.25, -901.0, 10.0, 777.0, 0.0, -200.0],
+    )
+    assert after.iloc[0] == -66.25  # missing, but zero-weight: raw draw survives
+    assert after.iloc[2] in {10.0, 20.0, 40.0}
+    assert after.iloc[5] in {-100.0, -200.0, -300.0}
+
+    provenance = result.imputed_inputs[0]
+    assert provenance.reconciliation is not None
+    calibration = provenance.reconciliation[
+        "puf_tax_sign_hurdle_and_quantile_calibration"
+    ]
+    assert calibration["policy"] == {
+        "carrier_signs": ["negative", "positive"],
+        "amount_signs": ["negative", "positive"],
+    }
+    assert calibration["reference"]["sign_weight"] == {
+        "negative": 550.0,
+        "zero": 300.0,
+        "positive": 550.0,
+    }
+    scopes = [
+        scope for pattern in calibration["patterns"] for scope in pattern["scopes"]
+    ]
+    assert len(scopes) == 1
+    scope = scopes[0]
+    assert scope["scope_id"] == "calibration_scope_0000"
+    assert scope["fixture_fallback"] is False
+    assert scope["domain_rows"] == 6
+    assert scope["mutable_rows"] == 4
+    assert scope["calibration_mutable_rows"] == 3
+    assert scope["immutable_rows"] == 2
+    assert scope["zero_weight_rows_preserved"] == 1
+    assert scope["carrier"]["requested_signs"] == ["negative", "positive"]
+    assert scope["carrier"]["applied_signs"] == ["negative", "positive"]
+    assert scope["carrier"]["method"] == "three_class_sign_allocation"
+    assert scope["carrier"]["allocation"]["realized_weight"] == [
+        70.0,
+        70.0,
+        130.0,
+    ]
+    amount = scope["conditional_amount"]
+    assert amount["mapped_signs"] == ["negative", "positive"]
+    conditional = {entry["sign"]: entry for entry in amount["conditional"]}
+    assert conditional[-1]["mapped_rows"] == 1
+    assert conditional[-1]["mapped_weight"] == 70.0
+    assert conditional[1]["mapped_rows"] == 1
+    assert conditional[1]["mapped_weight"] == 60.0
+    assert conditional[1]["immutable_rows"] == 1
+    assert conditional[1]["immutable_weight"] == 70.0
+    assert amount["zero_weight_rows_preserved"] == 2
+
+
+def test_puf_tax_calibration_applies_to_tax_unit_patterns_with_neutral_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = "domestic_production_ald"
+    donor = _with_columns(
+        _donor_frame(),
+        "tax_unit",
+        {target: [0.0, 100.0, 0.0, 300.0]},
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "tax_unit",
+        {target: pd.array([pd.NA, 777.0, pd.NA], dtype="Float64")},
+    )
+    for column in (
+        "employment_income_before_lsr",
+        "self_employment_income_before_lsr",
+    ):
+        donor = _drop_column(donor, "person", column)
+        recipient = _drop_column(recipient, "person", column)
+    before = recipient.table("tax_unit")[target].copy()
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    _MeanQRF.calls = []
+
+    result = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"tax_unit": {"tax_detail": (target,)}},
+        donor_channel=None,
+        n_estimators=1,
+        calibration_targets=(("tax_unit", target),),
+        calibration_scope_ids={
+            "tax_unit": np.full(
+                len(recipient.table("tax_unit")),
+                "calibration_scope_0001",
+                dtype=object,
+            )
+        },
+    )
+
+    assert len(_MeanQRF.calls) == 1
+    assert _MeanQRF.calls[0]["entity"] == "tax_unit"
+    assert _MeanQRF.calls[0]["targets"][target].mean() == 100.0
+    after = result.frame.table("tax_unit")[target]
+    pd.testing.assert_series_equal(
+        after.loc[before.notna()], before.loc[before.notna()]
+    )
+    np.testing.assert_array_equal(
+        after.to_numpy(dtype=np.float64),
+        [100.0, 777.0, 0.0],
+    )
+
+    provenance = result.imputed_inputs[0]
+    assert provenance.entity == "tax_unit"
+    assert provenance.reconciliation is not None
+    calibration = provenance.reconciliation[
+        "puf_tax_sign_hurdle_and_quantile_calibration"
+    ]
+    assert calibration["policy"] == {
+        "carrier_signs": ["positive"],
+        "amount_signs": ["positive"],
+    }
+    scopes = [
+        scope for pattern in calibration["patterns"] for scope in pattern["scopes"]
+    ]
+    assert len(scopes) == 1
+    scope = scopes[0]
+    assert scope["scope_id"] == "calibration_scope_0001"
+    assert scope["fixture_fallback"] is False
+    assert scope["domain_rows"] == 3
+    assert scope["mutable_rows"] == 2
+    assert scope["immutable_rows"] == 1
+    assert scope["carrier"]["method"] == "binary_carrier_selection"
+    assert scope["carrier"]["allocation"]["realized_weight"] == [70.0, 110.0]
+    assert scope["conditional_amount"]["mapped_signs"] == ["positive"]
+    conditional = scope["conditional_amount"]["conditional"]
+    assert len(conditional) == 1
+    assert conditional[0]["sign"] == 1
+    assert conditional[0]["mapped_rows"] == 1
+    assert conditional[0]["mapped_weight"] == 50.0
+    assert conditional[0]["immutable_rows"] == 1
+    assert conditional[0]["immutable_weight"] == 60.0
+
+
+def test_puf_tax_calibration_scope_authority_cannot_omit_an_active_entity() -> None:
+    recipient = _recipient_frame()
+
+    with pytest.raises(
+        ValueError,
+        match="omits PUF-tax calibration entities.*tax_unit",
+    ):
+        acs_transfer_module._normalize_calibration_scope_ids(
+            recipient,
+            {
+                "person": np.full(
+                    len(recipient.table("person")),
+                    "calibration_scope_0000",
+                    dtype=object,
+                )
+            },
+            required_entities={"person", "tax_unit"},
+        )
+
+
+def test_puf_tax_calibration_preserves_zero_weight_raw_draw_within_zero_atol(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = "qualified_dividend_income"
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {target: np.full(8, 5e-7, dtype=np.float64)},
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            target: pd.array(
+                [pd.NA, 1.0, 2.0, 3.0, 4.0, 5.0],
+                dtype="Float64",
+            )
+        },
+    )
+    for column in (
+        "employment_income_before_lsr",
+        "self_employment_income_before_lsr",
+    ):
+        donor = _drop_column(donor, "person", column)
+        recipient = _drop_column(recipient, "person", column)
+    recipient = Frame(
+        {entity: recipient.table(entity).copy() for entity in recipient.entities},
+        recipient.schema,
+        {
+            "household": Weights(
+                np.asarray([0.0, 60.0, 70.0]),
+                WeightKind.DESIGN,
+            )
+        },
+        recipient.strata,
+        mass_log=recipient.mass_log,
+        metadata=recipient.metadata,
+    )
+    assert recipient.resolve_weights("person").values[0] == 0.0
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    _MeanQRF.calls = []
+
+    result = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"person": {"tax_detail": (target,)}},
+        donor_channel=None,
+        n_estimators=1,
+        calibration_targets=(("person", target),),
+    )
+
+    assert len(_MeanQRF.calls) == 1
+    assert _MeanQRF.calls[0]["targets"][target].mean() == 5e-7
+    assert result.frame.person[target].iloc[0] == 5e-7
+    assert result.imputed_inputs[0].imputed_recipient_rows == 1
+
+
+def test_puf_tax_single_sign_policy_does_not_reallocate_opposite_sign_only_rows() -> (
+    None
+):
+    values = np.asarray((-9.0, -1.0, 1.0, 9.0), dtype=np.float64)
+
+    calibrated, receipt = acs_transfer_module._calibrate_scope_carriers(
+        values,
+        np.ones(4, dtype=np.float64),
+        np.arange(4),
+        immutable=np.zeros(4, dtype=bool),
+        carrier_labels=("positive",),
+        regime="sign_only",
+        reference_sign_shares=np.asarray((0.25, 0.0, 0.75)),
+    )
+
+    # With no zero class, changing the requested positive incidence would
+    # necessarily rewrite the unrequested negative sign.  The binary allocator
+    # therefore treats those opposite-sign rows as immutable capacity.
+    np.testing.assert_array_equal(calibrated, values)
+    assert receipt["applied_signs"] == ["positive"]
+    assert receipt["method"] == "binary_carrier_selection"
+    assert receipt["allocation"]["immutable_weight"] == [2.0, 0.0]
 
 
 def test_housing_rows_without_tenure_remain_unmodeled() -> None:
@@ -1831,6 +2697,7 @@ def test_nullable_recipient_target_fills_only_nulls_and_preserves_metadata(
             },
         },
         n_estimators=1,
+        calibration_targets=(("person", "qualified_dividend_income"),),
     )
 
     for target, target_before in before.items():
@@ -1851,6 +2718,16 @@ def test_nullable_recipient_target_fills_only_nulls_and_preserves_metadata(
         sum(pattern.recipient_rows for pattern in item.patterns) == 2
         for item in provenance.values()
     )
+    assert provenance["takes_up_medicaid_if_eligible"].reconciliation is None
+    qualified_receipt = provenance["qualified_dividend_income"].reconciliation
+    assert qualified_receipt is not None
+    calibration = qualified_receipt["puf_tax_sign_hurdle_and_quantile_calibration"]
+    scopes = [
+        scope for pattern in calibration["patterns"] for scope in pattern["scopes"]
+    ]
+    assert sum(scope["mutable_rows"] for scope in scopes) == 2
+    assert all(scope["fixture_fallback"] is True for scope in scopes)
+    assert all(scope["conditional_amount"] is not None for scope in scopes)
 
 
 def test_donor_family_fit_uses_rows_complete_for_every_target(

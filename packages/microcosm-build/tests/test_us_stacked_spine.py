@@ -2697,6 +2697,119 @@ def test_gap_fill_fills_both_directions_with_authority_receipts() -> None:
     assert native_predictor_used
 
 
+def test_gap_fill_passes_one_opaque_puf_tax_scope_authority_to_every_transfer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frame = _stacked_gap_fixture()
+    expected_scope_ids, expected_authority = (
+        stacked_spine_module._puf_tax_calibration_scope_authority(frame)
+    )
+    transfer = stacked_spine_module.transfer_acs_inputs
+    passed_scope_ids: list[dict[str, np.ndarray]] = []
+
+    def capture_scope_ids(*args: object, **kwargs: object) -> object:
+        scope_ids = kwargs.get("calibration_scope_ids")
+        assert isinstance(scope_ids, dict)
+        passed_scope_ids.append(scope_ids)
+        return transfer(*args, **kwargs)
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "transfer_acs_inputs",
+        capture_scope_ids,
+    )
+
+    result = _gap_fill_with_test_authority(
+        frame,
+        plan=_GAP_FILL_TEST_PLAN,
+        seed=578,
+        n_estimators=10,
+    )
+
+    assert len(passed_scope_ids) == len(_GAP_FILL_TEST_PLAN) == 2
+    assert passed_scope_ids[0] is passed_scope_ids[1]
+    flat_scope_ids: set[str] = set()
+    for entity in frame.entities:
+        np.testing.assert_array_equal(
+            passed_scope_ids[0][entity],
+            expected_scope_ids[entity],
+        )
+        flat_scope_ids.update(passed_scope_ids[0][entity].tolist())
+    assert flat_scope_ids == set(expected_authority["scopes"])
+    assert flat_scope_ids.isdisjoint({"asec", "acs", "0", "1", "2"})
+    assert result.receipt["calibration_scope_authority"] == expected_authority
+    assert expected_authority["sha256"] == stacked_spine_module._canonical_sha256(
+        {key: value for key, value in expected_authority.items() if key != "sha256"}
+    )
+
+
+def test_gap_fill_binds_exact_donor_origin_clone_zero_calibration_reference(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = "qualified_dividend_income"
+    unassigned = "taxable_interest_income"
+    direction = GapFillDirection(
+        name="asec_survey_to_acs",
+        recipient_channel="acs",
+        donor_channel="asec",
+        target_families={"person": {"puf_tax_itemization": (target, unassigned)}},
+    )
+    actual_transfer = stacked_spine_module.transfer_acs_inputs
+    passed_calibration_targets: list[tuple[tuple[str, str], ...]] = []
+
+    def capture_calibration_targets(*args: object, **kwargs: object) -> object:
+        selected = kwargs.get("calibration_targets")
+        assert isinstance(selected, tuple)
+        passed_calibration_targets.append(selected)
+        return actual_transfer(*args, **kwargs)
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "transfer_acs_inputs",
+        capture_calibration_targets,
+    )
+
+    result = _gap_fill_with_test_authority(
+        _stacked_gap_fixture(),
+        plan=(direction,),
+        seed=578,
+        n_estimators=2,
+    )
+
+    assert passed_calibration_targets == [(("person", target),)]
+    direction_receipt = result.receipt["directions"][direction.name]
+    reference_authority = direction_receipt["calibration_reference_authority"]
+    assert reference_authority["method"] == (
+        "source_aware_target_specific_frozen_reference_v1"
+    )
+    assert reference_authority["sha256"] == stacked_spine_module._canonical_sha256(
+        {key: value for key, value in reference_authority.items() if key != "sha256"}
+    )
+    assert len(reference_authority["references"]) == 1
+    reference_id, source_identity = next(
+        iter(reference_authority["references"].items())
+    )
+    assert source_identity["entity"] == "person"
+    assert source_identity["target"] == target
+    assert source_identity["support_channel"] == "asec"
+    assert source_identity["support_clone_index"] == 0
+    assert source_identity["authority"] == ("early_gap_fill_exact_donor_origin_clone_0")
+    record = result.transfer_results[direction.name].imputed_inputs[0]
+    assert record.reconciliation is not None
+    transfer_reference = record.reconciliation[
+        "puf_tax_sign_hurdle_and_quantile_calibration"
+    ]["reference"]
+    assert transfer_reference["selection"] == ("caller_bound_source_neutral_reference")
+    assert transfer_reference["reference_id"] == reference_id
+    assert transfer_reference["fixture_fallback"] is False
+    records = {
+        item.column: item
+        for item in result.transfer_results[direction.name].imputed_inputs
+    }
+    assert records[target].reconciliation is not None
+    assert records[unassigned].reconciliation is None
+
+
 def test_gap_fill_outcome_rejects_forged_residual_receipt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -3031,6 +3144,103 @@ def _post_puf_transfer_fixture() -> Frame:
         mass_log=attached.mass_log,
         metadata=attached.metadata,
     )
+
+
+def test_puf_tax_calibration_scope_authority_is_exact_and_row_order_stable() -> None:
+    frame = _post_puf_transfer_fixture()
+
+    scope_ids, receipt = stacked_spine_module._puf_tax_calibration_scope_authority(
+        frame
+    )
+
+    assert set(scope_ids) == set(frame.entities)
+    assert receipt["schema_version"] == 1
+    assert receipt["method"] == "source_aware_support_channel_clone_partition_v1"
+    assert receipt["scope_id_contract"] == "opaque_nonempty_string"
+    assert receipt["sha256"] == stacked_spine_module._canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "sha256"}
+    )
+    scopes = receipt["scopes"]
+    assert len(scopes) == len(set(scopes))
+    for entity in frame.entities:
+        table = frame.table(entity)
+        entity_scope_ids = scope_ids[entity]
+        assert len(entity_scope_ids) == len(table)
+        assert not entity_scope_ids.flags.writeable
+        assert all(isinstance(value, str) and value for value in entity_scope_ids)
+        channel = table[support_channel_column(entity)].astype(str).to_numpy()
+        clone = pd.to_numeric(
+            table[support_clone_index_column(entity)],
+            errors="raise",
+        ).to_numpy(dtype=np.int64)
+        for scope_id in np.unique(entity_scope_ids):
+            selected = entity_scope_ids == scope_id
+            scope = scopes[scope_id]
+            assert scope == {
+                "entity": entity,
+                "support_channel": str(channel[selected][0]),
+                "support_clone_index": int(clone[selected][0]),
+                "row_count": int(selected.sum()),
+            }
+            assert np.unique(channel[selected]).size == 1
+            assert np.unique(clone[selected]).size == 1
+
+    reordered_tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    reordered_tables["person"] = (
+        reordered_tables["person"].iloc[::-1].reset_index(drop=True)
+    )
+    reordered = Frame(
+        reordered_tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata.iloc[::-1].reset_index(drop=True),
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    reordered_ids, reordered_receipt = (
+        stacked_spine_module._puf_tax_calibration_scope_authority(reordered)
+    )
+
+    assert reordered_receipt == receipt
+    for entity in frame.entities:
+        expected = scope_ids[entity][::-1] if entity == "person" else scope_ids[entity]
+        np.testing.assert_array_equal(reordered_ids[entity], expected)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    (
+        ("missing_channel", "missing.*person_support_channel"),
+        ("empty_channel", "nonempty string.*person_support_channel"),
+        ("fractional_clone", "nonnegative integral.*person_support_clone_index"),
+    ),
+)
+def test_puf_tax_calibration_scope_authority_rejects_invalid_provenance(
+    mutation: str,
+    match: str,
+) -> None:
+    frame = _post_puf_transfer_fixture()
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    person = tables["person"]
+    if mutation == "missing_channel":
+        person.drop(columns=[support_channel_column("person")], inplace=True)
+    elif mutation == "empty_channel":
+        person.loc[person.index[0], support_channel_column("person")] = ""
+    else:
+        clone_column = support_clone_index_column("person")
+        person[clone_column] = person[clone_column].astype(np.float64)
+        person.loc[person.index[0], clone_column] = 0.5
+    malformed = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+    with pytest.raises(ValueError, match=match):
+        stacked_spine_module._puf_tax_calibration_scope_authority(malformed)
 
 
 def test_bounded_transfer_group_remaps_canonical_producer_roles() -> None:
@@ -5348,6 +5558,9 @@ def test_late_receipt_rejects_detached_source_receipt_output_digest(
 
 def test_post_puf_transfer_preserves_complete_asec_source_producers() -> None:
     frame = _post_puf_transfer_fixture()
+    _scope_ids, expected_scope_authority = (
+        stacked_spine_module._puf_tax_calibration_scope_authority(frame)
+    )
     surface = {"person": {"model_required_boolean": ("is_pregnant",)}}
     authority = stacked_spine_module._make_test_stacked_authority(
         declared_surface=surface,
@@ -5376,6 +5589,156 @@ def test_post_puf_transfer_preserves_complete_asec_source_producers() -> None:
     assert receipt["imputed_rows"] == int((~producer_rows).sum())
     assert receipt["unmodeled_rows"] == 0
     assert receipt["residual_null_rows"] == 0
+    assert result.receipt["calibration_scope_authority"] == (expected_scope_authority)
+
+
+def test_post_puf_puf_only_calibration_reference_uses_asec_clone_one() -> None:
+    target = "tax_exempt_interest_income"
+    frame = _post_puf_transfer_fixture()
+    person = frame.table("person").copy()
+    clone = pd.to_numeric(
+        person[support_clone_index_column("person")],
+        errors="raise",
+    )
+    person[target] = np.nan
+    person.loc[clone.gt(0), target] = np.arange(1, int(clone.gt(0).sum()) + 1) * 10.0
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["person"] = person
+    frame = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    surface = {"person": {"puf_tax_itemization": (target,)}}
+    authority = stacked_spine_module._make_test_stacked_authority(
+        declared_surface=surface,
+        gap_fill_plan=(),
+        post_puf_transfer_surface=surface,
+        post_puf_puf_producer_surface=surface,
+        post_puf_source_producer_surface={},
+    )
+
+    result = stacked_spine_module._transfer_stacked_post_puf_inputs_with_test_authority(
+        frame,
+        authority=authority,
+        seed=578,
+        n_estimators=2,
+    )
+
+    reference_authority = result.receipt["calibration_reference_authority"]
+    assert len(reference_authority["references"]) == 1
+    reference_id, source_identity = next(
+        iter(reference_authority["references"].items())
+    )
+    assert source_identity["support_channel"] == "asec"
+    assert source_identity["support_clone_index"] == 1
+    assert source_identity["authority"] == ("post_puf_declared_puf_clone_producer")
+    record = result.transfer_result.imputed_inputs[0]
+    assert record.reconciliation is not None
+    transfer_reference = record.reconciliation[
+        "puf_tax_sign_hurdle_and_quantile_calibration"
+    ]["reference"]
+    assert transfer_reference["reference_id"] == reference_id
+    assert transfer_reference["selection"] == ("caller_bound_source_neutral_reference")
+    assert result.frame.person.loc[clone.eq(0), target].notna().all()
+
+
+def test_post_puf_overlap_uses_source_owned_clone_zero_reference_not_qrf_donor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = "self_employed_pension_contributions_desired"
+    frame = _post_puf_transfer_fixture()
+    person = frame.table("person").copy()
+    channel = person[support_channel_column("person")].astype(str)
+    clone = pd.to_numeric(
+        person[support_clone_index_column("person")],
+        errors="raise",
+    )
+    person[target] = np.nan
+    person.loc[clone.gt(0), target] = 10.0
+    source_reference = channel.eq("asec") & clone.eq(0)
+    person.loc[source_reference, target] = (
+        np.arange(
+            1,
+            int(source_reference.sum()) + 1,
+        )
+        * 1_000.0
+    )
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["person"] = person
+    frame = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    surface = {"person": {"puf_tax_itemization": (target,)}}
+    authority = stacked_spine_module._make_test_stacked_authority(
+        declared_surface=surface,
+        gap_fill_plan=(),
+        post_puf_transfer_surface=surface,
+        post_puf_puf_producer_surface=surface,
+        post_puf_source_producer_surface=surface,
+    )
+    actual_transfer = stacked_spine_module.transfer_acs_inputs
+    captured_qrf_donor: dict[str, np.ndarray] = {}
+
+    def capture_qrf_donor(*args: object, **kwargs: object) -> object:
+        donor = args[1]
+        assert isinstance(donor, Frame)
+        captured_qrf_donor[target] = donor.person[target].to_numpy(
+            dtype=np.float64,
+            copy=True,
+        )
+        return actual_transfer(*args, **kwargs)
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "transfer_acs_inputs",
+        capture_qrf_donor,
+    )
+
+    result = stacked_spine_module._transfer_stacked_post_puf_inputs_with_test_authority(
+        frame,
+        authority=authority,
+        seed=578,
+        n_estimators=2,
+    )
+
+    # Fitting remains on the ASEC clone-1 projection, whose values deliberately
+    # differ from the source-owned ASEC clone-0 terminal comparator.
+    np.testing.assert_array_equal(captured_qrf_donor[target], 10.0)
+    acs_clone_zero = channel.eq("acs") & clone.eq(0)
+    calibrated = result.frame.person.loc[acs_clone_zero, target].to_numpy(
+        dtype=np.float64
+    )
+    assert (calibrated >= 1_000.0).all()
+    assert set(calibrated).issubset(
+        set(person.loc[source_reference, target].to_numpy(dtype=np.float64))
+    )
+
+    reference_authority = result.receipt["calibration_reference_authority"]
+    assert len(reference_authority["references"]) == 1
+    reference_id, source_identity = next(
+        iter(reference_authority["references"].items())
+    )
+    assert source_identity["support_channel"] == "asec"
+    assert source_identity["support_clone_index"] == 0
+    assert source_identity["authority"] == (
+        "post_puf_declared_source_final_owner_overlap"
+    )
+    record = result.transfer_result.imputed_inputs[0]
+    assert record.reconciliation is not None
+    transfer_reference = record.reconciliation[
+        "puf_tax_sign_hurdle_and_quantile_calibration"
+    ]["reference"]
+    assert transfer_reference["reference_id"] == reference_id
+    assert transfer_reference["fixture_fallback"] is False
 
 
 @pytest.mark.parametrize(
@@ -5904,6 +6267,94 @@ def test_run_stacked_puf_pass_imputes_only_the_attached_arm() -> None:
             clone_attachment_fraction=0.5,
             clone_attachment_seed=578,
         )
+
+
+def test_prepare_stacked_tail_derivation_marks_only_clone_zero_origins(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frame = _source_frame(
+        household_ids=[31, 32, 33, 34, 35],
+        weights=[1.0] * 5,
+        stratum="schedule_d_role_fixture",
+    )
+    person = frame.table("person").copy()
+    channel_column = support_channel_column("person")
+    clone_column = support_clone_index_column("person")
+    person[channel_column] = [
+        stacked_spine_module.BASE_ASEC_SUPPORT_CHANNEL,
+        stacked_spine_module.ACS_STACKED_SUPPORT_CHANNEL,
+        stacked_spine_module.BASE_ASEC_SUPPORT_CHANNEL,
+        stacked_spine_module.ACS_STACKED_SUPPORT_CHANNEL,
+        "puf_capital_gains_tail",
+    ]
+    person[clone_column] = np.asarray([0, 0, 1, 1, 2], dtype=np.int8)
+    person["schedule_d_capital_gain_distributions"] = np.arange(
+        1.0,
+        6.0,
+        dtype=np.float64,
+    )
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["person"] = person
+    frame = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validate_stacked_spine_frame",
+        lambda *_args, **_kwargs: True,
+    )
+
+    prepared, receipt = stacked_spine_module.prepare_stacked_tail_derivation(frame)
+
+    output = prepared.table("person")
+    role_column = stacked_spine_module.SCHEDULE_D_JOINT_ROLE_COLUMN
+    assert output[role_column].dtype == np.dtype(np.int8)
+    assert output[role_column].tolist() == [
+        stacked_spine_module.SCHEDULE_D_JOINT_ROLE_REFERENCE,
+        stacked_spine_module.SCHEDULE_D_JOINT_ROLE_RECIPIENT,
+        stacked_spine_module.SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+        stacked_spine_module.SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+        stacked_spine_module.SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+    ]
+    np.testing.assert_array_equal(
+        output.loc[
+            ~output[clone_column].eq(2), "schedule_d_capital_gain_distributions"
+        ],
+        np.arange(1.0, 5.0, dtype=np.float64),
+    )
+    assert (
+        output.loc[output[clone_column].eq(2), "schedule_d_capital_gain_distributions"]
+        .isna()
+        .all()
+    )
+    authority = receipt["schedule_d_joint_role_authority"]
+    assert authority["method"] == "source_aware_native_origin_roles_v1"
+    assert authority["role_dtype"] == "int8"
+    assert authority["transient"] is True
+    assert authority["reference_selection"] == {
+        "support_channel": stacked_spine_module.BASE_ASEC_SUPPORT_CHANNEL,
+        "support_clone_index": 0,
+    }
+    assert authority["recipient_selection"] == {
+        "support_channel": stacked_spine_module.ACS_STACKED_SUPPORT_CHANNEL,
+        "support_clone_index": 0,
+    }
+    assert authority["person_rows_by_role"] == {
+        "excluded": 3,
+        "reference": 1,
+        "recipient": 1,
+    }
+    authority_payload = {
+        key: value for key, value in authority.items() if key != "sha256"
+    }
+    assert authority["sha256"] == stacked_spine_module._canonical_sha256(
+        authority_payload
+    )
 
 
 def test_run_stacked_puf_pass_receipts_raw_child_universe_application() -> None:

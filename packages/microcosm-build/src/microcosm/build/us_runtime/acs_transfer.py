@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from functools import lru_cache
 from importlib import import_module
+from numbers import Integral, Real
 from typing import Any, Protocol
 
 import numpy as np
@@ -31,6 +33,11 @@ import pandas as pd
 
 from microcosm.build.gates import FitWeightRecord
 from microcosm.build.serialization_dtypes import canonicalize_frame_string_dtypes
+from microcosm.build.us_runtime.acs_transfer_calibration import (
+    allocate_weighted_signs,
+    map_sign_preserving_weighted_magnitudes,
+    select_weighted_binary_carriers,
+)
 from microcosm.build.us_runtime.capital_gain_distributions import (
     capital_gain_distribution_shares_asset_identity,
 )
@@ -44,7 +51,8 @@ from microcosm.build.us_runtime.support_provenance import (
     has_support_role_metadata,
     support_role_series,
 )
-from microcosm.fit import QRFChainState
+from microcosm.fit import DEFAULT_ZERO_ATOL, QRFChainState, Regime
+from microcosm.fit.qrf import detect_regime
 from microcosm.frame import EntitySchema, Frame, Weights
 
 QRF: Any | None = None
@@ -58,7 +66,9 @@ __all__ = [
     "ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS",
     "ACS_PERSON_TRANSFER_PREDICTORS",
     "ASEC_PUF_DONOR_SPINE",
+    "PUF_TAX_TRANSFER_CALIBRATION_POLICY",
     "AcsImputedInput",
+    "AcsTransferCalibrationReference",
     "AcsTransferBankPatternStep",
     "AcsTransferPattern",
     "AcsTransferResult",
@@ -225,6 +235,139 @@ _TENURE_CODES: Mapping[str, float] = {
     "RENTER": 3.0,
 }
 
+# Exact terminal-battery remedy surface.  The keys are intentionally literal:
+# family batching appends ``__batch_N`` to runtime family names, while the
+# entity/target identity remains stable across banked, in-memory, early, and
+# late transfer paths.  Empty tuples are meaningful: a target may need only a
+# conditional-amount correction, or (for HSA) only a carrier correction.
+PUF_TAX_TRANSFER_CALIBRATION_POLICY: Mapping[
+    str, Mapping[str, Mapping[str, tuple[str, ...]]]
+] = {
+    "person": {
+        "qualified_dividend_income": {
+            "carrier_signs": (),
+            "amount_signs": ("positive",),
+        },
+        "non_qualified_dividend_income": {
+            "carrier_signs": (),
+            "amount_signs": ("positive",),
+        },
+        "tax_exempt_interest_income": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("positive",),
+        },
+        "short_term_capital_gains": {
+            "carrier_signs": (),
+            "amount_signs": ("positive",),
+        },
+        "long_term_capital_gains_before_response": {
+            "carrier_signs": (),
+            "amount_signs": ("positive",),
+        },
+        "non_sch_d_capital_gains": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("positive",),
+        },
+        "alimony_expense": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("positive",),
+        },
+        "investment_income_elected_form_4952": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("positive",),
+        },
+        "self_employed_pension_contributions_desired": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("positive",),
+        },
+        "rental_income": {
+            "carrier_signs": ("negative",),
+            "amount_signs": ("negative", "positive"),
+        },
+        "estate_income": {
+            "carrier_signs": ("negative", "positive"),
+            "amount_signs": ("negative", "positive"),
+        },
+        "farm_income": {
+            "carrier_signs": (),
+            "amount_signs": ("positive",),
+        },
+        "farm_operations_income": {
+            "carrier_signs": (),
+            "amount_signs": ("positive",),
+        },
+        "farm_rent_income": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("negative", "positive"),
+        },
+        "miscellaneous_income": {
+            "carrier_signs": (),
+            "amount_signs": ("positive",),
+        },
+        "partnership_income": {
+            "carrier_signs": ("negative", "positive"),
+            "amount_signs": ("positive",),
+        },
+        "partnership_self_employment_net_earnings": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("negative", "positive"),
+        },
+    },
+    "tax_unit": {
+        "domestic_production_ald": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("positive",),
+        },
+        "unrecaptured_section_1250_gain": {
+            "carrier_signs": ("positive",),
+            "amount_signs": ("positive",),
+        },
+        "health_savings_account_ald": {
+            "carrier_signs": ("positive",),
+            "amount_signs": (),
+        },
+    },
+}
+
+
+def _puf_tax_transfer_calibration_contract() -> dict[str, object]:
+    policy = {
+        entity: {
+            target: {
+                "carrier_signs": list(specification["carrier_signs"]),
+                "amount_signs": list(specification["amount_signs"]),
+            }
+            for target, specification in targets.items()
+        }
+        for entity, targets in PUF_TAX_TRANSFER_CALIBRATION_POLICY.items()
+    }
+    return {
+        "target_count": sum(len(targets) for targets in policy.values()),
+        "carrier_check_count": sum(
+            len(specification["carrier_signs"])
+            for targets in policy.values()
+            for specification in targets.values()
+        ),
+        "amount_check_count": sum(
+            len(specification["amount_signs"])
+            for targets in policy.values()
+            for specification in targets.values()
+        ),
+        "zero_atol": DEFAULT_ZERO_ATOL,
+        "recipient_scope": "caller_bound_neutral_scope_id",
+        "recipient_scope_authority": (
+            "source_owner_exact_support_channel_clone_partition"
+        ),
+        "fixture_scope_fallback": "single_unpartitioned_scope",
+        "reference": (
+            "caller_bound_target_authority_or_explicit_fixture_selected_donor"
+        ),
+        "activation": "caller_selected_exact_entity_target_subset",
+        "default_selection": "empty",
+        "stage_order": ["carrier_or_sign", "conditional_magnitude"],
+        "policy": policy,
+    }
+
 
 def acs_transfer_execution_contract_identity(
     *,
@@ -239,7 +382,7 @@ def acs_transfer_execution_contract_identity(
     )
     adult_care_enabled = _ADULT_CARE_EXPENSE in requested_targets
     payload: dict[str, object] = {
-        "schema_version": 2,
+        "schema_version": 3,
         "person_required_predictors": list(ACS_PERSON_TRANSFER_PREDICTORS),
         "person_optional_predictors": list(ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS),
         "group_required_predictors": list(ACS_GROUP_TRANSFER_PREDICTORS),
@@ -266,6 +409,9 @@ def acs_transfer_execution_contract_identity(
         "immigration_status_targets": list(_IMMIGRATION_STATUS_TARGETS),
         "immigration_status_model_target": _IMMIGRATION_STATUS_MODEL_TARGET,
         "discrete_numeric_targets": sorted(_DISCRETE_NUMERIC_TARGETS),
+        "puf_tax_sign_hurdle_and_quantile_calibration": (
+            _puf_tax_transfer_calibration_contract()
+        ),
         "post_transfer_structure": {
             "schedule_d_capital_gain_distributions": {
                 "enabled": schedule_d_enabled,
@@ -416,6 +562,22 @@ class AcsTransferPattern:
 
 
 @dataclass(frozen=True)
+class AcsTransferCalibrationReference:
+    """Source-neutral target authority supplied to transfer calibration.
+
+    The source owner keeps channel/clone interpretation outside this module.
+    Transfer sees only a nonempty opaque reference ID plus aligned target
+    values, effective weights, and stable scalar row IDs.  Inputs are copied
+    into read-only arrays at the API boundary before any fit is attempted.
+    """
+
+    reference_id: str
+    values: Sequence[float] | np.ndarray
+    weights: Sequence[float] | np.ndarray
+    stable_ids: Sequence[object] | np.ndarray
+
+
+@dataclass(frozen=True)
 class AcsImputedInput:
     """Provenance for one input column imputed onto the ACS frame."""
 
@@ -436,7 +598,7 @@ class AcsImputedInput:
     derivation: str | None = None
     #: Post-fit structural reconciliation counts, when the column's surface
     #: was adjusted to a statute contract after prediction.
-    reconciliation: Mapping[str, int] | None = None
+    reconciliation: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -525,6 +687,7 @@ class _FeatureSurface:
 class _FamilyFit:
     predictions: Mapping[str, np.ndarray]
     patterns: tuple[AcsTransferPattern, ...]
+    pattern_contexts: tuple[_PatternFitContext, ...]
     fit_records: tuple[FitWeightRecord, ...]
     predictors: tuple[str, ...]
     weight_kind: str
@@ -533,9 +696,10 @@ class _FamilyFit:
 
 
 @dataclass(frozen=True)
-class _BankPatternContext:
+class _PatternFitContext:
     pattern: AcsTransferPattern
     recipient_positions: np.ndarray
+    domain_positions: np.ndarray
     donor_mask: np.ndarray
 
 
@@ -890,6 +1054,10 @@ def transfer_acs_inputs(
     target_bank: AcsTransferTargetBank | None = None,
     derive_schedule_d: bool = True,
     execution_contract: Mapping[str, object] | None = None,
+    calibration_targets: Iterable[tuple[str, str]] = (),
+    calibration_scope_ids: Mapping[str, Sequence[str] | np.ndarray] | None = None,
+    calibration_references: Mapping[str, Mapping[str, AcsTransferCalibrationReference]]
+    | None = None,
 ) -> AcsTransferResult:
     """Impute requested missing leaves from ``donor`` onto ``recipient``.
 
@@ -916,6 +1084,23 @@ def transfer_acs_inputs(
     after each ordered model target, so a retry can continue without changing
     the monolithic chained-QRF result. The ordinary in-memory fit remains the
     default for library callers that do not request durable banking.
+
+    ``calibration_targets`` is an explicit ``(entity, target)`` selection. It
+    must be a subset of both the requested transfer surface and the frozen
+    PUF-tax work-package policy. The default is empty, so ordinary transfers
+    cannot accidentally activate the calibration kernels.
+
+    ``calibration_scope_ids`` is an optional source-neutral partition supplied
+    by the provenance owner.  Each entity vector must align one nonempty opaque
+    string to every recipient row.  PUF-tax calibration is isolated within
+    those IDs; ordinary library fixtures that omit the authority use one
+    unpartitioned scope.  This source-blind operator never infers an origin.
+
+    ``calibration_references`` is the source owner's target-specific frozen
+    authority.  When provided, it must exactly cover the active PUF-tax
+    calibration targets.  Omitting it is an explicit fixture seam which uses
+    the already-selected fit donor as the reference; production callers bind
+    the authority without changing that QRF donor.
     """
 
     _validate_frames(recipient, donor)
@@ -940,7 +1125,18 @@ def transfer_acs_inputs(
         requested,
         max_targets_per_fit=max_targets_per_fit,
     )
+    requested_target_keys = frozenset(
+        (entity, target) for entity, _family, targets in requested for target in targets
+    )
+    selected_calibration_targets = _normalize_calibration_targets(
+        calibration_targets,
+        requested=requested_target_keys,
+    )
     if not requested:
+        _normalize_calibration_references(
+            calibration_references,
+            required_targets=(),
+        )
         return AcsTransferResult(
             frame=canonicalize_frame_string_dtypes(
                 recipient,
@@ -948,6 +1144,13 @@ def transfer_acs_inputs(
             ),
             deferred_inputs=deferred_inputs,
         )
+
+    calibration_entities = {entity for entity, _target in selected_calibration_targets}
+    normalized_calibration_scope_ids = _normalize_calibration_scope_ids(
+        recipient,
+        calibration_scope_ids,
+        required_entities=calibration_entities,
+    )
 
     all_targets = [
         target for _entity, _family, targets in requested for target in targets
@@ -965,6 +1168,14 @@ def transfer_acs_inputs(
     assert_acs_transfer_targets_are_input_leaves(all_targets)
 
     active = _missing_target_families(requested, recipient=recipient)
+    active_target_keys = {
+        (entity, target) for entity, _family, targets in active for target in targets
+    }
+    active_calibration_targets = selected_calibration_targets & active_target_keys
+    normalized_calibration_references = _normalize_calibration_references(
+        calibration_references,
+        required_targets=active_calibration_targets,
+    )
     if not active:
         return AcsTransferResult(
             frame=canonicalize_frame_string_dtypes(
@@ -1027,13 +1238,44 @@ def transfer_acs_inputs(
                 },
                 total_targets=len(ordered_bank_targets),
             )
-        for target in targets:
-            predicted = _prediction_values(
+        decoded_predictions = {
+            target: _prediction_values(
                 fitted.predictions[target],
                 encoding=fitted.target_encodings[target],
                 entity=entity,
                 target=target,
             )
+            for target in targets
+        }
+        family_calibration_targets = tuple(
+            target
+            for target in targets
+            if (entity, target) in active_calibration_targets
+        )
+        calibration_receipts: dict[str, Mapping[str, object]] = {}
+        if family_calibration_targets:
+            calibrated_predictions, calibration_receipts = (
+                _calibrate_puf_tax_predictions(
+                    donor=fit_donor,
+                    recipient=recipient,
+                    entity=entity,
+                    decoded_predictions={
+                        target: decoded_predictions[target]
+                        for target in family_calibration_targets
+                    },
+                    target_missing=target_missing,
+                    target_encodings=fitted.target_encodings,
+                    pattern_contexts=fitted.pattern_contexts,
+                    calibration_scope_ids=normalized_calibration_scope_ids.get(entity),
+                    calibration_references=normalized_calibration_references.get(
+                        entity,
+                        {},
+                    ),
+                )
+            )
+            decoded_predictions.update(calibrated_predictions)
+        for target in targets:
+            predicted = decoded_predictions[target]
             merged, imputed = _fill_recipient_nulls(
                 output_tables[entity],
                 target=target,
@@ -1057,6 +1299,7 @@ def transfer_acs_inputs(
                     patterns=fitted.patterns,
                     imputed_recipient_rows=int(imputed.sum()),
                     unmodeled_recipient_rows=int((missing_rows & ~imputed).sum()),
+                    reconciliation=calibration_receipts.get(target),
                 )
             )
         fit_records.extend(fitted.fit_records)
@@ -1285,13 +1528,11 @@ def _fit_family_patterns(
     needs_prediction = np.logical_or.reduce(
         [np.asarray(target_missing[target], dtype=bool) for target in targets]
     )
-    eligible = (
-        _complete_predictor_mask(
-            surface.recipient,
-            predictors=surface.required,
-        )
-        & needs_prediction
+    domain_eligible = _complete_predictor_mask(
+        surface.recipient,
+        predictors=surface.required,
     )
+    eligible = domain_eligible & needs_prediction
     if not eligible.any():
         raise ValueError(
             f"ACS transfer family {family!r} on entity {entity!r} has no "
@@ -1303,11 +1544,20 @@ def _fit_family_patterns(
         target: np.full(n_recipient, np.nan, dtype=np.float64) for target in targets
     }
     pattern_records: list[AcsTransferPattern] = []
+    pattern_contexts: list[_PatternFitContext] = []
     fit_records: list[FitWeightRecord] = []
     family_seed = _family_seed(seed, entity=entity, family=family)
 
-    for position, (observed_optional, recipient_positions) in enumerate(
-        _availability_patterns(surface, eligible=eligible)
+    for position, (
+        observed_optional,
+        recipient_positions,
+        domain_positions,
+    ) in enumerate(
+        _availability_patterns(
+            surface,
+            eligible=eligible,
+            domain_eligible=domain_eligible,
+        )
     ):
         predictors = (*surface.required, *observed_optional)
         donor_mask = (
@@ -1378,6 +1628,14 @@ def _fit_family_patterns(
             recipient_rows=len(recipient_positions),
         )
         pattern_records.append(pattern_record)
+        pattern_contexts.append(
+            _PatternFitContext(
+                pattern=pattern_record,
+                recipient_positions=recipient_positions,
+                domain_positions=domain_positions,
+                donor_mask=donor_mask,
+            )
+        )
         fit_records.append(
             FitWeightRecord(
                 f"acs_transfer:{entity}:{family}:{pattern_name}",
@@ -1400,6 +1658,7 @@ def _fit_family_patterns(
     return _FamilyFit(
         predictions=predictions,
         patterns=patterns,
+        pattern_contexts=tuple(pattern_contexts),
         fit_records=tuple(fit_records),
         predictors=used_predictors,
         weight_kind=next(iter(kinds)),
@@ -1461,26 +1720,32 @@ def _fit_family_patterns_banked(
     needs_prediction = np.logical_or.reduce(
         [np.asarray(target_missing[target], dtype=bool) for target in targets]
     )
-    eligible = (
-        _complete_predictor_mask(
-            surface.recipient,
-            predictors=surface.required,
-        )
-        & needs_prediction
+    domain_eligible = _complete_predictor_mask(
+        surface.recipient,
+        predictors=surface.required,
     )
+    eligible = domain_eligible & needs_prediction
     if not eligible.any():
         raise ValueError(
             f"ACS transfer family {family!r} on entity {entity!r} has no "
             f"recipient rows with required predictors {list(surface.required)}."
         )
 
-    contexts: list[_BankPatternContext] = []
+    contexts: list[_PatternFitContext] = []
     states: dict[str, QRFChainState] = {}
     raw_priors: dict[str, pd.DataFrame] = {}
     pattern_records: list[AcsTransferPattern] = []
     fit_records: list[FitWeightRecord] = []
-    for position, (observed_optional, recipient_positions) in enumerate(
-        _availability_patterns(surface, eligible=eligible)
+    for position, (
+        observed_optional,
+        recipient_positions,
+        domain_positions,
+    ) in enumerate(
+        _availability_patterns(
+            surface,
+            eligible=eligible,
+            domain_eligible=domain_eligible,
+        )
     ):
         predictors = (*surface.required, *observed_optional)
         donor_mask = (
@@ -1538,9 +1803,10 @@ def _fit_family_patterns_banked(
             recipient_rows=len(recipient_positions),
         )
         contexts.append(
-            _BankPatternContext(
+            _PatternFitContext(
                 pattern=pattern,
                 recipient_positions=recipient_positions,
+                domain_positions=domain_positions,
                 donor_mask=donor_mask,
             )
         )
@@ -1695,6 +1961,7 @@ def _fit_family_patterns_banked(
             for target in targets
         },
         patterns=patterns,
+        pattern_contexts=tuple(contexts),
         fit_records=tuple(fit_records),
         predictors=used_predictors,
         weight_kind=next(iter(kinds)),
@@ -1793,13 +2060,21 @@ def _availability_patterns(
     surface: _FeatureSurface,
     *,
     eligible: np.ndarray,
-) -> list[tuple[tuple[str, ...], np.ndarray]]:
+    domain_eligible: np.ndarray,
+) -> list[tuple[tuple[str, ...], np.ndarray, np.ndarray]]:
+    if eligible.shape != domain_eligible.shape or not np.all(
+        ~eligible | domain_eligible
+    ):
+        raise ValueError(
+            "ACS transfer prediction eligibility must be a subset of its "
+            "calibration domain."
+        )
     codes = np.zeros(len(surface.recipient), dtype=np.uint16)
     for bit, predictor in enumerate(surface.optional):
         observed = np.isfinite(_as_float_array(surface.recipient[predictor]))
         codes |= observed.astype(np.uint16) << bit
 
-    patterns: list[tuple[tuple[str, ...], np.ndarray]] = []
+    patterns: list[tuple[tuple[str, ...], np.ndarray, np.ndarray]] = []
     for code in np.unique(codes[eligible]):
         observed_optional = tuple(
             predictor
@@ -1807,7 +2082,8 @@ def _availability_patterns(
             if int(code) & (1 << bit)
         )
         positions = np.flatnonzero(eligible & (codes == code))
-        patterns.append((observed_optional, positions))
+        domain_positions = np.flatnonzero(domain_eligible & (codes == code))
+        patterns.append((observed_optional, positions, domain_positions))
     return patterns
 
 
@@ -2236,6 +2512,267 @@ def _validate_frames(recipient: Frame, donor: Frame) -> None:
         raise TypeError(f"donor must be a Frame, got {type(donor).__name__}.")
     if recipient.schema != donor.schema:
         raise ValueError("ACS recipient and donor must use the same entity schema.")
+
+
+def _normalize_calibration_targets(
+    targets: Iterable[tuple[str, str]],
+    *,
+    requested: frozenset[tuple[str, str]],
+) -> frozenset[tuple[str, str]]:
+    """Validate an exact owner selection against request and policy authority."""
+
+    if isinstance(targets, (str, bytes)):
+        raise TypeError(
+            "calibration_targets must contain (entity, target) pairs, not a string."
+        )
+    try:
+        items = tuple(targets)
+    except TypeError as exc:
+        raise TypeError(
+            "calibration_targets must be an iterable of (entity, target) pairs."
+        ) from exc
+    malformed = [
+        item
+        for item in items
+        if (
+            not isinstance(item, tuple)
+            or len(item) != 2
+            or any(not isinstance(value, str) or not value for value in item)
+        )
+    ]
+    if malformed:
+        raise TypeError(
+            "calibration_targets contains malformed (entity, target) "
+            f"pair(s): {malformed!r}."
+        )
+
+    selected = frozenset(items)
+    outside_request = sorted(selected - requested)
+    if outside_request:
+        raise ValueError(
+            "calibration_targets names target(s) outside the requested transfer "
+            f"surface: {outside_request}."
+        )
+    policy = frozenset(
+        (entity, target)
+        for entity, entity_targets in PUF_TAX_TRANSFER_CALIBRATION_POLICY.items()
+        for target in entity_targets
+    )
+    outside_policy = sorted(selected - policy)
+    if outside_policy:
+        raise ValueError(
+            "calibration_targets names target(s) outside the frozen PUF-tax "
+            f"work-package policy: {outside_policy}."
+        )
+    return selected
+
+
+def _normalize_calibration_scope_ids(
+    recipient: Frame,
+    scope_ids: Mapping[str, Sequence[str] | np.ndarray] | None,
+    *,
+    required_entities: Iterable[str],
+) -> dict[str, np.ndarray]:
+    """Validate caller-owned opaque calibration partitions by entity."""
+
+    if scope_ids is None:
+        return {}
+    if not isinstance(scope_ids, Mapping):
+        raise TypeError("calibration_scope_ids must be an entity mapping.")
+    unknown_entities = sorted(set(scope_ids) - set(recipient.entities))
+    if unknown_entities:
+        raise ValueError(
+            "calibration_scope_ids names recipient-absent entities: "
+            f"{unknown_entities}."
+        )
+    missing_entities = sorted(set(required_entities) - set(scope_ids))
+    if missing_entities:
+        raise ValueError(
+            "calibration_scope_ids omits PUF-tax calibration entities: "
+            f"{missing_entities}. Pass None only for the explicit unpartitioned "
+            "fixture fallback."
+        )
+
+    normalized: dict[str, np.ndarray] = {}
+    for entity, raw_values in scope_ids.items():
+        values = np.asarray(raw_values, dtype=object)
+        expected_rows = len(recipient.table(entity))
+        if values.ndim != 1 or len(values) != expected_rows:
+            raise ValueError(
+                f"calibration_scope_ids[{entity!r}] must be one-dimensional "
+                f"with {expected_rows} rows."
+            )
+        invalid = [
+            position
+            for position, value in enumerate(values.tolist())
+            if not isinstance(value, str) or not value.strip()
+        ]
+        if invalid:
+            raise ValueError(
+                f"calibration_scope_ids[{entity!r}] contains invalid opaque "
+                f"scope IDs at positions {invalid[:5]}."
+            )
+        copied = values.copy()
+        copied.setflags(write=False)
+        normalized[entity] = copied
+    return normalized
+
+
+def _normalize_calibration_references(
+    references: Mapping[str, Mapping[str, AcsTransferCalibrationReference]] | None,
+    *,
+    required_targets: Iterable[tuple[str, str]],
+) -> dict[str, dict[str, AcsTransferCalibrationReference]]:
+    """Copy and validate target-specific source-neutral calibration authority."""
+
+    required = set(required_targets)
+    if references is None:
+        return {}
+    if not isinstance(references, Mapping):
+        raise TypeError("calibration_references must be an entity mapping.")
+
+    supplied: dict[tuple[str, str], AcsTransferCalibrationReference] = {}
+    for entity, target_mapping in references.items():
+        if not isinstance(entity, str) or not entity.strip():
+            raise ValueError(
+                "calibration_references entity keys must be nonempty strings."
+            )
+        if not isinstance(target_mapping, Mapping):
+            raise TypeError(
+                f"calibration_references[{entity!r}] must be a target mapping."
+            )
+        for target, payload in target_mapping.items():
+            if not isinstance(target, str) or not target.strip():
+                raise ValueError(
+                    "calibration_references target keys must be nonempty strings."
+                )
+            if not isinstance(payload, AcsTransferCalibrationReference):
+                raise TypeError(
+                    "calibration_references payloads must be "
+                    "AcsTransferCalibrationReference instances; got "
+                    f"{type(payload).__name__} for {entity}.{target}."
+                )
+            supplied[(entity, target)] = payload
+
+    missing = sorted(required - set(supplied))
+    extra = sorted(set(supplied) - required)
+    if missing or extra:
+        raise ValueError(
+            "calibration_references must exactly cover active PUF-tax "
+            f"calibration targets; missing={missing}, extra={extra}. Pass None "
+            "only for the explicit selected-donor fixture fallback."
+        )
+
+    normalized: dict[str, dict[str, AcsTransferCalibrationReference]] = {}
+    seen_reference_ids: dict[str, tuple[str, str]] = {}
+    for (entity, target), payload in sorted(supplied.items()):
+        reference_id = payload.reference_id
+        if not isinstance(reference_id, str) or not reference_id.strip():
+            raise ValueError(
+                f"calibration reference ID for {entity}.{target} must be a "
+                "nonempty opaque string."
+            )
+        previous = seen_reference_ids.get(reference_id)
+        if previous is not None:
+            raise ValueError(
+                "calibration reference IDs must be target-unique; "
+                f"{reference_id!r} is shared by {previous} and {(entity, target)}."
+            )
+        seen_reference_ids[reference_id] = (entity, target)
+
+        try:
+            values = np.asarray(payload.values, dtype=np.float64)
+            weights = np.asarray(payload.weights, dtype=np.float64)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"calibration reference arrays are not numeric for {entity}.{target}."
+            ) from exc
+        stable_ids = np.asarray(payload.stable_ids, dtype=object)
+        if values.ndim != 1 or weights.ndim != 1 or stable_ids.ndim != 1:
+            raise ValueError(
+                "calibration reference values, weights, and stable IDs must be "
+                f"one-dimensional for {entity}.{target}."
+            )
+        if not (len(values) == len(weights) == len(stable_ids)):
+            raise ValueError(
+                "calibration reference values, weights, and stable IDs must be "
+                f"aligned for {entity}.{target}; got "
+                f"{len(values)}, {len(weights)}, and {len(stable_ids)} rows."
+            )
+        if not np.isfinite(values).all():
+            raise ValueError(
+                f"calibration reference values must be finite for {entity}.{target}."
+            )
+        if not np.isfinite(weights).all() or (weights < 0.0).any():
+            raise ValueError(
+                "calibration reference weights must be finite and nonnegative "
+                f"for {entity}.{target}."
+            )
+        _validate_calibration_reference_stable_ids(
+            stable_ids,
+            entity=entity,
+            target=target,
+        )
+
+        values_copy = np.ascontiguousarray(values).copy()
+        weights_copy = np.ascontiguousarray(weights).copy()
+        stable_ids_copy = stable_ids.copy()
+        values_copy.setflags(write=False)
+        weights_copy.setflags(write=False)
+        stable_ids_copy.setflags(write=False)
+        normalized.setdefault(entity, {})[target] = AcsTransferCalibrationReference(
+            reference_id=reference_id,
+            values=values_copy,
+            weights=weights_copy,
+            stable_ids=stable_ids_copy,
+        )
+    return normalized
+
+
+def _validate_calibration_reference_stable_ids(
+    stable_ids: np.ndarray,
+    *,
+    entity: str,
+    target: str,
+) -> None:
+    """Validate the scalar-ID contract used by deterministic calibration."""
+
+    seen: set[tuple[str, object]] = set()
+    for position, raw in enumerate(stable_ids.tolist()):
+        value = raw.item() if isinstance(raw, np.generic) else raw
+        if value is None or value is np.ma.masked:
+            raise ValueError(
+                "calibration reference stable IDs contain a missing ID for "
+                f"{entity}.{target} at position {position}."
+            )
+        if isinstance(value, (str, bytes)):
+            if len(value) == 0:
+                raise ValueError(
+                    "calibration reference stable IDs contain a missing ID for "
+                    f"{entity}.{target} at position {position}."
+                )
+            key: tuple[str, object] = (type(value).__name__, value)
+        elif isinstance(value, Integral):
+            key = ("number", int(value))
+        elif isinstance(value, Real):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(
+                    "calibration reference stable IDs contain a missing ID for "
+                    f"{entity}.{target} at position {position}."
+                )
+            key = ("number", numeric)
+        else:
+            raise ValueError(
+                "calibration reference stable IDs contain unsupported non-scalar "
+                f"ID {value!r} for {entity}.{target} at position {position}."
+            )
+        if key in seen:
+            raise ValueError(
+                "calibration reference stable IDs must be unique for "
+                f"{entity}.{target}; duplicate ID {value!r}."
+            )
+        seen.add(key)
 
 
 def _validate_fit_options(
@@ -3001,6 +3538,486 @@ def _prediction_values(
     result = pd.array([pd.NA] * len(values), dtype="boolean")
     result[finite] = np.isclose(values[finite], 1.0)
     return result
+
+
+_SIGN_LABEL_TO_VALUE: Mapping[str, int] = {
+    "negative": -1,
+    "positive": 1,
+}
+_SIGN_VALUE_TO_LABEL: Mapping[int, str] = {
+    -1: "negative",
+    0: "zero",
+    1: "positive",
+}
+_GATED_REGIMES = frozenset(
+    {
+        Regime.THREE_SIGN,
+        Regime.ZERO_INFLATED_POSITIVE,
+        Regime.ZERO_INFLATED_NEGATIVE,
+        Regime.SIGN_ONLY,
+    }
+)
+_REGIME_NONZERO_SIGNS: Mapping[str, frozenset[int]] = {
+    Regime.THREE_SIGN: frozenset((-1, 1)),
+    Regime.ZERO_INFLATED_POSITIVE: frozenset((1,)),
+    Regime.ZERO_INFLATED_NEGATIVE: frozenset((-1,)),
+    Regime.SIGN_ONLY: frozenset((-1, 1)),
+    Regime.POSITIVE_ONLY: frozenset((1,)),
+    Regime.NEGATIVE_ONLY: frozenset((-1,)),
+    Regime.DEGENERATE_ZERO: frozenset(),
+}
+
+
+def _calibrate_puf_tax_predictions(
+    *,
+    donor: Frame,
+    recipient: Frame,
+    entity: str,
+    decoded_predictions: Mapping[str, np.ndarray | pd.api.extensions.ExtensionArray],
+    target_missing: Mapping[str, np.ndarray],
+    target_encodings: Mapping[str, _TargetEncoding],
+    pattern_contexts: Sequence[_PatternFitContext],
+    calibration_scope_ids: np.ndarray | None,
+    calibration_references: Mapping[str, AcsTransferCalibrationReference],
+) -> tuple[
+    dict[str, np.ndarray | pd.api.extensions.ExtensionArray],
+    dict[str, Mapping[str, object]],
+]:
+    """Calibrate exact PUF-tax targets after decode and before null-only fill.
+
+    Raw QRF arrays are never mutated.  Each target uses its caller-bound
+    source-neutral authority reference when present.  The already-selected
+    donor is retained only as the explicit fixture fallback, while recipient
+    capacity is isolated by availability pattern and caller-owned neutral
+    scope. Native recipient cells participate as immutable constraints.
+    """
+
+    calibrated = dict(decoded_predictions)
+    policy = PUF_TAX_TRANSFER_CALIBRATION_POLICY.get(entity, {})
+    active_targets = tuple(target for target in decoded_predictions if target in policy)
+    if not active_targets:
+        return calibrated, {}
+
+    donor_table = donor.table(entity)
+    recipient_table = recipient.table(entity)
+    donor_weight_values = np.asarray(
+        donor.resolve_weights(entity).values,
+        dtype=np.float64,
+    )
+    recipient_weight_values = np.asarray(
+        recipient.resolve_weights(entity).values,
+        dtype=np.float64,
+    )
+    donor_ids = donor_table[donor.schema.entity_id_column(entity)].to_numpy()
+    recipient_ids = recipient_table[
+        recipient.schema.entity_id_column(entity)
+    ].to_numpy()
+    receipts: dict[str, Mapping[str, object]] = {}
+
+    for target in active_targets:
+        encoding = target_encodings[target]
+        if encoding.kind != "continuous":
+            raise RuntimeError(
+                "PUF-tax sign/amount calibration requires a continuous codec; "
+                f"{entity}.{target} resolved {encoding.kind!r}."
+            )
+        prediction = np.asarray(decoded_predictions[target], dtype=np.float64)
+        calibrated_prediction = prediction.copy()
+        missing = np.asarray(target_missing[target], dtype=bool)
+        if len(prediction) != len(recipient_table) or len(missing) != len(
+            recipient_table
+        ):
+            raise ValueError(
+                f"PUF-tax calibration row alignment changed for {entity}.{target}."
+            )
+
+        if target in recipient_table:
+            prospective = _as_float_array(recipient_table[target]).copy()
+        else:
+            prospective = np.full(len(recipient_table), np.nan, dtype=np.float64)
+        predicted_finite = np.isfinite(prediction)
+        prospective[missing & predicted_finite] = prediction[missing & predicted_finite]
+
+        authority_reference = calibration_references.get(target)
+        if authority_reference is None:
+            reference_mask = np.isfinite(_as_float_array(donor_table[target]))
+            reference_values = _normalize_qrf_zeros(
+                _as_float_array(donor_table[target])[reference_mask]
+            )
+            reference_weights = donor_weight_values[reference_mask]
+            reference_ids = donor_ids[reference_mask]
+            reference_id: str | None = None
+            reference_selection = "fixture_selected_donor_target_complete_rows"
+            fixture_fallback = True
+        else:
+            reference_values = _normalize_qrf_zeros(
+                np.asarray(authority_reference.values, dtype=np.float64)
+            )
+            reference_weights = np.asarray(
+                authority_reference.weights,
+                dtype=np.float64,
+            )
+            reference_ids = np.asarray(
+                authority_reference.stable_ids,
+                dtype=object,
+            )
+            reference_id = authority_reference.reference_id
+            reference_selection = "caller_bound_source_neutral_reference"
+            fixture_fallback = False
+        reference_sign_weights, reference_sign_shares = _weighted_sign_distribution(
+            reference_values,
+            reference_weights,
+            entity=entity,
+            target=target,
+        )
+        specification = policy[target]
+        carrier_labels = tuple(specification["carrier_signs"])
+        amount_labels = tuple(specification["amount_signs"])
+        pattern_receipts: list[dict[str, object]] = []
+
+        for context in pattern_contexts:
+            pattern_values = _normalize_qrf_zeros(
+                _as_float_array(donor_table[target])[context.donor_mask]
+            )
+            regime = detect_regime(
+                pattern_values,
+                zero_atol=DEFAULT_ZERO_ATOL,
+            )
+            scope_receipts: list[dict[str, object]] = []
+            for scope_identity, scope_positions in _recipient_calibration_scopes(
+                calibration_scope_ids,
+                domain_positions=context.domain_positions,
+            ):
+                mutable = missing[scope_positions] & predicted_finite[scope_positions]
+                if not mutable.any():
+                    continue
+                original_scope_values = prospective[scope_positions].copy()
+                if not np.isfinite(original_scope_values).all():
+                    bad = int((~np.isfinite(original_scope_values)).sum())
+                    raise ValueError(
+                        "PUF-tax calibration domain contains unresolved values for "
+                        f"{entity}.{target}/{context.pattern.name}: {bad}."
+                    )
+                scope_weights = recipient_weight_values[scope_positions]
+                calibration_mutable = mutable & (scope_weights > 0.0)
+                immutable = ~calibration_mutable
+                scope_values = _normalize_qrf_zeros(original_scope_values)
+                scope_ids = recipient_ids[scope_positions]
+                initial_signs = np.sign(scope_values).astype(np.int8)
+
+                scope_values, carrier_receipt = _calibrate_scope_carriers(
+                    scope_values,
+                    scope_weights,
+                    scope_ids,
+                    immutable=immutable,
+                    carrier_labels=carrier_labels,
+                    regime=regime,
+                    reference_sign_shares=reference_sign_shares,
+                )
+                calibrated_signs = np.sign(scope_values).astype(np.int8)
+                newly_assigned = (calibrated_signs != 0) & (
+                    calibrated_signs != initial_signs
+                )
+                amount_signs = frozenset(
+                    _SIGN_LABEL_TO_VALUE[label] for label in amount_labels
+                )
+                amount_candidates = ~immutable & np.isin(
+                    calibrated_signs, tuple(amount_signs)
+                )
+                amount_receipt: dict[str, object] | None = None
+                if amount_candidates.any():
+                    mapped = map_sign_preserving_weighted_magnitudes(
+                        scope_values,
+                        scope_weights,
+                        scope_ids,
+                        reference_values,
+                        reference_weights,
+                        reference_ids,
+                        immutable=~amount_candidates,
+                    )
+                    scope_values = mapped.values.copy()
+                    amount_receipt = _magnitude_mapping_receipt(
+                        mapped,
+                        mapped_signs=amount_signs,
+                    )
+
+                initialization_candidates = (
+                    newly_assigned
+                    & ~np.isin(calibrated_signs, tuple(amount_signs))
+                    & ~immutable
+                )
+                initialization_receipt: dict[str, object] | None = None
+                if initialization_candidates.any():
+                    initialized = map_sign_preserving_weighted_magnitudes(
+                        scope_values,
+                        scope_weights,
+                        scope_ids,
+                        reference_values,
+                        reference_weights,
+                        reference_ids,
+                        immutable=~initialization_candidates,
+                    )
+                    scope_values = initialized.values.copy()
+                    initialization_receipt = _magnitude_mapping_receipt(
+                        initialized,
+                        mapped_signs=frozenset(
+                            int(sign)
+                            for sign in calibrated_signs[initialization_candidates]
+                        ),
+                    )
+
+                # Calibration classifies values with the fitted QRF zero
+                # tolerance, but immutable bytes remain authoritative.  This
+                # restoration is load-bearing for a missing zero-weight row:
+                # it is still filled from the raw draw, yet provides no
+                # carrier or conditional-amount capacity.
+                scope_values[immutable] = original_scope_values[immutable]
+                if not np.array_equal(
+                    scope_values[immutable], original_scope_values[immutable]
+                ):
+                    raise AssertionError(
+                        "PUF-tax calibration changed an immutable recipient cell."
+                    )
+                mutable_positions = scope_positions[mutable]
+                calibrated_prediction[mutable_positions] = scope_values[mutable]
+                prospective[mutable_positions] = scope_values[mutable]
+                scope_receipts.append(
+                    {
+                        **scope_identity,
+                        "domain_rows": int(len(scope_positions)),
+                        "mutable_rows": int(mutable.sum()),
+                        "calibration_mutable_rows": int(calibration_mutable.sum()),
+                        "immutable_rows": int((~mutable).sum()),
+                        "zero_weight_rows_preserved": int(
+                            (mutable & (scope_weights == 0.0)).sum()
+                        ),
+                        "carrier": carrier_receipt,
+                        "conditional_amount": amount_receipt,
+                        "new_carrier_amount_initialization": (initialization_receipt),
+                    }
+                )
+
+            pattern_receipts.append(
+                {
+                    "name": context.pattern.name,
+                    "regime": regime,
+                    "donor_rows": int(context.donor_mask.sum()),
+                    "prediction_rows": int(len(context.recipient_positions)),
+                    "domain_rows": int(len(context.domain_positions)),
+                    "scopes": scope_receipts,
+                }
+            )
+
+        calibrated[target] = calibrated_prediction
+        receipts[target] = {
+            "puf_tax_sign_hurdle_and_quantile_calibration": {
+                "schema_version": 1,
+                "policy": {
+                    "carrier_signs": list(carrier_labels),
+                    "amount_signs": list(amount_labels),
+                },
+                "reference": {
+                    "selection": reference_selection,
+                    "reference_id": reference_id,
+                    "fixture_fallback": fixture_fallback,
+                    "rows": int(len(reference_values)),
+                    "positive_weight_rows": int((reference_weights > 0.0).sum()),
+                    "weight_total": float(math.fsum(reference_weights.tolist())),
+                    "sign_weight": {
+                        _SIGN_VALUE_TO_LABEL[sign]: float(weight)
+                        for sign, weight in zip(
+                            (-1, 0, 1),
+                            reference_sign_weights,
+                            strict=True,
+                        )
+                    },
+                    "sign_share": {
+                        _SIGN_VALUE_TO_LABEL[sign]: float(share)
+                        for sign, share in zip(
+                            (-1, 0, 1),
+                            reference_sign_shares,
+                            strict=True,
+                        )
+                    },
+                },
+                "patterns": pattern_receipts,
+            }
+        }
+    return calibrated, receipts
+
+
+def _normalize_qrf_zeros(values: np.ndarray) -> np.ndarray:
+    normalized = np.asarray(values, dtype=np.float64).copy()
+    normalized[np.abs(normalized) <= DEFAULT_ZERO_ATOL] = 0.0
+    return normalized
+
+
+def _weighted_sign_distribution(
+    values: np.ndarray,
+    weights: np.ndarray,
+    *,
+    entity: str,
+    target: str,
+) -> tuple[np.ndarray, np.ndarray]:
+    if len(values) != len(weights) or not np.isfinite(values).all():
+        raise ValueError(f"PUF-tax donor reference is malformed for {entity}.{target}.")
+    if not np.isfinite(weights).all() or (weights < 0.0).any():
+        raise ValueError(
+            f"PUF-tax donor reference weights are invalid for {entity}.{target}."
+        )
+    signs = np.sign(values).astype(np.int8)
+    totals = np.asarray(
+        [math.fsum(weights[signs == sign].tolist()) for sign in (-1, 0, 1)],
+        dtype=np.float64,
+    )
+    total = math.fsum(totals.tolist())
+    if total <= 0.0 or not math.isfinite(total):
+        raise ValueError(
+            "PUF-tax calibration requires positive selected-donor weight for "
+            f"{entity}.{target}."
+        )
+    return totals, totals / total
+
+
+def _recipient_calibration_scopes(
+    scope_ids: np.ndarray | None,
+    *,
+    domain_positions: np.ndarray,
+) -> list[tuple[dict[str, object], np.ndarray]]:
+    if scope_ids is None:
+        return [
+            (
+                {
+                    "scope_id": None,
+                    "fixture_fallback": True,
+                },
+                domain_positions,
+            )
+        ]
+    domain_scope_ids = scope_ids[domain_positions]
+    identities = sorted(set(domain_scope_ids.tolist()))
+    scopes: list[tuple[dict[str, object], np.ndarray]] = []
+    for scope_id in identities:
+        selected = domain_scope_ids == scope_id
+        scopes.append(
+            (
+                {
+                    "scope_id": scope_id,
+                    "fixture_fallback": False,
+                },
+                domain_positions[selected],
+            )
+        )
+    return scopes
+
+
+def _calibrate_scope_carriers(
+    values: np.ndarray,
+    weights: np.ndarray,
+    stable_ids: np.ndarray,
+    *,
+    immutable: np.ndarray,
+    carrier_labels: tuple[str, ...],
+    regime: str,
+    reference_sign_shares: np.ndarray,
+) -> tuple[np.ndarray, dict[str, object]]:
+    requested_signs = tuple(_SIGN_LABEL_TO_VALUE[label] for label in carrier_labels)
+    supported_signs = _REGIME_NONZERO_SIGNS[regime]
+    applicable_signs = tuple(
+        sign for sign in requested_signs if sign in supported_signs
+    )
+    receipt: dict[str, object] = {
+        "requested_signs": list(carrier_labels),
+        "applied_signs": [_SIGN_VALUE_TO_LABEL[sign] for sign in applicable_signs],
+        "regime": regime,
+        "method": "not_applicable",
+        "allocation": None,
+    }
+    if not requested_signs:
+        receipt["reason"] = "policy_has_no_carrier_check"
+        return values.copy(), receipt
+    if regime not in _GATED_REGIMES:
+        receipt["reason"] = "ungated_fitted_regime"
+        return values.copy(), receipt
+    if not applicable_signs:
+        receipt["reason"] = "requested_sign_absent_from_fitted_regime"
+        return values.copy(), receipt
+
+    initial_signs = np.sign(values).astype(np.int8)
+    calibrated_signs = initial_signs.copy()
+    allocation: object
+    if len(applicable_signs) == 2:
+        shares = reference_sign_shares.copy()
+        if regime == Regime.SIGN_ONLY:
+            nonzero_total = float(shares[0] + shares[2])
+            if nonzero_total <= 0.0:  # pragma: no cover - subset proves support
+                raise ValueError(
+                    "Sign-only calibration has no nonzero donor reference weight."
+                )
+            shares = np.asarray(
+                (shares[0] / nonzero_total, 0.0, shares[2] / nonzero_total),
+                dtype=np.float64,
+            )
+        allocation = allocate_weighted_signs(
+            values,
+            weights,
+            stable_ids,
+            target_shares=shares,
+            immutable=immutable,
+        )
+        calibrated_signs = allocation.signs.copy()
+        receipt["method"] = "three_class_sign_allocation"
+        receipt["allocation"] = _json_ready(asdict(allocation.receipt))
+    else:
+        sign = applicable_signs[0]
+        targeted = initial_signs == sign
+        opposite = initial_signs == -sign
+        allocation = select_weighted_binary_carriers(
+            targeted,
+            values * float(sign),
+            weights,
+            stable_ids,
+            target_share=float(reference_sign_shares[sign + 1]),
+            immutable=immutable | opposite,
+        )
+        calibrated_signs[targeted & ~allocation.carriers] = 0
+        calibrated_signs[(initial_signs == 0) & allocation.carriers] = sign
+        receipt["method"] = "binary_carrier_selection"
+        receipt["allocation"] = _json_ready(asdict(allocation.receipt))
+
+    output = values.copy()
+    output[calibrated_signs == 0] = 0.0
+    changed_to_carrier = (calibrated_signs != 0) & (calibrated_signs != initial_signs)
+    output[changed_to_carrier] = calibrated_signs[changed_to_carrier].astype(np.float64)
+    if not np.array_equal(output[immutable], values[immutable]):
+        raise AssertionError("Carrier calibration changed an immutable cell.")
+    return output, receipt
+
+
+def _magnitude_mapping_receipt(
+    mapping: Any,
+    *,
+    mapped_signs: frozenset[int],
+) -> dict[str, object]:
+    return {
+        "mapped_signs": [_SIGN_VALUE_TO_LABEL[sign] for sign in sorted(mapped_signs)],
+        "conditional": [
+            _json_ready(asdict(receipt))
+            for receipt in mapping.conditional
+            if receipt.sign in mapped_signs
+        ],
+        "zero_weight_rows_preserved": int(mapping.zero_weight_rows_preserved),
+    }
+
+
+def _json_ready(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _json_ready(item) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [_json_ready(item) for item in value]
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
 
 
 def _fill_recipient_nulls(

@@ -2,11 +2,15 @@
 
 ## State
 
-Continuation active on branch `battery-pkg1-puf-tax`. The host's paired 1%
-evidence showed identical 127-line failure sets because the committed PUF-tax
-and Schedule-D calibration kernels have no production caller. The exact capped-
-leaf QRF correction now passes its 73-case focused suite and static checks and
-is committed with this journal boundary. No frozen gate parameter or band has
+Continuation active on branch `battery-pkg1-puf-tax`. The PUF-tax kernels now
+run at the common post-decode, pre-fill ACS seam for an explicit default-empty
+exact-target selection, and the stacked early/late owners bind only their active
+assigned keys. Schedule-D parent reconciliation runs in the default stacked
+derive stage. Independent scope and integration reviews are closed; the
+Schedule-D mutation contract now explicitly declares both its parent rewrite
+and derived leaf, and its role-authority digest covers the final role counts.
+All 73 ACS transfer tests and the 1,020-test touched-runtime set pass; the
+complete repository suite is next. No frozen gate parameter or band has
 changed, and the host owns the next 1% comparison.
 
 ## Done
@@ -120,12 +124,39 @@ changed, and the host owns the next 1% comparison.
   and add a fixture regression that fails if assigned invocation disappears or
   leaks to an unassigned target. No local 1% build is authorized for this
   continuation.
+- Restored the reviewed post-decode/pre-fill integration for both banked and
+  in-memory ACS QRF paths, including opaque source-aware recipient scopes,
+  target-specific frozen references, immutable native cells, and external
+  reconciliation receipts.
+- Mirrored pkg3's scoped-binding pattern with a default-empty explicit
+  `(entity, target)` selector. Selection fails closed outside the requested
+  surface or the frozen 20-target policy; stacked early and late owners pass
+  exactly the currently active assigned keys, including inside suffixed mixed
+  batches.
+- Added a call-recording regression with assigned `qualified_dividend_income`
+  and unassigned `taxable_interest_income` in the same family. With no selector
+  the kernel has zero calls; with the assigned selector the imported magnitude
+  kernel is called only with the assigned reference, the unassigned output is
+  bit-equal to its raw baseline, and an attempted unassigned selector fails
+  before fit.
+- Wired the Schedule-D parent kernel at the default stacked derive seam (the
+  late transfer deliberately suppresses ACS-local Schedule-D derivation).
+  Transient clone-0 roles are consumed and removed; the long-term parent bytes
+  and weighted direct-parent distribution remain preserved.
+- Focused wiring/Schedule-D tests, all 73 ACS transfer tests, and 1,020 tests
+  spanning the pure kernels, multispine runtime, stacked spine, late DAG, build
+  tool, and source-blindness guards reach 100% and exit zero. Only established
+  pandas fragmentation warnings are emitted.
+- Closed independent review with no remaining blocker. The Schedule-D operator
+  contract now names both `non_sch_d_capital_gains` and its derived leaf, its
+  kernel receipt repeats that exact surface, and the transient role-authority
+  SHA covers the disclosed role counts. Re-review confirmed this later derive
+  contract cannot enter any early or late ACS transfer surface.
 
 ## Next
 
-- Wire the calibration seam into the ACS transfer stage for exactly the assigned
-  PUF-tax targets and Schedule-D parent, following pkg3's scoped-binding shape.
-- Add assigned/non-assigned invocation coverage, then run the complete suite,
-  Ruff, formatting/diff checks, and commit each coherent boundary.
-- Update this journal and `FINAL_REPORT.md`; leave the next 1% build and result
+- Commit the independently reviewed wired runtime boundary.
+- Run the complete repository suite, full Ruff, formatting, and diff checks;
+  fix and commit any failures without running a 1% build.
+- Finalize this journal and `FINAL_REPORT.md`; leave the next 1% build and result
   diff to the host.

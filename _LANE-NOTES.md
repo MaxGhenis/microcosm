@@ -43,7 +43,38 @@
 
 ## Measurements
 
-Before/after 1% results will be added after the frozen builds.
+The first pre-integration 1% attempt in
+`/private/tmp/microcosm-pkg1-puf-tax-before` used the frozen sample/clone
+settings and set `POPULACE_FIT_N_JOBS=1` and
+`POPULACE_FIT_PREDICT_WORKERS=1`; the QRF implementation binds those controls
+only to execution width (`packages/microcosm-fit/src/microcosm/fit/qrf.py:404-460`).
+No `--logbook-prev-row-digest` was passed. The run was stopped during primary
+target 10 after `stage_profile.json` reported 63,671,549,952 bytes for taxable
+interest, 60,830,138,368 for qualified dividends, 58,797,850,624 for
+nonqualified dividends, and 29,037,576,192 for short-term gains. Because those
+single-process peaks violate the lane's 15 GiB ceiling, the partial output is
+not accepted as a control artifact and will not be resumed.
+
+Direct source tracing found that `quantile_forest` first computes one global
+largest-leaf width, allocates an `int64 (trees, max_nodes, outputs, max_leaf)`
+tensor, holds per-tree slices in a list, and copies them into the final array.
+Microcosm currently requests all leaf samples after its external weighted
+bootstrap (`packages/microcosm-fit/src/microcosm/fit/qrf.py:463-514`), so thread
+width cannot bound this allocation. An adaptive sample cap was rejected because
+the dependency shuffles and truncates oversized leaves, changing the ECDF and
+therefore later chained targets. The in-progress correction instead stores
+exact bootstrap multiplicities in a ragged representation and must prove
+bit-exact draws against the dense backend before another build.
+
+Pinned local inputs for both builds:
+
+- ASEC raw-stage checkpoint SHA-256
+  `51e9fafcd6f16140018fa90c7afbeb6d79008bfc8c122e437d23a399b30553fe`.
+- ACS household/person archives SHA-256 `8281008e...e515d0` and
+  `afdc6d90...69894`.
+- ACS rent donor SHA-256 `0b319b49...41bd4`, PUF H5 SHA-256
+  `7669f5b5...d6df`, and source-year PUF CSV SHA-256
+  `0a7fd643...f2499df`.
 
 ## Baseline verification
 
@@ -126,3 +157,43 @@ Before/after 1% results will be added after the frozen builds.
   100% and exited 0 after the constrained-CDF and weight-matched reconciliation
   revisions. Its warnings matched the baseline categories; no failure was
   emitted.
+
+## Wiring continuation receipt
+
+- The host's paired 1% comparison found identical 127-line failure sets on this
+  branch and `origin/main`: zero fixed and zero introduced. The build log had no
+  calibration lines because `acs_transfer_calibration.py` had no production
+  caller. Those partial artifacts are evidence of non-execution, not remedy
+  results; this continuation did not run another 1% build.
+- The common banked/non-banked ACS path now decodes raw QRF predictions, invokes
+  PUF-tax calibration on copies, then performs the existing null-only fill.
+  Raw chained priors and bank checkpoints remain unchanged. Reconciliation
+  receipts are attached only to selected assigned targets.
+- Activation mirrors pkg3 commits `22b2c6bc` and `176c60fc`: callers pass a
+  default-empty exact `(entity, target)` selection, validated against both the
+  requested surface and the frozen 20-target/38-check policy. The stacked early
+  and late owners derive that selection from their active surface and pass only
+  the same keys for which they bind frozen references.
+- The wiring regression puts assigned `qualified_dividend_income` beside
+  unassigned `taxable_interest_income` in one `puf_tax_itemization` batch. It
+  records the imported magnitude-kernel calls, proves the default makes none,
+  proves the assigned selection calls only with the assigned reference, proves
+  the unassigned output is bit-equal to its raw baseline with no receipt, and
+  proves an attempted unassigned selection fails before fitting.
+- The default stacked path suppresses Schedule-D derivation during late ACS
+  transfer, so the parent kernel is wired later at `_complete_schedule_d_input`.
+  The source-aware owner supplies transient ASEC-clone-0 reference and
+  ACS-clone-0 recipient roles; reconciliation consumes and removes the marker,
+  byte-preserves the long-term parent, preserves the weighted direct-parent
+  carrier/amount distribution, and derives the Schedule-D leaf afterward.
+- Independent review closed two receipt-only gaps before commit: the derive
+  operator now declares both the mutable `non_sch_d_capital_gains` parent and
+  the derived leaf, while the role-authority SHA covers its final row counts.
+  Live registry checks confirmed the expanded derive contract does not enter
+  the early or late ACS transfer surfaces; no remaining review blocker exists.
+- Validation so far: four load-bearing assigned/unassigned and Schedule-D
+  wiring fixtures pass; all 73 ACS transfer tests pass; and 1,020 touched-runtime
+  tests covering both pure kernels, multispine/stacked execution, the late DAG,
+  CLI checkpoint identity, and source-blindness reach 100% and exit zero. Only
+  established pandas fragmentation warnings appear. The complete repository
+  suite remains the final gate before handoff.
