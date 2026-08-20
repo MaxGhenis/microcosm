@@ -2,12 +2,12 @@
 
 ## State
 
-Final revalidation is in progress on branch `battery-burndown`, based on
+Final revalidation is complete on branch `battery-burndown`, based on
 `arm-split-base` at `7d6749990933ac072ac257ae76d666aa16b84d25`.
-Gate arithmetic and comparator/reviewed-exclusion source paths have been
-independently rechecked; the classification and final cross-format audits remain.
-No builds or pushes were run, and no code, gate, band, threshold, or publication
-state was changed.
+The owner-facing and machine-readable reports passed independent gate-arithmetic,
+mechanism/source, and classification/actionability audits after the final wording
+correction. No builds or pushes were run, and no code, gate, band, threshold, or
+publication state was changed.
 
 ## Done
 
@@ -166,15 +166,23 @@ state was changed.
   citation. Tightened one attestation sentence to state exactly that successful
   input-mass/QRF-tail results retain projected reasons rather than full approval
   receipts; this changes no row, count, disposition, or recommendation.
+- Independently audited all 93 classifications and effort estimates, including
+  selective reproduction of the two clone-1 QBI signals and all nine coupled
+  identities. The zero-exclusion conclusion, ten-package partition, necessary
+  current-red minimal set, full-rerun qualification, and both top-five rankings
+  are defensible without changes.
 - Prior closed-report SHA-256 at commit `2b4b3778` (superseded by the
   attestation wording correction):
   `02c4c26b96d60688a91a75ef63290e8148479adc5c277ed136fba5398d27e0ff`;
   prior JSON SHA-256:
   `57de9ba5867e440077ff7b6888138bc45dc45db2a9b9697820eecac4e3b5240d`.
+- Final report SHA-256:
+  `05d5fdc49427bce5a2e898555ebba88461bf63911dc0c4a762712678f54d3be9`;
+  final JSON SHA-256:
+  `91f6dbc34bf796861947ae4995457be086383248a95c0aecaeea4ce0e8a3d35f`.
 
 ## Next
 
-- Complete the independent classification/actionability and final cross-format
-  audits, record final hashes, and close the journal.
+- Owner handoff. No in-scope analysis remains.
 - Resolve the work packages in the adjudication, then rerun all 211 battery
   legs before certification; the present task does not authorize that build.
