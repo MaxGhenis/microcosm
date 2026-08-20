@@ -2,7 +2,7 @@
 
 ## State
 
-Inventory drafting is in progress from detached cached `origin/main` commit
+Stochastic-ledger drafting is in progress from detached cached `origin/main` commit
 `164027e21cfa58a71d701b43211d009d6182e39d` in the isolated worktree
 `/Users/maxghenis/PolicyEngine/microcosm/.worktrees/microcosm-uk-flip-prep`.
 No package or UK source files will be edited, no builds will run, and nothing
@@ -37,11 +37,14 @@ repository sandbox instead. The locally cached spec ref is
 - Identified a blocking schema/ABI gap: the current executable spine contract is
   US-stacked-pool-specific and the UK walking skeleton compiles no executable
   producer nodes.
+- Wrote `_UK-FLIP-PREP/AUTHORITY-INVENTORY.md`: 30 selected-driver semantic
+  authority groups, each with source anchors and a compiled-IR/bundle owner;
+  12 distinct missing schema paths are sketched and counted once.
 
 ## Next
 
-- Draft and independently cross-check the authority inventory and stochastic
-  ledger/exemptions, including exact counts and schema-field sketches.
+- Draft and independently cross-check the stochastic ledger/exemptions,
+  including exact physical/logical counts and seed reconciliation.
 - Write the UK F1 charter under `_UK-FLIP-PREP/`, validate internal counts and
   links, commit each coherent artifact step, and record final counts and risks
   here.
