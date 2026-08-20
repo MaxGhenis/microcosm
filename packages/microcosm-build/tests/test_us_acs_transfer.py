@@ -787,7 +787,7 @@ def test_declared_plan_carries_the_23_stage_base_surface() -> None:
     ] == ("is_tanf_enrolled", "receives_snap")
 
 
-def test_retirement_removal_arm_is_scoped_to_the_early_person_puf_family() -> None:
+def test_broad_addition_arm_is_scoped_to_the_early_person_puf_family() -> None:
     families = {
         "person": {
             "puf_tax_itemization": ("qualified_dividend_income",),
@@ -824,8 +824,24 @@ def test_retirement_removal_arm_is_scoped_to_the_early_person_puf_family() -> No
     assert person["puf_tax_itemization"].optional == (
         "__acs_transfer_employment_income",
         "__acs_transfer_self_employment_income",
+        "__acs_transfer_social_security_income",
+        "__acs_transfer_retirement_income",
+        "__acs_transfer_marital_status_code",
+        "__acs_transfer_relationship_code",
+        "__acs_transfer_household_person_count",
         "__acs_transfer_is_household_head",
         "__acs_transfer_tenure_code",
+        "__acs_transfer_difficulty_dressing_or_bathing",
+        "__acs_transfer_difficulty_hearing",
+        "__acs_transfer_difficulty_seeing",
+        "__acs_transfer_difficulty_doing_errands",
+        "__acs_transfer_difficulty_walking_or_climbing_stairs",
+        "__acs_transfer_difficulty_remembering_or_making_decisions",
+        "__acs_transfer_usual_hours_worked",
+        "__acs_transfer_weeks_worked",
+        "__acs_transfer_is_self_employed_worker",
+        "__acs_transfer_has_medicare_coverage",
+        "__acs_transfer_is_foreign_born",
     )
     for family in (
         "model_required_numeric",
@@ -851,6 +867,69 @@ def test_retirement_removal_arm_is_scoped_to_the_early_person_puf_family() -> No
         "__acs_transfer_group_head_count",
         "__acs_transfer_group_tenure_code",
     )
+
+
+def test_broad_addition_puf_surface_materializes_all_twenty_predictors() -> None:
+    donor, recipient = _conditioning_frames()
+    donor = _with_columns(
+        donor,
+        "person",
+        {
+            "marital_status_code": [1.0] * 8,
+            "relationship_code": [1.0, 4.0, 1.0, 5.0, 1.0, 4.0, 1.0, 5.0],
+            "household_person_count": [2.0] * 8,
+            "difficulty_dressing_or_bathing": [0.0] * 8,
+            "difficulty_hearing": [0.0] * 8,
+            "difficulty_seeing": [0.0] * 8,
+            "difficulty_doing_errands": [0.0] * 8,
+            "difficulty_walking_or_climbing_stairs": [0.0] * 8,
+            "difficulty_remembering_or_making_decisions": [0.0] * 8,
+            "usual_hours_worked": [40.0] * 8,
+            "weeks_worked_predictor": [52.0] * 8,
+            "is_self_employed_worker": [0.0] * 8,
+            "has_medicare_coverage": [0.0] * 8,
+            "is_foreign_born": [0.0] * 8,
+        },
+    )
+    recipient = _with_columns(
+        recipient,
+        "person",
+        {
+            "MAR": [1, 2, 3, 4, 5, 1],
+            "A_EXPRRP": [1, 4, 5, 7, 13, 14],
+            "DDRS": [2, 2, 1, 2, 1, 2],
+            "DEAR": [2, 1, 2, 2, 1, 2],
+            "DEYE": [2, 2, 2, 1, 1, 2],
+            "DOUT": [2, 2, 1, 2, 1, 2],
+            "DPHY": [2, 2, 2, 1, 1, 2],
+            "DREM": [2, 2, 1, 2, 1, 2],
+            "WKHP": [40, 20, 0, 0, 0, 10],
+            "WKWN": [52, 26, 0, 0, 0, 20],
+            "COW": [1, 6, 1, 8, 9, 7],
+            "HINS3": [2, 2, 2, 1, 1, 2],
+            "NATIVITY": [1, 2, 1, 1, 2, 1],
+        },
+    )
+    families = {"person": {"puf_tax_itemization": ("qualified_dividend_income",)}}
+    predictor_set = declared_acs_transfer_predictor_sets(families)["person"][
+        "puf_tax_itemization"
+    ]
+
+    surface = acs_transfer_module._transfer_feature_surface(
+        donor,
+        recipient,
+        entity="person",
+        targets=("qualified_dividend_income",),
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+
+    assert len(surface.optional) == 20
+    assert surface.optional == predictor_set.optional
+    assert "__acs_transfer_social_security_income" in surface.optional
+    assert "__acs_transfer_retirement_income" in surface.optional
+    assert "__acs_transfer_interest_dividend_rental_income" not in surface.optional
+    assert not any("veteran" in predictor for predictor in surface.optional)
 
 
 def test_explicit_predictor_sets_are_bound_without_changing_legacy_identity() -> None:
@@ -880,8 +959,217 @@ def test_explicit_predictor_sets_are_bound_without_changing_legacy_identity() ->
             }
         }
     }
+    assert explicit["availability_pattern_encoding"] == {
+        "dtype": "uint64",
+        "max_optional_predictors": 64,
+    }
+    assert set(explicit["expanded_person_predictor_mapping"]["features"]) == set(
+        acs_transfer_module._CANONICAL_PERSON_FEATURE_COLUMNS
+    )
     assert legacy["schema_version"] == 2
     assert "family_predictor_sets" not in legacy
+    assert "availability_pattern_encoding" not in legacy
+    assert "expanded_person_predictor_mapping" not in legacy
+
+
+def test_expanded_person_predictor_registry_is_exactly_non_veteran() -> None:
+    canonical = acs_transfer_module._CANONICAL_PERSON_FEATURE_COLUMNS
+    numeric = acs_transfer_module._ACS_NUMERIC_PERSON_FEATURE_SOURCES
+    binary = acs_transfer_module._ACS_BINARY_PERSON_FEATURE_SOURCES
+
+    assert len(canonical) == 14
+    assert set(canonical) == set(numeric) | set(binary) | {
+        "__acs_transfer_household_person_count"
+    }
+    assert not set(numeric).intersection(binary)
+    assert not any("veteran" in feature for feature in canonical)
+    identity = acs_transfer_module._expanded_person_predictor_mapping_identity()
+    assert set(identity["features"]) == set(canonical)
+
+
+@pytest.mark.parametrize(
+    ("feature", "canonical_column", "raw_source", "raw_values", "expected"),
+    (
+        (
+            "__acs_transfer_marital_status_code",
+            "marital_status_code",
+            "MAR",
+            [1, 2, np.nan, 3, 4, 5],
+            [1, 2, np.nan, 3, 4, 5],
+        ),
+        (
+            "__acs_transfer_relationship_code",
+            "relationship_code",
+            "A_EXPRRP",
+            [1, 4, np.nan, 5, 13, 14],
+            [1, 4, np.nan, 5, 13, 14],
+        ),
+        (
+            "__acs_transfer_household_person_count",
+            "household_person_count",
+            None,
+            None,
+            [2, 2, 1, 3, 3, 3],
+        ),
+        *(
+            (
+                feature,
+                canonical_column,
+                raw_source,
+                [1, 2, np.nan, 1, 2, 1],
+                [1, 0, np.nan, 1, 0, 1],
+            )
+            for feature, canonical_column, raw_source in (
+                (
+                    "__acs_transfer_difficulty_dressing_or_bathing",
+                    "difficulty_dressing_or_bathing",
+                    "DDRS",
+                ),
+                (
+                    "__acs_transfer_difficulty_hearing",
+                    "difficulty_hearing",
+                    "DEAR",
+                ),
+                (
+                    "__acs_transfer_difficulty_seeing",
+                    "difficulty_seeing",
+                    "DEYE",
+                ),
+                (
+                    "__acs_transfer_difficulty_doing_errands",
+                    "difficulty_doing_errands",
+                    "DOUT",
+                ),
+                (
+                    "__acs_transfer_difficulty_walking_or_climbing_stairs",
+                    "difficulty_walking_or_climbing_stairs",
+                    "DPHY",
+                ),
+                (
+                    "__acs_transfer_difficulty_remembering_or_making_decisions",
+                    "difficulty_remembering_or_making_decisions",
+                    "DREM",
+                ),
+            )
+        ),
+        (
+            "__acs_transfer_usual_hours_worked",
+            "usual_hours_worked",
+            "WKHP",
+            [40, 20, np.nan, 0, 35, 99],
+            [40, 20, np.nan, 0, 35, 99],
+        ),
+        (
+            "__acs_transfer_weeks_worked",
+            "weeks_worked_predictor",
+            "WKWN",
+            [52, 26, np.nan, 1, 40, 50],
+            [52, 26, np.nan, 1, 40, 50],
+        ),
+        (
+            "__acs_transfer_is_self_employed_worker",
+            "is_self_employed_worker",
+            "COW",
+            [6, 1, np.nan, 7, 9, 8],
+            [1, 0, np.nan, 1, 0, 0],
+        ),
+        (
+            "__acs_transfer_has_medicare_coverage",
+            "has_medicare_coverage",
+            "HINS3",
+            np.asarray(["1", "2", "", "1", "2", "1"], dtype=object),
+            [1, 0, np.nan, 1, 0, 1],
+        ),
+        (
+            "__acs_transfer_is_foreign_born",
+            "is_foreign_born",
+            "NATIVITY",
+            [2, 1, np.nan, 2, 1, 2],
+            [1, 0, np.nan, 1, 0, 1],
+        ),
+    ),
+)
+def test_expanded_person_predictors_map_both_survey_surfaces(
+    feature: str,
+    canonical_column: str,
+    raw_source: str | None,
+    raw_values: object,
+    expected: list[float],
+) -> None:
+    donor_values = [*expected, *expected[:2]]
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {canonical_column: donor_values},
+    )
+    recipient_columns = {} if raw_source is None else {raw_source: raw_values}
+    recipient = _with_columns(_recipient_frame(), "person", recipient_columns)
+    predictor_set = AcsPredictorSet(
+        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        optional=(feature,),
+    )
+
+    surface = acs_transfer_module._transfer_feature_surface(
+        donor,
+        recipient,
+        entity="person",
+        targets=("qualified_dividend_income",),
+        predictor_set=predictor_set,
+        require_all_predictors=True,
+    )
+
+    np.testing.assert_allclose(surface.donor[feature], donor_values, equal_nan=True)
+    np.testing.assert_allclose(surface.recipient[feature], expected, equal_nan=True)
+
+
+def test_raw_acs_decode_is_blocked_by_any_canonical_value_on_the_row() -> None:
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {
+            "MAR": [2, 99, 2, 2, 2, 2],
+            "marital_status_code": [np.nan, 1, np.nan, np.nan, np.nan, np.nan],
+            "difficulty_hearing": [0, np.nan, np.nan, np.nan, np.nan, np.nan],
+        },
+    )
+
+    values = acs_transfer_module._canonical_or_acs_person_feature(
+        recipient,
+        feature="__acs_transfer_marital_status_code",
+        role="recipient",
+    )
+
+    assert values is not None
+    np.testing.assert_allclose(
+        values,
+        [np.nan, 1, 2, 2, 2, 2],
+        equal_nan=True,
+    )
+
+
+def test_availability_patterns_retain_optional_predictors_above_bit_15() -> None:
+    optional = tuple(f"optional_{index:02d}" for index in range(20))
+    recipient = pd.DataFrame(
+        {
+            "required": [1.0, 1.0],
+            **{column: [1.0, 1.0] for column in optional[:-1]},
+            optional[-1]: [np.nan, 1.0],
+        }
+    )
+    surface = acs_transfer_module._FeatureSurface(
+        donor=recipient.copy(),
+        recipient=recipient,
+        required=("required",),
+        optional=optional,
+    )
+
+    patterns = acs_transfer_module._availability_patterns(
+        surface,
+        eligible=np.asarray([True, True]),
+    )
+
+    assert [pattern for pattern, _positions in patterns] == [optional[:-1], optional]
+    assert [positions.tolist() for _pattern, positions in patterns] == [[0], [1]]
 
 
 def test_explicit_predictor_sets_fail_closed_on_family_or_feature_drift() -> None:

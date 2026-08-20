@@ -3,9 +3,9 @@
 ## State (2026-08-19)
 
 The `battery-retirement-factorial` lane is active from clean `origin/main` at
-`164027e2`. The removal-only snapshot is implemented, independently reviewed,
-and suite-green; it is ready for its coherent commit. No frozen gate control
-has changed.
+`164027e2`. Removal-only is committed at `1a8ad451`; broad-addition-only is
+implemented, independently reviewed, and suite-green. It is ready for its
+coherent commit. No frozen gate control has changed.
 
 The required `uv sync --all-packages --extra us` was attempted first. The
 default cache was sandbox-denied; retrying with `UV_CACHE_DIR` under `/tmp`
@@ -54,17 +54,27 @@ arm-split environment with this worktree's package sources forced on
 - The complete removal tree passes all 6,535 collected tests (exit 0, expected
   skips/warnings only). Repository-wide `ruff check .` and `git diff --check`
   also pass.
+- Committed the independently runnable removal-only snapshot as
+  `1a8ad451c6eff17d405ef75cbdd014de72447153`.
+- Transformed the working tree into broad-addition-only: the two baseline
+  direct-income predictors are restored and exactly 14 synthesized non-veteran
+  fields are added to early person/PUF. Other early and late families remain
+  baseline.
+- Broad affected verification passes 650 checks across source/spec, ACS/PUF,
+  multispine/stacked, plan, and pool-tool modules. Independent review, Ruff,
+  formatting, byte-compilation, and diff hygiene report no blocker.
+- The complete broad tree passes all 6,571 collected tests (exit 0, expected
+  skips/warnings only). Repository-wide `ruff check .`, `git diff --check`, and
+  the final frozen-control scan pass.
 
 ## Next (2026-08-19)
 
-1. Commit the suite-green removal-only snapshot and record its exact SHA.
-2. Preserve its wiring proof; do not cold-launch the known
-   over-cap 1% materialization path.
-3. Transform the snapshot into broad-addition-only while retaining both direct
-   predictors; suite-test and commit it.
-4. Write the fail-closed owner-run 25% build-and-gate charter, including the
+1. Commit the suite-green broad-addition snapshot and record its exact SHA.
+2. Preserve both arms' wiring proofs; do not cold-launch the known over-cap 1%
+   materialization path.
+3. Write the fail-closed owner-run 25% build-and-gate charter, including the
    prerequisite memory-safe path and serial RAM-guarded protocol.
-5. Report every assigned check honestly as measured or not measured, finish
+4. Report every assigned check honestly as measured or not measured, finish
    `_LANE-NOTES.md`, and write `FINAL_REPORT.md`.
 
 ## Historical base entry

@@ -58,6 +58,17 @@ def _person(
         "AGEP": 40,
         "SEX": 1,
         "MAR": 1,
+        "DDRS": 2,
+        "DEAR": 2,
+        "DEYE": 2,
+        "DOUT": 2,
+        "DPHY": 2,
+        "DREM": 2,
+        "HINS3": 2,
+        "COW": 1,
+        "WKHP": 40,
+        "WKWN": 52,
+        "NATIVITY": 1,
         "ADJINC": 1_000_000,
         "WAGP": 50_000,
         "SEMP": 0,
@@ -220,6 +231,19 @@ def test_build_acs_pums_unit_frame_preserves_lineage_geography_and_weights(
     assert frame.weights_for("household").values.tolist() == [10.0, 20.0]
     assert "SERIALNO" not in frame.table("person")
     person = frame.table("person")
+    assert {
+        "DDRS",
+        "DEAR",
+        "DEYE",
+        "DOUT",
+        "DPHY",
+        "DREM",
+        "HINS3",
+        "COW",
+        "WKHP",
+        "WKWN",
+        "NATIVITY",
+    } <= set(person)
     assert person["source_household_id"].tolist() == [1, 1, 1, 2]
     assert person["source_person_id"].tolist() == ["1", "2", "3", "1"]
     assert person["source_row_id"].tolist() == [0, 1, 2, 3]
@@ -365,6 +389,18 @@ def test_load_acs_pums_tables_requires_native_structure_columns(
     )
 
     with pytest.raises(ValueError, match="RELSHIPP"):
+        load_acs_pums_tables(source)
+
+
+def test_load_acs_pums_tables_requires_broad_predictor_columns(
+    tmp_path: Path,
+) -> None:
+    source = _source(tmp_path)
+    person = _person("2024HU0000001", 1, 20)
+    person.pop("HINS3")
+    _write_csv_zip(source.person_zip, {"psam_pusa.csv": [person]})
+
+    with pytest.raises(ValueError, match="HINS3"):
         load_acs_pums_tables(source)
 
 

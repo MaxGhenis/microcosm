@@ -34,6 +34,11 @@ from microcosm.build.serialization_dtypes import canonicalize_frame_string_dtype
 from microcosm.build.us_runtime.capital_gain_distributions import (
     capital_gain_distribution_shares_asset_identity,
 )
+from microcosm.build.us_runtime.cps_carried import (
+    CPS_RELATIONSHIP_PREDICTOR_CODES,
+    cps_carried_predictor_mapping_identity,
+    validate_cps_carried_person_predictors,
+)
 from microcosm.build.us_runtime.puf_support import (
     PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
@@ -156,6 +161,23 @@ _INVESTMENT_FEATURE = "__acs_transfer_interest_dividend_rental_income"
 _HEAD_FEATURE = "__acs_transfer_is_household_head"
 _TENURE_FEATURE = "__acs_transfer_tenure_code"
 
+_MARITAL_STATUS_FEATURE = "__acs_transfer_marital_status_code"
+_RELATIONSHIP_FEATURE = "__acs_transfer_relationship_code"
+_HOUSEHOLD_PERSON_COUNT_FEATURE = "__acs_transfer_household_person_count"
+_DIFFICULTY_DRESSING_FEATURE = "__acs_transfer_difficulty_dressing_or_bathing"
+_DIFFICULTY_HEARING_FEATURE = "__acs_transfer_difficulty_hearing"
+_DIFFICULTY_SEEING_FEATURE = "__acs_transfer_difficulty_seeing"
+_DIFFICULTY_ERRANDS_FEATURE = "__acs_transfer_difficulty_doing_errands"
+_DIFFICULTY_WALKING_FEATURE = "__acs_transfer_difficulty_walking_or_climbing_stairs"
+_DIFFICULTY_COGNITIVE_FEATURE = (
+    "__acs_transfer_difficulty_remembering_or_making_decisions"
+)
+_USUAL_HOURS_WORKED_FEATURE = "__acs_transfer_usual_hours_worked"
+_WEEKS_WORKED_FEATURE = "__acs_transfer_weeks_worked"
+_SELF_EMPLOYED_WORKER_FEATURE = "__acs_transfer_is_self_employed_worker"
+_MEDICARE_COVERAGE_FEATURE = "__acs_transfer_has_medicare_coverage"
+_FOREIGN_BORN_FEATURE = "__acs_transfer_is_foreign_born"
+
 ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS: tuple[str, ...] = (
     _EMPLOYMENT_FEATURE,
     _SELF_EMPLOYMENT_FEATURE,
@@ -164,6 +186,29 @@ ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS: tuple[str, ...] = (
     _INVESTMENT_FEATURE,
     _HEAD_FEATURE,
     _TENURE_FEATURE,
+)
+
+_BROAD_PUF_PERSON_OPTIONAL_PREDICTORS = (
+    _EMPLOYMENT_FEATURE,
+    _SELF_EMPLOYMENT_FEATURE,
+    _SOCIAL_SECURITY_FEATURE,
+    _RETIREMENT_FEATURE,
+    _MARITAL_STATUS_FEATURE,
+    _RELATIONSHIP_FEATURE,
+    _HOUSEHOLD_PERSON_COUNT_FEATURE,
+    _HEAD_FEATURE,
+    _TENURE_FEATURE,
+    _DIFFICULTY_DRESSING_FEATURE,
+    _DIFFICULTY_HEARING_FEATURE,
+    _DIFFICULTY_SEEING_FEATURE,
+    _DIFFICULTY_ERRANDS_FEATURE,
+    _DIFFICULTY_WALKING_FEATURE,
+    _DIFFICULTY_COGNITIVE_FEATURE,
+    _USUAL_HOURS_WORKED_FEATURE,
+    _WEEKS_WORKED_FEATURE,
+    _SELF_EMPLOYED_WORKER_FEATURE,
+    _MEDICARE_COVERAGE_FEATURE,
+    _FOREIGN_BORN_FEATURE,
 )
 
 _GROUP_PERSON_COUNT = "__acs_transfer_person_count"
@@ -227,6 +272,10 @@ _TENURE_CODES: Mapping[str, float] = {
     "RENTED": 3.0,
     "RENTER": 3.0,
 }
+_AVAILABILITY_PATTERN_DTYPE = np.uint64
+_AVAILABILITY_PATTERN_MAX_OPTIONAL_PREDICTORS = np.iinfo(
+    _AVAILABILITY_PATTERN_DTYPE
+).bits
 
 
 def acs_transfer_execution_contract_identity(
@@ -261,7 +310,16 @@ def acs_transfer_execution_contract_identity(
                         for family, predictor_set in sorted(families.items())
                     }
                     for entity, families in sorted(predictor_sets.items())
-                }
+                },
+                "availability_pattern_encoding": {
+                    "dtype": np.dtype(_AVAILABILITY_PATTERN_DTYPE).name,
+                    "max_optional_predictors": (
+                        _AVAILABILITY_PATTERN_MAX_OPTIONAL_PREDICTORS
+                    ),
+                },
+                "expanded_person_predictor_mapping": (
+                    _expanded_person_predictor_mapping_identity()
+                ),
             }
         ),
         "donor_combined_components": {
@@ -335,10 +393,14 @@ class AcsPredictorSet:
         optional = tuple(self.optional)
         names = (*required, *optional)
         if not required:
-            raise ValueError("ACS predictor sets require at least one required feature.")
+            raise ValueError(
+                "ACS predictor sets require at least one required feature."
+            )
         bad = [name for name in names if not isinstance(name, str) or not name.strip()]
         if bad:
-            raise ValueError(f"ACS predictor sets contain invalid feature names: {bad}.")
+            raise ValueError(
+                f"ACS predictor sets contain invalid feature names: {bad}."
+            )
         duplicates = sorted({name for name in names if names.count(name) > 1})
         if duplicates:
             raise ValueError(f"ACS predictor sets repeat feature(s): {duplicates}.")
@@ -362,7 +424,9 @@ def _legacy_predictor_set(
         if _HOUSING_TRANSFER_TARGETS.intersection(targets):
             required = (*required, _HEAD_FEATURE, _TENURE_FEATURE)
             optional = tuple(
-                name for name in optional if name not in {_HEAD_FEATURE, _TENURE_FEATURE}
+                name
+                for name in optional
+                if name not in {_HEAD_FEATURE, _TENURE_FEATURE}
             )
         return AcsPredictorSet(required=required, optional=optional)
     return AcsPredictorSet(
@@ -374,12 +438,12 @@ def _legacy_predictor_set(
 def declared_acs_transfer_predictor_sets(
     target_families: TargetFamilies,
 ) -> dict[str, dict[str, AcsPredictorSet]]:
-    """Declare the removal-only early-PUF predictor factorial.
+    """Declare the broad-addition-only early-PUF predictor factorial.
 
     The realized pre-clone baseline omits the unavailable investment feature.
-    Only the person PUF-tax family additionally removes the direct ACS Social
-    Security and retirement income analogues; every other family retains its
-    baseline predictor order and content.
+    Only the person PUF-tax family adds the reviewed non-veteran ACS/ASEC
+    predictors, while retaining its Social Security and retirement analogues.
+    Every other family keeps its baseline predictor order and content.
     """
 
     result: dict[str, dict[str, AcsPredictorSet]] = {}
@@ -391,14 +455,17 @@ def declared_acs_transfer_predictor_sets(
                 _GROUP_OPTIONAL_NAMES[_INVESTMENT_FEATURE],
             }
             if entity == "person" and family == "puf_tax_itemization":
-                omitted.update({_SOCIAL_SECURITY_FEATURE, _RETIREMENT_FEATURE})
+                result.setdefault(entity, {})[family] = AcsPredictorSet(
+                    required=legacy.required,
+                    optional=_BROAD_PUF_PERSON_OPTIONAL_PREDICTORS,
+                )
+                continue
             result.setdefault(entity, {})[family] = AcsPredictorSet(
                 required=legacy.required,
-                optional=tuple(
-                    name for name in legacy.optional if name not in omitted
-                ),
+                optional=tuple(name for name in legacy.optional if name not in omitted),
             )
     return result
+
 
 # The production QRF surface is an ACS-transfer contract, not the release
 # export-coverage contract.  Runtime-owned leaves (take-up draws, immigration,
@@ -1926,10 +1993,16 @@ def _availability_patterns(
     *,
     eligible: np.ndarray,
 ) -> list[tuple[tuple[str, ...], np.ndarray]]:
-    codes = np.zeros(len(surface.recipient), dtype=np.uint16)
+    if len(surface.optional) > _AVAILABILITY_PATTERN_MAX_OPTIONAL_PREDICTORS:
+        raise ValueError(
+            "ACS transfer availability-pattern encoding supports at most "
+            f"{_AVAILABILITY_PATTERN_MAX_OPTIONAL_PREDICTORS} optional "
+            f"predictors, got {len(surface.optional)}."
+        )
+    codes = np.zeros(len(surface.recipient), dtype=_AVAILABILITY_PATTERN_DTYPE)
     for bit, predictor in enumerate(surface.optional):
         observed = np.isfinite(_as_float_array(surface.recipient[predictor]))
-        codes |= observed.astype(np.uint16) << bit
+        codes |= observed.astype(_AVAILABILITY_PATTERN_DTYPE) << np.uint64(bit)
 
     patterns: list[tuple[tuple[str, ...], np.ndarray]] = []
     for code in np.unique(codes[eligible]):
@@ -1953,14 +2026,29 @@ def _transfer_feature_surface(
     require_all_predictors: bool = False,
 ) -> _FeatureSurface:
     if entity == donor.schema.person_entity:
-        surface = _person_feature_surface(donor, recipient)
+        expanded_features = tuple(
+            name
+            for name in (
+                ()
+                if predictor_set is None
+                else (*predictor_set.required, *predictor_set.optional)
+            )
+            if name in _CANONICAL_PERSON_FEATURE_COLUMNS
+        )
+        surface = _person_feature_surface(
+            donor,
+            recipient,
+            expanded_features=expanded_features,
+        )
     else:
         surface = _group_feature_surface(donor, recipient, entity=entity)
 
     housing = bool(_HOUSING_TRANSFER_TARGETS.intersection(targets))
     if housing:
         if entity != donor.schema.person_entity:
-            raise ValueError("pre_subsidy_rent must be transferred on the person entity.")
+            raise ValueError(
+                "pre_subsidy_rent must be transferred on the person entity."
+            )
         mandatory = (_HEAD_FEATURE, _TENURE_FEATURE)
         missing = [name for name in mandatory if name not in surface.optional]
         if missing:
@@ -2000,14 +2088,28 @@ def _transfer_feature_surface(
     )
 
 
-def _person_feature_surface(donor: Frame, recipient: Frame) -> _FeatureSurface:
+def _person_feature_surface(
+    donor: Frame,
+    recipient: Frame,
+    *,
+    expanded_features: Sequence[str] = (),
+) -> _FeatureSurface:
     donor_required = _required_person_features(donor, role="donor")
     recipient_required = _required_person_features(recipient, role="recipient")
-    donor_optional = _person_optional_features(donor, role="donor")
-    recipient_optional = _person_optional_features(recipient, role="recipient")
+    donor_optional = _person_optional_features(
+        donor,
+        role="donor",
+        expanded_features=expanded_features,
+    )
+    recipient_optional = _person_optional_features(
+        recipient,
+        role="recipient",
+        expanded_features=expanded_features,
+    )
+    optional_universe = (*ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS, *expanded_features)
     optional = tuple(
         name
-        for name in ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS
+        for name in optional_universe
         if name in donor_optional and name in recipient_optional
     )
     return _FeatureSurface(
@@ -2045,7 +2147,12 @@ def _required_person_features(frame: Frame, *, role: str) -> pd.DataFrame:
     return result
 
 
-def _person_optional_features(frame: Frame, *, role: str) -> pd.DataFrame:
+def _person_optional_features(
+    frame: Frame,
+    *,
+    role: str,
+    expanded_features: Sequence[str] = (),
+) -> pd.DataFrame:
     person = frame.table(frame.schema.person_entity)
     result = pd.DataFrame(index=person.index)
 
@@ -2076,11 +2183,342 @@ def _person_optional_features(frame: Frame, *, role: str) -> pd.DataFrame:
     if tenure is not None:
         result[_TENURE_FEATURE] = tenure.to_numpy()
 
+    for feature in expanded_features:
+        values = _canonical_or_acs_person_feature(
+            frame,
+            feature=feature,
+            role=role,
+        )
+        if values is not None:
+            result[feature] = values.to_numpy()
+
     _validate_optional_numeric_frame(
         result,
         context=f"ACS transfer {role} optional person predictors",
     )
     return result
+
+
+_CANONICAL_PERSON_FEATURE_COLUMNS: Mapping[str, str] = {
+    _MARITAL_STATUS_FEATURE: "marital_status_code",
+    _RELATIONSHIP_FEATURE: "relationship_code",
+    _HOUSEHOLD_PERSON_COUNT_FEATURE: "household_person_count",
+    _DIFFICULTY_DRESSING_FEATURE: "difficulty_dressing_or_bathing",
+    _DIFFICULTY_HEARING_FEATURE: "difficulty_hearing",
+    _DIFFICULTY_SEEING_FEATURE: "difficulty_seeing",
+    _DIFFICULTY_ERRANDS_FEATURE: "difficulty_doing_errands",
+    _DIFFICULTY_WALKING_FEATURE: "difficulty_walking_or_climbing_stairs",
+    _DIFFICULTY_COGNITIVE_FEATURE: ("difficulty_remembering_or_making_decisions"),
+    _USUAL_HOURS_WORKED_FEATURE: "usual_hours_worked",
+    _WEEKS_WORKED_FEATURE: "weeks_worked_predictor",
+    _SELF_EMPLOYED_WORKER_FEATURE: "is_self_employed_worker",
+    _MEDICARE_COVERAGE_FEATURE: "has_medicare_coverage",
+    _FOREIGN_BORN_FEATURE: "is_foreign_born",
+}
+
+_ACS_BINARY_PERSON_FEATURE_SOURCES: Mapping[
+    str, tuple[str, frozenset[float], frozenset[float]]
+] = {
+    _DIFFICULTY_DRESSING_FEATURE: (
+        "DDRS",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_HEARING_FEATURE: (
+        "DEAR",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_SEEING_FEATURE: (
+        "DEYE",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_ERRANDS_FEATURE: (
+        "DOUT",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_WALKING_FEATURE: (
+        "DPHY",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _DIFFICULTY_COGNITIVE_FEATURE: (
+        "DREM",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _SELF_EMPLOYED_WORKER_FEATURE: (
+        "COW",
+        frozenset({6.0, 7.0}),
+        frozenset({1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 9.0}),
+    ),
+    _MEDICARE_COVERAGE_FEATURE: (
+        "HINS3",
+        frozenset({1.0}),
+        frozenset({2.0}),
+    ),
+    _FOREIGN_BORN_FEATURE: (
+        "NATIVITY",
+        frozenset({2.0}),
+        frozenset({1.0}),
+    ),
+}
+
+_ACS_NUMERIC_PERSON_FEATURE_SOURCES: Mapping[str, str] = {
+    _MARITAL_STATUS_FEATURE: "MAR",
+    _RELATIONSHIP_FEATURE: "A_EXPRRP",
+    _USUAL_HOURS_WORKED_FEATURE: "WKHP",
+    _WEEKS_WORKED_FEATURE: "WKWN",
+}
+
+
+def _expanded_person_predictor_mapping_identity() -> dict[str, object]:
+    """Bind every reviewed donor/recipient feature mapping and raw codec."""
+
+    mapped = (
+        set(_ACS_NUMERIC_PERSON_FEATURE_SOURCES)
+        | set(_ACS_BINARY_PERSON_FEATURE_SOURCES)
+        | {_HOUSEHOLD_PERSON_COUNT_FEATURE}
+    )
+    declared = set(_CANONICAL_PERSON_FEATURE_COLUMNS)
+    if mapped != declared:  # pragma: no cover - import-local closed registry
+        raise RuntimeError(
+            "Expanded ACS person predictor mapping registry drifted: "
+            f"missing={sorted(declared - mapped)}, extra={sorted(mapped - declared)}."
+        )
+
+    features: dict[str, object] = {}
+    for feature, canonical_column in sorted(_CANONICAL_PERSON_FEATURE_COLUMNS.items()):
+        mapping: dict[str, object] = {"donor_canonical_column": canonical_column}
+        if feature == _HOUSEHOLD_PERSON_COUNT_FEATURE:
+            mapping["recipient"] = {
+                "source": "person_household_id",
+                "codec": "household_group_size_sort_false",
+            }
+        elif feature in _ACS_NUMERIC_PERSON_FEATURE_SOURCES:
+            source = _ACS_NUMERIC_PERSON_FEATURE_SOURCES[feature]
+            if feature == _MARITAL_STATUS_FEATURE:
+                recipient_mapping: dict[str, object] = {
+                    "source": source,
+                    "codec": "reviewed_code_identity_preserve_blank",
+                    "valid_codes": [1.0, 2.0, 3.0, 4.0, 5.0],
+                }
+            elif feature == _RELATIONSHIP_FEATURE:
+                recipient_mapping = {
+                    "source": source,
+                    "codec": "reviewed_code_identity_preserve_blank",
+                    "valid_codes": sorted(CPS_RELATIONSHIP_PREDICTOR_CODES),
+                }
+            elif feature == _USUAL_HOURS_WORKED_FEATURE:
+                recipient_mapping = {
+                    "source": source,
+                    "codec": "finite_numeric_nonnegative_preserve_blank",
+                }
+            elif feature == _WEEKS_WORKED_FEATURE:
+                recipient_mapping = {
+                    "source": source,
+                    "codec": "integer_0_52_preserve_blank",
+                }
+            else:  # pragma: no cover - closed numeric registry above
+                raise AssertionError(f"Unknown numeric ACS feature {feature!r}.")
+            mapping["recipient"] = recipient_mapping
+        else:
+            source, true_codes, false_codes = _ACS_BINARY_PERSON_FEATURE_SOURCES[
+                feature
+            ]
+            mapping["recipient"] = {
+                "source": source,
+                "codec": "reviewed_binary_codes_preserve_blank",
+                "true_codes": sorted(true_codes),
+                "false_codes": sorted(false_codes),
+            }
+        features[feature] = mapping
+    return {
+        "version": 1,
+        "donor_canonical_mapping": cps_carried_predictor_mapping_identity(),
+        "recipient_raw_row_scope": {
+            "canonical_surface_present": (
+                "any_reviewed_canonical_predictor_value_blocks_all_raw_decoding"
+            ),
+            "canonical_surface_empty": "decode_reviewed_raw_recipient_columns",
+        },
+        "features": features,
+    }
+
+
+def _canonical_or_acs_person_feature(
+    frame: Frame,
+    *,
+    feature: str,
+    role: str,
+) -> pd.Series | None:
+    person = frame.table(frame.schema.person_entity)
+    canonical_column = _CANONICAL_PERSON_FEATURE_COLUMNS[feature]
+    validate_cps_carried_person_predictors(
+        person,
+        columns=(canonical_column,),
+        context="ACS transfer",
+    )
+    canonical = _person_column(frame, canonical_column)
+    # CPS and ACS raw columns can share names but not meanings. Donors therefore
+    # use only the reviewed canonical carry. Recipient raw codes are decoded
+    # only on rows whose entire canonical predictor surface is empty.
+    acs = (
+        _acs_person_feature(
+            frame,
+            feature=feature,
+            selected=~_canonical_person_predictor_surface_present(person),
+        )
+        if role == "recipient"
+        else None
+    )
+    if canonical is None:
+        return None if acs is None else acs.rename(feature)
+    canonical = canonical.rename(feature)
+    if acs is None:
+        return canonical
+    return canonical.combine_first(acs).rename(feature).reindex(person.index)
+
+
+def _canonical_person_predictor_surface_present(person: pd.DataFrame) -> np.ndarray:
+    """Return rows governed by any reviewed canonical carried predictor."""
+
+    canonical_columns = tuple(
+        sorted(set(_CANONICAL_PERSON_FEATURE_COLUMNS.values()).intersection(person))
+    )
+    if not canonical_columns:
+        return np.zeros(len(person), dtype=bool)
+    validate_cps_carried_person_predictors(
+        person,
+        columns=canonical_columns,
+        context="ACS transfer",
+    )
+    canonical = person.loc[:, list(canonical_columns)].apply(
+        pd.to_numeric,
+        errors="coerce",
+    )
+    return canonical.notna().any(axis=1).to_numpy(dtype=bool)
+
+
+def _acs_person_feature(
+    frame: Frame,
+    *,
+    feature: str,
+    selected: np.ndarray,
+) -> pd.Series | None:
+    person = frame.table(frame.schema.person_entity)
+    selected = np.asarray(selected, dtype=bool)
+    if selected.ndim != 1 or len(selected) != len(person):
+        raise ValueError("ACS recipient predictor selection is not person-aligned.")
+    if feature == _HOUSEHOLD_PERSON_COUNT_FEATURE:
+        membership_column = frame.schema.membership_column("household")
+        if membership_column not in person:
+            raise ValueError(
+                "ACS transfer household-person-count predictor requires person "
+                f"membership column {membership_column!r}."
+            )
+        values = (
+            person.groupby(membership_column, sort=False)[membership_column]
+            .transform("size")
+            .to_numpy(dtype=np.float64)
+        )
+        values[~selected] = np.nan
+        return pd.Series(values, index=person.index, name=feature)
+
+    numeric_source = _ACS_NUMERIC_PERSON_FEATURE_SOURCES.get(feature)
+    if numeric_source is not None:
+        if numeric_source not in person:
+            return None
+        values = _raw_predictor_numeric_source(
+            person.loc[selected, numeric_source],
+            context=f"person predictor {numeric_source}",
+        )
+        _validate_raw_expanded_person_feature(
+            values,
+            feature=feature,
+            source=numeric_source,
+        )
+        expanded = np.full(len(person), np.nan, dtype=np.float64)
+        expanded[selected] = values
+        return pd.Series(expanded, index=person.index, name=feature)
+
+    binary = _ACS_BINARY_PERSON_FEATURE_SOURCES.get(feature)
+    if binary is None:  # pragma: no cover - closed feature registry above
+        raise AssertionError(f"Unknown ACS person feature {feature!r}.")
+    source, true_codes, false_codes = binary
+    if source not in person:
+        return None
+    raw = _raw_predictor_numeric_source(
+        person.loc[selected, source],
+        context=f"person predictor {source}",
+    )
+    observed = np.isfinite(raw)
+    invalid = observed & ~np.isin(raw, [*true_codes, *false_codes])
+    if invalid.any():
+        bad = sorted(set(raw[invalid].tolist()))
+        raise ValueError(
+            f"ACS transfer person predictor {source!r} contains unsupported "
+            f"code(s): {bad}."
+        )
+    selected_values = np.full(len(raw), np.nan, dtype=np.float64)
+    selected_values[observed] = np.isin(raw[observed], list(true_codes)).astype(
+        np.float64
+    )
+    values = np.full(len(person), np.nan, dtype=np.float64)
+    values[selected] = selected_values
+    return pd.Series(values, index=person.index, name=feature)
+
+
+def _validate_raw_expanded_person_feature(
+    values: np.ndarray,
+    *,
+    feature: str,
+    source: str,
+) -> None:
+    """Validate reviewed raw numeric domains before canonical projection."""
+
+    observed = np.isfinite(values)
+    if feature == _MARITAL_STATUS_FEATURE:
+        valid = np.isin(values, [1.0, 2.0, 3.0, 4.0, 5.0])
+    elif feature == _RELATIONSHIP_FEATURE:
+        valid = np.isin(values, list(CPS_RELATIONSHIP_PREDICTOR_CODES))
+    elif feature == _USUAL_HOURS_WORKED_FEATURE:
+        valid = values >= 0.0
+    elif feature == _WEEKS_WORKED_FEATURE:
+        valid = (values >= 0.0) & (values <= 52.0) & np.equal(values, np.floor(values))
+    else:  # pragma: no cover - closed numeric registry above
+        raise AssertionError(f"Unhandled raw ACS person feature {feature!r}.")
+    invalid = observed & ~valid
+    if invalid.any():
+        bad = sorted(set(values[invalid].tolist()))
+        raise ValueError(
+            f"ACS transfer person predictor {source!r} contains unsupported "
+            f"code/value(s): {bad}."
+        )
+
+
+def _raw_predictor_numeric_source(
+    series: pd.Series,
+    *,
+    context: str,
+) -> np.ndarray:
+    """Decode checkpoint-round-tripped raw codes while preserving blanks."""
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    blank = series.isna()
+    if pd.api.types.is_object_dtype(series.dtype) or isinstance(
+        series.dtype, pd.StringDtype
+    ):
+        blank |= series.astype("string").str.strip().eq("").fillna(False)
+    invalid = numeric.isna() & ~blank
+    if invalid.any():
+        raise ValueError(f"ACS transfer {context} contains non-numeric values.")
+    values = numeric.to_numpy(dtype=np.float64)
+    if np.isinf(values).any():
+        raise ValueError(f"ACS transfer {context} contains infinity.")
+    return values
 
 
 def _person_column(frame: Frame, column: str) -> pd.Series | None:

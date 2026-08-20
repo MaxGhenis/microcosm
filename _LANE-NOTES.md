@@ -114,3 +114,53 @@
   estimator, or batch-size change.
 - The complete removal tree collected 6,535 tests and exited 0, with expected
   skips and pre-existing warnings only. Repository-wide `ruff check .` passes.
+
+### Snapshot
+
+- Removal-only is committed at
+  `1a8ad451c6eff17d405ef75cbdd014de72447153`.
+
+## 2026-08-19 — broad-addition-only implementation
+
+### State
+
+- Broad-addition-only is implemented, independently reviewed, and fully
+  suite-green. It is ready for its coherent commit.
+
+### Surgery and mechanism evidence
+
+- The early person/PUF optional tuple retains employment, self-employment,
+  Social Security, and retirement, then carries exactly 14 reviewed non-veteran
+  additions in a fixed 20-column order. Investment remains excluded
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:191-212,438-464`).
+- CPS donor materialization declares exactly the 14 canonical predictor
+  columns and validates/recode-maps their reviewed ASEC physical sources before
+  the early transfer
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/cps_carried.py:114-151,160-337,581-741`).
+- Recipient materialization decodes only the 11 required retained ACS raw
+  columns. Raw decoding is row-scoped to recipients whose entire reviewed
+  canonical surface is empty, preventing donor/recipient source semantics from
+  being mixed
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_pums.py:72-99`; `packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:2199-2488`).
+- Twenty optional predictors require non-aliasing availability codes; the
+  encoding is now guarded `uint64` and its identity is contract-bound
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:275-278,310-324,1993-2006`).
+- Canonical source predictors are explicitly owned, excluded from transfer
+  targets, and merged as optional CPS outputs for sparse fixtures
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:637-640,728-741,2196-2211,2694-2744`).
+- The post-PUF transfer call remains predictor-set-free, so the broad treatment
+  does not alter late wiring
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8512-8524`).
+
+### Verification
+
+- Passed 650 affected checks: 164 source/spec/ACS/PUF support, 296
+  multispine/stacked, and 190 plan/pool-tool.
+- A separate read-only review approved the exact 20-column order, exactly 14
+  non-veteran mappings, source ownership, canonical/raw row fence, uint64
+  capacity guard, unchanged late call, and spec mirror with no blockers.
+- Ruff check/format, Python compilation, and `git diff --check` pass on the
+  broad patch.
+- The complete broad tree collected 6,571 tests and exited 0, with expected
+  skips and pre-existing warnings only. Repository-wide `ruff check .`, final
+  diff hygiene, and the frozen-control scan pass.

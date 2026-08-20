@@ -1,13 +1,15 @@
-"""CPS ASEC variables carried into PolicyEngine leaf inputs.
+"""CPS ASEC variables carried into PolicyEngine leaves and model predictors.
 
 This stage translates raw CPS ASEC value columns already present on the
-source spine into PolicyEngine input leaves needed by downstream donor stages.
-It intentionally does not emit PolicyEngine formula-owned totals such as
-``dividend_income`` or ``social_security``.
+source spine into PolicyEngine input leaves and canonical model predictors
+needed by downstream donor stages. It intentionally does not emit PolicyEngine
+formula-owned totals such as ``dividend_income`` or ``social_security``.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping
 
 import numpy as np
@@ -24,18 +26,22 @@ from microcosm.build.us_runtime.public_assistance_type_source import (
 from microcosm.frame import US_SCHEMA, Frame
 
 __all__ = [
+    "CPS_RELATIONSHIP_PREDICTOR_CODES",
     "CPS_CARRIED_FORMULA_OWNED_COLUMNS",
     "CPS_CARRIED_PERSON_INPUTS",
+    "CPS_CARRIED_PERSON_PREDICTORS",
     "CPS_CARRIED_SPM_UNIT_INPUTS",
     "CPS_REPORTED_SNAP_RAW_COLUMN",
     "CPS_REPORTED_TANF_AMOUNT_RAW_COLUMN",
     "CPS_REPORTED_TANF_TYPE_RAW_COLUMN",
     "CPS_REPORTED_WIC_RAW_COLUMN",
     "WIC_CARRIER_ADJUDICATION_URL",
+    "cps_carried_predictor_mapping_identity",
     "derive_us_cps_carried_inputs",
     "reported_snap_receipt_by_spm_unit",
     "reported_tanf_enrollment_by_spm_unit",
     "reported_wic_receipt_carrier",
+    "validate_cps_carried_person_predictors",
 ]
 
 TAXABLE_INTEREST_FRACTION = 0.680
@@ -102,6 +108,47 @@ CPS_CARRIED_PERSON_INPUTS = frozenset(
     }
 )
 
+# Canonical donor-side predictor columns are deliberately separate from the
+# PolicyEngine input-leaf surface above. They exist only to give the early ACS
+# transfer a survey-comparable measured surface without widening its targets.
+CPS_CARRIED_PERSON_PREDICTORS = frozenset(
+    {
+        "difficulty_doing_errands",
+        "difficulty_dressing_or_bathing",
+        "difficulty_hearing",
+        "difficulty_remembering_or_making_decisions",
+        "difficulty_seeing",
+        "difficulty_walking_or_climbing_stairs",
+        "has_medicare_coverage",
+        "household_person_count",
+        "is_foreign_born",
+        "is_self_employed_worker",
+        "marital_status_code",
+        "relationship_code",
+        "usual_hours_worked",
+        # ``weeks_worked`` is a formula-owned transient on the pool path.
+        # Keep the model-only carry distinct so it survives to early gap-fill.
+        "weeks_worked_predictor",
+    }
+)
+
+CPS_RELATIONSHIP_PREDICTOR_CODES = frozenset(
+    {1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0}
+)
+_CPS_BINARY_PERSON_PREDICTORS = frozenset(
+    {
+        "difficulty_doing_errands",
+        "difficulty_dressing_or_bathing",
+        "difficulty_hearing",
+        "difficulty_remembering_or_making_decisions",
+        "difficulty_seeing",
+        "difficulty_walking_or_climbing_stairs",
+        "has_medicare_coverage",
+        "is_foreign_born",
+        "is_self_employed_worker",
+    }
+)
+
 CPS_CARRIED_SPM_UNIT_INPUTS = frozenset(
     {
         "is_tanf_enrolled",
@@ -109,6 +156,184 @@ CPS_CARRIED_SPM_UNIT_INPUTS = frozenset(
         "spm_unit_pre_subsidy_childcare_expenses",
     }
 )
+
+_CPS_MARITAL_STATUS_SOURCE = "A_MARITL"
+_CPS_MARITAL_STATUS_RECODE: Mapping[float, float] = {
+    1.0: 1.0,
+    2.0: 1.0,
+    3.0: 1.0,
+    4.0: 2.0,
+    5.0: 3.0,
+    6.0: 4.0,
+    7.0: 5.0,
+}
+_CPS_DIRECT_PERSON_PREDICTOR_SOURCES: Mapping[str, str] = {
+    "relationship_code": "A_EXPRRP",
+}
+_CPS_USUAL_HOURS_SOURCE = "HRSWK"
+_CPS_WEEKS_WORKED_SOURCE = "WKSWORK"
+_CPS_CODED_PERSON_PREDICTOR_SOURCES: Mapping[
+    str,
+    tuple[str, frozenset[float], frozenset[float], frozenset[float]],
+] = {
+    "difficulty_dressing_or_bathing": (
+        "PEDISDRS",
+        frozenset({1.0}),
+        frozenset({2.0}),
+        frozenset({-1.0}),
+    ),
+    "difficulty_hearing": (
+        "PEDISEAR",
+        frozenset({1.0}),
+        frozenset({2.0}),
+        frozenset({-1.0}),
+    ),
+    "difficulty_seeing": (
+        "PEDISEYE",
+        frozenset({1.0}),
+        frozenset({2.0}),
+        frozenset({-1.0}),
+    ),
+    "difficulty_doing_errands": (
+        "PEDISOUT",
+        frozenset({1.0}),
+        frozenset({2.0}),
+        frozenset({-1.0}),
+    ),
+    "difficulty_walking_or_climbing_stairs": (
+        "PEDISPHY",
+        frozenset({1.0}),
+        frozenset({2.0}),
+        frozenset({-1.0}),
+    ),
+    "difficulty_remembering_or_making_decisions": (
+        "PEDISREM",
+        frozenset({1.0}),
+        frozenset({2.0}),
+        frozenset({-1.0}),
+    ),
+    "is_self_employed_worker": (
+        "PEIO1COW",
+        frozenset({6.0, 7.0}),
+        frozenset({1.0, 2.0, 3.0, 4.0, 5.0, 8.0}),
+        frozenset({0.0}),
+    ),
+    "has_medicare_coverage": (
+        "MCARE",
+        frozenset({1.0}),
+        frozenset({0.0, 2.0}),
+        frozenset(),
+    ),
+    "is_foreign_born": (
+        "PRCITSHP",
+        frozenset({4.0, 5.0}),
+        frozenset({1.0, 2.0, 3.0}),
+        frozenset(),
+    ),
+}
+
+
+def cps_carried_predictor_mapping_identity() -> dict[str, object]:
+    """Bind every physical ASEC source, codec, and canonical-domain guard."""
+
+    predictors: dict[str, object] = {
+        "marital_status_code": {
+            "source": _CPS_MARITAL_STATUS_SOURCE,
+            "codec": "reviewed_code_recode_preserve_blank",
+            "recode": {
+                str(int(source)): target
+                for source, target in sorted(_CPS_MARITAL_STATUS_RECODE.items())
+            },
+        },
+        **{
+            output: {
+                "source": source,
+                "codec": "reviewed_code_identity_preserve_blank",
+                "valid_codes": sorted(CPS_RELATIONSHIP_PREDICTOR_CODES),
+            }
+            for output, source in sorted(_CPS_DIRECT_PERSON_PREDICTOR_SOURCES.items())
+        },
+        "usual_hours_worked": {
+            "source": _CPS_USUAL_HOURS_SOURCE,
+            "codec": "finite_numeric_clamp_min_0_preserve_blank",
+        },
+        "weeks_worked_predictor": {
+            "source": _CPS_WEEKS_WORKED_SOURCE,
+            "codec": "finite_numeric_clip_0_52_preserve_blank",
+        },
+        "household_person_count": {
+            "source": "person_household_id",
+            "codec": "household_group_size_sort_false",
+        },
+        **{
+            output: {
+                "source": source,
+                "codec": "reviewed_binary_codes_preserve_blank",
+                "true_codes": sorted(true_codes),
+                "false_codes": sorted(false_codes),
+                "missing_codes": sorted(missing_codes),
+            }
+            for output, (
+                source,
+                true_codes,
+                false_codes,
+                missing_codes,
+            ) in sorted(_CPS_CODED_PERSON_PREDICTOR_SOURCES.items())
+        },
+    }
+    if set(predictors) != set(CPS_CARRIED_PERSON_PREDICTORS):
+        raise RuntimeError(
+            "CPS carried predictor mapping identity drifted from its output "
+            f"surface: missing={sorted(CPS_CARRIED_PERSON_PREDICTORS - set(predictors))}, "
+            f"extra={sorted(set(predictors) - CPS_CARRIED_PERSON_PREDICTORS)}."
+        )
+    canonical_validation: dict[str, object] = {
+        **{
+            column: {"domain": "binary_0_1", "missing": "allowed"}
+            for column in sorted(_CPS_BINARY_PERSON_PREDICTORS)
+        },
+        "marital_status_code": {
+            "domain": "reviewed_codes",
+            "valid_codes": [1.0, 2.0, 3.0, 4.0, 5.0],
+            "missing": "allowed",
+        },
+        "relationship_code": {
+            "domain": "reviewed_codes",
+            "valid_codes": sorted(CPS_RELATIONSHIP_PREDICTOR_CODES),
+            "missing": "allowed",
+        },
+        "household_person_count": {
+            "domain": "positive_integer",
+            "missing": "allowed",
+        },
+        "usual_hours_worked": {
+            "domain": "finite_nonnegative",
+            "missing": "allowed",
+        },
+        "weeks_worked_predictor": {
+            "domain": "integer_0_52",
+            "missing": "allowed",
+        },
+    }
+    if set(canonical_validation) != set(CPS_CARRIED_PERSON_PREDICTORS):
+        raise RuntimeError(
+            "CPS carried canonical validation identity drifted from its output surface."
+        )
+    payload: dict[str, object] = {
+        "version": 1,
+        "predictors": predictors,
+        "preexisting_value_policy": "preserve_after_canonical_domain_validation",
+        "canonical_validation": canonical_validation,
+    }
+    payload["sha256"] = hashlib.sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    return payload
 
 
 def derive_us_cps_carried_inputs(
@@ -118,9 +343,9 @@ def derive_us_cps_carried_inputs(
 ) -> Frame:
     """Carry raw CPS ASEC values onto PE input leaves.
 
-    Existing leaf input columns are preserved, making the transform idempotent.
-    The transform refuses to run on a non-US frame and never creates
-    formula-owned aggregate variables.
+    Existing leaf and canonical predictor columns are preserved, making the
+    transform idempotent. The transform refuses to run on a non-US frame and
+    never creates formula-owned aggregate variables.
 
     ``PAW_VAL``, ``SPM_SNAPSUB``, and ``WICYN`` are annual reported facts,
     while the engine's ``is_tanf_enrolled``, ``receives_snap``, and
@@ -144,6 +369,7 @@ def derive_us_cps_carried_inputs(
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
     person = tables["person"]
 
+    _fill_person_predictors(person)
     _fill_missing(person, "age", _source(person, "A_AGE"))
     _fill_bool_missing(person, "is_female", _integer_source(person, "A_SEX") == 2)
     _fill_bool_missing(person, "receives_wic", reported_wic_receipt_carrier(person))
@@ -350,6 +576,168 @@ def _fill_missing(table: pd.DataFrame, column: str, values: np.ndarray) -> None:
 def _fill_bool_missing(table: pd.DataFrame, column: str, values: np.ndarray) -> None:
     if column not in table.columns:
         table[column] = values.astype(bool)
+
+
+def _fill_person_predictors(person: pd.DataFrame) -> None:
+    """Carry measured ASEC analogues without converting blanks to zero."""
+
+    validate_cps_carried_person_predictors(person)
+
+    marital_status = _nullable_source(person, _CPS_MARITAL_STATUS_SOURCE)
+    if marital_status is not None and "marital_status_code" not in person:
+        observed = np.isfinite(marital_status)
+        invalid = observed & ~np.isin(
+            marital_status,
+            list(_CPS_MARITAL_STATUS_RECODE),
+        )
+        if invalid.any():
+            bad = sorted(set(marital_status[invalid].tolist()))
+            raise ValueError(f"ASEC A_MARITL contains unsupported code(s): {bad}.")
+        person["marital_status_code"] = np.asarray(
+            [_CPS_MARITAL_STATUS_RECODE.get(value, np.nan) for value in marital_status],
+            dtype=np.float64,
+        )
+
+    for output, source in _CPS_DIRECT_PERSON_PREDICTOR_SOURCES.items():
+        values = _nullable_source(person, source)
+        if values is None or output in person:
+            continue
+        observed = np.isfinite(values)
+        invalid = observed & ~np.isin(
+            values,
+            list(CPS_RELATIONSHIP_PREDICTOR_CODES),
+        )
+        if invalid.any():
+            bad = sorted(set(values[invalid].tolist()))
+            raise ValueError(f"ASEC {source} contains unsupported code(s): {bad}.")
+        person[output] = values
+
+    usual_hours = _nullable_source(person, _CPS_USUAL_HOURS_SOURCE)
+    if usual_hours is not None and "usual_hours_worked" not in person:
+        person["usual_hours_worked"] = np.maximum(usual_hours, 0.0)
+    weeks_worked = _nullable_source(person, _CPS_WEEKS_WORKED_SOURCE)
+    if weeks_worked is not None and "weeks_worked_predictor" not in person:
+        person["weeks_worked_predictor"] = np.minimum(
+            np.maximum(weeks_worked, 0.0),
+            52.0,
+        )
+
+    if "household_person_count" not in person and "person_household_id" in person:
+        person["household_person_count"] = (
+            person.groupby("person_household_id", sort=False)["person_household_id"]
+            .transform("size")
+            .astype("float64")
+        )
+
+    for output, (
+        source,
+        true_codes,
+        false_codes,
+        missing_codes,
+    ) in _CPS_CODED_PERSON_PREDICTOR_SOURCES.items():
+        values = _nullable_source(person, source)
+        if values is None or output in person:
+            continue
+        person[output] = _coded_indicator(
+            values,
+            source=source,
+            true_codes=true_codes,
+            false_codes=false_codes,
+            missing_codes=missing_codes,
+        )
+
+    validate_cps_carried_person_predictors(person)
+
+
+def validate_cps_carried_person_predictors(
+    person: pd.DataFrame,
+    *,
+    columns: tuple[str, ...] | None = None,
+    context: str = "CPS carried",
+) -> None:
+    """Refuse out-of-domain canonical predictor values while allowing blanks."""
+
+    selected = CPS_CARRIED_PERSON_PREDICTORS if columns is None else frozenset(columns)
+    unknown = sorted(selected - CPS_CARRIED_PERSON_PREDICTORS)
+    if unknown:
+        raise ValueError(f"{context} requested unknown predictor column(s): {unknown}.")
+
+    for column in sorted(selected.intersection(person.columns)):
+        values = _nullable_source(person, column)
+        if values is None:  # pragma: no cover - guarded by the intersection
+            continue
+        observed = np.isfinite(values)
+        if column in _CPS_BINARY_PERSON_PREDICTORS:
+            valid = np.isin(values, [0.0, 1.0])
+        elif column == "marital_status_code":
+            valid = np.isin(values, [1.0, 2.0, 3.0, 4.0, 5.0])
+        elif column == "relationship_code":
+            valid = np.isin(values, list(CPS_RELATIONSHIP_PREDICTOR_CODES))
+        elif column == "household_person_count":
+            valid = (values > 0.0) & np.equal(values, np.floor(values))
+        elif column == "usual_hours_worked":
+            valid = values >= 0.0
+        elif column == "weeks_worked_predictor":
+            valid = (
+                (values >= 0.0) & (values <= 52.0) & np.equal(values, np.floor(values))
+            )
+        else:  # pragma: no cover - closed registry above
+            raise AssertionError(f"Unhandled CPS carried predictor {column!r}.")
+        invalid = observed & ~valid
+        if invalid.any():
+            bad = sorted(set(values[invalid].tolist()))
+            raise ValueError(
+                f"{context} canonical predictor {column!r} contains unsupported "
+                f"value(s): {bad}."
+            )
+
+
+def _coded_indicator(
+    values: np.ndarray,
+    *,
+    source: str,
+    true_codes: frozenset[float],
+    false_codes: frozenset[float],
+    missing_codes: frozenset[float] = frozenset(),
+) -> np.ndarray:
+    """Decode one reviewed CPS code domain while retaining NIU sentinels."""
+
+    observed = np.isfinite(values)
+    valid_codes = [*true_codes, *false_codes, *missing_codes]
+    invalid = observed & ~np.isin(values, valid_codes)
+    if invalid.any():
+        bad = sorted(set(values[invalid].tolist()))
+        raise ValueError(f"ASEC {source} contains unsupported code(s): {bad}.")
+    result = np.full(len(values), np.nan, dtype=np.float64)
+    result[np.isin(values, list(false_codes))] = 0.0
+    result[np.isin(values, list(true_codes))] = 1.0
+    return result
+
+
+def _nullable_source(person: pd.DataFrame, column: str) -> np.ndarray | None:
+    """Read one optional predictor source while preserving native blanks."""
+
+    if column not in person.columns:
+        return None
+    source = person[column]
+    numeric = pd.to_numeric(source, errors="coerce")
+    blank = source.isna()
+    if pd.api.types.is_object_dtype(source.dtype) or isinstance(
+        source.dtype, pd.StringDtype
+    ):
+        blank |= source.astype("string").str.strip().eq("").fillna(False)
+    invalid = numeric.isna() & ~blank
+    if invalid.any():
+        bad = source.loc[invalid].astype(str).head().tolist()
+        raise ValueError(
+            f"ASEC predictor source {column!r} contains non-numeric value(s): {bad}."
+        )
+    values = numeric.to_numpy(dtype=np.float64)
+    if np.isinf(values).any():
+        raise ValueError(
+            f"ASEC predictor source {column!r} contains infinite value(s)."
+        )
+    return values
 
 
 def _source(person: pd.DataFrame, column: str) -> np.ndarray:

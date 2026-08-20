@@ -68,7 +68,7 @@ predictor_sets:
     - is_household_head
     - tenure_code
     note: realized pre-clone baseline surface; the unavailable investment feature is omitted
-  acs_person_transfer_retirement_removal:
+  acs_person_transfer_broad_addition:
     required:
     - age
     - is_female
@@ -76,10 +76,26 @@ predictor_sets:
     optional:
     - employment_income
     - self_employment_income
+    - social_security_income
+    - retirement_income
+    - marital_status_code
+    - relationship_code
+    - household_person_count
     - is_household_head
     - tenure_code
-    note: removal-only factorial for the early person PUF-tax family; direct ACS Social Security and
-      retirement income analogues are removed while every other baseline feature is retained
+    - difficulty_dressing_or_bathing
+    - difficulty_hearing
+    - difficulty_seeing
+    - difficulty_doing_errands
+    - difficulty_walking_or_climbing_stairs
+    - difficulty_remembering_or_making_decisions
+    - usual_hours_worked
+    - weeks_worked
+    - is_self_employed_worker
+    - has_medicare_coverage
+    - is_foreign_born
+    note: broad-addition-only factorial for the early person PUF-tax family; all realized baseline
+      predictors are retained and exactly fourteen reviewed non-veteran ACS/ASEC analogues are added
   acs_person_transfer_housing_early_baseline:
     required:
     - age
@@ -125,7 +141,7 @@ imputed_families:
   recipient_channel: acs
   entity: person
   family: puf_tax_itemization
-  predictor_set: acs_person_transfer_retirement_removal
+  predictor_set: acs_person_transfer_broad_addition
   model: regime_gated_qrf
   max_targets_per_fit: 8
   targets:

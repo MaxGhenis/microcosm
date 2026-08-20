@@ -2525,8 +2525,24 @@ def test_gap_fill_plan_covers_declared_families_exactly() -> None:
             optional=(
                 "__acs_transfer_employment_income",
                 "__acs_transfer_self_employment_income",
+                "__acs_transfer_social_security_income",
+                "__acs_transfer_retirement_income",
+                "__acs_transfer_marital_status_code",
+                "__acs_transfer_relationship_code",
+                "__acs_transfer_household_person_count",
                 "__acs_transfer_is_household_head",
                 "__acs_transfer_tenure_code",
+                "__acs_transfer_difficulty_dressing_or_bathing",
+                "__acs_transfer_difficulty_hearing",
+                "__acs_transfer_difficulty_seeing",
+                "__acs_transfer_difficulty_doing_errands",
+                "__acs_transfer_difficulty_walking_or_climbing_stairs",
+                "__acs_transfer_difficulty_remembering_or_making_decisions",
+                "__acs_transfer_usual_hours_worked",
+                "__acs_transfer_weeks_worked",
+                "__acs_transfer_is_self_employed_worker",
+                "__acs_transfer_has_medicare_coverage",
+                "__acs_transfer_is_foreign_born",
             ),
         )
     )
@@ -8077,7 +8093,7 @@ def test_gap_fill_plan_digest_binds_direction_and_channels() -> None:
     assert any("canonical gap-fill direction mismatch" in f for f in result.failures)
 
 
-def test_gap_fill_plan_digest_binds_the_removal_predictor_set() -> None:
+def test_gap_fill_plan_digest_binds_the_broad_addition_predictor_set() -> None:
     canonical_sha256 = stacked_spine_module.stacked_spine_authority_receipt()[
         "components"
     ]["gap_fill_plan"]["sha256"]
@@ -8088,9 +8104,10 @@ def test_gap_fill_plan_digest_binds_the_removal_predictor_set() -> None:
     puf = altered_sets["person"]["puf_tax_itemization"]
     altered_sets["person"]["puf_tax_itemization"] = replace(
         puf,
-        optional=(
-            *puf.optional,
-            "__acs_transfer_social_security_income",
+        optional=tuple(
+            predictor
+            for predictor in puf.optional
+            if predictor != "__acs_transfer_is_foreign_born"
         ),
     )
     authority = stacked_spine_module._make_test_stacked_authority(
@@ -8103,7 +8120,7 @@ def test_gap_fill_plan_digest_binds_the_removal_predictor_set() -> None:
     with pytest.raises(ValueError, match="non-canonical stacked authority"):
         stacked_spine_module._validate_production_authority_receipt(
             receipt,
-            boundary="altered removal predictor set",
+            boundary="altered broad-addition predictor set",
         )
 
 
