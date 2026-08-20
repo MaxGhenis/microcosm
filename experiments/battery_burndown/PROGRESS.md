@@ -2,12 +2,12 @@
 
 ## State
 
-Revalidation in progress on branch `battery-burndown`, based on
+Revalidation complete on branch `battery-burndown`, based on
 `arm-split-base` at `7d6749990933ac072ac257ae76d666aa16b84d25`.
-The existing owner-facing and machine-readable reports are being checked again
+The owner-facing and machine-readable reports have been independently checked
 against all four frozen gate artifacts, the Phase P synthesis, and current
-comparator/exclusion source. No builds or pushes are authorized, and no code,
-gate, band, threshold, or publication state is being changed.
+comparator/exclusion source. No builds or pushes were run, and no code, gate,
+band, threshold, or publication state was changed.
 
 ## Done
 
@@ -146,17 +146,25 @@ gate, band, threshold, or publication state is being changed.
   entries resolve; the 21 incidence fixes respect target/sign and immutability
   boundaries; UK schema-2 and QBI failed-attempt wording are exact. No further
   report change was requested.
+- Closed the 2026-08-20 revalidation with three independent audits. Gate
+  arithmetic matched every one of the 93 ordered checks, exact JSON values,
+  arm winners/directions, hashes, and Markdown/JSON parity. The mechanism
+  audit found no incorrect or stale source claim, and the classification audit
+  endorsed all 93 dispositions, effort estimates, named actions, the zero-
+  exclusion conclusion, minimal-green set, and top-five ranking.
+- Corrected one presentation-only Keogh incidence rounding, expanded the
+  isolated-arm uniqueness citation to the synthesis's complete battery table,
+  and directly cited the ACS bank's closed metadata envelope. Clarified that
+  the missing regime receipt is ACS-transfer-specific because the primary PUF
+  checkpoint path does persist the regime. No value, arm movement,
+  classification, package count, or recommendation changed.
 - Final report SHA-256:
-  `7c5dfbf55e9e53505eacc1e3800cfde632b4b535c0127b489b47418676e54e25`;
+  `02c4c26b96d60688a91a75ef63290e8148479adc5c277ed136fba5398d27e0ff`;
   JSON SHA-256:
-  `fd4f25245a2b32a199675a35c26ca575b027f665205ba639fb073434a8b5c2db`.
+  `57de9ba5867e440077ff7b6888138bc45dc45db2a9b9697820eecac4e3b5240d`.
 
 ## Next
 
-- Recompute the 93-row gate arithmetic and best-arm movement from the frozen
-  JSON artifacts.
-- Re-read and audit the comparator, transfer, and reviewed-exclusion source
-  citations plus the Phase P attribution constraints.
-- Audit row actionability, summary arithmetic, minimal-resolution set, and
-  top-five ranking; correct only the report if evidence requires it.
-- Close the journal with final hashes and the owner handoff.
+- Owner handoff. No in-scope analysis remains.
+- Resolve the work packages in the adjudication, then rerun all 211 battery
+  legs before certification; the present task does not authorize that build.
