@@ -15,9 +15,11 @@ callsites**:
 
 The 32 owned stochastic physical sites collapse/expand into **32 logical
 draw-site ledger rows**: five hash-helper delegations expand to 18 output-keyed
-streams, while ten QRF lifecycle calls bind to five model-chain rows. The one
-behavior-affecting clock has a separate broker record. The 54 exemptions are
-fully typed below; there are no unclassified sites.
+streams; 14 ordinary generator/draw calls for L19–L21 and L23–L25 collapse to
+six rows; ten QRF lifecycle calls bind to five model-chain rows; and L22, L26,
+and L32 are one-to-one. The one behavior-affecting clock has a separate broker
+record. The 54 exemptions are fully typed below; there are no unclassified
+sites.
 
 This is an analysis of cached `origin/main@164027e21cfa58a71d701b43211d009d6182e39d`.
 Line numbers refer to that tree. The strict count covers the requested UK files.
