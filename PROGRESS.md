@@ -1,48 +1,34 @@
-# Progress
+# UK flip-prep progress
 
 ## State
 
-Microcosm #516 whole-row donor outlier screen is complete on
-`mortgage-donor-outlier-screen` (rebased onto `origin/main` after the #515
-interim carve merged as #525). The `puf_tax_detail` donor now drops tax units
-whose grouped raw mortgage interest reaches $10M before the #515 carve
-(pinned-artifact effect: 3,066 rows, weight 3,684 of ~161M, removing $2.947T
-of phantom mortgage-interest mass), with the checkpoint schema bumped to v3
-so post-carve pre-screen checkpoints rebuild.
+Analysis is in progress from detached cached `origin/main` commit
+`164027e21cfa58a71d701b43211d009d6182e39d` in the isolated worktree
+`/Users/maxghenis/PolicyEngine/microcosm/.worktrees/microcosm-uk-flip-prep`.
+No package or UK source files will be edited, no builds will run, and nothing
+will be pushed.
+
+The requested `git fetch origin main spec-engine-schema` could not resolve
+`github.com` in the managed sandbox. The requested sibling worktree path was
+outside the writable sandbox, so the worktree is nested under the writable
+repository sandbox instead. The locally cached spec ref is
+`origin/spec-engine-schema@c4e1eb7fc3ae5246a9b8e5d4a63cb7195aaf8cfa`.
 
 ## Done
 
-- Confirmed a clean starting worktree at `aef1c56`.
-- Read the repository guidance and established the #515 donor carve as the
-  screen's required downstream boundary.
-- Started source-level audits of every donor-frame consumer, checkpoint
-  validation, row-count pins, and existing donor-fact summaries.
-- Attempted the requested GitNexus impact workflow; the managed filesystem
-  denied its global registry write. Its local index also exposed a broad
-  `build/` ignore mismatch, so the completed impact audit uses direct source
-  call sites and tests.
-- Added `US_PUF_DONOR_MORTGAGE_OUTLIER_CEILING = 10_000_000.0` with the
-  structural rationale and pinned-artifact receipts.
-- Added a whole-row screen on grouped raw person `home_mortgage_interest`
-  after tax-unit assembly, before the #515 carve, with retained-index reset.
-- Confirmed no downstream consumer pairs donor rows to the original HDF arrays
-  or carries a stale donor-length vector; values and weights always originate
-  from the same screened frame.
-- Bumped the primary QRF checkpoint schema from v2 to v3 and made the stale
-  checkpoint regression track the live constant while retaining literal-v1
-  corruptions.
-- Added regression coverage for the exact grouped boundary, whole-row removal,
-  retained/carved $5M row, raw-$10.5M pre-carve ordering, and constant.
-- Requested suites pass: PUF support/QRF 53; plan/gates 195; fiscal targets
-  139; microcosm-data 138 with 1 skip. The directly affected tail-bound suite
-  adds 12 passes. Ruff format/check and `git diff --check` are clean.
-- Wrote `SOL_516_REPORT.md` with the exact seam, consumer-by-consumer file:line
-  audit, expected 208,611-row real-artifact effect, verification results, count
-  sweep, and deliberately untouched surfaces.
+- Read the repository operating instructions.
+- Read the GitNexus exploration skill; its MCP knowledge-graph service is not
+  available in this session, so the audit will use exhaustive direct source
+  discovery and call tracing.
+- Verified the requested worktree path did not already exist.
+- Attempted the required fetch and recorded the network limitation.
+- Created a fresh detached worktree from the cached `origin/main` ref.
 
 ## Next
 
-- PR #527 review cycle, then merge. After both #525 and #527: rebuild the
-  base/release; the mortgage critical-fit ratchet (0.20 -> 0.15) waits on a
-  run that holds per `us_critical_targets.py`.
-- Root record-level ETL carve stays open on microcosm#515.
+- Sync the workspace dependencies without running builds.
+- Read the spec-engine kernels and F1 rollout sections, the US F1 inventory,
+  both UK driver families, every `uk_runtime` module, and declarative UK stage
+  specifications.
+- Produce and cross-check the authority inventory, stochastic audit, and UK F1
+  charter under `_UK-FLIP-PREP/`, then record final counts and risks here.
