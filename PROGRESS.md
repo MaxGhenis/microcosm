@@ -2,9 +2,9 @@
 
 ## State
 
-Analysis is in progress for the UK bundle-mode flip authority inventory,
-stochastic audit, and F1 dispatch-charter draft. Dependencies are synced with
-both locked country extras. The worktree is detached at
+The authority inventory is complete; this journal update accompanies its
+commit. The stochastic audit and F1 dispatch-charter draft are in progress.
+Dependencies are synced with both locked country extras. The worktree is detached at
 the locally cached `origin/main` SHA
 `164027e21cfa58a71d701b43211d009d6182e39d` (2026-08-19 15:28:43 -0400).
 
@@ -32,10 +32,16 @@ are the locally cached references.
   `--offline --no-build-isolation` plus cached Hatchling dependencies because
   the managed sandbox makes the global uv cache read-only. No dataset,
   calibration, or release build ran.
+- Read `docs/spec-engine.md` from the cached `origin/spec-engine-schema`
+  reference, including the Kernels and Rollout F1 sections.
+- Read the US F1 authority-inventory template and charter, all three specified
+  UK drivers, and all 57 `uk_runtime` modules.
+- Completed the 87-row UK authority census and mapped it to compiled owners,
+  including 14 concrete schema gaps.
+- Wrote `_UK-FLIP-PREP/AUTHORITY-INVENTORY.md`.
 
 ## Next
 
-- Read the schema branch specification, the US F1 inventory template, all UK
-  build drivers, and every `uk_runtime` module.
-- Write and commit the three requested files under `_UK-FLIP-PREP/`, updating
-  this journal after each coherent step.
+- Write and commit the stochastic audit with its closed callsite census.
+- Write and commit the UK F1 charter draft, finalize the output-file report,
+  and verify counts, links, and worktree state.
