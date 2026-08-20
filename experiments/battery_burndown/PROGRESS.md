@@ -36,10 +36,12 @@ has been changed.
   REVIEWED-EXCLUSION-CANDIDATE, and 36 BLOCKER; the corresponding physical-leg
   counts are 37, 0, and 23.
 - Found zero sparse-artifact and zero measurement-mismatch exclusion candidates.
-  Release-authenticated checkpoint evidence proves both dead clone-0/native QBI
-  booleans are live, green clone-1 PUF-role signals with all nine coupled
-  identities reconciled; waiving clone 0 would remove the only pool-terminal
-  signal checks, so both are comparator role-scope FIX-CANDIDATEs.
+  SHA-verified, failed-attempt manifest-bound checkpoint evidence shows both
+  dead clone-0/native QBI booleans are live, green clone-1 PUF-role signals with
+  all nine coupled identities reconciled; waiving clone 0 would remove the only
+  pool-terminal signal checks, so both are comparator role-scope
+  FIX-CANDIDATEs. The manifest itself remains `gate_failed` with
+  `simulation_ready=false`.
 - Established that all 93 checks/60 physical legs must be resolved and grouped
   them into ten owner work packages; a conjunctive battery has no smaller red
   subset whose resolution alone makes it pass.
@@ -68,10 +70,10 @@ has been changed.
   exposes full resolved receipts, while input-mass evidence hashes only its
   reference and QRF-tail declares no binding evidence hook. Any future US
   criterion machinery must fully seal resolved receipts.
-- Authenticated the baseline simulated checkpoint through its publication
-  manifest, release/run IDs, checkpoint identity, and QBI transition authority;
-  independently extracted green clone-1 incidences for both SSTB flags and zero
-  violations across all nine coupled QBI identities.
+- Bound the baseline simulated checkpoint to the failed publication attempt
+  through its manifest, release/run IDs, checkpoint identity, and QBI transition
+  authority; independently extracted green clone-1 incidences for both SSTB
+  flags and zero violations across all nine coupled QBI identities.
 - Corrected Schedule-D to its operative tax-unit parent aggregation,
   share/exclusivity formula, and first-person allocation; corrected adult-care
   to its mutable-carrier clearing path, which preserves immutable positives and
@@ -129,10 +131,14 @@ has been changed.
   `QRFChainState` field-list range to all 80 generic per-row regime-receipt
   citations so each row directly supports the claim that realized regimes are
   not persisted; no value, movement, disposition, or recommendation changed.
-- Final report SHA-256:
-  `06e5887ba427e3fd0920f68e198ce74820279446b630967e1ed22eef4a92f6d7`;
+- Split the literal top-five FIX-CANDIDATE ranking from the broader
+  coverage-ranked resolution workstreams, which properly retain BLOCKER
+  discovery lanes. Corrected the QBI evidence language to record the manifest's
+  `gate_failed`/`simulation_ready=false` state and avoid implying readiness.
+- Current report SHA-256:
+  `769cd5bcbd9b19dbe127904d343170be6bdc09e6178217813b16bcc81ff09af5`;
   JSON SHA-256:
-  `ce4f2fd91cece8b6795ae46e73a04a5bc379578679b6b3f75fc896aa3fc899cc`.
+  `2569641e16406b352e95f9021e7341e7135734ae3f8e929d22f0b35322a8bd97`.
 
 ## Next
 

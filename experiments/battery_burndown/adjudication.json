@@ -52,6 +52,8 @@
     },
     "baseline_qbi_scope_evidence": {
       "publication_manifest": "/Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1/populace_us_2024_stacked_pool.manifest.json",
+      "publication_manifest_status": "gate_failed",
+      "simulation_ready": false,
       "simulated_checkpoint": "/Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1/populace_us_2024_stacked_pool.checkpoints/stacked/9be8ecdf82356f38998e8b620ee36d9134f554fe89a8eafd8406f438e2b5aad6/simulated.checkpoint.h5",
       "checkpoint_manifest": "/Users/maxghenis/PolicyEngine/_buildo-runtime/out/stacked-f025-r1/populace_us_2024_stacked_pool.checkpoints/stacked/9be8ecdf82356f38998e8b620ee36d9134f554fe89a8eafd8406f438e2b5aad6/simulated.checkpoint.manifest.json",
       "checkpoint_sha256": "5b47eb0ded02f4031e235b7a6e07506b5bd38f87827644752d26f4263e492f5a",
@@ -359,8 +361,46 @@
       ],
       "scope_fix_requirement": "The two dead SSTB checks require a terminal role-scope fix, not an exclusion: compare their declared PUF-owned signal on clone 1 and continuously enforce the coupled QBI identities."
     },
-    "top_five_interpretation": "Coverage-ranked, non-overlapping work packages, not five proven single fixes; each can require target-specific subfixes after regime recomputation or data inspection. The future retirement bundle factorial is a separate landing guardrail and clears no baseline red. The two-check QBI terminal-role FIX remains separate from the eight-check QBI model package and is not combined to inflate ranking.",
-    "top_five_highest_leverage": [
+    "top_five_fix_candidates_interpretation": "Only concrete FIX-CANDIDATE packages are ranked here. Coverage is failed checks/physical legs; ties are broken by breadth of the terminal mechanism and then owner-ready specificity. Schedule-D joint-parent reconciliation ties the fifth entry at 1/1 and is the runner-up.",
+    "top_five_fix_candidates": [
+      {
+        "rank": 1,
+        "title": "PUF-tax origin-aware carrier/sign and conditional-quantile calibration",
+        "checks_addressed": 38,
+        "physical_legs_addressed": 25,
+        "action_group": "puf_tax_fitted_regime_and_quantile_calibration"
+      },
+      {
+        "rank": 2,
+        "title": "Source-operator origin-aware carrier and amount calibration",
+        "checks_addressed": 13,
+        "physical_legs_addressed": 7,
+        "action_group": "source_operator_two_part_calibration"
+      },
+      {
+        "rank": 3,
+        "title": "QBI terminal role-scope correction",
+        "checks_addressed": 2,
+        "physical_legs_addressed": 2,
+        "action_group": "qbi_terminal_role_scope"
+      },
+      {
+        "rank": 4,
+        "title": "Adult-care mutable-carrier and amount reconciliation",
+        "checks_addressed": 2,
+        "physical_legs_addressed": 1,
+        "action_group": "adult_care_post_reconciliation"
+      },
+      {
+        "rank": 5,
+        "title": "Target-only unemployment positive-amount quantile map",
+        "checks_addressed": 1,
+        "physical_legs_addressed": 1,
+        "action_group": "model_required_targeted_calibration"
+      }
+    ],
+    "top_five_resolution_workstreams_interpretation": "Coverage-ranked, non-overlapping work packages, not five proven single fixes; each can require target-specific subfixes after regime recomputation or data inspection. The future retirement bundle factorial is a separate landing guardrail and clears no baseline red. The two-check QBI terminal-role FIX remains separate from the eight-check QBI model package and is not combined to inflate ranking.",
+    "top_five_resolution_workstreams": [
       {
         "rank": 1,
         "title": "PUF-tax regime-verified carrier/sign plus conditional-quantile calibration",
@@ -421,7 +461,7 @@
     },
     "rejected_measurement_mismatch_claims": {
       "failed_checks": 2,
-      "reason": "The clone-0 dead results reveal a comparator role-ownership defect. Authenticated clone-1 evidence is already green and coupled identities reconcile; waiving clone 0 without a continuously enforced clone-1 replacement would remove the pool terminal signal check and could hide future regressions.",
+      "reason": "The clone-0 dead results reveal a comparator role-ownership defect. SHA-verified, failed-attempt manifest-bound clone-1 evidence is already green and coupled identities reconcile; waiving clone 0 without a continuously enforced clone-1 replacement would remove the pool terminal signal check and could hide future regressions. The manifest remains gate_failed with simulation_ready=false, so this evidence does not imply release readiness.",
       "required_fix": "Add per-target clone-role ownership to the canonical metric authority, assign the two SSTB flags to clone 1, and terminally enforce their clone-1 by-origin comparisons plus coupled QBI identities."
     },
     "why_no_sparse_candidates": "All 48 red QEDs have minima of 48 ASEC carriers and 519 ACS carriers, above the five-carrier skip. Keogh is one-sided at 2 ASEC carrier rows and 0 ACS carrier rows, so QED is skipped after incidence still fails; it is policy-relevant and remains a real blocker.",
@@ -3799,7 +3839,7 @@
         "candidate_ratio_band_status": "not_ratio_comparable",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "The canonical registry hard-codes every declared target to clone 0, where QBI reconciliation intentionally forces these native-role SSTB flags false on both origins; authenticated baseline evidence shows the PUF-owned signal is live and green on clone 1 with all coupled identities reconciled.",
+      "mechanism_hypothesis": "The canonical registry hard-codes every declared target to clone 0, where QBI reconciliation intentionally forces these native-role SSTB flags false on both origins; SHA-verified, failed-attempt manifest-bound baseline evidence shows the PUF-owned signal is live and green on clone 1 with all coupled identities reconciled.",
       "mechanism_citations": [
         "C03",
         "C10",
@@ -3809,7 +3849,7 @@
         "C38"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Clone-1 weighted incidence is green in the authenticated baseline checkpoint and all nine QBI identity violations are zero. A clone-0 waiver would remove the only pool-terminal signal check and could hide later regressions, so this is a comparator role-scope defect, not a reviewed exclusion.",
+      "classification_rationale": "Clone-1 weighted incidence is green in the SHA-verified, failed-attempt manifest-bound baseline checkpoint and all nine QBI identity violations are zero. Its manifest is gate_failed with simulation_ready=false, so this evidence does not imply release readiness. A clone-0 waiver would remove the only pool-terminal signal check and could hide later regressions, so this is a comparator role-scope defect, not a reviewed exclusion.",
       "concrete_change_or_needed_work": "Add per-target role ownership to the canonical battery metric authority, assign this SSTB flag to clone 1, and continuously enforce its clone-1 ASEC/ACS comparison plus the coupled QBI identities.",
       "action_group": "qbi_terminal_role_scope",
       "reviewed_exclusion_class": null,
@@ -3849,7 +3889,7 @@
         "candidate_ratio_band_status": "not_ratio_comparable",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "The canonical registry hard-codes every declared target to clone 0, where QBI reconciliation intentionally forces these native-role SSTB flags false on both origins; authenticated baseline evidence shows the PUF-owned signal is live and green on clone 1 with all coupled identities reconciled.",
+      "mechanism_hypothesis": "The canonical registry hard-codes every declared target to clone 0, where QBI reconciliation intentionally forces these native-role SSTB flags false on both origins; SHA-verified, failed-attempt manifest-bound baseline evidence shows the PUF-owned signal is live and green on clone 1 with all coupled identities reconciled.",
       "mechanism_citations": [
         "C03",
         "C10",
@@ -3859,7 +3899,7 @@
         "C38"
       ],
       "classification": "FIX-CANDIDATE",
-      "classification_rationale": "Clone-1 weighted incidence is green in the authenticated baseline checkpoint and all nine QBI identity violations are zero. A clone-0 waiver would remove the only pool-terminal signal check and could hide later regressions, so this is a comparator role-scope defect, not a reviewed exclusion.",
+      "classification_rationale": "Clone-1 weighted incidence is green in the SHA-verified, failed-attempt manifest-bound baseline checkpoint and all nine QBI identity violations are zero. Its manifest is gate_failed with simulation_ready=false, so this evidence does not imply release readiness. A clone-0 waiver would remove the only pool-terminal signal check and could hide later regressions, so this is a comparator role-scope defect, not a reviewed exclusion.",
       "concrete_change_or_needed_work": "Add per-target role ownership to the canonical battery metric authority, assign this SSTB flag to clone 1, and continuously enforce its clone-1 ASEC/ACS comparison plus the coupled QBI identities.",
       "action_group": "qbi_terminal_role_scope",
       "reviewed_exclusion_class": null,
