@@ -2,7 +2,7 @@
 
 ## State
 
-Analysis is in progress from detached cached `origin/main` commit
+Inventory drafting is in progress from detached cached `origin/main` commit
 `164027e21cfa58a71d701b43211d009d6182e39d` in the isolated worktree
 `/Users/maxghenis/PolicyEngine/microcosm/.worktrees/microcosm-uk-flip-prep`.
 No package or UK source files will be edited, no builds will run, and nothing
@@ -23,12 +23,25 @@ repository sandbox instead. The locally cached spec ref is
 - Verified the requested worktree path did not already exist.
 - Attempted the required fetch and recorded the network limitation.
 - Created a fresh detached worktree from the cached `origin/main` ref.
+- Verified the lock exposes both `us` and `uk` extras. Dependency sync created
+  the isolated `.venv` but could not finish because the managed sandbox could
+  not resolve the package index; no dataset build was run.
+- Read the cached spec-engine schema branch's Kernels and Rollout F1 sections,
+  the US F1 inventory and charter, all three UK drivers, every `uk_runtime`
+  module, and the UK declarative stage/geography resources.
+- Traced the UK driver graphs and independently enumerated stochastic, hash,
+  UUID, and clock sites at AST/source level. Reconciled the stage seed families:
+  identity-keyed `0`, SPI/HMRC `42` then `43`, and national sampling `578`.
+- Identified a blocking geography default mismatch: the rowwise drivers default
+  to seed `42`, while the spec-branch ladder skeleton declares default seed `0`.
+- Identified a blocking schema/ABI gap: the current executable spine contract is
+  US-stacked-pool-specific and the UK walking skeleton compiles no executable
+  producer nodes.
 
 ## Next
 
-- Sync the workspace dependencies without running builds.
-- Read the spec-engine kernels and F1 rollout sections, the US F1 inventory,
-  both UK driver families, every `uk_runtime` module, and declarative UK stage
-  specifications.
-- Produce and cross-check the authority inventory, stochastic audit, and UK F1
-  charter under `_UK-FLIP-PREP/`, then record final counts and risks here.
+- Draft and independently cross-check the authority inventory and stochastic
+  ledger/exemptions, including exact counts and schema-field sketches.
+- Write the UK F1 charter under `_UK-FLIP-PREP/`, validate internal counts and
+  links, commit each coherent artifact step, and record final counts and risks
+  here.
