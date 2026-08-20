@@ -133,7 +133,10 @@
     "C44": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11629-11640,11655-11665,11716-11724,11843-11849,11899-11917",
     "C45": "packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:692-794,814-844",
     "C46": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:7591-7612,7663-7682",
-    "C47": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8245-8275,8353-8432,8450-8455,8518-8538"
+    "C47": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8245-8275,8353-8432,8450-8455,8518-8538",
+    "C48": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:313-333",
+    "C49": "tools/build_us_multispine_pool.py:3053-3061,3182-3188",
+    "C50": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11309,11934-11973"
   },
   "definitions": {
     "ratio": "[sum ACS weight on nonzero/sign leg / sum ACS origin-scope weight] / [sum ASEC weight on nonzero/sign leg / sum ASEC origin-scope weight]",
@@ -142,6 +145,7 @@
       1.25
     ],
     "quantile_envelope_max_inclusive": 0.25,
+    "categorical_tvd_max_inclusive": 0.25,
     "quantiles": [
       0.1,
       0.25,
@@ -156,7 +160,8 @@
       "C05",
       "C19",
       "C28",
-      "C44"
+      "C44",
+      "C50"
     ],
     "best_arm_method": "minimum multiplicative log-distance to incidence band, normalized QED exceedance, or dead-status indicator; exact ties retained",
     "best_arm_tie_auxiliary": "When tied criterion winners disagree on a non-ranking auxiliary field, candidate_ratio_band_status is mixed_by_arm and auxiliary_by_arm preserves each result.",
@@ -542,12 +547,14 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4615384615384616
       },
-      "mechanism_hypothesis": "The pool disables the transfer leaf, sums the two capital-gain parents to tax-unit grain, applies the share/exclusivity formula, writes the derived amount to the first person when a unit is wholly missing, and zeros other missing members.",
+      "mechanism_hypothesis": "Schedule-D is deliberately excluded from the QRF target declaration. Each bounded late-transfer call disables its local Schedule-D derivation; after the late-producer DAG, the pool aggregates the two capital-gain parents to tax-unit grain, applies the share/exclusivity formula, writes the derived amount to the first missing person when a unit is wholly missing, and zero-fills the other missing rows.",
       "mechanism_citations": [
         "C04",
         "C09",
         "C40",
-        "C47"
+        "C47",
+        "C48",
+        "C49"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 1.378181995856025. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
