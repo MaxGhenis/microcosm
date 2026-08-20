@@ -4,6 +4,8 @@
 executor/broker ABI is pinned, every N01–N12 schema prerequisite in
 `AUTHORITY-INVENTORY.md` has landed, and the existing US-specific battery,
 calibration, publication-rung, and spine pipeline fields accept the UK bundle.
+The seed, geography, clock, gate, and consumer blockers below must be closed by
+machine evidence, not merely acknowledged in an audit.
 
 ## Why this lane exists
 
@@ -34,12 +36,32 @@ Start only when all of the following are true:
 - The UK bundle compiles a nonempty complete producer graph for all three
   pipelines. The current six-resource walking skeleton, absent producer graph,
   and empty compiled-node set are a hard stop.
+- Compiled seed ownership covers L01–L32 and C01 with zero unbound physical
+  sites. Tests prove active `hmrc_spi_income` owns separate 42/42/42/43 streams,
+  WAS owns three independently reset seed-0 chains, and both geography profiles
+  resolve to incumbent seed 42 without a hidden bundle default of 0.
+- Every UK gate and calibration field required by the binding executable
+  contract is compiled and mutation-tested: formula, input/stage,
+  population/denominator, slices, reference digest, support/ESS, absolute and
+  relative bounds, uncertainty rule, missing-slice policy, severity/failure
+  mapping, target scaling and row weights, cap/zero/negative behavior,
+  objective/mass constraints, initialization, optimizer/schedule/dtype,
+  stopping, infeasibility, priorities, and attainment. In particular, the OA
+  ladder gate is no longer absent from the compiled battery.
 - The generation-0 UK oracle commit, policyengine-uk environment, licensed
   inputs, public-source bytes, OA ladder/crosswalk, exclusion registers, and
   signing/evidence inputs are content-pinned and available locally.
 - The two preflight artifacts remain current: 30 authority groups/12 missing
   field paths and an independent 87-physical-site stochastic/hash/ambient
   baseline. Every source delta since that audit is adjudicated before a run.
+- A generated dependency inventory identifies every UK closure, segment, and
+  dashboard consumer of constants-era authorities. Each is either retargeted to
+  compiler output in this F1 lane or evidenced absent; prose scoping is not a
+  substitute for the inventory required by the F1 rollout.
+- Prior cold-f001 stage telemetry, with at least 25% memory and 20% wall-time
+  contingency, proves the four serialized graphs, tests, and resume exercise fit
+  below 15 GiB aggregate RSS and within 24 hours. A stage without safe telemetry
+  is a stop-before-launch condition.
 
 If UK-specific schema/compiler work remains at dispatch, this is not yet a
 one-day flip lane: stop and land that prerequisite separately.
@@ -51,6 +73,10 @@ one-day flip lane: stop and land that prerequisite separately.
 `CompiledSpecIR`, compiled nodes, the sealed run request, and explicit broker
 capabilities. It may not reconstruct values from constants, a generated legacy
 payload, parser defaults, or permissive fallback code.
+
+File, environment, clock, RNG, UUID/nonce, and network access is denied unless
+the certified capability/broker policy explicitly authorizes and receipts it.
+Certification never permits a live geography download.
 
 Compile-back is exact: the complete authored UK bundle must reproduce the
 legacy payload used by constants mode before execution begins. Field-usage
@@ -98,6 +124,28 @@ unexplained addition, deletion, or reclassification fails.
 - **Certification/data owner:** provides licensed inputs, adjudicates evidence,
   signs reports, and alone may push, publish, promote, or flip `latest`.
 
+## Dispatch card
+
+Unless the owner substitutes and records another fresh location, use branch
+`spec-engine-uk-f1` in
+`/Users/maxghenis/PolicyEngine/_worktrees/microcosm-uk-f1`, journal in
+`_UK-F1-LANE-NOTES.md`, and write certification evidence to
+`docs/evidence/spec-engine/uk-f1-certification.json` plus the adjacent `.md`
+summary. Nothing in this draft authorizes touching an existing UK branch.
+
+The first environment command is exactly:
+
+```bash
+uv sync --all-packages --extra us --extra uk
+```
+
+Before dispatch, the owner and lane author must place copy-paste-ready command
+vectors for constants A/B, bundle C/D, and fixture kill/resume in the journal.
+They must contain resolved absolute input/output paths, exact content digests,
+the noncanonical f001 release id, mode, seeds, ladder pin, comparison-plan pin,
+broker policy, resume policy, and telemetry wrapper. Placeholder commands do not
+satisfy dispatch.
+
 ## Sealed inputs and run request
 
 Record one immutable `plan_lock` before execution. It contains all content
@@ -109,13 +157,13 @@ deliberately, making live defaults and certification overrides explicit:
 
 | Surface | Sealed values |
 | --- | --- |
-| National | target period/source year 2023; build seed 42; QRF estimators 100; sample fraction 0.01; sample seed 578; rung `f001`; non-release-candidate posture |
+| National | target period/source year 2023; build seed 42; QRF estimators 100; sample fraction 0.01; sample seed 578; rung `f001`; non-release-candidate posture; exact owner-approved noncanonical f001 `release_id`; compiled source tier; compiled cardinality source and expected resolved count |
 | SPI/HMRC | separate ledger sites for age jitter 42, donor bootstrap 42, QRF stage 1 seed 42, QRF stage 2 seed 43; exact donor size and ordered targets |
 | CGT | seed base 552 mixed with target period; exact ordered allocation/band surface |
 | Rowwise geography | production route `ladder`; two clones; run seed 42; constituency vintage `2024_pcon`; exact ladder content pin; preserved clone/ID/weight semantics |
 | Crosswalk fixture | named compatibility route; run seed 42; exact pinned crosswalk bytes; collision policy and 50-retry cap; never live-download during certification |
 | Candidate solve | target family `census_households/constituency`; epochs 512; learning rate 0.15; free mass; target records null; L0 0; budget iterations 10; loss cap 10; max weight ratio 100; seed 42; preserve the incumbent hardcoded candidate receipt/build rung tag `f100` pending a separate owner ruling |
-| Operational | fresh output/checkpoint roots per cold run; no pending production logbook chain; injected exclusion-evaluation date; heavy runs serialized; aggregate lane RSS below 15 GiB |
+| Operational | fresh output/checkpoint roots per cold run; no pending production logbook chain; injected exclusion-evaluation date; no live network after dependency sync; heavy runs serialized; aggregate process-tree watchdog soft-stops at 12 GiB and hard-kills at 14 GiB, with stop-before-launch telemetry headroom as the primary fence |
 
 Filesystem paths and licensed handles are operational bindings. Route, source
 identity, seed, vintage, clone count, solver behavior, gate posture, and release
@@ -136,6 +184,9 @@ dimensions are semantic and enter the plan/node slices as appropriate.
 - No edits to María’s branches, external `policyengine-uk` sources, or the
   prelanded `packages/microcosm-build/src/microcosm/build/uk/` bundle resources.
   If those need changes, stop and return them to the prerequisite owner.
+- No non-UK consumer retargeting. UK closure/segment/dashboard consumers found
+  by the generated dependency inventory are binding F1 scope and may not be
+  deferred; a zero result must be preserved as machine evidence.
 - No reroll, tolerance relaxation, or canonicalization invented after observing
   a mismatch.
 
@@ -145,11 +196,13 @@ Every numbered step is one coherent commit and updates the lane journal.
 
 ### 0. Preflight and freeze
 
-Pin the certified upstream F1 ABI/evidence and the generation-0 oracle. Sync the
-locked environment, run the relevant constants baseline/tests, copy the two UK
+Pin the certified upstream F1 ABI/evidence and the generation-0 oracle. Run
+`uv sync --all-packages --extra us --extra uk`, then deny live network for all
+certification processes. Run the relevant constants baseline/tests, copy the two UK
 preflight reports into the lane evidence, seal the run request, and prove the
 tree is clean. Resolve every N01–N12 field and every source delta before moving
-on.
+on. Freeze the dispatch card's fully expanded commands and verify cold-f001
+stage telemetry, the 24-hour budget, and the 12/14/15-GiB process-tree fences.
 
 ### 1. Compile and prove coverage
 
@@ -164,6 +217,10 @@ Compile the complete UK bundle and require:
   resources; and
 - compiler-emitted physical plans for national, ladder rowwise, crosswalk
   compatibility, and candidate calibration.
+
+For every gate and calibration doctrine field named in the dispatch condition,
+run a mutation that changes the compiled plan or fails load. A named Python gate
+or solver with code-resident semantics does not close authority.
 
 Do not start runtime changes if this proof is incomplete.
 
@@ -182,7 +239,9 @@ typed profile. Prove:
 - ladder/crosswalk seed-42 sequential order and collision behavior;
 - current rowwise L0 zero consumption plus fail-closed future activation;
 - one injected exclusion-evaluation date; and
-- no direct RNG, environment, file, UUID, or clock access outside broker policy.
+- no direct RNG, environment, file, UUID, clock, HTTP client, or socket access
+  outside broker policy. The independent scanner covers network constructors and
+  calls as well as stochastic/hash/ambient sites.
 
 The experimental firm exemption must remain unreachable. Inheriting the US F1
 QRF state-restore fix and implementation digest is mandatory.
@@ -218,6 +277,11 @@ tests for out-of-scope writes, missing source declarations, changed group/row
 order, geography vintage mismatch, seed cursor drift, undeclared gate, missing
 FitWeightRecord, and changed checkpoint identity.
 
+Land a secrets-free PR-CI gate that executes cold dual-mode fixtures for all
+three drivers and both geography profiles and requires an empty normative diff.
+It must use permitted fixture bytes, begin from empty output/cache roots, and
+fail on an unlisted operational difference. A one-off lane test is insufficient.
+
 ### 6. Run cold certification and resume proof
 
 Run four fresh restricted certification graphs, each using a newly built f001
@@ -238,6 +302,13 @@ the sealed comparator. Require zero resumed stages in all four cold graphs. Run
 heavy stages serially, record wall time and aggregate lane peak RSS per
 stage/mode, and abort before aggregate lane RSS reaches 15 GiB.
 
+The cold predicate is concrete: `--resume-policy=forbid` refuses any pre-existing
+manifest/checkpoint before loading; every durable stage and model/target bank
+reports `initialized` rather than `resumed`/`checkpoint`; and one typed
+`resume_audit` records per-stage and per-bank attempted/resumed counts, all
+required zero. The UK field names may differ from the US pool, but the predicate
+may not be weakened to one aggregate boolean.
+
 Separately exercise kill/resume at fixture scale after a durable stage boundary,
 resume only under the compiler-emitted predicate, and require its final
 normative vector to equal an uninterrupted fixture build. This is not a fifth
@@ -246,11 +317,12 @@ runs.
 
 ### 7. Close and hand off
 
-Write machine-readable and human UK F1 certification evidence under an
-owner-approved evidence path, record constants/F2 retention, and hand the owner
-exact f010/f100/full commands and expected identities. Consumer retargeting is
-out of scope unless a separate dependency inventory and owner dispatch add it.
-Do not push or publish.
+Retarget every UK closure/segment/dashboard consumer found by the generated
+dependency inventory to compiler outputs and prove zero constants-era reads; if
+the inventory is empty, retain the zero-result evidence. Write machine-readable
+and human UK F1 certification evidence at the dispatch-card paths, record
+constants/F2 retention, and hand the owner exact f010/f100/full commands and
+expected identities. Do not push or publish.
 
 ## Required tests and evidence
 
@@ -260,8 +332,13 @@ Do not push or publish.
   mode cannot construct semantic constants outside IR.
 - Complete producer-graph and node-slice tests for all three drivers and both
   geography profiles; an empty UK node set fails.
+- A durable secrets-free per-PR cold dual-mode fixture gate for all three drivers
+  and both geography profiles.
 - Independent AST coverage with zero unbound/stale rows, plus runtime broker
-  enforcement and golden legacy vectors for each seed family/reset boundary.
+  enforcement (including network denial) and golden legacy vectors for each seed
+  family/reset boundary.
+- Full gate/calibration field-usage and mutation coverage for the executable
+  semantics enumerated in the dispatch condition.
 - Per-logical-stage synthetic dual-mode receipts and every declared UK gate run
   with identical threshold, direction, status, and detail.
 - Four cold certification graphs with f001 national inputs and incumbent
@@ -305,8 +382,11 @@ normalization row; it must not appear opportunistically in UK F1.
 - Every one of the 30 authority rows is constructed from compiled IR in bundle
   mode; constants mode remains untouched.
 - Independent stochastic coverage is complete; all declared/runtime seeds and
-  reset boundaries reconcile; the semantic clock is injected.
+  reset boundaries reconcile; the semantic clock is injected; direct network is
+  denied; exact release tier/cardinality/id precedence is sealed and tested.
 - Fixture and stage receipts show no normative differences.
+- The secrets-free PR-CI dual-mode gate and the generated UK consumer-retarget
+  inventory are green.
 - Cold-graph `A=B`, `C=D`, and `A=C` with f001 national inputs and preserved
   `f100` candidate receipt tags; resume proof passes; all gates match; no hidden
   reuse; heavy runs are serialized and aggregate lane RSS stays below 15 GiB.
@@ -333,7 +413,9 @@ Stop immediately and leave the last coherent commit/test state if:
 - required licensed/pinned inputs, signing/evidence, or authenticated geography
   bytes are unavailable;
 - aggregate lane RSS approaches 15 GiB, heavy runs would overlap, or success
-  would require a reroll/tune; or
+  would require a reroll/tune; prior telemetry lacks the required headroom; the
+  12-GiB soft or 14-GiB hard watchdog fires; or the 24-hour budget is no longer
+  credible; or
 - work would require touching María’s branches, external `policyengine-uk`, or
   the prelanded UK bundle resources.
 
