@@ -135,10 +135,15 @@ has been changed.
   coverage-ranked resolution workstreams, which properly retain BLOCKER
   discovery lanes. Corrected the QBI evidence language to record the manifest's
   `gate_failed`/`simulation_ready=false` state and avoid implying readiness.
+- Hardened all 21 incidence FIX-CANDIDATE rows from a conditional
+  regime-dependent diagnosis to a selected implementation: origin-aware,
+  cross-fitted carrier calibration restricted to mutable imputed recipients,
+  with frozen authority margins, immutable observed/producer cells, held-out
+  non-regression, identity checks, and the complete terminal battery.
 - Current report SHA-256:
-  `769cd5bcbd9b19dbe127904d343170be6bdc09e6178217813b16bcc81ff09af5`;
+  `2e0f134141a5def7d7dce9ec087d013d70891968cbfd938d82422f8b1388fdf6`;
   JSON SHA-256:
-  `2569641e16406b352e95f9021e7341e7135734ae3f8e929d22f0b35322a8bd97`.
+  `d6e925ff7c073b48ab7e02acfafefe9489519c9c86040768e24377c76a3827a5`.
 
 ## Next
 

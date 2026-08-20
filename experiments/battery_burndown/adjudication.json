@@ -1059,7 +1059,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.5315554414071882. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1373,7 +1373,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.47092763947320365. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1997,7 +1997,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: to_green to 0.860463498932752. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2101,7 +2101,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.6607973658266934. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2256,7 +2256,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 1.2931604101755942. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2414,7 +2414,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 1.3140437033522925. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2517,7 +2517,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7689226485749855. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2621,7 +2621,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.5021703509929722. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2933,7 +2933,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: to_green to 0.9106337491341161. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3142,7 +3142,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7243176514009675. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3247,7 +3247,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.707473672306071. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3298,7 +3298,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: to_green to 0.8228566859737348. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3951,7 +3951,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.710945719004939. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add family-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen source-authority margin as the incidence target and leaving source/observed cells immutable. Preserve source reconciliation and require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4056,7 +4056,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7778178241530005. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add family-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen source-authority margin as the incidence target and leaving source/observed cells immutable. Preserve source reconciliation and require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4212,7 +4212,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm investment: toward_green to 1.3353195684335395. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add family-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen source-authority margin as the incidence target and leaving source/observed cells immutable. Preserve source reconciliation and require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4804,7 +4804,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.19275386071894426. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add family-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen source-authority margin as the incidence target and leaving source/observed cells immutable. Preserve source reconciliation and require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4908,7 +4908,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.5799327234761872. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add family-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen source-authority margin as the incidence target and leaving source/observed cells immutable. Preserve source reconciliation and require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -5012,7 +5012,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.7525809265807542. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add family-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen source-authority margin as the incidence target and leaving source/observed cells immutable. Preserve source reconciliation and require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -5115,7 +5115,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.780019260947369. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -5219,7 +5219,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7955270134638868. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -5323,7 +5323,7 @@
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7710390500234685. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute and persist the realized regime only to locate the existing fit; no new source or ownership decision is required. Add target/sign-scoped, origin-aware cross-fitted carrier calibration to the transfer for mutable imputed recipients, using the frozen authority-producer margin as the incidence target and leaving producer/observed cells immutable. Require held-out carrier non-regression, coupled identities, and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
