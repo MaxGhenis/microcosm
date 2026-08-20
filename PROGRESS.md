@@ -2,7 +2,7 @@
 
 ## State
 
-Charter drafting is in progress from detached cached `origin/main` commit
+Final cross-checking is in progress from detached cached `origin/main` commit
 `164027e21cfa58a71d701b43211d009d6182e39d` in the isolated worktree
 `/Users/maxghenis/PolicyEngine/microcosm/.worktrees/microcosm-uk-flip-prep`.
 No package or UK source files will be edited, no builds will run, and nothing
@@ -44,8 +44,12 @@ repository sandbox instead. The locally cached spec ref is
   (47 stochastic/seeded, 17 deterministic hashes, 20 ambient), with 33 mapped
   to 32 logical draw-ledger rows plus one clock-broker record and 51 exact
   typed exemptions. The report reconciles all seed 0/42/43/552/578 surfaces.
+- Wrote `_UK-FLIP-PREP/UK-F1-CHARTER-DRAFT.md`: a dispatch-gated one-day lane
+  that consumes the certified US F1 ABI, closes the 30/12 authority surface,
+  requires independent stochastic coverage, and certifies four cold f001 UK
+  chains plus a separate resume proof below 15 GiB RSS.
 
 ## Next
 
-- Write the UK F1 charter under `_UK-FLIP-PREP/`, validate all three artifacts,
-  commit the charter, and record final counts and risks here.
+- Validate all three artifacts, their counts/source anchors, tree scope, and
+  commit history; then record final counts, risks, and handoff state here.
