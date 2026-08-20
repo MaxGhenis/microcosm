@@ -124,8 +124,13 @@ has been changed.
   baseline failure IDs, exact stored criterion values, best-arm winners, and
   movement directions. All 93 ordered rows match; the recomputed movement
   split is 8 green, 42 improved-red, 42 unchanged-red, and 1 worsened-red.
+- Revalidated the comparator, pool wiring, transfer, QRF, QBI, Schedule-D,
+  adult-care, and UK schema-2 reviewed-exclusion source claims. Added the
+  `QRFChainState` field-list range to all 80 generic per-row regime-receipt
+  citations so each row directly supports the claim that realized regimes are
+  not persisted; no value, movement, disposition, or recommendation changed.
 - Final report SHA-256:
-  `b4ece1c78d00bc9b02567aaf17dc19b99bac97ce589e09d7723f981e62e793d6`;
+  `06e5887ba427e3fd0920f68e198ce74820279446b630967e1ed22eef4a92f6d7`;
   JSON SHA-256:
   `ce4f2fd91cece8b6795ae46e73a04a5bc379578679b6b3f75fc896aa3fc899cc`.
 
