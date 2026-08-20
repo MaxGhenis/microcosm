@@ -59,15 +59,18 @@ __all__ = [
     "ACS_PERSON_TRANSFER_PREDICTORS",
     "ASEC_PUF_DONOR_SPINE",
     "AcsImputedInput",
+    "AcsPredictorSet",
     "AcsTransferBankPatternStep",
     "AcsTransferPattern",
     "AcsTransferResult",
     "AcsTransferTargetBank",
     "AcsTransferTargetCheckpoint",
+    "PredictorSets",
     "TargetFamilies",
     "acs_transfer_donor_requirements",
     "acs_transfer_execution_contract_identity",
     "assert_acs_transfer_targets_are_input_leaves",
+    "declared_acs_transfer_predictor_sets",
     "declared_acs_transfer_target_families",
     "default_acs_transfer_target_families",
     "ACS_DERIVED_TRANSFER_INPUTS",
@@ -230,6 +233,7 @@ def acs_transfer_execution_contract_identity(
     *,
     targets: Sequence[str] | None = None,
     derive_schedule_d: bool = True,
+    predictor_sets: PredictorSets | None = None,
 ) -> dict[str, object]:
     """Bind the complete runtime predictor and target-codec contract."""
 
@@ -239,11 +243,27 @@ def acs_transfer_execution_contract_identity(
     )
     adult_care_enabled = _ADULT_CARE_EXPENSE in requested_targets
     payload: dict[str, object] = {
-        "schema_version": 2,
+        "schema_version": 2 if predictor_sets is None else 3,
         "person_required_predictors": list(ACS_PERSON_TRANSFER_PREDICTORS),
         "person_optional_predictors": list(ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS),
         "group_required_predictors": list(ACS_GROUP_TRANSFER_PREDICTORS),
         "group_optional_names": dict(sorted(_GROUP_OPTIONAL_NAMES.items())),
+        **(
+            {}
+            if predictor_sets is None
+            else {
+                "family_predictor_sets": {
+                    entity: {
+                        family: {
+                            "required": list(predictor_set.required),
+                            "optional": list(predictor_set.optional),
+                        }
+                        for family, predictor_set in sorted(families.items())
+                    }
+                    for entity, families in sorted(predictor_sets.items())
+                }
+            }
+        ),
         "donor_combined_components": {
             feature: list(columns)
             for feature, columns in sorted(_DONOR_COMBINED_COMPONENTS.items())
@@ -301,6 +321,84 @@ def acs_transfer_execution_contract_identity(
 
 
 type TargetFamilies = Mapping[str, Mapping[str, Sequence[str]]]
+
+
+@dataclass(frozen=True)
+class AcsPredictorSet:
+    """One family's ordered required and row-optional transfer features."""
+
+    required: tuple[str, ...]
+    optional: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        required = tuple(self.required)
+        optional = tuple(self.optional)
+        names = (*required, *optional)
+        if not required:
+            raise ValueError("ACS predictor sets require at least one required feature.")
+        bad = [name for name in names if not isinstance(name, str) or not name.strip()]
+        if bad:
+            raise ValueError(f"ACS predictor sets contain invalid feature names: {bad}.")
+        duplicates = sorted({name for name in names if names.count(name) > 1})
+        if duplicates:
+            raise ValueError(f"ACS predictor sets repeat feature(s): {duplicates}.")
+        object.__setattr__(self, "required", required)
+        object.__setattr__(self, "optional", optional)
+
+
+type PredictorSets = Mapping[str, Mapping[str, AcsPredictorSet]]
+
+
+def _legacy_predictor_set(
+    *,
+    entity: str,
+    targets: Sequence[str],
+) -> AcsPredictorSet:
+    """Describe the historical shared predictor surface without changing it."""
+
+    if entity == "person":
+        required = ACS_PERSON_TRANSFER_PREDICTORS
+        optional = ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS
+        if _HOUSING_TRANSFER_TARGETS.intersection(targets):
+            required = (*required, _HEAD_FEATURE, _TENURE_FEATURE)
+            optional = tuple(
+                name for name in optional if name not in {_HEAD_FEATURE, _TENURE_FEATURE}
+            )
+        return AcsPredictorSet(required=required, optional=optional)
+    return AcsPredictorSet(
+        required=ACS_GROUP_TRANSFER_PREDICTORS,
+        optional=tuple(_GROUP_OPTIONAL_NAMES.values()),
+    )
+
+
+def declared_acs_transfer_predictor_sets(
+    target_families: TargetFamilies,
+) -> dict[str, dict[str, AcsPredictorSet]]:
+    """Declare the removal-only early-PUF predictor factorial.
+
+    The realized pre-clone baseline omits the unavailable investment feature.
+    Only the person PUF-tax family additionally removes the direct ACS Social
+    Security and retirement income analogues; every other family retains its
+    baseline predictor order and content.
+    """
+
+    result: dict[str, dict[str, AcsPredictorSet]] = {}
+    for entity, families in target_families.items():
+        for family, targets in families.items():
+            legacy = _legacy_predictor_set(entity=entity, targets=targets)
+            omitted = {
+                _INVESTMENT_FEATURE,
+                _GROUP_OPTIONAL_NAMES[_INVESTMENT_FEATURE],
+            }
+            if entity == "person" and family == "puf_tax_itemization":
+                omitted.update({_SOCIAL_SECURITY_FEATURE, _RETIREMENT_FEATURE})
+            result.setdefault(entity, {})[family] = AcsPredictorSet(
+                required=legacy.required,
+                optional=tuple(
+                    name for name in legacy.optional if name not in omitted
+                ),
+            )
+    return result
 
 # The production QRF surface is an ACS-transfer contract, not the release
 # export-coverage contract.  Runtime-owned leaves (take-up draws, immigration,
@@ -882,6 +980,7 @@ def transfer_acs_inputs(
     donor: Frame,
     *,
     target_families: TargetFamilies | None = None,
+    predictor_sets: PredictorSets | None = None,
     donor_spine: str = ASEC_PUF_DONOR_SPINE,
     donor_channel: str | None = ACS_DONOR_CHANNEL_AUTO,
     seed: int = 0,
@@ -893,7 +992,9 @@ def transfer_acs_inputs(
 ) -> AcsTransferResult:
     """Impute requested missing leaves from ``donor`` onto ``recipient``.
 
-    ``target_families`` is an ``entity -> family -> targets`` mapping. Each
+    ``target_families`` is an ``entity -> family -> targets`` mapping and
+    ``predictor_sets`` is its parallel per-family declaration. Explicit sets
+    fail closed when a family or selected predictor column is missing. Each
     family is split into recipient optional-predictor availability patterns.
     Every pattern gets a separately seeded QRF fit on donor rows complete for
     every family target and finite for exactly the predictors that pattern
@@ -930,14 +1031,24 @@ def transfer_acs_inputs(
     deferred_inputs = (
         tuple(sorted(ACS_DEFERRED_GEOGRAPHY_INPUTS)) if default_plan else ()
     )
-    requested = _normalize_target_families(
+    requested_unbounded = _normalize_target_families(
         target_families
         if target_families is not None
         else default_acs_transfer_target_families(donor),
         recipient=recipient,
     )
+    explicit_predictor_sets = predictor_sets is not None
+    resolved_predictor_sets = _normalize_predictor_sets(
+        predictor_sets,
+        families=requested_unbounded,
+    )
+    predictor_by_target = {
+        (entity, target): resolved_predictor_sets[entity][family]
+        for entity, family, targets in requested_unbounded
+        for target in targets
+    }
     requested = _split_large_target_families(
-        requested,
+        requested_unbounded,
         max_targets_per_fit=max_targets_per_fit,
     )
     if not requested:
@@ -955,6 +1066,7 @@ def transfer_acs_inputs(
     resolved_execution_contract = acs_transfer_execution_contract_identity(
         targets=all_targets,
         derive_schedule_d=derive_schedule_d,
+        predictor_sets=(resolved_predictor_sets if explicit_predictor_sets else None),
     )
     if execution_contract is not None and dict(execution_contract) != (
         resolved_execution_contract
@@ -990,6 +1102,14 @@ def transfer_acs_inputs(
     bank_target_indexes = {key: index for index, key in enumerate(ordered_bank_targets)}
 
     for entity, family, targets in active:
+        family_predictor_sets = {
+            predictor_by_target[(entity, target)] for target in targets
+        }
+        if len(family_predictor_sets) != 1:  # pragma: no cover - normalized above
+            raise AssertionError(
+                f"ACS transfer batch {entity}/{family} spans predictor sets."
+            )
+        family_predictor_set = next(iter(family_predictor_sets))
         recipient_table = recipient.table(entity)
         target_missing = {
             target: (
@@ -1006,6 +1126,8 @@ def transfer_acs_inputs(
                 entity=entity,
                 family=family,
                 targets=targets,
+                predictor_set=family_predictor_set,
+                require_all_predictors=explicit_predictor_sets,
                 target_missing=target_missing,
                 seed=seed,
                 n_estimators=n_estimators,
@@ -1017,6 +1139,8 @@ def transfer_acs_inputs(
                 entity=entity,
                 family=family,
                 targets=targets,
+                predictor_set=family_predictor_set,
+                require_all_predictors=explicit_predictor_sets,
                 target_missing=target_missing,
                 seed=seed,
                 n_estimators=n_estimators,
@@ -1251,6 +1375,8 @@ def _fit_family_patterns(
     entity: str,
     family: str,
     targets: tuple[str, ...],
+    predictor_set: AcsPredictorSet,
+    require_all_predictors: bool,
     target_missing: Mapping[str, np.ndarray],
     seed: int,
     n_estimators: int,
@@ -1274,6 +1400,8 @@ def _fit_family_patterns(
         recipient,
         entity=entity,
         targets=targets,
+        predictor_set=predictor_set,
+        require_all_predictors=require_all_predictors,
     )
     overlap = sorted(set(surface.required).intersection(targets))
     if overlap:
@@ -1415,6 +1543,8 @@ def _fit_family_patterns_banked(
     entity: str,
     family: str,
     targets: tuple[str, ...],
+    predictor_set: AcsPredictorSet,
+    require_all_predictors: bool,
     target_missing: Mapping[str, np.ndarray],
     seed: int,
     n_estimators: int,
@@ -1451,6 +1581,8 @@ def _fit_family_patterns_banked(
         recipient,
         entity=entity,
         targets=targets,
+        predictor_set=predictor_set,
+        require_all_predictors=require_all_predictors,
     )
     overlap = sorted(set(surface.required).intersection(targets))
     if overlap:
@@ -1817,6 +1949,8 @@ def _transfer_feature_surface(
     *,
     entity: str,
     targets: Sequence[str],
+    predictor_set: AcsPredictorSet | None = None,
+    require_all_predictors: bool = False,
 ) -> _FeatureSurface:
     if entity == donor.schema.person_entity:
         surface = _person_feature_surface(donor, recipient)
@@ -1824,22 +1958,45 @@ def _transfer_feature_surface(
         surface = _group_feature_surface(donor, recipient, entity=entity)
 
     housing = bool(_HOUSING_TRANSFER_TARGETS.intersection(targets))
-    if not housing:
-        return surface
-    if entity != donor.schema.person_entity:
-        raise ValueError("pre_subsidy_rent must be transferred on the person entity.")
-    mandatory = (_HEAD_FEATURE, _TENURE_FEATURE)
-    missing = [name for name in mandatory if name not in surface.optional]
-    if missing:
-        raise ValueError(
-            "pre_subsidy_rent transfer requires head and tenure predictors on "
-            f"both donor and recipient; missing temporary feature(s): {missing}."
+    if housing:
+        if entity != donor.schema.person_entity:
+            raise ValueError("pre_subsidy_rent must be transferred on the person entity.")
+        mandatory = (_HEAD_FEATURE, _TENURE_FEATURE)
+        missing = [name for name in mandatory if name not in surface.optional]
+        if missing:
+            raise ValueError(
+                "pre_subsidy_rent transfer requires head and tenure predictors on "
+                f"both donor and recipient; missing temporary feature(s): {missing}."
+            )
+        surface = _FeatureSurface(
+            donor=surface.donor,
+            recipient=surface.recipient,
+            required=(*surface.required, *mandatory),
+            optional=tuple(name for name in surface.optional if name not in mandatory),
         )
+
+    if predictor_set is None:
+        return surface
+    available = set(surface.donor).intersection(surface.recipient)
+    missing_required = sorted(set(predictor_set.required) - available)
+    if missing_required:
+        raise ValueError(
+            "ACS transfer predictor set has unmapped required feature(s): "
+            f"{missing_required}."
+        )
+    missing_optional = sorted(set(predictor_set.optional) - available)
+    if require_all_predictors and missing_optional:
+        raise ValueError(
+            "ACS transfer predictor set has unmapped optional feature(s): "
+            f"{missing_optional}."
+        )
+    optional = tuple(name for name in predictor_set.optional if name in available)
+    columns = [*predictor_set.required, *optional]
     return _FeatureSurface(
-        donor=surface.donor,
-        recipient=surface.recipient,
-        required=(*surface.required, *mandatory),
-        optional=tuple(name for name in surface.optional if name not in mandatory),
+        donor=surface.donor.loc[:, columns],
+        recipient=surface.recipient.loc[:, columns],
+        required=predictor_set.required,
+        optional=optional,
     )
 
 
@@ -2333,6 +2490,73 @@ def _normalize_target_families(
             if targets:
                 normalized.append((entity, family, targets))
     return normalized
+
+
+def _normalize_predictor_sets(
+    predictor_sets: PredictorSets | None,
+    *,
+    families: Sequence[tuple[str, str, tuple[str, ...]]],
+) -> dict[str, dict[str, AcsPredictorSet]]:
+    """Resolve exactly one validated predictor set for each requested family."""
+
+    expected = {(entity, family) for entity, family, _targets in families}
+    targets_by_family = {
+        (entity, family): targets for entity, family, targets in families
+    }
+    if predictor_sets is None:
+        resolved: dict[str, dict[str, AcsPredictorSet]] = {}
+        for entity, family, targets in families:
+            resolved.setdefault(entity, {})[family] = _legacy_predictor_set(
+                entity=entity,
+                targets=targets,
+            )
+        return resolved
+    if not isinstance(predictor_sets, Mapping):
+        raise TypeError("predictor_sets must map entity names to family mappings.")
+
+    expected_entities = {entity for entity, _family in expected}
+    observed_entities: set[str] = set()
+    observed: set[tuple[str, str]] = set()
+    for entity, entity_sets in predictor_sets.items():
+        if not isinstance(entity, str) or not entity.strip():
+            raise ValueError(f"predictor_sets has invalid entity name {entity!r}.")
+        observed_entities.add(entity)
+        if not isinstance(entity_sets, Mapping):
+            raise TypeError(f"predictor_sets[{entity!r}] must be a family mapping.")
+        for family in entity_sets:
+            if not isinstance(family, str) or not family.strip():
+                raise ValueError(
+                    f"predictor_sets[{entity!r}] has invalid family name {family!r}."
+                )
+            observed.add((entity, family))
+    if observed != expected or observed_entities != expected_entities:
+        raise ValueError(
+            "predictor_sets must declare exactly the requested families; "
+            f"missing={sorted(expected - observed)}, extra={sorted(observed - expected)}, "
+            f"missing_entities={sorted(expected_entities - observed_entities)}, "
+            f"extra_entities={sorted(observed_entities - expected_entities)}."
+        )
+
+    resolved = {}
+    for entity, family in sorted(expected):
+        predictor_set = predictor_sets[entity][family]
+        if not isinstance(predictor_set, AcsPredictorSet):
+            raise TypeError(
+                f"predictor_sets[{entity!r}][{family!r}] must be an AcsPredictorSet."
+            )
+        target_names = set(targets_by_family[(entity, family)])
+        direct_predictors = {
+            name.removeprefix("__acs_transfer_")
+            for name in (*predictor_set.required, *predictor_set.optional)
+        }
+        overlap = sorted(target_names & direct_predictors)
+        if overlap:
+            raise ValueError(
+                f"ACS transfer family {entity}/{family} uses its target(s) as "
+                f"predictors: {overlap}."
+            )
+        resolved.setdefault(entity, {})[family] = predictor_set
+    return resolved
 
 
 def _split_large_target_families(

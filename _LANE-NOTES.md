@@ -75,6 +75,42 @@
 
 ### Next
 
-- Encode the removal-only early predictor declaration and contract tests,
-  prove the early/late wiring boundary, run the suite, and commit the first
-  independently runnable factorial snapshot.
+- Run the complete suite on the reviewed removal-only tree, then commit the
+  first independently runnable factorial snapshot.
+
+## 2026-08-19 — removal-only implementation
+
+### State
+
+- The removal-only snapshot is implemented, independently reviewed, and fully
+  suite-green. It is ready for its coherent commit.
+
+### Surgery and mechanism evidence
+
+- `declared_acs_transfer_predictor_sets` removes exactly the Social Security
+  and retirement analogues only when the entity is `person` and the family is
+  `puf_tax_itemization`; it also omits the already unavailable investment
+  feature from every realized early surface
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:374-403`).
+- Explicit sets are normalized with exact entity/family coverage and direct
+  target-overlap rejection, then selected in declared order for ordinary and
+  banked fits
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:1031-1145,1375-1590,1949-1996,2495-2570`).
+- The early gap-fill call forwards the authority-bound declaration, while the
+  post-PUF call still supplies no `predictor_sets` argument and therefore keeps
+  the legacy execution contract
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:1696-1701,1820-1870,2210-2230,7746-7762,8509-8522`).
+
+### Verification
+
+- Passed: lineage spec 8, ACS transfer 61, stacked spine 225, late-producer DAG
+  30, and focused early/late wiring plus authority tests 17.
+- Independent read-only review found a stale v10 checkpoint-identity assertion
+  and an extra-empty-entity exact-validation hole. Authority expectation is
+  now v11; both transfer and stacked-plan normalization reject the empty extra
+  entity, with three focused regressions passing.
+- Ruff on every changed Python file and `git diff --check` pass. The frozen
+  control scan found no production band, threshold, seed, fold, comparator,
+  estimator, or batch-size change.
+- The complete removal tree collected 6,535 tests and exited 0, with expected
+  skips and pre-existing warnings only. Repository-wide `ruff check .` passes.

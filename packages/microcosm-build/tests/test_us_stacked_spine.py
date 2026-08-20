@@ -39,7 +39,13 @@ from microcosm.build.serialization_dtypes import CANONICAL_STRING_DTYPE
 from microcosm.build.us_runtime.acs_income_universe import (
     apply_acs_pums_earnings_universe_zeros,
 )
-from microcosm.build.us_runtime.acs_transfer import AcsTransferResult
+from microcosm.build.us_runtime.acs_transfer import (
+    ACS_GROUP_TRANSFER_PREDICTORS,
+    ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
+    ACS_PERSON_TRANSFER_PREDICTORS,
+    AcsPredictorSet,
+    AcsTransferResult,
+)
 from microcosm.build.us_runtime.acs_transfer_bank import AcsTransferTargetBankStore
 from microcosm.build.us_runtime.late_producer_dag import (
     ProducerContract,
@@ -1626,6 +1632,32 @@ _CANONICAL_RENT_ABSENCE_RULE = GapFillAbsenceRule(
 )
 
 
+_TEST_PERSON_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_PERSON_TRANSFER_PREDICTORS,
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 4, 5, 6)
+    ),
+)
+_TEST_PUF_PERSON_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_PERSON_TRANSFER_PREDICTORS,
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 5, 6)
+    ),
+)
+_TEST_HOUSING_PREDICTOR_SET = AcsPredictorSet(
+    required=(
+        *ACS_PERSON_TRANSFER_PREDICTORS,
+        *ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[-2:],
+    ),
+    optional=tuple(
+        ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS[index] for index in (0, 1, 4)
+    ),
+)
+_TEST_GROUP_PREDICTOR_SET = AcsPredictorSet(
+    required=ACS_GROUP_TRANSFER_PREDICTORS,
+)
+
+
 _GAP_FILL_TEST_PLAN = (
     GapFillDirection(
         name="asec_survey_to_acs",
@@ -1637,12 +1669,19 @@ _GAP_FILL_TEST_PLAN = (
                 "model_required_boolean": ("is_disabled",),
             }
         },
+        predictor_sets={
+            "person": {
+                "model_required_numeric": _TEST_PERSON_PREDICTOR_SET,
+                "model_required_boolean": _TEST_PERSON_PREDICTOR_SET,
+            }
+        },
     ),
     GapFillDirection(
         name="asec_housing_to_acs",
         recipient_channel="acs",
         donor_channel="asec",
         target_families={"person": {"housing": ("pre_subsidy_rent",)}},
+        predictor_sets={"person": {"housing": _TEST_HOUSING_PREDICTOR_SET}},
         recipient_absence_rules=(_CANONICAL_RENT_ABSENCE_RULE,),
     ),
 )
@@ -2480,6 +2519,44 @@ def test_gap_fill_plan_covers_declared_families_exactly() -> None:
     assert housing.donor_channel == "asec"
     assert set(housing.target_families) == {"person"}
     assert housing.target_families["person"] == {"housing": ("pre_subsidy_rent",)}
+    assert survey.predictor_sets["person"]["puf_tax_itemization"] == (
+        AcsPredictorSet(
+            required=ACS_PERSON_TRANSFER_PREDICTORS,
+            optional=(
+                "__acs_transfer_employment_income",
+                "__acs_transfer_self_employment_income",
+                "__acs_transfer_is_household_head",
+                "__acs_transfer_tenure_code",
+            ),
+        )
+    )
+    early_person_baseline = AcsPredictorSet(
+        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        optional=(
+            "__acs_transfer_employment_income",
+            "__acs_transfer_self_employment_income",
+            "__acs_transfer_social_security_income",
+            "__acs_transfer_retirement_income",
+            "__acs_transfer_is_household_head",
+            "__acs_transfer_tenure_code",
+        ),
+    )
+    for family, predictor_set in survey.predictor_sets["person"].items():
+        if family != "puf_tax_itemization":
+            assert predictor_set == early_person_baseline
+    assert housing.predictor_sets["person"]["housing"] == AcsPredictorSet(
+        required=(
+            *ACS_PERSON_TRANSFER_PREDICTORS,
+            "__acs_transfer_is_household_head",
+            "__acs_transfer_tenure_code",
+        ),
+        optional=(
+            "__acs_transfer_employment_income",
+            "__acs_transfer_self_employment_income",
+            "__acs_transfer_social_security_income",
+            "__acs_transfer_retirement_income",
+        ),
+    )
 
     declared = stacked_spine_module.CANONICAL_STACKED_GAP_FILL_SURFACE
     recombined: dict[str, dict[str, tuple[str, ...]]] = {}
@@ -2513,6 +2590,31 @@ def test_gap_fill_plan_covers_declared_families_exactly() -> None:
     }
     assert early_keys.isdisjoint(late_keys)
     assert early_keys | late_keys == full_keys
+
+
+def test_post_puf_predictor_declaration_retains_the_legacy_baseline() -> None:
+    target_families: dict[str, dict[str, tuple[str, ...]]] = {}
+    for group in stacked_spine_module.CANONICAL_US_LATE_TRANSFER_GROUPS:
+        target_families.setdefault(group.entity, {})[group.family] = group.targets
+    declared = stacked_spine_module.declared_stacked_post_puf_predictor_sets(
+        target_families
+    )
+
+    for predictor_set in declared["person"].values():
+        assert predictor_set.required == ACS_PERSON_TRANSFER_PREDICTORS
+        assert predictor_set.optional == ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS
+    for entity in set(declared) - {"person"}:
+        for predictor_set in declared[entity].values():
+            assert predictor_set.required == ACS_GROUP_TRANSFER_PREDICTORS
+            assert predictor_set.optional == (
+                "__acs_transfer_group_employment_income_sum",
+                "__acs_transfer_group_self_employment_income_sum",
+                "__acs_transfer_group_social_security_income_sum",
+                "__acs_transfer_group_retirement_income_sum",
+                "__acs_transfer_group_investment_income_sum",
+                "__acs_transfer_group_head_count",
+                "__acs_transfer_group_tenure_code",
+            )
 
 
 def test_every_declared_direction_producer_precedes_its_activation_check() -> None:
@@ -2627,14 +2729,32 @@ def test_housing_activation_requires_asec_rent_producer_to_run_first() -> None:
     }
 
 
-def test_gap_fill_fills_both_directions_with_authority_receipts() -> None:
+def test_gap_fill_fills_both_directions_with_authority_receipts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     stacked = _stacked_gap_fixture()
+    transfer = stacked_spine_module.transfer_acs_inputs
+    wired_predictor_sets: list[object] = []
+
+    def capture_predictor_sets(*args: object, **kwargs: object) -> object:
+        wired_predictor_sets.append(kwargs.get("predictor_sets"))
+        return transfer(*args, **kwargs)
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "transfer_acs_inputs",
+        capture_predictor_sets,
+    )
     result = _gap_fill_with_test_authority(
         stacked,
         plan=_GAP_FILL_TEST_PLAN,
         seed=578,
         n_estimators=10,
     )
+
+    assert wired_predictor_sets == [
+        direction.predictor_sets for direction in _GAP_FILL_TEST_PLAN
+    ]
 
     person = result.frame.table("person")
     channel = person[support_channel_column("person")]
@@ -2970,6 +3090,13 @@ def test_gap_fill_activation_authority_rejects_nonlive_declared_channel(
             recipient_channel=recipient_channel,
             donor_channel=donor_channel,
             target_families={"person": {"complete": ("age",)}},
+            predictor_sets={
+                "person": {
+                    "complete": AcsPredictorSet(
+                        required=("is_female", "__acs_transfer_state_fips")
+                    )
+                }
+            },
         ),
     )
 
@@ -2978,6 +3105,24 @@ def test_gap_fill_activation_authority_rejects_nonlive_declared_channel(
         match=f"declared {role} channel {missing_channel!r} has no live rows",
     ):
         _gap_fill_with_test_authority(_stacked_gap_fixture(), plan=plan, seed=578)
+
+
+def test_gap_fill_direction_rejects_an_extra_empty_predictor_entity() -> None:
+    with pytest.raises(ValueError, match=r"extra_entities=\['ghost'\]"):
+        GapFillDirection(
+            name="extra_predictor_entity",
+            recipient_channel="acs",
+            donor_channel="asec",
+            target_families={"person": {"complete": ("age",)}},
+            predictor_sets={
+                "person": {
+                    "complete": AcsPredictorSet(
+                        required=("is_female", "__acs_transfer_state_fips")
+                    )
+                },
+                "ghost": {},
+            },
+        )
 
 
 def test_gap_fill_fails_closed_on_missing_target_column() -> None:
@@ -5346,7 +5491,9 @@ def test_late_receipt_rejects_detached_source_receipt_output_digest(
         )
 
 
-def test_post_puf_transfer_preserves_complete_asec_source_producers() -> None:
+def test_post_puf_transfer_preserves_complete_asec_source_producers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     frame = _post_puf_transfer_fixture()
     surface = {"person": {"model_required_boolean": ("is_pregnant",)}}
     authority = stacked_spine_module._make_test_stacked_authority(
@@ -5355,6 +5502,18 @@ def test_post_puf_transfer_preserves_complete_asec_source_producers() -> None:
         post_puf_transfer_surface=surface,
     )
     before = frame.table("person")["is_pregnant"].copy(deep=True)
+    transfer = stacked_spine_module.transfer_acs_inputs
+    explicit_predictor_arguments: list[bool] = []
+
+    def capture_late_transfer(*args: object, **kwargs: object) -> object:
+        explicit_predictor_arguments.append("predictor_sets" in kwargs)
+        return transfer(*args, **kwargs)
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "transfer_acs_inputs",
+        capture_late_transfer,
+    )
     result = stacked_spine_module._transfer_stacked_post_puf_inputs_with_test_authority(
         frame,
         authority=authority,
@@ -5362,6 +5521,7 @@ def test_post_puf_transfer_preserves_complete_asec_source_producers() -> None:
         n_estimators=10,
     )
 
+    assert explicit_predictor_arguments == [False]
     person = result.frame.table("person")
     producer_rows = person[support_channel_column("person")].astype(str).eq("asec")
     assert person["is_pregnant"].notna().all()
@@ -6961,7 +7121,7 @@ def test_self_digested_partial_authority_cannot_forge_production_identity() -> N
         GateReport((result,)).to_manifest()
 
 
-@pytest.mark.parametrize("stale_version", (1, 2, 3, 4, 5, 6, 7, 8, 9))
+@pytest.mark.parametrize("stale_version", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 def test_self_consistent_stale_stacked_authority_versions_are_rejected(
     stale_version: int,
 ) -> None:
@@ -6981,7 +7141,7 @@ def test_self_consistent_stale_stacked_authority_versions_are_rejected(
     )
     stale_receipt = stacked_spine_module._authority_receipt(stale)
 
-    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 10
+    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 11
     assert stale_receipt["version"] == stale_version
     assert stale_receipt["integrity_valid"] is True
     assert stale_receipt["digest_matches_declared"] is True
@@ -7000,7 +7160,7 @@ def test_stacked_authority_binds_import_validated_late_producer_schedule() -> No
     receipt = stacked_spine_module.stacked_spine_authority_receipt()
     component = receipt["components"]["late_producer_schedule"]
 
-    assert receipt["version"] == 10
+    assert receipt["version"] == 11
     assert component["producer_count"] == 38
     assert component["schedule_sha256"] == (
         stacked_spine_module.CANONICAL_US_LATE_PRODUCER_SCHEDULE.sha256
@@ -7917,6 +8077,36 @@ def test_gap_fill_plan_digest_binds_direction_and_channels() -> None:
     assert any("canonical gap-fill direction mismatch" in f for f in result.failures)
 
 
+def test_gap_fill_plan_digest_binds_the_removal_predictor_set() -> None:
+    canonical_sha256 = stacked_spine_module.stacked_spine_authority_receipt()[
+        "components"
+    ]["gap_fill_plan"]["sha256"]
+    plan = stacked_spine_module.CANONICAL_STACKED_GAP_FILL_PLAN
+    altered_sets = {
+        entity: dict(families) for entity, families in plan[0].predictor_sets.items()
+    }
+    puf = altered_sets["person"]["puf_tax_itemization"]
+    altered_sets["person"]["puf_tax_itemization"] = replace(
+        puf,
+        optional=(
+            *puf.optional,
+            "__acs_transfer_social_security_income",
+        ),
+    )
+    authority = stacked_spine_module._make_test_stacked_authority(
+        gap_fill_plan=(replace(plan[0], predictor_sets=altered_sets), *plan[1:]),
+    )
+    receipt = stacked_spine_module._authority_receipt(authority)
+
+    assert receipt["canonical_content"] is False
+    assert receipt["components"]["gap_fill_plan"]["sha256"] != canonical_sha256
+    with pytest.raises(ValueError, match="non-canonical stacked authority"):
+        stacked_spine_module._validate_production_authority_receipt(
+            receipt,
+            boundary="altered removal predictor set",
+        )
+
+
 def test_battery_sign_separated_catches_the_one_sided_hole() -> None:
     """The run-7 signature: ample support, hollow ACS leg -> terminal."""
 
@@ -8233,12 +8423,23 @@ _E2E_GAP_FILL_PLAN = (
                 "puf_tax_itemization": ("health_savings_account_ald",),
             },
         },
+        predictor_sets={
+            "person": {
+                "puf_tax_itemization": _TEST_PUF_PERSON_PREDICTOR_SET,
+                "model_required_numeric": _TEST_PERSON_PREDICTOR_SET,
+                "model_required_boolean": _TEST_PERSON_PREDICTOR_SET,
+            },
+            "tax_unit": {
+                "puf_tax_itemization": _TEST_GROUP_PREDICTOR_SET,
+            },
+        },
     ),
     GapFillDirection(
         name="asec_housing_to_acs",
         recipient_channel="acs",
         donor_channel="asec",
         target_families={"person": {"housing": ("pre_subsidy_rent",)}},
+        predictor_sets={"person": {"housing": _TEST_HOUSING_PREDICTOR_SET}},
         recipient_absence_rules=(_CANONICAL_RENT_ABSENCE_RULE,),
     ),
 )

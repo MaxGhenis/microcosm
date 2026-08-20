@@ -3,9 +3,9 @@
 ## State (2026-08-19)
 
 The `battery-retirement-factorial` lane is active from clean `origin/main` at
-`164027e2`. The two exact early-PUF predictor surfaces and their minimal
-early-only wiring are resolved from source and arm history. No experiment code
-or gate setting has been changed yet; the removal-only implementation is next.
+`164027e2`. The removal-only snapshot is implemented, independently reviewed,
+and suite-green; it is ready for its coherent commit. No frozen gate control
+has changed.
 
 The required `uv sync --all-packages --extra us` was attempted first. The
 default cache was sandbox-denied; retrying with `UV_CACHE_DIR` under `/tmp`
@@ -42,11 +42,23 @@ arm-split environment with this worktree's package sources forced on
   84,729,479,168 bytes RSS and a 25% arm reached 81,026,367,488 bytes. A cold
   build is therefore forbidden by this lane's `<15 GiB` standing order; this
   is an evidence blocker, not permission to weaken the memory ceiling.
+- Committed the initial state/done/next journal as `eac44dbe` after the clean
+  baseline suite.
+- Implemented removal-only per-family predictor declarations and bound them to
+  stacked authority v11. Only early person/PUF loses the two direct-income
+  predictors; non-PUF early families and late transfer retain baseline wiring.
+- Targeted removal verification passes: lineage 8, ACS transfer 61, stacked
+  spine 225, late DAG 30, plus the focused wiring/authority set 17. A separate
+  review found and fixed one stale v10 test mirror and one exact-validation
+  hole for an extra empty predictor entity; their three regressions pass.
+- The complete removal tree passes all 6,535 collected tests (exit 0, expected
+  skips/warnings only). Repository-wide `ruff check .` and `git diff --check`
+  also pass.
 
 ## Next (2026-08-19)
 
-1. Implement and suite-test the removal-only arm; commit the coherent snapshot.
-2. Record its exact commit and wiring proof; do not cold-launch the known
+1. Commit the suite-green removal-only snapshot and record its exact SHA.
+2. Preserve its wiring proof; do not cold-launch the known
    over-cap 1% materialization path.
 3. Transform the snapshot into broad-addition-only while retaining both direct
    predictors; suite-test and commit it.

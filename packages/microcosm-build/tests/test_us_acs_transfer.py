@@ -20,7 +20,9 @@ from microcosm.build.us_runtime.acs_transfer import (
     ACS_NATIVE_PERSON_INPUTS,
     ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
     ACS_PERSON_TRANSFER_PREDICTORS,
+    AcsPredictorSet,
     AcsTransferResult,
+    declared_acs_transfer_predictor_sets,
     declared_acs_transfer_target_families,
     default_acs_transfer_target_families,
     transfer_acs_inputs,
@@ -783,6 +785,168 @@ def test_declared_plan_carries_the_23_stage_base_surface() -> None:
     assert declared_acs_transfer_target_families()["spm_unit"][
         "model_required_boolean"
     ] == ("is_tanf_enrolled", "receives_snap")
+
+
+def test_retirement_removal_arm_is_scoped_to_the_early_person_puf_family() -> None:
+    families = {
+        "person": {
+            "puf_tax_itemization": ("qualified_dividend_income",),
+            "model_required_numeric": ("veterans_benefits",),
+            "model_required_boolean": ("is_blind",),
+            "model_required_discrete": ("own_children_in_household",),
+            "housing": ("pre_subsidy_rent",),
+        },
+        "spm_unit": {
+            "model_required_boolean": ("receives_snap",),
+        },
+    }
+
+    assert ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS == (
+        "__acs_transfer_employment_income",
+        "__acs_transfer_self_employment_income",
+        "__acs_transfer_social_security_income",
+        "__acs_transfer_retirement_income",
+        "__acs_transfer_interest_dividend_rental_income",
+        "__acs_transfer_is_household_head",
+        "__acs_transfer_tenure_code",
+    )
+    declared = declared_acs_transfer_predictor_sets(families)
+    person = declared["person"]
+    early_baseline = (
+        "__acs_transfer_employment_income",
+        "__acs_transfer_self_employment_income",
+        "__acs_transfer_social_security_income",
+        "__acs_transfer_retirement_income",
+        "__acs_transfer_is_household_head",
+        "__acs_transfer_tenure_code",
+    )
+    assert person["puf_tax_itemization"].required == ACS_PERSON_TRANSFER_PREDICTORS
+    assert person["puf_tax_itemization"].optional == (
+        "__acs_transfer_employment_income",
+        "__acs_transfer_self_employment_income",
+        "__acs_transfer_is_household_head",
+        "__acs_transfer_tenure_code",
+    )
+    for family in (
+        "model_required_numeric",
+        "model_required_boolean",
+        "model_required_discrete",
+    ):
+        assert person[family].required == ACS_PERSON_TRANSFER_PREDICTORS
+        assert person[family].optional == early_baseline
+    assert person["housing"].required == (
+        *ACS_PERSON_TRANSFER_PREDICTORS,
+        "__acs_transfer_is_household_head",
+        "__acs_transfer_tenure_code",
+    )
+    assert person["housing"].optional == early_baseline[:-2]
+    assert declared["spm_unit"]["model_required_boolean"].required == (
+        ACS_GROUP_TRANSFER_PREDICTORS
+    )
+    assert declared["spm_unit"]["model_required_boolean"].optional == (
+        "__acs_transfer_group_employment_income_sum",
+        "__acs_transfer_group_self_employment_income_sum",
+        "__acs_transfer_group_social_security_income_sum",
+        "__acs_transfer_group_retirement_income_sum",
+        "__acs_transfer_group_head_count",
+        "__acs_transfer_group_tenure_code",
+    )
+
+
+def test_explicit_predictor_sets_are_bound_without_changing_legacy_identity() -> None:
+    predictor_set = AcsPredictorSet(
+        required=ACS_PERSON_TRANSFER_PREDICTORS,
+        optional=(
+            "__acs_transfer_employment_income",
+            "__acs_transfer_self_employment_income",
+        ),
+    )
+    predictor_sets = {"person": {"fixture": predictor_set}}
+
+    explicit = acs_transfer_module.acs_transfer_execution_contract_identity(
+        targets=("qualified_dividend_income",),
+        predictor_sets=predictor_sets,
+    )
+    legacy = acs_transfer_module.acs_transfer_execution_contract_identity(
+        targets=("qualified_dividend_income",),
+    )
+
+    assert explicit["schema_version"] == 3
+    assert explicit["family_predictor_sets"] == {
+        "person": {
+            "fixture": {
+                "required": list(ACS_PERSON_TRANSFER_PREDICTORS),
+                "optional": list(predictor_set.optional),
+            }
+        }
+    }
+    assert legacy["schema_version"] == 2
+    assert "family_predictor_sets" not in legacy
+
+
+def test_explicit_predictor_sets_fail_closed_on_family_or_feature_drift() -> None:
+    family = {"person": {"fixture": ("qualified_dividend_income",)}}
+    with pytest.raises(ValueError, match="declare exactly the requested families"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families=family,
+            predictor_sets={"person": {}},
+            donor_channel=None,
+            n_estimators=1,
+        )
+
+    with pytest.raises(ValueError, match=r"extra_entities=\['ghost'\]"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families=family,
+            predictor_sets={
+                "person": {
+                    "fixture": AcsPredictorSet(
+                        required=ACS_PERSON_TRANSFER_PREDICTORS,
+                    )
+                },
+                "ghost": {},
+            },
+            donor_channel=None,
+            n_estimators=1,
+        )
+
+    with pytest.raises(ValueError, match="unmapped optional feature"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families=family,
+            predictor_sets={
+                "person": {
+                    "fixture": AcsPredictorSet(
+                        required=ACS_PERSON_TRANSFER_PREDICTORS,
+                        optional=("__acs_transfer_not_available",),
+                    )
+                }
+            },
+            donor_channel=None,
+            n_estimators=1,
+        )
+
+
+def test_explicit_predictor_sets_reject_exact_direct_target_leakage() -> None:
+    with pytest.raises(ValueError, match=r"uses its target\(s\) as predictors"):
+        transfer_acs_inputs(
+            _recipient_frame(),
+            _donor_frame(),
+            target_families={"person": {"fixture": ("age",)}},
+            predictor_sets={
+                "person": {
+                    "fixture": AcsPredictorSet(
+                        required=ACS_PERSON_TRANSFER_PREDICTORS,
+                    )
+                }
+            },
+            donor_channel=None,
+            n_estimators=1,
+        )
 
 
 def test_explicit_transfer_adds_requested_model_inputs(
