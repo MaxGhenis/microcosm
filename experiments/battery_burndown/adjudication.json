@@ -129,14 +129,17 @@
     "C40": "packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:2808-2864,2868-2945",
     "C41": "packages/microcosm-build/src/microcosm/build/uk_runtime/battery_bindings.py:271-286,410-416,477-482,519-540",
     "C42": "tools/build_us_multispine_pool.py:3374-3379",
-    "C43": "tools/build_us_multispine_pool.py:310-326,3907-3915",
+    "C43": "tools/build_us_multispine_pool.py:310-326,3417-3429,3907-3915",
     "C44": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11629-11640,11655-11665,11716-11724,11843-11849,11899-11917",
     "C45": "packages/microcosm-build/src/microcosm/build/us_runtime/multispine_pool.py:692-794,814-844",
     "C46": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:7591-7612,7663-7682",
     "C47": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8245-8275,8353-8432,8450-8455,8518-8538",
     "C48": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:313-333",
     "C49": "tools/build_us_multispine_pool.py:3053-3061,3182-3188",
-    "C50": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11309,11934-11973"
+    "C50": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11309,11934-11973",
+    "C51": "packages/microcosm-fit/src/microcosm/fit/qrf.py:882-903,1225-1230",
+    "C52": "packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:405-475,1629-1648",
+    "C53": "packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:8245-8275,9362-9379"
   },
   "definitions": {
     "ratio": "[sum ACS weight on nonzero/sign leg / sum ACS origin-scope weight] / [sum ASEC weight on nonzero/sign leg / sum ASEC origin-scope weight]",
@@ -163,6 +166,11 @@
       "C44",
       "C50"
     ],
+    "origin_scope_citations": [
+      "C02",
+      "C26",
+      "C38"
+    ],
     "best_arm_method": "minimum multiplicative log-distance to incidence band, normalized QED exceedance, or dead-status indicator; exact ties retained",
     "best_arm_tie_auxiliary": "When tied criterion winners disagree on a non-ranking auxiliary field, candidate_ratio_band_status is mixed_by_arm and auxiliary_by_arm preserves each result.",
     "terminal_pass_rule_citations": [
@@ -182,6 +190,11 @@
       "C45",
       "C46",
       "C47"
+    ],
+    "regime_receipt_limit_citations": [
+      "C30",
+      "C51",
+      "C52"
     ],
     "quantile_envelope_zero_denominator": "A quantile pair with |q_ASEC|+|q_ACS| equal to zero contributes distance zero."
   },
@@ -337,11 +350,11 @@
       ],
       "scope_fix_requirement": "The two dead SSTB checks require a terminal role-scope fix, not an exclusion: compare their declared PUF-owned signal on clone 1 and continuously enforce the coupled QBI identities."
     },
-    "top_five_interpretation": "Coverage-ranked workstreams, not five proven single fixes; each can require target-specific subfixes after receipt or data inspection. The future retirement bundle factorial is a separate landing guardrail and clears no baseline red.",
+    "top_five_interpretation": "Coverage-ranked, non-overlapping work packages, not five proven single fixes; each can require target-specific subfixes after regime recomputation or data inspection. The future retirement bundle factorial is a separate landing guardrail and clears no baseline red. The two-check QBI terminal-role FIX remains separate from the eight-check QBI model package and is not combined to inflate ranking.",
     "top_five_highest_leverage": [
       {
         "rank": 1,
-        "title": "PUF-tax fitted-regime carrier/sign plus conditional-quantile calibration",
+        "title": "PUF-tax regime-verified carrier/sign plus conditional-quantile calibration",
         "checks_addressed": 38,
         "physical_legs_addressed": 25,
         "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
@@ -371,23 +384,22 @@
       },
       {
         "rank": 4,
-        "title": "Establish QBI ownership, repair terminal role scope, and refit the coupled surface",
-        "checks_addressed": 10,
-        "physical_legs_addressed": 6,
-        "action_group": "qbi_source_and_joint_model + qbi_terminal_role_scope",
-        "disposition_mix": {
-          "BLOCKER": 8,
-          "FIX-CANDIDATE": 2
-        }
-      },
-      {
-        "rank": 5,
         "title": "Rare signed-tail donor evidence and target-specific modeling",
         "checks_addressed": 9,
         "physical_legs_addressed": 5,
         "action_group": "rare_signed_tail_data",
         "disposition_mix": {
           "BLOCKER": 9
+        }
+      },
+      {
+        "rank": 5,
+        "title": "Establish QBI ownership and refit the coupled amount surface",
+        "checks_addressed": 8,
+        "physical_legs_addressed": 4,
+        "action_group": "qbi_source_and_joint_model",
+        "disposition_mix": {
+          "BLOCKER": 8
         }
       }
     ]
@@ -574,7 +586,7 @@
         "C04",
         "C09",
         "C40",
-        "C47",
+        "C53",
         "C48",
         "C49"
       ],
@@ -617,7 +629,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "This target is on the canonical transfer surface. The hypothesized fitted regime is a weighted class gate whose stochastic draws are transferred without a post-draw clone-0 by-origin prevalence constraint.",
+      "mechanism_hypothesis": "This target is on the canonical transfer surface. Its prevalence mismatch is consistent with class-generation drift, but the actual per-pattern regime is not persisted. When a frozen donor pattern contains both Boolean classes, QRF uses the donor-weighted zero-versus-positive gate; otherwise it follows the detected single-class regime. Recompute that regime before choosing classifier work; the battery later tests weighted prevalence.",
       "mechanism_citations": [
         "C03",
         "C06",
@@ -625,11 +637,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 3.073913028899138. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit ASEC/ACS coverage labels, obtain rare-event calibration evidence, and fit an out-of-fold weighted target classifier; CHAMPVA must enter the frozen band.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts); audit ASEC/ACS coverage labels, obtain rare-event calibration evidence, and fit an out-of-fold weighted target classifier; CHAMPVA must enter the frozen band.",
       "action_group": "health_coverage_labels_and_classifier",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -666,7 +680,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "This target is on the canonical transfer surface. The hypothesized fitted regime is a weighted class gate whose stochastic draws are transferred without a post-draw clone-0 by-origin prevalence constraint.",
+      "mechanism_hypothesis": "This target is on the canonical transfer surface. Its prevalence mismatch is consistent with class-generation drift, but the actual per-pattern regime is not persisted. When a frozen donor pattern contains both Boolean classes, QRF uses the donor-weighted zero-versus-positive gate; otherwise it follows the detected single-class regime. Recompute that regime before choosing classifier work; the battery later tests weighted prevalence.",
       "mechanism_citations": [
         "C03",
         "C06",
@@ -674,11 +688,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order: away_from_green to 2.6857091512329117. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit ASEC/ACS coverage labels, obtain rare-event calibration evidence, and fit an out-of-fold weighted target classifier; has_indian_health_service_coverage_at_interview must enter the frozen band.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts); audit ASEC/ACS coverage labels, obtain rare-event calibration evidence, and fit an out-of-fold weighted target classifier; has_indian_health_service_coverage_at_interview must enter the frozen band.",
       "action_group": "health_coverage_labels_and_classifier",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -715,7 +731,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "This target is on the canonical transfer surface. The hypothesized fitted regime is a weighted class gate whose stochastic draws are transferred without a post-draw clone-0 by-origin prevalence constraint.",
+      "mechanism_hypothesis": "This target is on the canonical transfer surface. Its prevalence mismatch is consistent with class-generation drift, but the actual per-pattern regime is not persisted. When a frozen donor pattern contains both Boolean classes, QRF uses the donor-weighted zero-versus-positive gate; otherwise it follows the detected single-class regime. Recompute that regime before choosing classifier work; the battery later tests weighted prevalence.",
       "mechanism_citations": [
         "C03",
         "C06",
@@ -723,11 +739,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order: toward_green to 3.341705287585759. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit ASEC/ACS coverage labels, obtain rare-event calibration evidence, and fit an out-of-fold weighted target classifier; has_other_means_tested_health_coverage_at_interview must enter the frozen band.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts); audit ASEC/ACS coverage labels, obtain rare-event calibration evidence, and fit an out-of-fold weighted target classifier; has_other_means_tested_health_coverage_at_interview must enter the frozen band.",
       "action_group": "health_coverage_labels_and_classifier",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -764,7 +782,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.1042830540037244
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -772,11 +790,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order: unchanged to 1.5540575408000976. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -813,7 +833,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.10526315789473684
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -822,14 +842,16 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Eligibility greens this check but is not the fix: the synthesis records a statistically significant unemployment money-OOS regression of +0.037372427142322806 and broader battery exits. A target-only post-draw quantile map directly addresses QED while preserving the baseline predictive model; verify both battery and money gates.",
       "classification_citations": [
         "C39"
       ],
-      "concrete_change_or_needed_work": "With baseline predictors and carrier membership frozen, post-draw quantile-map positive unemployment-compensation amounts at weighted p10/p25/p50/p75/p90; require QED at or below 0.25 and no money-OOS regression.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). With baseline predictors and carrier membership frozen, post-draw quantile-map positive unemployment-compensation amounts at weighted p10/p25/p50/p75/p90; require QED at or below 0.25 and no money-OOS regression.",
       "action_group": "model_required_targeted_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -866,7 +888,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.3333333333333334
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -875,11 +897,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.3333333333333334. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -918,7 +942,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.33333333333333337
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -927,11 +951,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.33333333333333337. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -969,7 +995,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -977,11 +1003,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.5315554414071882. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1020,7 +1048,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1029,11 +1057,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.3333333333333333. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1070,7 +1100,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.3811938276017271
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1079,11 +1109,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.3811938276017271. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1120,7 +1152,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.39228295819935693
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1129,11 +1161,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.39228295819935693. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1171,7 +1205,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7305910198561216
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1179,11 +1213,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 0.6881515663221003. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1221,7 +1257,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7305910198561216
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1230,11 +1266,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.7305910198561216. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1271,7 +1309,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142856
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1279,11 +1317,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.47092763947320365. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1320,7 +1360,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142856
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1329,11 +1369,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.2857142857142856. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1371,7 +1413,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.12389380530973454
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1379,11 +1421,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.5633139716502966. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1421,7 +1465,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.19679633867276888
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1429,11 +1473,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.3692265605479346. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1470,7 +1516,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5157232704402516
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1479,11 +1525,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 0.5157232704402516. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1520,7 +1568,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.1576011157601116
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1528,11 +1576,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: to_green to 0.8326474987808791. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1569,7 +1619,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.1576011157601116
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1578,11 +1628,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 1.1576011157601116. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1620,7 +1672,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.255813953488372
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1628,11 +1680,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.6270067039916964. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1670,7 +1724,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.255813953488372
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1679,11 +1733,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 1.255813953488372. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1721,7 +1777,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.9842613410924481
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1730,11 +1786,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 0.9842613410924481. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1772,7 +1830,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42105263157894735
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1780,11 +1838,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/investment: unchanged to 4.462499005968677. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1821,7 +1881,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1830,11 +1890,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 0.4. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1871,7 +1933,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.38758495268324233
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1879,11 +1941,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: to_green to 0.860463498932752. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1920,7 +1984,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.38758495268324233
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -1929,11 +1993,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.38758495268324233. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -1971,7 +2037,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.1061359867330014
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -1979,11 +2045,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.6607973658266934. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2020,7 +2088,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.7140974967061922
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2029,11 +2097,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7140974967061922. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2070,7 +2140,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.5739471187902996
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2079,11 +2149,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 1.5739471187902996. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2120,7 +2192,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4489795918367348
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2128,11 +2200,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 1.2931604101755942. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2171,7 +2245,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4489795918367348
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2180,11 +2254,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.4489795918367348. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2222,7 +2298,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7285129604365621
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2231,11 +2307,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.7285129604365621. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2272,7 +2350,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2280,11 +2358,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 1.3140437033522925. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2321,7 +2401,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2330,11 +2410,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.6666666666666666. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2371,7 +2453,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.128297200347897
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2379,11 +2461,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7689226485749855. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2420,7 +2504,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.128297200347897
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2429,11 +2513,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 1.128297200347897. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2471,7 +2557,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3840000000000001
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2479,11 +2565,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.5021703509929722. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2521,7 +2609,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3840000000000001
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2530,11 +2618,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 1.3840000000000001. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2572,7 +2662,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.9084830756372754
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2581,11 +2671,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.9084830756372754. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2622,7 +2714,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.3333333333333333
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2631,11 +2723,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 1.3333333333333333. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2672,7 +2766,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.6363636363636365
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2680,11 +2774,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 3.7524385834181144. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2721,7 +2817,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.6363636363636365
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2730,11 +2826,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 1.6363636363636365. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2771,7 +2869,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7524229074889868
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2779,11 +2877,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: to_green to 0.9106337491341161. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2821,7 +2921,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.5416178194607267
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2830,11 +2930,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.5416178194607267. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2871,7 +2973,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.7586206896551726
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2880,11 +2982,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7586206896551726. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2922,7 +3026,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -2931,11 +3035,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.4. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -2972,7 +3078,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4727168490819514
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -2980,11 +3086,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7243176514009675. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3022,7 +3130,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.45700108495153513
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3031,11 +3139,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.45700108495153513. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3073,7 +3183,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.20653353169759264
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3081,11 +3191,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.707473672306071. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3122,7 +3234,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5127201565557731
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3130,11 +3242,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: to_green to 0.8228566859737348. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3172,7 +3286,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3609910128200268
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3181,11 +3295,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.3609910128200268. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3222,7 +3338,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.4812878320039546
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3231,11 +3347,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.4812878320039546. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -3769,7 +3887,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142857
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3777,11 +3895,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.710945719004939. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every family pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3820,7 +3940,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.2857142857142857
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3829,11 +3949,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.2857142857142857. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3870,7 +3992,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42424242424242425
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -3878,11 +4000,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7778178241530005. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every family pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3919,7 +4043,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.42424242424242425
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3928,11 +4052,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.42424242424242425. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -3970,7 +4096,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.5741444866920152
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -3979,11 +4105,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.5741444866920152. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4020,7 +4148,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.6666666666666666
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4028,11 +4156,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm investment: toward_green to 1.3353195684335395. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every family pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4070,7 +4200,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4079,11 +4209,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/eligibility: unchanged to 0.4. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4120,7 +4252,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.9920159680638723
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4128,11 +4260,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm investment: toward_green to 2.736722966954884. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4171,7 +4305,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.9920159680638723
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4180,11 +4314,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.9920159680638723. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping and fitted regime, then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
+      "concrete_change_or_needed_work": "Acquire dense/additional donor evidence, audit the rare signed-tail source mapping, recompute the realized regime over every frozen donor availability pattern (and persist it in future receipts), then fit a target-specific rare-event/sign model and terminally verify clone-0 by-origin aggregates.",
       "action_group": "rare_signed_tail_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4223,7 +4359,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": null
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4231,11 +4367,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 0.0. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4272,7 +4410,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.44627239393814416
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4280,11 +4418,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: to_green to 0.8040497478924599. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4321,7 +4461,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 0.44627239393814416
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4330,11 +4470,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 0.44627239393814416. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4371,7 +4513,7 @@
         "candidate_ratio_band_status": "in_band",
         "candidate_qed": 1.4639175257731958
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4379,11 +4521,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: to_green to 1.0545176582599016. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4439,7 +4583,7 @@
           }
         }
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4448,11 +4592,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.4639175257731958. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4489,7 +4635,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7696335078534031
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4497,11 +4643,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm eligibility: toward_green to 17.03625555679432. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4540,7 +4688,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.7696335078534031
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4549,11 +4697,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "BLOCKER",
       "classification_rationale": "Best arm order/eligibility/investment: unchanged to 1.7696335078534031. No arm makes the full physical leg green or isolates a safe treatment; an exclusion would hide a real artifact risk.",
-      "concrete_change_or_needed_work": "Audit baseline retirement source mappings, labels, fitted-regime receipts, carrier prevalence, and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
+      "concrete_change_or_needed_work": "Audit baseline retirement source mappings and labels; recompute realized regimes over every frozen donor availability pattern (and persist them in future receipts); inspect carrier prevalence and amount tails on a dense rung; refit the applicable model and terminally verify clone-0 by-origin aggregates. Separately run the frozen direct-income removal/addition factorial before any bundle replacement.",
       "action_group": "retirement_model_and_data",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4590,7 +4740,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3448275862068966
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4598,11 +4748,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.19275386071894426. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every family pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4639,7 +4791,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.3448275862068966
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4648,11 +4800,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.3448275862068966. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4690,7 +4844,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.99800099950025
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4698,11 +4852,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.5799327234761872. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every family pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4739,7 +4895,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.4042553191489362
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4748,11 +4904,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 1.4042553191489362. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4790,7 +4948,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.4539877300613497
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4798,11 +4956,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.7525809265807542. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every family pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor marginals; otherwise refit or reconcile the regime appropriate to the observed support. Preserve source reconciliation, then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4839,7 +4999,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.24486408921047648
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4848,11 +5008,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: to_green to 0.24486408921047648. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then add family-scoped conditional amount quantile mapping while preserving carrier and source reconciliation. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "source_operator_two_part_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "M"
@@ -4889,7 +5051,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.31579401331890994
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4897,11 +5059,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.780019260947369. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4939,7 +5103,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.296143753739345
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -4948,11 +5112,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.296143753739345. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -4989,7 +5155,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 1.2941176470588236
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -4997,11 +5163,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7955270134638868. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -5039,7 +5207,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.8427184466019417
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized fitted regime for this carrier leg uses a sign-conditional forest; transfer writes its draws without a post-draw clone-0 by-origin quantile constraint, while QED tests weighted p10-p90 carrier shape.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its QED mismatch is consistent with conditional amount-shape drift, but the actual per-pattern regime is not persisted. Gated regimes draw a sign and then a sign-conditional forest; single-sign regimes use one forest. Recompute the frozen donor-pattern regime before selecting a conditional-quantile remedy; the terminal battery tests weighted p10/p25/p50/p75/p90 carrier shape.",
       "mechanism_citations": [
         "C04",
         "C05",
@@ -5048,11 +5216,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm order/investment: unchanged to 0.8427184466019417. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt first, then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts), then quantile-map the applicable target/sign conditional draws at weighted p10/p25/p50/p75/p90 while preserving carriers. Rerun coupled identities and the full 211-leg battery, including clone-0 by-origin QED.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
@@ -5089,7 +5259,7 @@
         "candidate_ratio_band_status": "out_of_band",
         "candidate_qed": 0.21844644367235277
       },
-      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. The hypothesized realized regime is gated zero-inflated/sign-mixed: that regime fits a donor-sample-weighted sign gate before conditional magnitudes, but transfer has no post-draw clone-0 by-origin aggregate constraint; the ratio tests weighted carrier prevalence.",
+      "mechanism_hypothesis": "This target is on the canonical early-or-late transfer surface. Its incidence mismatch is consistent with carrier/sign-generation drift, but the actual per-pattern regime is not persisted. If recomputation finds a gated zero-inflated or sign-mixed regime, QRF fits a donor-sample-weighted sign gate before conditional magnitudes; otherwise it follows the detected degenerate or single-sign path. Transfer merges draws into missing cells, and the terminal battery later tests weighted carrier prevalence.",
       "mechanism_citations": [
         "C04",
         "C06",
@@ -5097,11 +5267,13 @@
         "C30",
         "C45",
         "C46",
-        "C47"
+        "C47",
+        "C51",
+        "C52"
       ],
       "classification": "FIX-CANDIDATE",
       "classification_rationale": "Best arm eligibility: toward_green to 0.7710390500234685. This is a measured artifact mismatch; the named change includes terminal by-origin verification rather than assuming donor fidelity is sufficient. It is not an exclusion.",
-      "concrete_change_or_needed_work": "Inspect the fitted receipt for every availability pattern first. If the realized regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
+      "concrete_change_or_needed_work": "Recompute the realized regime for every frozen donor availability pattern (and persist it in future receipts). If the recomputed regime is gated, calibrate its weighted sign/carrier gate to donor target/sign marginals; otherwise refit or reconcile the regime appropriate to the observed support. Then rerun coupled identities and the full 211-leg battery, including clone-0 by-origin incidence.",
       "action_group": "puf_tax_fitted_regime_and_quantile_calibration",
       "reviewed_exclusion_class": null,
       "estimated_effort": "L"
