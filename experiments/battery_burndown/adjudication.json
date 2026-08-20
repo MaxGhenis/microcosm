@@ -471,7 +471,7 @@
     },
     "why_no_sparse_candidates": "All 48 red QEDs have minima of 48 ASEC carriers and 519 ACS carriers, above the five-carrier skip. Keogh is one-sided at 2 ASEC carrier rows and 0 ACS carrier rows, so QED is skipped after incidence still fails; it is policy-relevant and remains a real blocker.",
     "structural_absence_distinction": "US declared structural-absence rules remove only authority-bound rows after an exact equation check; a mismatch emits a failure. They are not reviewed defect exceptions.",
-    "uk_precedent_attestation_limitation": "The UK loader validates all five schema-2 receipt fields and the gates enforce the reason/date window, but binding evidence is not uniform: degenerate exposes full resolved records, input mass hashes only its reference, and QRF tail has no evidence hook. Approver and adjudication remain receipt metadata/failure context rather than uniformly attested binding evidence. Any future US machinery should seal full resolved receipts.",
+    "uk_precedent_attestation_limitation": "The UK loader validates all five schema-2 receipt fields and the gates enforce the reason/date window, but binding evidence is not uniform: degenerate exposes full resolved records, input mass hashes only its reference, and QRF tail has no evidence hook. Full approval receipts remain in the loaded typed policies and approver/adjudication appear in out-of-force failure context, but successful input-mass and QRF-tail gate results retain only the projected column-to-reason mapping; their full receipts are neither reported nor attested. Any future US machinery should seal full resolved receipts.",
     "citations": [
       "C12",
       "C14",

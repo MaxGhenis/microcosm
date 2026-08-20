@@ -2,12 +2,12 @@
 
 ## State
 
-Revalidation complete on branch `battery-burndown`, based on
+Final revalidation is in progress on branch `battery-burndown`, based on
 `arm-split-base` at `7d6749990933ac072ac257ae76d666aa16b84d25`.
-The owner-facing and machine-readable reports have been independently checked
-against all four frozen gate artifacts, the Phase P synthesis, and current
-comparator/exclusion source. No builds or pushes were run, and no code, gate,
-band, threshold, or publication state was changed.
+Gate arithmetic and comparator/reviewed-exclusion source paths have been
+independently rechecked; the classification and final cross-format audits remain.
+No builds or pushes were run, and no code, gate, band, threshold, or publication
+state was changed.
 
 ## Done
 
@@ -158,13 +158,23 @@ band, threshold, or publication state was changed.
   the missing regime receipt is ACS-transfer-specific because the primary PUF
   checkpoint path does persist the regime. No value, arm movement,
   classification, package count, or recommendation changed.
-- Final report SHA-256:
+- Independently reloaded all four frozen gate artifacts and recomputed the
+  132 comparisons, 211 physical legs, 93 baseline failed criteria, all arm
+  failure sets, and all stored best-arm winners. Exact values, hashes, row
+  membership, and the 8/42/42/1 movement split match the deliverables.
+- Re-audited every comparator, pool, transfer-regime, and UK reviewed-exclusion
+  citation. Tightened one attestation sentence to state exactly that successful
+  input-mass/QRF-tail results retain projected reasons rather than full approval
+  receipts; this changes no row, count, disposition, or recommendation.
+- Prior closed-report SHA-256 at commit `2b4b3778` (superseded by the
+  attestation wording correction):
   `02c4c26b96d60688a91a75ef63290e8148479adc5c277ed136fba5398d27e0ff`;
-  JSON SHA-256:
+  prior JSON SHA-256:
   `57de9ba5867e440077ff7b6888138bc45dc45db2a9b9697820eecac4e3b5240d`.
 
 ## Next
 
-- Owner handoff. No in-scope analysis remains.
+- Complete the independent classification/actionability and final cross-format
+  audits, record final hashes, and close the journal.
 - Resolve the work packages in the adjudication, then rerun all 211 battery
   legs before certification; the present task does not authorize that build.
