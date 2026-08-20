@@ -176,15 +176,25 @@ publication state was changed.
   direct QBI target/producer/operator/reconciliation definitions, and restored
   the synthesis citation in the rendered Keogh row. All 93 dispositions,
   values, movements, counts, and named actions are unchanged.
+- Closed the final UK-attestation traceability audit. Added the binding default
+  that makes an omitted evidence hook emit no evidence hash and the exact
+  `GateOutcome` report projection proving that receipts absent from gate details
+  are not otherwise reported. Also tied Schedule-D's derived-only status to its
+  executable model-leaf/derived-input partition. No row, value, movement,
+  disposition, work package, or recommendation changed.
 - Prior closed-report SHA-256 at commit `2b4b3778` (superseded by the
   attestation wording correction):
   `02c4c26b96d60688a91a75ef63290e8148479adc5c277ed136fba5398d27e0ff`;
   prior JSON SHA-256:
   `57de9ba5867e440077ff7b6888138bc45dc45db2a9b9697820eecac4e3b5240d`.
-- Final report SHA-256:
+- Pre-traceability-hardening report SHA-256 at commit `5c6580ed`:
   `fd209fefaa66f53ec54a42b9a481784c157b6dbfc4f2240da7eff6a27d9f11c7`;
-  final JSON SHA-256:
+  JSON SHA-256:
   `48f8da37248b183006ce2496706143405e17683d3c3a7e8a97e337795675bbdc`.
+- Final report SHA-256:
+  `2cdf79233d56f63ca8e65305cb1c746706d88a7a57ac26ae25db575676daf3b8`;
+  final JSON SHA-256:
+  `1c1597c8080cf4e0db0079c2a3e1bc345001525bc3ec6c296aa7575b47136c32`.
 
 ## Next
 
