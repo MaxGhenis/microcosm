@@ -26,9 +26,9 @@ behavior-preserving authority flip, not a UK redesign.
 Start only when all of the following are true:
 
 - The owner identifies the certified US F1 commit and evidence digests for the
-  immutable projection/patch/diff executor; RNG, file, environment, and clock
-  brokers; seed-site coverage scanner; execution ABI; plan lock; comparator;
-  and resume predicate.
+  immutable projection/patch/diff executor; RNG, file, environment, clock,
+  network, secret, and process brokers/guards; seed-site coverage scanner;
+  execution ABI; plan lock; comparator; and resume predicate.
 - A UK-capable, country-neutral schema has closed N01–N11. In particular, it
   represents multiple physical pipelines, executable source-stage nodes,
   source-family sampling, named geography routes/clone policy, target catalogs,
@@ -36,8 +36,8 @@ Start only when all of the following are true:
 - The UK bundle compiles a nonempty complete producer graph for all three
   pipelines. The current six-resource walking skeleton, absent producer graph,
   and empty compiled-node set are a hard stop.
-- Compiled seed ownership covers L01–L32 and C01 with zero unbound physical
-  sites. Tests prove active `hmrc_spi_income` owns separate
+- Compiled ledger/broker ownership covers L01–L32 and C01 with zero unbound
+  physical sites. Tests prove active `hmrc_spi_income` owns separate
   42/42/42/42/43 streams, WAS owns three independently reset seed-0 chains, and
   both geography profiles resolve to incumbent seed 42 without a hidden bundle
   default of 0.
@@ -84,9 +84,11 @@ one-day flip lane: stop and land that prerequisite separately.
 capabilities. It may not reconstruct values from constants, a generated legacy
 payload, parser defaults, or permissive fallback code.
 
-File, environment, clock, RNG, UUID/nonce, and network access is denied unless
-the certified capability/broker policy explicitly authorizes and receipts it.
-Certification never permits a live geography download.
+File, environment, clock, RNG, UUID/nonce, network, and process/subprocess
+access is denied unless the certified capability/broker policy explicitly
+authorizes and receipts it. Certification never permits a live geography
+download. The rowwise drivers' `git rev-parse` code-pin reads must use the
+sealed compiler pin or an explicit process capability.
 
 Compile-back is exact: the complete authored UK bundle must reproduce the
 legacy payload used by constants mode before execution begins. Field-usage
@@ -101,7 +103,7 @@ source manifests, or reinterpret a declared seed.
 
 The lane is sized for these reviewed surfaces:
 
-- **33 semantic authority groups** across the national, geography, rowwise,
+- **33 authority groups** across the national, geography, rowwise,
   calibration, gate, publication, checkpoint, identity, clock, Logbook, and
   artifact paths.
 - **11 schema field paths** that must be present before dispatch, plus
@@ -114,7 +116,8 @@ The lane is sized for these reviewed surfaces:
   seed families are identity-keyed 0; CGT 552 mixed with period; SPI/HMRC 42
   followed by 43; national sample 578; and rowwise geography/calibration 42.
 - Three physical pipelines, two geography profiles, one selected local target
-  family, and one restricted cold certification graph.
+  family, and one restricted cold certification graph shape instantiated four
+  times.
 
 These numbers are baselines, not magic acceptance constants. The independent
 scanner must produce an exact explained delta after upstream F1 merges; an
@@ -252,9 +255,12 @@ typed profile. Prove:
 - ladder/crosswalk seed-42 sequential order and collision behavior;
 - current rowwise L0 zero consumption plus fail-closed future activation;
 - one injected exclusion-evaluation date; and
-- no direct RNG, environment, file, UUID, clock, HTTP client, or socket access
-  outside broker policy. The independent scanner covers network constructors and
-  calls as well as stochastic/hash/ambient sites.
+- no direct RNG, environment, file, UUID, clock, HTTP client, socket, or
+  subprocess/process access outside broker policy. The independent scanner
+  covers network and process constructors/calls as well as
+  stochastic/hash/ambient sites. In particular, the two rowwise `git
+  rev-parse` sites consume the sealed compiler code pin or a receipted process
+  capability.
 
 The experimental firm exemption must remain unreachable. Inheriting the US F1
 QRF state-restore fix and implementation digest is mandatory.
@@ -289,22 +295,44 @@ the rowwise dataset writes/replaces H5 before coverage and manifest with no
 bundle rollback. Any future unification is a separately reviewed behavior
 change.
 
+Preserve dry-run asymmetry too: candidate dry-run writes nothing; rowwise
+dataset dry-run creates the output directory and plan, can delete stale
+coverage/crosswalk sidecars on the ladder route, and can materialize a
+crosswalk before the crosswalk-route dry-run branch.
+
 ### 5. Complete stage receipts and adversarial fixtures
 
-For all 33 authority rows, produce a constants/bundle receipt with equal
-normative digest and no unexplained structural difference. Include adversarial
-tests for out-of-scope writes, missing source declarations, changed group/row
-order, geography vintage mismatch, seed cursor drift, undeclared gate, missing
-FitWeightRecord, changed checkpoint identity, omitted code/engine ABI from an
-executor reuse key, unexpected Logbook network access, and partial publication
-at every candidate/dataset artifact boundary.
+For all 33 authority rows, produce a constants/bundle owner-resolution receipt.
+Semantic projections have equal normative digests; generated-ABI, run-request,
+and broker rows match their sealed structural comparison rules, with no
+unexplained difference. Include adversarial tests for out-of-scope writes,
+missing source declarations, changed group/row order, geography vintage
+mismatch, seed cursor drift, undeclared gate, missing FitWeightRecord, changed
+checkpoint identity, omitted code/engine ABI from an executor reuse key,
+unexpected Logbook network access, and partial publication at every
+candidate/dataset artifact boundary.
 
-Land a secrets-free PR-CI gate that executes cold dual-mode fixtures for all
-three drivers and both geography profiles and requires an empty normative diff.
-It must use permitted fixture bytes, begin from empty output/cache roots, and
-fail on an unlisted operational difference. A one-off lane test is insufficient.
+Focused fixtures must also exercise A09's exact sampled-rung sklearn
+singleton/exit-3 receipt policy; A16's preflight/terminal report, compatibility
+alias, blocked, and unsigned-full publication boundaries; and A30's candidate
+no-write versus rowwise-dataset cleanup/materialization/plan-write dry runs.
 
-### 6. Run cold certification and resume proof
+Land a secrets-free PR-CI gate that first runs
+`uv sync --all-packages --extra us --extra uk`, then executes the supported cold
+dual-mode matrix: national, rowwise-dataset ladder, rowwise-dataset crosswalk,
+and candidate ladder. It requires an empty normative diff, uses permitted
+fixture bytes, begins from empty output/cache roots, and fails on an unlisted
+operational difference. There is no candidate-crosswalk case. A one-off lane
+test is insufficient.
+
+### 6. Retarget consumers, run cold certification, and prove resume
+
+Retarget every UK closure/segment/dashboard consumer found by the generated
+dependency inventory to compiler outputs and prove zero constants-era reads; if
+the inventory is empty, retain the zero-result evidence. Commit this work and
+freeze its code pin **before** any cold certification graph. A post-certification
+consumer edit invalidates the evidence and requires the affected graphs to be
+rerun.
 
 Run four fresh restricted certification graphs, each using a newly built f001
 national input and no artifact, checkpoint, model, or bank reuse:
@@ -339,12 +367,9 @@ runs.
 
 ### 7. Close and hand off
 
-Retarget every UK closure/segment/dashboard consumer found by the generated
-dependency inventory to compiler outputs and prove zero constants-era reads; if
-the inventory is empty, retain the zero-result evidence. Write machine-readable
-and human UK F1 certification evidence at the dispatch-card paths, record
-constants/F2 retention, and hand the owner exact f010/f100/full commands and
-expected identities. Do not push or publish.
+Write machine-readable and human UK F1 certification evidence at the
+dispatch-card paths, record constants/F2 retention, and hand the owner exact
+f010/f100/full commands and expected identities. Do not push or publish.
 
 ## Required tests and evidence
 
@@ -352,10 +377,11 @@ expected identities. Do not push or publish.
   loader, round-trip, compile-back, mutation, field-usage, and plan-lock tests.
 - Parser/path tests proving constants mode does not load the bundle and bundle
   mode cannot construct semantic constants outside IR.
-- Complete producer-graph and node-slice tests for all three drivers and both
-  geography profiles; an empty UK node set fails.
-- A durable secrets-free per-PR cold dual-mode fixture gate for all three drivers
-  and both geography profiles.
+- Complete producer-graph and node-slice tests for the supported matrix:
+  national, rowwise-dataset ladder, rowwise-dataset crosswalk, and candidate
+  ladder; an empty UK node set fails and candidate-crosswalk is not invented.
+- A durable secrets-free per-PR cold dual-mode fixture gate for that four-case
+  matrix, using the locked UK extra.
 - Independent AST coverage with zero unbound/stale rows, plus runtime broker
   enforcement (including network denial) and golden legacy vectors for each seed
   family/reset boundary.
@@ -368,7 +394,8 @@ expected identities. Do not push or publish.
   Logbook-only code identity is accepted.
 - Broker tests for the injected exclusion date, gate-signing capability,
   predecessor conflict/genesis, durable local spool, remote-ledger denial, and
-  exact best-effort remote-failure disposition.
+  exact best-effort remote-failure disposition, plus process guarding or sealed
+  replacement of both rowwise `git rev-parse` calls.
 - Failure-injection tests at every candidate and rowwise-dataset publication
   boundary, preserving their distinct rollback/overwrite semantics.
 - Four cold certification graphs with f001 national inputs and incumbent
@@ -409,8 +436,9 @@ normalization row; it must not appear opportunistically in UK F1.
 
 - All N01–N11 prerequisites resolved and the complete UK producer graph compiles
   with zero ignored authority fields.
-- Every one of the 33 authority rows is constructed from compiled IR in bundle
-  mode; constants mode remains untouched.
+- Every one of the 33 authority rows resolves from its inventoried owner—IR,
+  generated executor ABI, sealed run request, or broker—with zero code/default
+  fallback in bundle mode; constants mode remains untouched.
 - Independent stochastic coverage is complete; all declared/runtime seeds and
   reset boundaries reconcile; the semantic clock is injected; direct network is
   denied; exact release tier/cardinality/id precedence is sealed and tested.
@@ -419,7 +447,7 @@ normalization row; it must not appear opportunistically in UK F1.
   local-spool-only with predecessor `null`.
 - Fixture and stage receipts show no normative differences.
 - The secrets-free PR-CI dual-mode gate and the generated UK consumer-retarget
-  inventory are green.
+  inventory are green and included in the code pin certified by the cold runs.
 - Cold-graph `A=B`, `C=D`, and `A=C` with f001 national inputs and preserved
   `f100` candidate receipt tags; resume proof passes; all gates match; no hidden
   reuse; heavy runs are serialized and aggregate lane RSS stays below 15 GiB.
@@ -445,6 +473,8 @@ Stop immediately and leave the last coherent commit/test state if:
 - the installed `policyengine-uk`/`policyengine-core` versions are absent from
   the verified engine ABI, or the rowwise/candidate executor identity omits the
   oracle code pin;
+- direct process access remains unbrokered, or a consumer retarget changes the
+  code pin after cold certification;
 - within-mode nondeterminism, cross-mode normative mismatch, gate difference,
   unlisted receipt difference, hidden reuse, or resume-predicate failure occurs;
 - required licensed/pinned inputs, signing/evidence, or authenticated geography

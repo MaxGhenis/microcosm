@@ -5,8 +5,8 @@
 Independent validation is complete over the draft from detached cached `origin/main` commit
 `164027e21cfa58a71d701b43211d009d6182e39d` in the isolated worktree
 `/Users/maxghenis/PolicyEngine/microcosm/.worktrees/microcosm-uk-flip-prep`.
-All three requested analysis artifacts and this journal are ready for the final
-coherent commit. No package or UK source file was edited, no dataset build was
+All three requested analysis artifacts and this journal are committed in
+coherent steps. No package or UK source file was edited, no dataset build was
 run, and nothing was pushed.
 
 On 2026-08-20, a fresh reviewer resumed this clean lane after finding the
@@ -51,8 +51,8 @@ repository sandbox instead. The locally cached spec ref is
 - Identified a blocking schema/ABI gap: the current executable spine contract is
   US-stacked-pool-specific and the UK walking skeleton compiles no executable
   producer nodes.
-- Wrote `_UK-FLIP-PREP/AUTHORITY-INVENTORY.md`: 33 selected-driver semantic
-  authority groups, each with source anchors and a compiled-IR/bundle owner;
+- Wrote `_UK-FLIP-PREP/AUTHORITY-INVENTORY.md`: 33 selected-driver authority
+  groups, each with source anchors and an explicit flip owner;
   11 distinct missing schema paths are sketched and counted once. A companion
   table gives the stage and affected-artifact propagation for every row.
 - Wrote `_UK-FLIP-PREP/STOCHASTIC-AUDIT.md`: 87 physical AST/source sites
