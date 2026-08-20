@@ -2,10 +2,10 @@
 
 ## State
 
-Evidence collection complete; adjudication drafting is in progress on branch
-`battery-burndown`, based on
-`arm-split-base` at `7d6749990933ac072ac257ae76d666aa16b84d25`.
-No builds, pushes, or gate/threshold changes are in scope.
+Analysis is complete on branch `battery-burndown`, based on `arm-split-base` at
+`7d6749990933ac072ac257ae76d666aa16b84d25`. The owner-facing and
+machine-readable reports are committed at `b654db68`. No builds or pushes were
+performed, and no code, gate, band, or threshold was changed.
 
 ## Done
 
@@ -26,11 +26,38 @@ No builds, pushes, or gate/threshold changes are in scope.
   checks turn green under eligibility, but eligibility adds eleven new failures;
   no isolated arm is landable and only one physical baseline-red leg becomes
   wholly green in any arm.
+- Enumerated every failed criterion once in `ADJUDICATION.md` and
+  `adjudication.json`, including baseline evidence, best-arm movement,
+  line-cited mechanism, disposition, named work, and S/M/L effort.
+- Classified the 93 checks as 55 FIX-CANDIDATE, 2 conditional
+  REVIEWED-EXCLUSION-CANDIDATE, and 36 BLOCKER; the corresponding physical-leg
+  counts are 35, 2, and 23.
+- Found zero sparse-artifact exclusion candidates. The two measurement-mismatch
+  candidates are clone-0/native QBI dead booleans and remain conditional on
+  clone-1 PUF-role signal/identity proof plus new authenticated US exclusion
+  machinery.
+- Established that all 93 checks/60 physical legs must be resolved and grouped
+  them into ten owner work packages; a conjunctive battery has no smaller red
+  subset whose resolution alone makes it pass.
+- Incorporated independent comparator and exclusion-mechanism QA, including
+  variable-specific health actions, tied-arm auxiliary evidence, exact UK
+  wiring, clone-role provenance, QBI identity coverage, and Keogh support
+  semantics.
+- Revalidated exact baseline ordering, Markdown/JSON row parity, class and
+  package arithmetic, arm winners and deltas, all four artifact hashes,
+  mirrored terminal payloads, 132 comparisons/211 legs, and all source-line
+  endpoints.
+- Final report SHA-256:
+  `fe58f3fdbea13379eaf8953b312fe0a32a6fc4b3e7ac716f83447a60815737e8`;
+  JSON SHA-256:
+  `246f1627e0b88d6427044bd7d1d10dd09b5ae163ad0888c24e338c4668ec6fa6`.
 
 ## Next
 
-- Assign an honest FIX / REVIEWED-EXCLUSION / BLOCKER disposition to every
-  failed check, including a concrete action or named missing evidence.
-- Derive class counts, the minimal green set, and the five highest-leverage
-  work packages.
-- Validate Markdown/JSON completeness, internal counts, and source citations.
+- Owner adjudicates the two conditional QBI scope candidates; absent the stated
+  proof and new US machinery, treat them as BLOCKERs rather than exclusions.
+- Prioritize the five resolution packages in `ADJUDICATION.md`, starting with
+  the 38-check PUF-tax hurdle/quantile cluster and the 16-check retirement
+  factorial/model-data cluster.
+- Implement and rebuild only in separately authorized change lanes; publication
+  remains gated until a future release battery is green.
