@@ -12,12 +12,12 @@ No frozen battery band, incidence threshold, QED ceiling, quantile, seed, fold,
 or comparator changed. No continuation 1% build was run; the host retains the
 next frozen branch/baseline comparison.
 
-The final continuation audit independently re-read pkg3's named `22b2c6bc`
-scoped-binding regression and production commits `176c60fc`, `887df056`, and
-`94b7aecb`, then traced the live default build route. Three independent reviews
-found no missing caller or runtime scope leak. The canonical policy is
-reachable as 7 early and 13 late targets with no overlap or omission; family
-suffixing cannot broaden the stable `(entity, target)` keys.
+The current continuation audit independently re-read pkg3's named `22b2c6bc`
+scoped-binding regression and production successor `176c60fc`, then traced the
+live default build route. Three independent reviews found no missing caller or
+runtime scope leak. The canonical policy is reachable as 7 early and 13 late
+targets with no overlap or omission; family suffixing cannot broaden the
+stable `(entity, target)` keys.
 
 ## Production wiring
 
@@ -62,17 +62,18 @@ default stacked remedy.
 
 ## Verification
 
-- Three fresh independent read-only audits found no blocking production-scope,
-  wiring-regression, or Schedule-D/reporting defect. The exact policy
-  intersection is 20 of 20 assigned targets: 7 early and 13 late.
-- Four load-bearing assigned/unassigned and Schedule-D wiring fixtures: pass;
-  an independent seven-node wiring/order selection also passes.
-- Fresh replay of the complete ACS transfer, calibration-kernel, and
+- Three current independent read-only audits found no blocking production-scope,
+  wiring-regression, or Schedule-D defect. The exact policy intersection is 20
+  of 20 assigned targets: 7 early and 13 late.
+- Current replay of the four load-bearing assigned/unassigned and Schedule-D
+  wiring fixtures: pass.
+- Current replay of the complete ACS transfer, calibration-kernel, and
   Schedule-D-kernel modules: 110 tests pass with fit/BLAS widths pinned to one.
 - Complete ACS transfer module: 73 tests pass.
 - Touched runtime modules: 1,020 tests pass.
-- Fresh default repository collection: 6,623 tests reached 100% and exited zero
-  in 4,210.702 seconds; pytest's `lastfailed` cache is `{}`.
+- Committed full repository collection on the unchanged implementation tree:
+  6,623 tests reached 100% and exited zero in 4,210.702 seconds; pytest's
+  current `lastfailed` cache is `{}`.
 - Memory-isolated explicit-file replay: all 263 test files covered under the
   manifest digest
   `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`,
@@ -81,7 +82,7 @@ default stacked remedy.
   GiB.
 - Full `ruff check .`: pass.
 - Explicitly unfrozen `uv lock --check`: pass.
-- Ruff format check on all 13 changed Python files: pass.
+- Ruff format check on all 17 branch-changed Python files: pass.
 - `git diff --check`: pass.
 
 No runtime, test, dependency, or lock file changed after `51054801`; an explicit
@@ -113,6 +114,8 @@ were not changed.
 - `0dfa2cf7` — record the independent wiring audit.
 - `737f2077` — reopen the scoped wiring verification.
 - `77095103` — record the fresh source and focused-test audit.
+- `e06fcf75` — reopen the current scoped wiring continuation.
+- `73d197bd` — record the current source and load-bearing audit checkpoint.
 
 ## Host handoff
 

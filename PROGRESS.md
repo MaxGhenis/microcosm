@@ -2,16 +2,18 @@
 
 ## State
 
-The host-requested wiring continuation is verified at the source and
-load-bearing-fixture layers on branch `battery-pkg1-puf-tax`. The candidate at
+Continuation complete on branch `battery-pkg1-puf-tax`. The implementation at
 `51054801` follows pkg3's exact `(entity, target)` scope boundary, and the live
 default stacked build reaches all 20 assigned transfer targets as 7 early and
 13 late targets with no overlap or omission. Schedule-D reconciliation is
-separately reachable in the later derive stage. The assigned/unassigned
-primitive spy, production-owner receipt test, and two Schedule-D integration
-fixtures pass with fit and BLAS widths pinned to one. Broader suite and static
-verification remain. The user-provided `_WIRING-CONTINUATION.md` is still
-untracked and untouched; no 1% build will run locally.
+separately reachable in the later derive stage. Three independent audits found
+no missing caller or scope leak; the four load-bearing fixtures and all 110 ACS
+transfer/calibration/Schedule-D kernel tests pass with fit and BLAS widths
+pinned to one. Full Ruff, explicitly unfrozen lock freshness, changed-file
+formatting, diff integrity, and the empty `lastfailed` cache pass. Runtime and
+tests remain identical to the implementation tree covered by the committed
+green full-suite and guarded replay. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched; no 1% build ran.
 
 ## Done
 
@@ -292,10 +294,18 @@ untracked and untouched; no 1% build will run locally.
 - Confirmed runtime, tests, dependencies, and lock remain byte-identical to
   implementation commit `51054801`; later commits through this audit are
   journals and reports only.
+- Completed three fresh independent read-only audits of the pkg3 precedent,
+  default production call graph, exact target inventory, fixture strength, and
+  Schedule-D path. All found the committed wiring complete and target-exact.
+- Replayed the complete 110-test ACS transfer, calibration-kernel, and
+  Schedule-D-kernel set with all fit/BLAS widths pinned to one; all passed.
+- Re-ran full Ruff, explicitly unfrozen `uv lock --check`, Ruff formatting on
+  all 17 branch-changed Python files, `git diff --check`, and the pytest
+  `lastfailed` check; all passed. The only untracked file is the untouched
+  user-provided continuation brief.
 
 ## Next
 
-- Run the complete ACS transfer/calibration/Schedule-D modules, static checks,
-  and the full repository suite under the charter's resource constraints.
-- Update this journal and `FINAL_REPORT.md` with current terminal evidence,
-  then leave the frozen 1% comparison to the host.
+- Host: run the frozen default-stacked 1% branch build, compare it with the
+  existing `origin/main` 1% baseline, and adjudicate the assigned failure-set
+  delta. Do not use the retiring `--legacy-two-spine` compatibility flag.
