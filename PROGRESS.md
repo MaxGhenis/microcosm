@@ -2,12 +2,12 @@
 
 ## State
 
-The 2026-08-21 continuation audit is verified through `eacdfd8c`. Fresh direct
-tracing and three independent reviews confirm that implementation `51054801`
-reaches the default stacked build for exactly the assigned target set. Fresh
-load-bearing/module tests and all static gates are green; the exact guarded
-full-suite receipt remains bound to the byte-identical current code/test tree.
-`FINAL_REPORT.md` is being refreshed for host handoff. The user-provided
+The 2026-08-21 continuation audit is complete through report commit `7fb5d738`.
+Fresh direct tracing and three independent reviews confirm that implementation
+`51054801` reaches the default stacked build for exactly the assigned target
+set. Fresh load-bearing/module tests and all static gates are green; the exact
+guarded full-suite receipt remains bound to the byte-identical current
+code/test tree. `FINAL_REPORT.md` is current for host handoff. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
 build ran locally.
 
@@ -60,6 +60,10 @@ build ran locally.
   pass and `lastfailed` is `{}`. The first formatting invocation placed `-z`
   after the pathspec and treated all paths as one filename; the corrected
   null-delimited invocation passed with all 17 files already formatted.
+- Refreshed and committed `FINAL_REPORT.md` at `7fb5d738` with the current
+  production trace, checkpoint/logging clarification, three-review verdict,
+  fresh guarded replays, bound full-suite receipt, unchanged frozen comparator
+  contract, and host-only 1% handoff.
 
 - Read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected the
   branch and worktree, and preserved the user-owned untracked continuation
