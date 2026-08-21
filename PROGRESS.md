@@ -6,8 +6,9 @@ The fresh 2026-08-21 source audit is complete. The host's zero-effect/no-caller
 evidence describes unwired `51054801^`; current production wiring is the later
 commit `51054801`. Three independent reviews re-established the default stacked
 call path, exact 20-target selection, separate Schedule-D parent handoff, and
-load-bearing regressions without finding a scope or invocation defect. Current
-module/full-suite verification is in progress. The user-provided
+load-bearing regressions without finding a scope or invocation defect. The
+current relevant-module and guarded full-suite replays are green; static,
+lock, and frozen-policy gates remain. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
 build will run locally.
 
@@ -44,6 +45,29 @@ build will run locally.
 - Three independent read-only reviews found no blocking default-path defect.
   One review replayed nine expanded load-bearing cases successfully. A separate
   replay of the four slow tool-entrypoint cases passed in 342.35 seconds.
+- Replayed all 110 tests across ACS transfer, its calibration primitives, and
+  the preservation-specific Schedule-D kernel with fit/BLAS widths pinned to
+  one, pytest cache disabled, and a 14 GiB live RSS guard. All 110 passed in
+  21.04 test seconds; maximum root RSS was 600,440,832 bytes.
+- Replayed the exact 263-file tracked manifest (SHA-256
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`)
+  in fresh interpreters under the same width constraints and a 14 GiB live
+  root-RSS guard. Results were 6,549 passed, 74 skipped, zero failures, zero
+  errors, and exactly two explicit full-donor cache-probe deselections; no
+  guard event occurred.
+- Maximum full-suite RSS was 11,843,141,632 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below both the 14 GiB guard
+  and 15 GiB order. The 263 JUnit receipts are in
+  `/private/tmp/pkg1-suite-current-retry-42c471aa`; their ordered aggregate
+  SHA-256 is
+  `7a60dc30fffb02c54030f405f7158ef377e06e0c19f90c706659fed72eb8c6cb`.
+- The two deselections were
+  `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`; each
+  independently loads the mounted 3.73 GB SIPP donor and cannot run inside the
+  lane ceiling. Every other test in both files passed. A platform-only
+  PostgreSQL module recorded its ordinary collection skip because `pgserver`
+  is not installed.
 
 - Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
   the worktree and branch history, and preserved the user-owned untracked
@@ -850,7 +874,6 @@ build will run locally.
 
 ## Next
 
-- Run the complete relevant modules, resource-constrained full suite, static
-  gates, lock check, frozen-policy comparison, and clean-tree audit. Then
-  refresh `FINAL_REPORT.md`, commit the final journal state, and hand the frozen
-  1% comparison back to the host.
+- Run static gates, lock check, frozen-policy comparison, and clean-tree audit.
+  Then refresh `FINAL_REPORT.md`, commit the final journal state, and hand the
+  frozen 1% comparison back to the host.
