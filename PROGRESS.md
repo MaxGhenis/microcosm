@@ -2,12 +2,13 @@
 
 ## State
 
-The current source audit at `d2a0c301` confirms that implementation commit
-`51054801` already closes the host-reported pre-wiring gap. The live
-`acs_transfer.py` imports and invokes the PUF-tax kernels after both QRF decode
-modes and before null-only fill; default-empty exact owner selections prevent
-unassigned activation. The canonical early and late surfaces partition all 20
-assigned targets into 7 and 13 targets with no overlap, omission, or extra.
+The continuation is complete through host-report commit `44e06476`.
+Implementation commit `51054801` closes the host-reported pre-wiring gap. The
+live `acs_transfer.py` imports and invokes the PUF-tax kernels after both QRF
+decode modes and before null-only fill; default-empty exact owner selections
+prevent unassigned activation. The canonical early and late surfaces partition
+all 20 assigned targets into 7 and 13 targets with no overlap, omission, or
+extra.
 Schedule-D clone-0 roles reach the preservation-specific parent reconciler
 through the prepared derive frame. All 10 load-bearing fixture cases pass under
 a 14 GiB guard at 1,146,896,384 bytes maximum root RSS. The full permitted
@@ -15,19 +16,19 @@ a 14 GiB guard at 1,146,896,384 bytes maximum root RSS. The full permitted
 exactly 2 documented mounted-SIPP cache probes deselected, and an
 11,845,337,088-byte maximum root RSS. Full Ruff, changed-file formatting,
 explicitly unfrozen lock freshness, and diff gates also pass. `FINAL_REPORT.md`
-is being refreshed for the host handoff. The user-provided
+is committed and current for the host handoff. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
 build ran locally.
 
 ## Done
 
-- Replayed the eight load-bearing nodes with all fit/BLAS widths pinned to one
-  and pytest's cache disabled. All eight passed, including three terminal-state
-  entrypoint variants and the checkpoint-resume handoff; maximum monitored root
-  RSS was 1,626,488,832 bytes.
+- Replayed 10 parameterized load-bearing cases with all fit/BLAS widths pinned
+  to one and pytest's cache disabled. All 10 passed, including three
+  terminal-state entrypoint variants and the checkpoint-resume handoff;
+  maximum monitored root RSS was 1,146,896,384 bytes.
 - Replayed the complete ACS transfer, calibration-kernel, and Schedule-D
-  reconciliation modules. All 110 tests reached 100% and exited zero at
-  602,849,280 bytes maximum monitored root RSS.
+  reconciliation modules. All 110 tests reached 100% and exited zero inside
+  the exhaustive replay at 602,537,984 bytes maximum monitored root RSS.
 - Replayed the exact 263-file tracked manifest with SHA-256
   `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`.
   Every accepted file ran in a fresh interpreter under a 14 GiB live root-RSS
@@ -40,7 +41,7 @@ build ran locally.
   independently parses the locally mounted 3.73 GB SIPP CSV. A fresh isolated
   attempt of the vehicle node crossed the conservative 14.5 GiB cutoff before
   completing and was terminated; all other tests in both files passed.
-- Maximum accepted root RSS was 11,899,813,888 bytes in
+- Maximum accepted root RSS was 11,845,337,088 bytes in
   `packages/microcosm-data/tests/test_loader.py`, below both the 14 GiB replay
   guard and 15 GiB charter ceiling. The complete 73-test QRF, 73-test ACS
   transfer, 18-test calibration, 19-test Schedule-D, 72-test multispine pool,
@@ -606,7 +607,11 @@ build ran locally.
   The first Ruff attempt hit uv's sandbox-denied home cache and the first lock
   attempt inherited `UV_FROZEN=1`; clean retries used a writable temporary
   cache and removed that environment override before recording success.
+- Refreshed and committed `FINAL_REPORT.md` at `44e06476` with the live wiring
+  trace, guarded test evidence, unchanged frozen gates, and host handoff.
 
 ## Next
 
-- Refresh and commit `FINAL_REPORT.md`; leave the frozen 1% build to the host.
+- Host only: run the frozen 1% build with the default stacked pipeline (do not
+  pass `--legacy-two-spine`) and diff its assigned failure set against the
+  existing `origin/main` 1% baseline.
