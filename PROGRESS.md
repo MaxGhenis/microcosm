@@ -2,19 +2,51 @@
 
 ## State
 
-The 2026-08-21 continuation audit at `90d0f1e7` confirms that the live branch
-already contains the requested scoped production wiring and load-bearing
-regressions. Both QRF execution modes converge on the selected-only calibration
-seam; the canonical default-stacked owners partition all 20 assigned targets
+The 2026-08-21 continuation audit and verification at `4fd3ca0c` confirm that
+the live branch contains the requested scoped production wiring and
+load-bearing regressions. Both QRF execution modes converge on the selected-only
+calibration seam; the default-stacked owners partition all 20 assigned targets
 into 7 early and 13 late targets with no overlap or omission; and the
-preservation-specific Schedule-D parent reconciliation is reached later through
-the prepared derive handoff. No implementation repair is required. Focused and
-full resource-bounded verification remain active. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
-build will run locally.
+preservation-specific Schedule-D parent reconciliation is reached through the
+prepared derive handoff. The 8 load-bearing nodes, complete 110-test focused
+set, and exact 263-file resource-isolated replay pass. The replay recorded 6,549
+passed, 74 skipped, exactly 2 documented mounted-SIPP cache-only deselections,
+and an 11,899,813,888-byte maximum root RSS. All static, format, lock, diff, and
+cache gates pass. `FINAL_REPORT.md` is being refreshed for the host handoff.
+The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+continuation 1% build ran.
 
 ## Done
 
+- Replayed the eight load-bearing nodes with all fit/BLAS widths pinned to one
+  and pytest's cache disabled. All eight passed, including three terminal-state
+  entrypoint variants and the checkpoint-resume handoff; maximum monitored root
+  RSS was 1,626,488,832 bytes.
+- Replayed the complete ACS transfer, calibration-kernel, and Schedule-D
+  reconciliation modules. All 110 tests reached 100% and exited zero at
+  602,849,280 bytes maximum monitored root RSS.
+- Replayed the exact 263-file tracked manifest with SHA-256
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`.
+  Every accepted file ran in a fresh interpreter under a 14 GiB live root-RSS
+  guard with constrained execution widths. Aggregated JUnit counts were 6,549
+  passed, 74 skipped, zero failures, and zero errors; all 263 files have a
+  passing receipt and no accepted guard event occurred.
+- The two explicit deselections were
+  `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`. Each
+  independently parses the locally mounted 3.73 GB SIPP CSV. A fresh isolated
+  attempt of the vehicle node crossed the conservative 14.5 GiB cutoff before
+  completing and was terminated; all other tests in both files passed.
+- Maximum accepted root RSS was 11,899,813,888 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below both the 14 GiB replay
+  guard and 15 GiB charter ceiling. The complete 73-test QRF, 73-test ACS
+  transfer, 18-test calibration, 19-test Schedule-D, 72-test multispine pool,
+  155-test pool-tool, 231-test stacked-spine, and 495-test source-blindness
+  modules all passed inside the replay.
+- Ran full Ruff, an explicitly unfrozen `uv lock --check`, Ruff formatting
+  checks on all 17 branch-changed Python files, `git diff --check`, and the
+  pytest `lastfailed` check. All pass; `lastfailed` is `{}` and no tracked
+  working-tree change remains.
 - Attempted the GitNexus workflow after `gitnexus status` reported no index.
   The analyzer could not write its sandboxed global registry; the lingering
   process was stopped and its two-file partial local index was moved intact to
@@ -521,9 +553,7 @@ build will run locally.
 
 ## Next
 
-- Run the load-bearing and complete focused modules with constrained execution
-  widths, then replay the full tracked suite within the 15 GiB ceiling.
-- Run Ruff, lock, format, diff, and pytest-cache gates; update
-  `FINAL_REPORT.md` and this journal with current evidence.
+- Refresh and commit `FINAL_REPORT.md`, then verify the final branch status and
+  hand the frozen 1% comparison back to the host.
 - Host only: run the frozen 1% build through the default stacked pipeline and
   diff the assigned failures against the existing `origin/main` baseline.
