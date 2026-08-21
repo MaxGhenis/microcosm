@@ -12,15 +12,14 @@ deterministic Schedule-D leaf is produced.
 
 The final 2026-08-21 source tracing pass and three independent read-only
 reviews found no missing production caller or unassigned-target leak in the
-current tree.
-The canonical transfer surfaces partition the frozen policy into 7 early and
-13 late targets, with zero overlap and zero omission. Direct history inspection
-confirms the earlier identical 127-line host comparison describes the tree
-before `51054801`; that predecessor has no calibration import or selector,
-while the current default-stacked path contains the production call. No
-comparator band, incidence threshold, QED ceiling, quantile, seed, fold, or
-comparator changed. No continuation 1% build ran; the host retains that frozen
-comparison.
+current tree. The canonical transfer surfaces partition the frozen policy into
+7 early and 13 late targets, with zero overlap, omission, or unassigned extra.
+Direct history inspection confirms the earlier identical 127-line host
+comparison describes the tree before `51054801`; that predecessor has no
+calibration import or selector, while the current default-stacked path contains
+the production call. No comparator band, incidence threshold, QED ceiling,
+quantile, seed, fold, or comparator changed. No continuation 1% build ran; the
+host retains that frozen comparison.
 
 ## Production wiring
 
@@ -55,6 +54,14 @@ comparison.
   production parent mutation contract.
 - The retiring explicit `--legacy-two-spine` compatibility route remains
   outside this default-stacked remedy.
+- Cold and assembled-resume builds execute both scoped ACS transfer stages and
+  the Schedule-D derive stage. Transferred and simulated resumes intentionally
+  authenticate persisted post-transfer/post-derive frames rather than rerun
+  completed kernels.
+- The ACS calibration seam emits nested reconciliation receipts, not console
+  log lines. A build log containing no textual "calibration" line therefore
+  does not demonstrate non-execution; inspect the target receipts and resume
+  stage instead.
 
 ## Load-bearing regressions
 
@@ -85,12 +92,12 @@ frame can no longer remain green.
 ## Verification
 
 - Final eight-test-function load-bearing replay: 10 parameterized cases passed
-  at 1,064,779,776 bytes maximum monitored root RSS. It covers imported-kernel
+  at 1,154,236,416 bytes maximum monitored root RSS. It covers imported-kernel
   invocation, same-family unassigned non-invocation, exact early and late owner
   references, Schedule-D role production and consumption/preservation, all
   three terminal entrypoint states, and checkpoint resume.
 - Final complete ACS transfer, calibration-kernel, and Schedule-D-kernel
-  modules: 110 passed at 601,849,856 bytes
+  modules: 110 passed at 600,391,680 bytes
   maximum monitored root RSS.
 - The complete 155-test multispine tool module passed inside the fresh
   exhaustive replay at 1,815,429,120 bytes maximum monitored root RSS.
@@ -141,6 +148,9 @@ user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched.
 - `2881edb9` — reopen the final continuation audit.
 - `156557a1` — record final scoped wiring and regression verification.
 - `7434737d` — record final static and lock gate replay.
+- `980dc407` — reopen the current host continuation audit.
+- `eacdfd8c` — record the current scoped source/entrypoint audit.
+- `a7c13db0` — record the current guarded verification and static gates.
 
 ## Host handoff
 
