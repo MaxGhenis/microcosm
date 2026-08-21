@@ -2,16 +2,22 @@
 
 ## State
 
-The 2026-08-21 wiring continuation is complete through report commit
-`e5858389`. The host's identical 127-line 1% failure set accurately describes
-unwired `51054801^`, while the current production tree contains the later
-wiring in `51054801`. Direct tracing, three independent reviews, 110 relevant
-module tests, the resource-compliant suite, and all static gates find that
-wiring load-bearing and exactly scoped. `FINAL_REPORT.md` is current for host
-handoff. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
-untouched. No continuation 1% build ran locally.
+The 2026-08-21 wiring continuation has been reopened for a fresh audit from
+current `HEAD` after the host reiterated the zero-effect/no-caller evidence.
+The historical journal says wiring was added after the tree tested by the host;
+that claim is not being accepted as current evidence until the live production
+call path, exact target scope, and load-bearing regression are re-established.
+The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+continuation 1% build will run locally.
 
 ## Done
+
+- Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
+  the current branch/worktree, and preserved the user-owned untracked
+  continuation brief. GitNexus graph resources are unavailable in this
+  session, so direct source and named-commit tracing are the active fallback.
+- Reopened and committed this current-state journal before any production or
+  test edit, per the standing order.
 
 - Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
   the worktree and branch history, and preserved the user-owned untracked
@@ -818,7 +824,8 @@ untouched. No continuation 1% build ran locally.
 
 ## Next
 
-- Host only: run the frozen 1% build from the final current commit with the
-  default stacked pipeline (do not pass `--legacy-two-spine`), diff the assigned
-  failure set against the existing `origin/main` baseline, and inspect the
-  PUF-tax plus Schedule-D reconciliation receipts.
+- Locate and compare pkg3's named scoped-binding precedent, then trace the live
+  default ACS and Schedule-D paths from their production owners into the
+  calibration kernels. Repair any scope or invocation gap, make the wiring
+  regression load-bearing, run the resource-constrained suite and static gates,
+  then refresh `FINAL_REPORT.md` and close this journal for host handoff.
