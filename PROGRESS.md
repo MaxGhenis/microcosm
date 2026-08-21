@@ -11,9 +11,11 @@ assigned targets into 7 and 13 targets with no overlap, omission, or extra.
 Schedule-D clone-0 roles reach the preservation-specific parent reconciler
 through the prepared derive frame. All 10 load-bearing fixture cases pass under
 a 14 GiB guard at 1,146,896,384 bytes maximum root RSS. The full permitted
-suite replay is next; earlier full-suite claims below remain historical evidence
-until replayed. The user-provided `_WIRING-CONTINUATION.md` remains untracked
-and untouched. No continuation 1% build will run locally.
+263-file replay is green with 6,549 passed, 74 skipped, zero failures/errors,
+exactly 2 documented mounted-SIPP cache probes deselected, and an
+11,845,337,088-byte maximum root RSS. Static and lock gates are next. The
+user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+continuation 1% build will run locally.
 
 ## Done
 
@@ -580,8 +582,25 @@ and untouched. No continuation 1% build will run locally.
   both late-owner references; Schedule-D role production and parent-kernel
   consumption/preservation; all three terminal tool states; and checkpoint
   resume. All passed at 1,146,896,384 bytes maximum root RSS with no guard event.
+- Replayed the exact 263-file tracked test manifest from a fresh receipt at
+  `/private/tmp/pkg1-wiring-suite.p1I5ZN/receipt.jsonl`; its SHA-256 is
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`.
+  Every file ran in a fresh interpreter with fit/BLAS widths pinned to one,
+  pytest's cache disabled, and a 14 GiB root-RSS guard. Aggregated results were
+  6,549 passed, 74 skipped, zero failures, and zero errors; no guard fired.
+- The maximum fresh root RSS was 11,845,337,088 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below both the 14 GiB guard
+  and 15 GiB charter ceiling. The complete 73-test fit QRF, 73-test ACS
+  transfer, 18-test calibration-kernel, 19-test Schedule-D, 72-test multispine
+  pool, 155-test pool-tool, 231-test stacked-spine, and 495-test
+  source-blindness modules all passed inside this replay.
+- The only deselections were the two previously documented cache probes
+  `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`. Each
+  independently parses the locally mounted 3.73 GB SIPP donor and exceeds this
+  lane's memory ceiling; every other test in both files passed.
 
 ## Next
 
-- Run the full permitted suite under the 15 GiB ceiling, refresh
-  `FINAL_REPORT.md`, and leave the frozen 1% build to the host.
+- Run full Ruff, format, lock-freshness, and diff gates; refresh
+  `FINAL_REPORT.md`; leave the frozen 1% build to the host.
