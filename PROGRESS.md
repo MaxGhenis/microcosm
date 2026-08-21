@@ -234,6 +234,14 @@ changed, no continuation build ran, and the host owns the next 1% comparison.
 - Updated the terminal `FINAL_REPORT.md`. The only untracked file remains the
   user-provided `_WIRING-CONTINUATION.md`, preserved byte-for-byte and excluded
   from every commit.
+- Revalidated the terminal implementation at pre-audit tip `a9d930ef` with
+  three independent read-only reviews covering the exact early/late production
+  scope, the load-bearing assigned-versus-unassigned invocation regression,
+  and the Schedule-D derive path. All three found no blocking wiring or runtime
+  scope defect. Replayed the four load-bearing fixtures and the complete
+  110-test ACS transfer/calibration/Schedule-D set; both exited zero. Full
+  Ruff, explicitly unfrozen lock freshness, and `git diff --check` also pass.
+  No 1% build ran.
 
 ## Next
 

@@ -61,6 +61,9 @@ default stacked remedy.
 
 ## Verification
 
+- Three independent final read-only audits found no blocking production-scope,
+  wiring-regression, or Schedule-D/reporting defect at pre-audit tip
+  `a9d930ef`.
 - Four load-bearing assigned/unassigned and Schedule-D wiring fixtures: pass.
 - Current replay of the complete ACS transfer, calibration-kernel, and
   Schedule-D-kernel modules: 110 tests pass with fit/BLAS widths pinned to one.
@@ -95,7 +98,7 @@ in the green monolithic run. No local build or 1% comparison was launched. The
 repository-wide format audit also lists 49 pre-existing unrelated files; they
 were not changed.
 
-## Commits
+## Key commits
 
 - `56fd9bf6` — add sign-aware calibration primitives.
 - `974f36c3` — bound exact QRF leaf storage.
