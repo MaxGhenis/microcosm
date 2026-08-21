@@ -14,6 +14,19 @@ and untouched. No continuation 1% build will run locally.
 
 ## Done
 
+- Confirmed the host's zero-caller observation against `51054801^`: that tree
+  has no `acs_transfer_calibration` import or `calibration_targets` binding.
+  The live tree imports all three primitives and invokes the selected-only
+  calibration seam after both decoded QRF modes and before null-only fill.
+- Evaluated the live canonical owner surfaces against the frozen policy. All
+  20 assigned transfer targets are reachable as 7 early and 13 late targets,
+  with zero overlap, omission, or unassigned extra.
+- Replayed the eight load-bearing test functions (10 parameterized cases) under
+  a 14 GiB root-RSS guard with all fit/BLAS widths pinned to one and pytest's
+  cache disabled. Assigned invocation, same-batch unassigned preservation,
+  early and both late reference owners, Schedule-D role production and kernel
+  consumption, three terminal states, and checkpoint resume all passed; peak
+  monitored root RSS was 1,194,409,984 bytes with no guard event.
 - Reopened the continuation on 2026-08-21 at `47b22df0`, read `CLAUDE.md` and
   the complete GitNexus exploration workflow, inspected the branch/worktree,
   and preserved the user-owned untracked continuation brief. GitNexus MCP
