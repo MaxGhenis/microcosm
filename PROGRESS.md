@@ -12,8 +12,8 @@ prepared derive handoff. The 8 load-bearing nodes, complete 110-test focused
 set, and exact 263-file resource-isolated replay pass. The replay recorded 6,549
 passed, 74 skipped, exactly 2 documented mounted-SIPP cache-only deselections,
 and an 11,899,813,888-byte maximum root RSS. All static, format, lock, diff, and
-cache gates pass. `FINAL_REPORT.md` is being refreshed for the host handoff.
-The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+cache gates pass. `FINAL_REPORT.md` contains the current host handoff. The
+user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
 continuation 1% build ran.
 
 ## Done
@@ -553,7 +553,5 @@ continuation 1% build ran.
 
 ## Next
 
-- Refresh and commit `FINAL_REPORT.md`, then verify the final branch status and
-  hand the frozen 1% comparison back to the host.
 - Host only: run the frozen 1% build through the default stacked pipeline and
   diff the assigned failures against the existing `origin/main` baseline.

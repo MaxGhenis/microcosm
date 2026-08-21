@@ -10,14 +10,14 @@ targets (15 carrier checks and 23 conditional-amount checks, representing all
 kernel executes later in the mandatory default-stacked derive path, before the
 deterministic Schedule-D leaf is produced.
 
-Fresh source tracing plus three independent reviews found no missing production
-caller or unassigned-target leak in the current tree. The canonical transfer
-surfaces partition the frozen policy into 7 early and 13 late targets, with
-zero overlap and zero omission. The earlier identical 127-line host comparison
-therefore describes the pre-wiring tree; the current default-stacked path now
-contains the production call. No comparator band, incidence threshold, QED
-ceiling, quantile, seed, fold, or comparator changed. No continuation 1% build
-ran; the host retains that frozen comparison.
+Fresh 2026-08-21 source tracing plus three independent reviews found no missing
+production caller or unassigned-target leak in the current tree. The canonical
+transfer surfaces partition the frozen policy into 7 early and 13 late targets,
+with zero overlap and zero omission. The earlier identical 127-line host
+comparison therefore describes the pre-wiring tree; the current default-stacked
+path now contains the production call. No comparator band, incidence threshold,
+QED ceiling, quantile, seed, fold, or comparator changed. No continuation 1%
+build ran; the host retains that frozen comparison.
 
 ## Production wiring
 
@@ -29,6 +29,11 @@ ran; the host retains that frozen comparison.
   calibrate copies for selected targets only, then perform the existing
   null-only recipient fill. Raw chain priors, bank checkpoints, native cells,
   zero-weight draws, and unassigned siblings remain unchanged.
+- The actual PUF-tax production calls import `allocate_weighted_signs`,
+  `select_weighted_binary_carriers`, and
+  `map_sign_preserving_weighted_magnitudes` from
+  `acs_transfer_calibration.py`; their reconciliation receipts are attached
+  only to selected target receipts.
 - The stacked early and late owners derive exact active selections and bind
   caller-owned opaque recipient scopes plus target-specific frozen references.
   Family names and bounded-batch suffixes never grant calibration authority.
@@ -41,6 +46,10 @@ ran; the host retains that frozen comparison.
   `reconcile_schedule_d_joint_parents`, removes the role marker, preserves the
   long-term parent byte-for-byte and the weighted direct-parent distribution,
   then derives `schedule_d_capital_gain_distributions`.
+- Schedule-D deliberately uses the separate preservation-specific
+  `reconcile_schedule_d_joint_parents` kernel. The generic four-state allocator
+  in `acs_transfer_calibration.py` remains a primitive/test seam, not the
+  production parent mutation contract.
 - The retiring explicit `--legacy-two-spine` compatibility route remains
   outside this default-stacked remedy.
 
@@ -72,28 +81,31 @@ frame can no longer remain green.
 
 ## Verification
 
-- Fresh four-test replay of the load-bearing assigned/unassigned,
-  production-owner, and Schedule-D fixtures: 4 passed in 4.96 seconds at
-  606,699,520 bytes peak RSS.
-- Fresh three-variant replay of the default stacked tool handoff fixture: 3
-  passed in 33.93 seconds; every applicable derive call received the exact
-  most-recently prepared Schedule-D role frame.
+- Fresh eight-node load-bearing replay: 8 passed at 1,626,488,832 bytes
+  maximum monitored root RSS. It covers imported-kernel invocation,
+  same-family unassigned non-invocation, production-owner exact selection,
+  derive dispatch, Schedule-D role consumption/preservation, three terminal
+  entrypoint states, and checkpoint resume.
 - Fresh complete ACS transfer, calibration-kernel, and Schedule-D-kernel
-  replay: 110 passed in 6.58 seconds at 601,145,344 bytes peak RSS.
+  replay: 110 passed at 602,849,280 bytes maximum monitored root RSS.
 - The complete 155-test multispine tool module passed inside the exhaustive
-  replay at 1,816,297,472 bytes maximum sampled aggregate RSS.
+  replay at 1,690,484,736 bytes maximum monitored root RSS.
 - Exact 263-file test manifest
   `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`:
-  6,549 passed, 74 skipped, and 2 explicitly deselected cache-only nodes. Every
-  file exited zero in a fresh process with fit/BLAS widths pinned to one and a
-  14 GiB live aggregate process-group guard. There were zero failures and zero
-  guard events. The maximum sampled aggregate RSS was 11,495,079,936 bytes in
-  `packages/microcosm-data/tests/test_loader.py`, below both 14 and 15 GiB.
+  6,549 passed, 74 skipped, zero failures/errors, and 2 explicitly deselected
+  cache-only nodes. All 263 files have a passing JUnit receipt from a fresh
+  process with fit/BLAS widths pinned to one and a 14 GiB live root-RSS guard;
+  there were zero accepted guard events. Maximum fresh monitored root RSS was
+  11,899,813,888 bytes in `packages/microcosm-data/tests/test_loader.py`, below
+  both 14 and 15 GiB. The runtime/test tree is byte-identical to the earlier
+  process-group-guarded evidence at `65c6be05`, which independently recorded an
+  11,495,079,936-byte aggregate maximum.
 - The two deselections were the vehicle-support and voluntary-filing checks
-  that each parse the locally mounted 3.73 GB SIPP donor. Earlier 14 GiB
-  guarded attempts could not complete those cache probes; all other tests in
-  both files passed. The earlier green monolithic suite covered both nodes, but
-  its 27,285,979,136-byte peak is not accepted as resource-compliant evidence.
+  that each independently parses the locally mounted 3.73 GB SIPP donor. A
+  fresh isolated vehicle-node attempt crossed the conservative 14.5 GiB cutoff
+  before completion and was terminated; all other tests in both files passed.
+  The earlier green monolithic suite covered both cache nodes, but its
+  27,285,979,136-byte peak is not accepted as resource-compliant evidence.
 - Full `ruff check .`: pass.
 - Explicitly unfrozen `uv lock --check`: pass.
 - Ruff formatting for all 17 branch-changed Python files: pass.
@@ -117,6 +129,9 @@ regression in `test_us_multispine_pool_tool.py`. The user-provided
 - `e7483515` — reopen the current ACS wiring verification.
 - `7ea2135b` — record the current scoped production-path audit.
 - `65c6be05` — record the current guarded 263-file replay.
+- `90d0f1e7` — reopen the 2026-08-21 continuation audit.
+- `4fd3ca0c` — record the fresh scoped production-path audit.
+- `9986ecf1` — record the fresh guarded wiring verification.
 
 ## Host handoff
 
