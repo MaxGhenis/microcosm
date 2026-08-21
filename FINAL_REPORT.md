@@ -84,30 +84,31 @@ frame can no longer remain green.
 ## Verification
 
 - Fresh eight-test-function load-bearing replay: 10 parameterized cases passed
-  at 1,146,896,384 bytes maximum monitored root RSS. It covers imported-kernel
+  at 1,194,409,984 bytes maximum monitored root RSS. It covers imported-kernel
   invocation, same-family unassigned non-invocation, exact early and late owner
   references, Schedule-D role production and consumption/preservation, all
   three terminal entrypoint states, and checkpoint resume.
 - Fresh complete ACS transfer, calibration-kernel, and Schedule-D-kernel
-  modules: 110 passed inside the exhaustive replay, at 602,537,984 bytes
+  modules: 110 passed at 601,669,632 bytes
   maximum monitored root RSS.
-- The complete 155-test multispine tool module passed inside the exhaustive
-  replay at 1,692,549,120 bytes maximum monitored root RSS.
+- The complete 155-test multispine tool module passed inside the fresh
+  exhaustive replay at 1,815,429,120 bytes maximum monitored root RSS.
 - Exact 263-file test manifest
   `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`:
   6,549 passed, 74 skipped, zero failures/errors, and 2 explicitly deselected
   cache-only nodes. All 263 files have a passing JUnit receipt from a fresh
   process with fit/BLAS widths pinned to one and a 14 GiB live root-RSS guard;
   there were zero accepted guard events. Maximum fresh monitored root RSS was
-  11,845,337,088 bytes in `packages/microcosm-data/tests/test_loader.py`, below
+  12,049,039,360 bytes in `packages/microcosm-data/tests/test_loader.py`, below
   both 14 and 15 GiB. The fresh receipt is
-  `/private/tmp/pkg1-wiring-suite.p1I5ZN/receipt.jsonl`.
+  `/private/tmp/pkg1-wiring-suite-current.lqh0cU/receipt.jsonl`, SHA-256
+  `d86159eec7cec6bf7ecf95c05f8ae825397f005d1447896f152796aac1564a96`.
 - The two deselections were the vehicle-support and voluntary-filing checks
-  that each independently parses the locally mounted 3.73 GB SIPP donor. A
-  fresh isolated vehicle-node attempt crossed the conservative 14.5 GiB cutoff
-  before completion and was terminated; all other tests in both files passed.
-  The earlier green monolithic suite covered both cache nodes, but its
-  27,285,979,136-byte peak is not accepted as resource-compliant evidence.
+  that each independently parses the locally mounted 3.73 GB SIPP donor and
+  cannot execute within this lane's memory ceiling; all other tests in both
+  files passed. The earlier green monolithic suite covered both cache nodes,
+  but its 27,285,979,136-byte peak is not accepted as resource-compliant
+  evidence.
 - Full `ruff check .`: pass.
 - Explicitly unfrozen `uv lock --check`: pass.
 - Ruff formatting for all 17 branch-changed Python files: pass.
@@ -115,8 +116,9 @@ frame can no longer remain green.
 - Pytest `lastfailed` cache: `{}`.
 
 Runtime, dependencies, and lock are unchanged after implementation commit
-`51054801`; the only later Python change is the 21-line Schedule-D handoff
-regression in `test_us_multispine_pool_tool.py`. The user-provided
+`51054801`; the only later Python changes are the Schedule-D handoff fixture
+hardenings at `7298590f` and `86f9dfcd`. All Python is byte-identical to the
+guarded evidence commit `afbc80aa`. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched.
 
 ## Key commits
@@ -128,16 +130,12 @@ regression in `test_us_multispine_pool_tool.py`. The user-provided
 - `7298590f` — pin the Schedule-D prepare-to-derive handoff.
 - `86f9dfcd` — support repeated cold/resumed handoffs in that fixture.
 - `afbc80aa` — record the guarded full-suite replay.
-- `e7483515` — reopen the current ACS wiring verification.
-- `7ea2135b` — record the current scoped production-path audit.
-- `65c6be05` — record the current guarded 263-file replay.
-- `90d0f1e7` — reopen the 2026-08-21 continuation audit.
-- `4fd3ca0c` — record the fresh scoped production-path audit.
-- `9986ecf1` — record the fresh guarded wiring verification.
-- `f95234af` — record the current scoped production-path audit.
-- `9772a43d` — record the current load-bearing replay.
-- `83e9e399` — record the current guarded 263-file replay.
-- `50814d1c` — record the current static and lock gates.
+- `ea043838` — reopen this fresh continuation verification.
+- `b457609e` — record the load-bearing wiring replay.
+- `18ce9bc4` — record the complete scoped ACS module replay.
+- `ce081c24` — record three independent wiring audits.
+- `3e93ada6` — record the fresh guarded 263-file replay.
+- `10cc9de9` — record the final static and lock gates.
 
 ## Host handoff
 
