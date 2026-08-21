@@ -12,9 +12,10 @@ Schedule-D reconciliation remains isolated to the subsequent derive stage.
 Fresh load-bearing and complete focused-module verification pass under 0.61 GiB
 RSS. The tool-level fixture now also pins the transient Schedule-D role frame
 across the production prepare-to-derive handoff, closing the only compositional
-wiring gap found in review. The resource-isolated full-suite replay is in
-progress and has passed the modified tool module after a fixture-only resume
-assertion correction.
+assertion gap found in review. The exact 263-file resource-isolated suite replay
+is green: 6,549 passed, 74 skipped, and 2 cache-only mounted-SIPP nodes were
+explicitly deselected; the highest peak was 11,844,042,752 bytes RSS, below 15
+GiB. Final static, lock, diff, and report checks remain.
 The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
 1% build will run.
 
@@ -363,10 +364,28 @@ The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
 - Re-ran the complete 155-test multispine tool module after that correction;
   it reached 100% and exited zero at 1,333,870,592 bytes peak RSS. The broader
   isolated replay will resume from the next file.
+- Completed the exact 263-file manifest replay with SHA-256
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`.
+  Every file exited zero in a fresh process with fit/BLAS widths pinned to one
+  and a 14 GiB live guard. Aggregated results were 6,549 passed, 74 skipped,
+  and 2 explicitly deselected cache-only nodes; collection independently found
+  6,623 runnable items plus the two import/environment skips.
+- The two deselections are
+  `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`. Both parse
+  the locally mounted 3.73 GB SIPP donor and were previously observed unable to
+  complete within this lane's memory ceiling; all other tests in their files
+  passed. No guard fired in the accepted replay.
+- The maximum accepted peak was 11,844,042,752 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below the 15 GiB ceiling.
+  The complete 73-test QRF module, 73-test ACS transfer module, 18-test ACS
+  calibration module, 19-test Schedule-D kernel module, 72-test multispine
+  pool module, 155-test pool-tool module, and 231-test stacked-spine module all
+  passed inside the replay.
 
 ## Next
 
-- Run the required broader suite under the 15 GiB constraint; fix and commit
-  any discovered defect without changing frozen bands.
+- Run full Ruff, explicitly unfrozen lock freshness, changed-file formatting,
+  and diff-integrity checks.
 - Refresh `FINAL_REPORT.md`, commit the terminal journal, and hand the frozen
   1% branch/baseline comparison back to the host.
