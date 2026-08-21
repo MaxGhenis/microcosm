@@ -2,14 +2,14 @@
 
 ## State
 
-The 2026-08-21 wiring continuation is verified through focused fixtures at
-`432a0487`. The host's identical 127-line 1% failure set accurately describes
-`51054801^`, while the current tree contains the later production wiring in
-`51054801`. Direct tracing and three independent reviews find that wiring
-load-bearing and exactly scoped; its focused transfer, owner, and Schedule-D
-fixtures are green. Module and full-suite gates remain before handoff. The
-user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
-continuation 1% build will run locally.
+The 2026-08-21 wiring continuation is verified through complete transfer,
+kernel, and Schedule-D module tests at `1b1a39ae`. The host's identical
+127-line 1% failure set accurately describes `51054801^`, while the current
+tree contains the later production wiring in `51054801`. Direct tracing and
+three independent reviews find that wiring load-bearing and exactly scoped;
+all 110 relevant module tests are green. Full-suite and static gates remain
+before handoff. The user-provided `_WIRING-CONTINUATION.md` remains untracked
+and untouched. No continuation 1% build will run locally.
 
 ## Done
 
@@ -40,6 +40,9 @@ continuation 1% build will run locally.
   same-batch unassigned exclusion, exact stacked-owner binding, and Schedule-D
   role consumption. All 3 passed in 8.71 seconds with fit/BLAS widths pinned to
   one and pytest's cache disabled.
+- Replayed all 110 tests across the ACS transfer, calibration-kernel, and
+  Schedule-D reconciliation modules under the same constrained execution
+  widths with pytest's cache disabled. All 110 passed in 14.99 seconds.
 
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected
   the branch/worktree, and preserved the user-owned untracked continuation
@@ -788,7 +791,6 @@ continuation 1% build will run locally.
 
 ## Next
 
-- Run the complete ACS transfer, calibration-kernel, and Schedule-D modules,
-  then the full suite, lint, lock, and diff gates under the memory ceiling.
+- Run the full suite, lint, lock, and diff gates under the memory ceiling.
 - Update `FINAL_REPORT.md` with fresh evidence and commit the final journal
   state. The host alone will run and diff the frozen 1% build.
