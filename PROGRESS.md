@@ -3,11 +3,14 @@
 ## State
 
 The 2026-08-20 host-requested wiring continuation has been reopened at
-`474d8817` for a fresh live-tree audit. The branch already contains production
-wiring commit `51054801` and its load-bearing regressions, but historical
-completion claims are not being accepted without renewed source and test
-evidence. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
-untouched. No 1% build will run in this continuation.
+`474d8817` for a fresh live-tree audit. Source tracing and three independent
+reviews confirm that production wiring commit `51054801` is present and exact:
+the live policy partitions into 7 early and 13 late targets with no overlap or
+omission, and the Schedule-D parent kernel is reached through the prepared
+derive handoff. The load-bearing core and tool-path fixtures pass. The
+resource-bounded full-suite replay is next. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run
+in this continuation.
 
 ## Done
 
@@ -17,6 +20,31 @@ untouched. No 1% build will run in this continuation.
 - Confirmed that GitNexus query tools are unavailable in this session; direct
   commit, call-site, and source tracing will provide the required fresh
   evidence.
+- Re-read pkg3's named `22b2c6bc` regression and `176c60fc` implementation.
+  The applicable pattern is a default-empty exact `(entity, target)` selector,
+  validation against the requested surface, owner-side active intersection,
+  and selected-only execution/evidence even inside a shared suffixed batch.
+- Traced both QRF modes to the common post-decode/pre-fill calibration seam.
+  Early gap fill and every bounded late-producer group pass exact active keys;
+  the explicit `--legacy-two-spine` compatibility path retains the empty
+  selector and is outside the default stacked remedy.
+- Evaluated the canonical early and late surfaces against the frozen policy:
+  all 20 assigned targets are reachable as 7 early and 13 late targets, with
+  no overlap, omission, or extra target.
+- Confirmed that the default tool calls `prepare_stacked_tail_derivation`, then
+  passes that exact frame to `derive_multispine_pool_inputs`, whose first
+  operator invokes the preservation-specific Schedule-D parent kernel before
+  deriving the leaf.
+- Completed three independent read-only reviews of the pkg3 precedent,
+  production transfer path, exact target inventory, invocation regression, and
+  Schedule-D route. All found the existing wiring complete and scope-exact.
+- Replayed the four core load-bearing fixtures: assigned invocation,
+  same-family unassigned non-invocation, production-owner exact selection,
+  Schedule-D role consumption/preservation, and marker-absent compatibility.
+  All 4 tests passed in 4.96 seconds at 606,699,520 bytes peak RSS.
+- Replayed all three terminal variants of the default stacked tool fixture;
+  the prepared Schedule-D role frame reached derive in every applicable path.
+  All 3 tests passed in 33.93 seconds.
 
 - Ran the required `uv sync --all-packages --extra us`. The default cache was
   denied by the managed filesystem; a retry with a writable cache reached
@@ -432,8 +460,6 @@ untouched. No 1% build will run in this continuation.
 
 ## Next
 
-- Re-read pkg3's named scoped-binding commit and audit the current production
-  call chain, exact assigned-target intersection, and Schedule-D derive seam.
-- Re-run the load-bearing wiring regressions, then the full suite under the
-  stated memory limit; finish the journal and `FINAL_REPORT.md` only after all
-  evidence is current.
+- Run the full suite in resource-isolated shards under the 15 GiB RSS ceiling.
+- Run Ruff, lock freshness, and diff-integrity checks; then finalize the
+  journal and `FINAL_REPORT.md` for the host's frozen 1% rerun.
