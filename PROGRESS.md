@@ -2,20 +2,13 @@
 
 ## State
 
-Continuation complete on branch `battery-pkg1-puf-tax`. Fresh source tracing
-confirms that implementation commit `51054801` wires the imported kernel at the
-shared post-decode, pre-fill transfer seam, with default-empty exact-target
-activation from both stacked production owners. The canonical surfaces
-partition all 20 assigned targets into 7 early and 13 late targets with no
-overlap or omission, while Schedule-D reconciliation remains isolated to the
-subsequent derive stage. The tool-level fixture now also pins the transient
-Schedule-D role frame across the production prepare-to-derive handoff. The
-exact 263-file resource-isolated suite replay is green: 6,549 passed, 74
-skipped, and 2 cache-only mounted-SIPP nodes were explicitly deselected; the
-highest peak was 11,844,042,752 bytes RSS, below 15 GiB. Full Ruff, explicitly
-unfrozen lock freshness, formatting for all 17 branch-changed Python files,
-diff integrity, and the empty `lastfailed` cache pass. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build ran.
+The 2026-08-20 host-requested wiring continuation is open on branch
+`battery-pkg1-puf-tax` at `342876fc`. Earlier commits and journals claim the
+kernel is wired, but those claims are being revalidated against the live
+default production call path, pkg3's scoped-binding precedent, and a
+fixture-scale assigned-versus-unassigned invocation test before they are
+accepted. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
+untouched. No 1% build will run in this continuation.
 
 ## Done
 
@@ -390,6 +383,9 @@ diff integrity, and the empty `lastfailed` cache pass. The user-provided
 
 ## Next
 
-- Host: run the frozen default-stacked 1% branch build, compare it with the
-  existing `origin/main` 1% baseline, and adjudicate the assigned failure-set
-  delta. Do not use the retiring `--legacy-two-spine` compatibility flag.
+- Trace the current default build from both stacked ACS owners through the
+  post-decode transfer seam and Schedule-D derive seam.
+- Compare the exact selector boundary and regression with pkg3 commit
+  `22b2c6bc`; close any scope or invocation gap found.
+- Run focused verification and then the complete suite below 15 GiB RSS,
+  update this journal and `FINAL_REPORT.md`, and commit each coherent step.
