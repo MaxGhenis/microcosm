@@ -2,12 +2,14 @@
 
 ## State
 
-The 2026-08-21 continuation audit is open at `980dc407`. Fresh direct tracing
-and three independent reviews confirm that implementation `51054801` reaches
-the default stacked build for exactly the assigned target set. Load-bearing
-regression and static-gate replay remain in progress. The user-provided
+The 2026-08-21 continuation audit is verified through `eacdfd8c`. Fresh direct
+tracing and three independent reviews confirm that implementation `51054801`
+reaches the default stacked build for exactly the assigned target set. Fresh
+load-bearing/module tests and all static gates are green; the exact guarded
+full-suite receipt remains bound to the byte-identical current code/test tree.
+`FINAL_REPORT.md` is being refreshed for host handoff. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
-build will run locally.
+build ran locally.
 
 ## Done
 
@@ -39,6 +41,25 @@ build will run locally.
   this seam emits nested reconciliation receipts rather than console lines;
   transferred and simulated resumes intentionally authenticate already-
   processed frames instead of rerunning completed stages.
+- Replayed the eight load-bearing test functions (10 parameterized cases) with
+  fit/BLAS widths pinned to one, pytest's cache disabled, and a 14 GiB live RSS
+  guard. All passed; maximum monitored root RSS was 1,154,236,416 bytes and no
+  guard event occurred.
+- Replayed all 110 tests in the ACS transfer, calibration-kernel, and
+  Schedule-D reconciliation modules under the same controls. They reached
+  100%, exited zero, and peaked at 600,391,680 bytes.
+- Revalidated the exact 263-file guarded full-suite receipt against the current
+  manifest and Git objects. The manifest SHA-256 remains
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`,
+  and packages, tools, dependencies, and lock are byte-identical to receipt
+  commit `3e93ada6`. Counts remain 6,549 passed, 74 skipped, zero failures,
+  zero errors, and two documented mounted-SIPP cache probes deselected; maximum
+  accepted RSS was 12,049,039,360 bytes with no guard breach.
+- Ran full Ruff, corrected 17-file Ruff formatting check, explicitly unfrozen
+  lock freshness, `git diff --check`, and the pytest `lastfailed` audit. All
+  pass and `lastfailed` is `{}`. The first formatting invocation placed `-z`
+  after the pathspec and treated all paths as one filename; the corrected
+  null-delimited invocation passed with all 17 files already formatted.
 
 - Read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected the
   branch and worktree, and preserved the user-owned untracked continuation
