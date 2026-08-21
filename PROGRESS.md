@@ -2,16 +2,23 @@
 
 ## State
 
-The 2026-08-21 continuation audit is complete through report commit `7fb5d738`.
-Fresh direct tracing and three independent reviews confirm that implementation
-`51054801` reaches the default stacked build for exactly the assigned target
-set. Fresh load-bearing/module tests and all static gates are green; the exact
-guarded full-suite receipt remains bound to the byte-identical current
-code/test tree. `FINAL_REPORT.md` is current for host handoff. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
-build ran locally.
+The 2026-08-21 wiring continuation is reopened at `3ef6613c`. The host reports
+that its tested tree produced an identical 127-line 1% failure set because the
+calibration kernel had no production caller. This checkout contains a later
+candidate wiring commit (`51054801`), but its live call path, exact scope, and
+load-bearing regression are being re-established from source and fresh tests
+before handoff. The user-provided `_WIRING-CONTINUATION.md` remains untracked
+and untouched. No continuation 1% build will run locally.
 
 ## Done
+
+- Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
+  the worktree and branch history, and preserved the user-owned untracked
+  continuation brief. GitNexus graph resources are unavailable in this
+  session, so direct source and named-commit tracing are the active fallback.
+- Located pkg3's named scoped-binding regression at `22b2c6bc` and the existing
+  candidate pkg1 production wiring at `51054801`; neither historical journal
+  claims nor prior receipts are being treated as current evidence.
 
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected
   the branch/worktree, and preserved the user-owned untracked continuation
@@ -760,6 +767,12 @@ build ran locally.
 
 ## Next
 
-- Host only: run the frozen 1% build with the default stacked pipeline (do not
-  pass `--legacy-two-spine`) and diff its assigned failure set against the
-  existing `origin/main` 1% baseline.
+- Trace pkg3's exact selector pattern and the default stacked ACS production
+  route, then verify or correct the candidate wiring so only the assigned
+  PUF-tax targets and Schedule-D parent can invoke calibration.
+- Add or strengthen a fixture-scale call-recording regression that fails if the
+  assigned production call edge is removed and proves an unassigned sibling is
+  not invoked.
+- Run the focused tests, full suite, lint, lock, and diff gates under the memory
+  ceiling; update `FINAL_REPORT.md`; commit each coherent step. The host alone
+  will run and diff the frozen 1% build.
