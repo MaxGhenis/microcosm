@@ -2,11 +2,12 @@
 
 ## State
 
-The 2026-08-21 continuation audit is reopened at `df2fe2dc`. The branch already
-contains candidate production wiring in `51054801`; fresh source tracing,
-load-bearing regression replay, and the permitted full-suite/static gates are
-in progress. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
-untouched. No continuation 1% build will run locally.
+The 2026-08-21 continuation audit is open at `980dc407`. Fresh direct tracing
+and three independent reviews confirm that implementation `51054801` reaches
+the default stacked build for exactly the assigned target set. Load-bearing
+regression and static-gate replay remain in progress. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
+build will run locally.
 
 ## Done
 
@@ -18,6 +19,26 @@ untouched. No continuation 1% build will run locally.
   the current branch advertises candidate wiring in `51054801`, while the
   continuation audit must still prove that the live default build reaches it
   for assigned targets only.
+- Re-read pkg3 regression `22b2c6bc` and implementation `176c60fc`. The live
+  selector follows the same default-empty exact `(entity, target)`, requested-
+  surface validation, active-target intersection, and selected-only execution
+  pattern, with an additional fail-closed check against the frozen PUF-tax
+  policy.
+- Traced the default CLI through early gap fill and every bounded late-transfer
+  group to the common post-decode/pre-fill calibration seam. The imported
+  primitives are invoked there for both banked and in-memory QRF execution;
+  only explicit `--legacy-two-spine` remains outside the remedy.
+- Evaluated the live target surfaces mechanically: the 20-target frozen policy
+  partitions into 7 early and 13 late targets with zero overlap, omission, or
+  extra. Schedule-D separately mints ASEC-clone-0 reference and ACS-clone-0
+  recipient roles, then calls the preservation-specific parent reconciler
+  before deterministic leaf derivation.
+- Completed three independent read-only audits of exact scope, load-bearing
+  regressions, and entrypoint/checkpoint routing. All found no blocking defect.
+  The host's zero-log observation is not a current execution oracle because
+  this seam emits nested reconciliation receipts rather than console lines;
+  transferred and simulated resumes intentionally authenticate already-
+  processed frames instead of rerunning completed stages.
 
 - Read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected the
   branch and worktree, and preserved the user-owned untracked continuation
