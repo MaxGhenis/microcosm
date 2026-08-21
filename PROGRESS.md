@@ -2,14 +2,14 @@
 
 ## State
 
-The 2026-08-21 wiring continuation is verified through complete transfer,
-kernel, and Schedule-D module tests at `1b1a39ae`. The host's identical
-127-line 1% failure set accurately describes `51054801^`, while the current
-tree contains the later production wiring in `51054801`. Direct tracing and
-three independent reviews find that wiring load-bearing and exactly scoped;
-all 110 relevant module tests are green. Full-suite and static gates remain
-before handoff. The user-provided `_WIRING-CONTINUATION.md` remains untracked
-and untouched. No continuation 1% build will run locally.
+The 2026-08-21 wiring continuation is verified through a fresh guarded
+263-file suite replay at `21bea034`. The host's identical 127-line 1% failure
+set accurately describes unwired `51054801^`, while the current production tree
+contains the later wiring in `51054801`. Direct tracing, three independent
+reviews, 110 relevant module tests, and the resource-compliant suite find that
+wiring load-bearing and exactly scoped. Static gates and the final report
+remain before handoff. The user-provided `_WIRING-CONTINUATION.md` remains
+untracked and untouched. No continuation 1% build ran locally.
 
 ## Done
 
@@ -43,6 +43,22 @@ and untouched. No continuation 1% build will run locally.
 - Replayed all 110 tests across the ACS transfer, calibration-kernel, and
   Schedule-D reconciliation modules under the same constrained execution
   widths with pytest's cache disabled. All 110 passed in 14.99 seconds.
+- Replayed the exact 263-file tracked manifest (SHA-256
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`)
+  in fresh per-file interpreters with fit/BLAS widths pinned to one, pytest's
+  cache disabled, and a 14 GiB live RSS guard. Results were 6,549 passed,
+  74 skipped, zero failures, zero errors, and exactly 2 documented cache-probe
+  deselections; no guard fired.
+- The two explicit deselections were
+  `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`, each of
+  which independently parses the mounted 3.73 GB SIPP donor and cannot run
+  inside this lane's ceiling. Every other test in both files passed.
+- Maximum accepted root RSS was 11,845,517,312 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below both the 14 GiB guard
+  and 15 GiB charter ceiling. The fresh TSV receipt is
+  `/private/tmp/pkg1-wiring-suite-fresh.xtCkap/receipt.tsv`, SHA-256
+  `1fb02742e382b0cba3c89567120b581e53b04aa3f4edb12aa2b2f822e63eb410`.
 
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected
   the branch/worktree, and preserved the user-owned untracked continuation
@@ -791,6 +807,6 @@ and untouched. No continuation 1% build will run locally.
 
 ## Next
 
-- Run the full suite, lint, lock, and diff gates under the memory ceiling.
+- Run lint, formatting, lock, and diff gates.
 - Update `FINAL_REPORT.md` with fresh evidence and commit the final journal
   state. The host alone will run and diff the frozen 1% build.
