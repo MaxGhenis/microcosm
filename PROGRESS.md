@@ -2,11 +2,11 @@
 
 ## State
 
-The fresh continuation audit is complete through source tracing and guarded
-load-bearing verification. Three independent reviews found no remaining wiring
-or scope defect in implementation commit `51054801`; its default-stacked path
-reaches every assigned target and no unassigned target. The complete static and
-lock gates plus final report refresh remain in progress. The user-provided
+The fresh continuation audit is complete through source tracing, guarded test
+verification, and all static/lock gates. Three independent reviews found no
+remaining wiring or scope defect in implementation commit `51054801`; its
+default-stacked path reaches every assigned target and no unassigned target.
+Only the final report refresh remains. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
 build ran or will run locally.
 
@@ -52,6 +52,9 @@ build ran or will run locally.
   receipt commit. The result remains 6,549 passed, 74 skipped, zero failures,
   zero errors, 2 documented mounted-SIPP cache probes deselected, and a
   12,049,039,360-byte maximum accepted peak below both 14 and 15 GiB.
+- Ran full Ruff, Ruff formatting checks on all 17 branch-changed Python files,
+  explicitly unfrozen `uv lock --check`, `git diff --check`, and the pytest
+  cache audit. All pass and `lastfailed` is `{}`.
 
 - Confirmed the host's zero-caller observation against `51054801^`: that tree
   has no `acs_transfer_calibration` import or `calibration_targets` binding.
@@ -701,7 +704,5 @@ build ran or will run locally.
 
 ## Next
 
-- Run full Ruff, changed-file formatting, explicitly unfrozen lock freshness,
-  diff, and pytest-cache gates.
 - Refresh `FINAL_REPORT.md`, close the journal, and return the default-stacked
   frozen 1% comparison to the host.
