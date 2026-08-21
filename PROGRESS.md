@@ -2,15 +2,16 @@
 
 ## State
 
-The fresh 2026-08-21 source audit is complete. The host's zero-effect/no-caller
-evidence describes unwired `51054801^`; current production wiring is the later
-commit `51054801`. Three independent reviews re-established the default stacked
-call path, exact 20-target selection, separate Schedule-D parent handoff, and
-load-bearing regressions without finding a scope or invocation defect. The
-current relevant-module and guarded full-suite replays are green; static,
-lock, and frozen-policy gates remain. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
-build will run locally.
+The fresh 2026-08-21 source audit and every requested local quality gate are
+complete. The host's zero-effect/no-caller evidence describes unwired
+`51054801^`; current production wiring is the later commit `51054801`. Three
+independent reviews re-established the default stacked call path, exact
+20-target selection, separate Schedule-D parent handoff, and load-bearing
+regressions without finding a scope or invocation defect. The relevant-module
+and guarded 263-file suite replays, static checks, lock check, and frozen-policy
+comparison are green. Only the committed final-report refresh and closing
+journal entry remain. The user-provided `_WIRING-CONTINUATION.md` remains
+untracked and untouched. No continuation 1% build ran locally.
 
 ## Done
 
@@ -68,6 +69,21 @@ build will run locally.
   lane ceiling. Every other test in both files passed. A platform-only
   PostgreSQL module recorded its ordinary collection skip because `pgserver`
   is not installed.
+- Ran `ruff check .`, Ruff formatting checks on all 17 branch-changed Python
+  files, an explicitly unfrozen `uv lock --check`, `git diff --check`, and the
+  pytest `lastfailed` audit. All passed; the last-failed cache is `{}`.
+- Compared the live frozen comparator declaration and its complete gate suffix
+  directly with `origin/main`. Incidence bounds `(0.8, 1.25)`, conditional
+  quantiles `(0.10, 0.25, 0.50, 0.75, 0.90)`, both `0.25` tolerances, the
+  Schedule-D sign-separated metric, sample/clone seed `578`, and pool seed `0`
+  are unchanged. No relevant fold, band, threshold, dependency, or lock change
+  was introduced.
+- Confirmed all current production-source blobs are byte-identical to wiring
+  commit `51054801`. An optional wheel probe could not start because isolated
+  building would need network access to fetch `hatchling`, while the sandbox's
+  environment does not have that backend installed. No packaging or source
+  change was made in this continuation; the requested guarded suite and static
+  gates are complete.
 
 - Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
   the worktree and branch history, and preserved the user-owned untracked
@@ -874,6 +890,5 @@ build will run locally.
 
 ## Next
 
-- Run static gates, lock check, frozen-policy comparison, and clean-tree audit.
-  Then refresh `FINAL_REPORT.md`, commit the final journal state, and hand the
-  frozen 1% comparison back to the host.
+- Refresh and commit `FINAL_REPORT.md`, close this journal with the report
+  commit, and hand the frozen 1% comparison back to the host.
