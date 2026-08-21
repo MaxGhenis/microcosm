@@ -2,15 +2,13 @@
 
 ## State
 
-Fresh continuation verification is in progress from `47b22df0`. The live tree
-already claims implementation commit `51054801` closes the host-reported
-pre-wiring gap, but the repository charter makes prior journal claims
-historical rather than current evidence. This pass will independently compare
-the live binding to pkg3's named scoped-binding precedent, trace both ACS QRF
-paths and the Schedule-D parent route, replay the invocation/non-invocation
-regressions and full suite under the resource ceiling, and refresh
-`FINAL_REPORT.md`. The user-provided `_WIRING-CONTINUATION.md` remains untracked
-and untouched. No continuation 1% build will run locally.
+Fresh continuation verification is complete through the resource-bounded full
+suite. Three independent audits found no remaining implementation or regression
+gap in the live wiring from implementation commit `51054801`; the fresh
+load-bearing and 263-file replays are green under the charter ceiling. Static
+and lock gates plus the terminal report refresh remain in progress. The
+user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+continuation 1% build ran or will run locally.
 
 ## Done
 
@@ -47,6 +45,18 @@ and untouched. No continuation 1% build will run locally.
   already-calibrated frame and rerun Schedule-D; simulated resumes authenticate
   the persisted post-derive frame. The default CLI selects this stacked route,
   while legacy requires the explicit `--legacy-two-spine` flag.
+- Replayed the exact 263-file tracked manifest with SHA-256
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`
+  in fresh per-file interpreters under a 14 GiB root-RSS guard. Aggregated JUnit
+  counts are 6,549 passed, 74 skipped, zero failures, and zero errors; every
+  file has a passing receipt and no guard event occurred. The receipt is
+  `/private/tmp/pkg1-wiring-suite-current.lqh0cU/receipt.jsonl` with SHA-256
+  `d86159eec7cec6bf7ecf95c05f8ae825397f005d1447896f152796aac1564a96`.
+- The only deselections were the two previously documented mounted-SIPP cache
+  probes that each parse the 3.73 GB donor and cannot execute within this lane's
+  memory ceiling. Every other test in both files passed. Maximum accepted root
+  RSS was 12,049,039,360 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below both 14 and 15 GiB.
 - Reopened the continuation on 2026-08-21 at `47b22df0`, read `CLAUDE.md` and
   the complete GitNexus exploration workflow, inspected the branch/worktree,
   and preserved the user-owned untracked continuation brief. GitNexus MCP
@@ -642,9 +652,7 @@ and untouched. No continuation 1% build will run locally.
 
 ## Next
 
-- Compare the live selector and owner bindings to pkg3's named regression and
-  implementation, then verify exact assigned-target reachability and the
-  Schedule-D parent call path.
-- Replay the load-bearing wiring regressions, complete suite, lint, lock, and
-  diff gates under the frozen resource rules; update the final report and
-  commit each coherent checkpoint.
+- Run full Ruff, changed-file formatting, explicitly unfrozen lock freshness,
+  diff, and pytest cache gates.
+- Refresh `FINAL_REPORT.md`, close the journal, and hand the default-stacked 1%
+  comparison back to the host.
