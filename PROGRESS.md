@@ -11,8 +11,9 @@ derive handoff. The load-bearing core, tool-path fixtures, complete focused
 modules, and exact 263-file resource-isolated suite all pass. The guarded suite
 recorded 6,549 passed, 74 skipped, exactly 2 documented cache-only deselections,
 and an 11,495,079,936-byte maximum aggregate RSS. Static, formatting, lock, and
-diff gates pass. `FINAL_REPORT.md` remains to be refreshed. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build ran.
+diff gates pass, and `FINAL_REPORT.md` contains the current host handoff. The
+user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No 1%
+build ran.
 
 ## Done
 
@@ -68,6 +69,9 @@ diff gates pass. `FINAL_REPORT.md` remains to be refreshed. The user-provided
   27,285,979,136-byte peak is not accepted as resource-compliant evidence.
 - Ran full Ruff, Ruff formatting checks on all 17 branch-changed Python files,
   explicitly unfrozen lock freshness, and `git diff --check`; all pass.
+- Refreshed `FINAL_REPORT.md` with the current source audit, load-bearing test
+  results, exact guarded-suite totals, resource maximum, and frozen 1% host
+  handoff.
 
 - Ran the required `uv sync --all-packages --extra us`. The default cache was
   denied by the managed filesystem; a retry with a writable cache reached
@@ -483,4 +487,6 @@ diff gates pass. `FINAL_REPORT.md` remains to be refreshed. The user-provided
 
 ## Next
 
-- Refresh `FINAL_REPORT.md`, close this journal, and commit the host handoff.
+- Host: run the frozen 1% build at the current branch tip through the default
+  stacked pipeline without `--legacy-two-spine`, then diff the assigned failure
+  set against the existing `origin/main` 1% baseline.

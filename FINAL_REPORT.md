@@ -73,25 +73,27 @@ frame can no longer remain green.
 ## Verification
 
 - Fresh four-test replay of the load-bearing assigned/unassigned,
-  production-owner, and Schedule-D fixtures: 4 passed in 8.77 seconds. The
-  committed resource profile for this unchanged set peaked at 608,157,696
-  bytes RSS.
+  production-owner, and Schedule-D fixtures: 4 passed in 4.96 seconds at
+  606,699,520 bytes peak RSS.
+- Fresh three-variant replay of the default stacked tool handoff fixture: 3
+  passed in 33.93 seconds; every applicable derive call received the exact
+  most-recently prepared Schedule-D role frame.
 - Fresh complete ACS transfer, calibration-kernel, and Schedule-D-kernel
-  replay: 110 passed in 237.03 seconds. The committed resource profile for this
-  unchanged set peaked at 600,834,048 bytes RSS.
-- Complete multispine tool module after handoff hardening: 155 tests pass; peak
-  RSS 1,333,870,592 bytes.
+  replay: 110 passed in 6.58 seconds at 601,145,344 bytes peak RSS.
+- The complete 155-test multispine tool module passed inside the exhaustive
+  replay at 1,816,297,472 bytes maximum sampled aggregate RSS.
 - Exact 263-file test manifest
   `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`:
   6,549 passed, 74 skipped, and 2 explicitly deselected cache-only nodes. Every
   file exited zero in a fresh process with fit/BLAS widths pinned to one and a
-  14 GiB live guard. The maximum accepted peak was 11,844,042,752 bytes RSS in
-  `packages/microcosm-data/tests/test_loader.py`, below 15 GiB.
+  14 GiB live aggregate process-group guard. There were zero failures and zero
+  guard events. The maximum sampled aggregate RSS was 11,495,079,936 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below both 14 and 15 GiB.
 - The two deselections were the vehicle-support and voluntary-filing checks
-  that each parse the locally mounted 3.73 GB SIPP donor. Prior guarded runs
-  established that these environment-conditional nodes cannot complete inside
-  this lane's memory ceiling; all other tests in both files passed. No accepted
-  process reached the guard.
+  that each parse the locally mounted 3.73 GB SIPP donor. Earlier 14 GiB
+  guarded attempts could not complete those cache probes; all other tests in
+  both files passed. The earlier green monolithic suite covered both nodes, but
+  its 27,285,979,136-byte peak is not accepted as resource-compliant evidence.
 - Full `ruff check .`: pass.
 - Explicitly unfrozen `uv lock --check`: pass.
 - Ruff formatting for all 17 branch-changed Python files: pass.
@@ -112,8 +114,9 @@ regression in `test_us_multispine_pool_tool.py`. The user-provided
 - `7298590f` — pin the Schedule-D prepare-to-derive handoff.
 - `86f9dfcd` — support repeated cold/resumed handoffs in that fixture.
 - `afbc80aa` — record the guarded full-suite replay.
-- `0b78c148` — reopen and bind the current host continuation.
-- `43bf500f` — record the fresh scoped wiring verification checkpoint.
+- `e7483515` — reopen the current ACS wiring verification.
+- `7ea2135b` — record the current scoped production-path audit.
+- `65c6be05` — record the current guarded 263-file replay.
 
 ## Host handoff
 
