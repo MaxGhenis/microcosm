@@ -2,19 +2,33 @@
 
 ## State
 
-The fresh current-HEAD source audit is complete. The host's zero-caller symptom
-matches `e16b8b50` (`51054801^`), while the live production blobs contain the
-later exact-scoped wiring from `51054801`. The default stacked path reaches all
-20 frozen PUF-tax targets as a disjoint 7-early/13-late partition, invokes the
-shared post-decode/pre-fill seam only for selected targets, and separately
-hands Schedule-D roles into the parent reconciler before leaf derivation. The
-five load-bearing cases and all 110 relevant module tests are green under a
-14 GiB root-RSS guard. No source or test correction is indicated; the guarded
-full-suite and final static/frozen checks remain. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run
-locally.
+The 2026-08-21 capital-gains tail-guard continuation is in progress at
+`5abca070`. The serial host queue's fresh 1% run reached the wired kernel and
+reported `non_sch_d_capital_gains` top-100 shares as 0.8461 before and after the
+stage while raising a regression error. The immediate task is a read-only,
+no-build replay from the supplied checkpoint to recover both shares at full
+precision, followed by a semantics fix or a generating-mechanism fix according
+to that evidence. Thresholds, bands, gates, seeds, and folds are frozen. No host
+build will run in this lane, and work must stay below 15 GiB RSS. The existing
+untracked helper/continuation files remain untouched.
 
 ## Done
+
+- Re-read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected
+  the live branch and worktree, and identified `FINAL_REPORT.md` as the existing
+  output file. GitNexus graph endpoints are unavailable in this session, so
+  direct source/call-site tracing is the documented fallback.
+- Preserved the existing historical journals and unrelated untracked files;
+  reopened `PROGRESS.md` and `_LANE-NOTES.md` for the current host failure before
+  any production or test edit.
+- Established a fresh unchanged-code baseline with the requested per-package
+  commands: frame 294 passed/36 skipped, fit 125 passed, calibrate 201 passed,
+  data 275 passed/1 skipped, and build 5,656 passed/37 skipped (6,551 passed and
+  74 skipped total). Fit/BLAS widths were pinned to one; no host build ran.
+- Ruff passed over every tracked Python file. Plain `ruff check .` sees one
+  import-order violation only in pre-existing untracked
+  `._pkg1_full_suite.py`; that unrelated helper remains untouched and outside
+  the commit.
 
 - Re-read `CLAUDE.md`, the continuation brief, and the complete GitNexus
   debugging workflow; inspected the live worktree and branch history; and
@@ -950,6 +964,11 @@ locally.
 
 ## Next
 
-- Run the guarded full tracked suite plus static, lock, and frozen-gate checks.
-- Refresh `FINAL_REPORT.md`, close this journal, and hand the 1% comparison back
-  to the host.
+- Replay the supplied checkpoint without a build and print the pre-stage,
+  post-stage, and delta shares at full binary precision.
+- Trace the guard and transfer mechanism. Change only non-regression/reporting
+  semantics if the delta is numerical noise; if the delta is real, correct the
+  causal transfer mechanism first.
+- Add the four requested regressions, run each package test shard plus full
+  Ruff under the lane memory ceiling, refresh `FINAL_REPORT.md`, and return the
+  final committed tree to the serial host queue.

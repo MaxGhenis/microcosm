@@ -1,5 +1,29 @@
 # Battery package 1 lane notes
 
+## 2026-08-21 capital-gains tail-guard continuation
+
+- Host evidence: the wired capital-gains tail stage raised at a displayed
+  `non_sch_d_capital_gains` weighted top-100 share of 0.8461 both before and
+  after transfer. The supplied build log and `pool.checkpoints` are read-only;
+  the first task is a no-build replay that prints both values and their delta at
+  full precision.
+- Frozen constraints: do not change the concentration threshold or any other
+  threshold, band, gate, seed, or fold; do not run a local 1% host build; keep
+  all processes below 15 GiB RSS; preserve unrelated untracked files.
+- Required semantics: the non-regression guard may fail only for a post-stage
+  increase beyond numerical noise. An already over-threshold state that this
+  stage did not worsen must be retained in the report without being attributed
+  to the transfer.
+- Decision rule: if full-precision replay establishes a material increase,
+  identify and correct the transfer mechanism before changing guard behavior.
+  Regression coverage must include equality, numerical noise, a real increase,
+  and unchanged pre-existing threshold exceedance with a report entry.
+- Unchanged-code baseline: the five requested package test shards passed with
+  6,551 passed and 74 skipped total; tracked-file Ruff passed. Plain repository
+  Ruff additionally scans the pre-existing untracked helper
+  `._pkg1_full_suite.py` and reports its import order; the helper is preserved
+  outside this lane's commits.
+
 ## Scope and frozen constraints
 
 - Assigned work package: all 38 checks in
