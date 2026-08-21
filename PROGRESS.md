@@ -2,18 +2,12 @@
 
 ## State
 
-Continuation complete on branch `battery-pkg1-puf-tax`. The implementation at
-`51054801` follows pkg3's exact `(entity, target)` scope boundary, and the live
-default stacked build reaches all 20 assigned transfer targets as 7 early and
-13 late targets with no overlap or omission. Schedule-D reconciliation is
-separately reachable in the later derive stage. Three independent audits found
-no missing caller or scope leak; the four load-bearing fixtures and all 110 ACS
-transfer/calibration/Schedule-D kernel tests pass with fit and BLAS widths
-pinned to one. Full Ruff, explicitly unfrozen lock freshness, changed-file
-formatting, diff integrity, and the empty `lastfailed` cache pass. Runtime and
-tests remain identical to the implementation tree covered by the committed
-green full-suite and guarded replay. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched; no 1% build ran.
+Current continuation audit in progress on branch `battery-pkg1-puf-tax`.
+Repository rules and the GitNexus debugging workflow have been loaded, and the
+existing implementation at `51054801` is being treated as unverified until its
+production caller chain, exact target scope, and load-bearing regression are
+re-established from source and fresh test runs. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run.
 
 ## Done
 
@@ -303,9 +297,17 @@ green full-suite and guarded replay. The user-provided
   all 17 branch-changed Python files, `git diff --check`, and the pytest
   `lastfailed` check; all passed. The only untracked file is the untouched
   user-provided continuation brief.
+- Reopened the current host continuation, read `CLAUDE.md` and the complete
+  GitNexus debugging skill, inspected branch/worktree state, and preserved the
+  user-owned untracked continuation brief. Fresh source and regression audits
+  are underway before accepting any historical completion claim.
 
 ## Next
 
-- Host: run the frozen default-stacked 1% branch build, compare it with the
-  existing `origin/main` 1% baseline, and adjudicate the assigned failure-set
-  delta. Do not use the retiring `--legacy-two-spine` compatibility flag.
+- Trace the live default ACS transfer caller chain and compare its exact-target
+  binding against pkg3's named scoped regression.
+- Re-run the assigned-versus-unassigned invocation fixture and the required
+  broader suite under the 15 GiB constraint; fix and commit any discovered
+  defect without changing frozen bands.
+- Refresh `FINAL_REPORT.md`, commit the terminal journal, and hand the frozen
+  1% branch/baseline comparison back to the host.
