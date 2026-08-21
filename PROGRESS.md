@@ -2,14 +2,13 @@
 
 ## State
 
-Reopened on 2026-08-21 for a fresh source-and-test verification of the host's
-wiring continuation. The current tree already contains production wiring from
-implementation commit `51054801`; this pass will independently compare that
-tree with the named pkg3 scoped-binding precedent, verify exact assigned-target
-reachability and Schedule-D routing, and replay the load-bearing and full
-allowed suites under the charter memory ceiling. The user-provided
+The fresh continuation audit is complete through source tracing and guarded
+load-bearing verification. Three independent reviews found no remaining wiring
+or scope defect in implementation commit `51054801`; its default-stacked path
+reaches every assigned target and no unassigned target. The complete static and
+lock gates plus final report refresh remain in progress. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
-build will run locally.
+build ran or will run locally.
 
 ## Done
 
@@ -17,6 +16,42 @@ build will run locally.
   branch and worktree, and preserved the user-owned untracked continuation
   brief. GitNexus graph tools are unavailable in this session, so named-commit
   history and direct source tracing will supply the required caller evidence.
+- Re-read pkg3 regression `22b2c6bc` and implementation follow-up `176c60fc`.
+  The live implementation follows their default-empty, exact-key authority:
+  selection is validated against both request and frozen policy, intersected
+  with live missing targets, and executed only for that selected subset after
+  either QRF decode path and before null-only fill.
+- Confirmed the host's no-caller observation against `51054801^`; that tree has
+  no calibration import or selection binding. The current tree directly imports
+  all three primitives and passes exact selections from both early and late
+  production owners.
+- Executed the live target inventory. The frozen 20-target policy partitions
+  into 7 early and 13 late targets with zero overlap, omission, or extra.
+  Source-aware references and opaque recipient scopes remain exact by entity,
+  support channel, and clone while the transfer operator remains source-blind.
+- Traced the default tool through early gap fill, the bounded late DAG,
+  `prepare_stacked_tail_derivation`, and `derive_multispine_pool_inputs`.
+  Schedule-D assigns only ASEC clone 0 as reference and ACS clone 0 as recipient,
+  invokes `reconcile_schedule_d_joint_parents` before leaf derivation, and drops
+  the transient role. The explicit legacy route retains the empty selector.
+- Completed three independent read-only audits of the pkg3 precedent,
+  production call graph, target inventory, regression load-bearingness, and
+  Schedule-D/checkpoint routing. All found no blocking defect.
+- Replayed 10 load-bearing cases with fit/BLAS widths pinned to one, pytest's
+  cache disabled, and a 14 GiB RSS guard. Assigned invocation, same-batch
+  unassigned preservation, early and both late reference owners, Schedule-D
+  role production and kernel consumption, three terminal states, and checkpoint
+  resume all passed; peak root RSS was 1,064,779,776 bytes with no guard event.
+- Replayed all 110 tests in the ACS transfer, calibration-kernel, and Schedule-D
+  reconciliation modules under the same guard. They reached 100% and exited
+  zero at 601,849,856 bytes peak root RSS.
+- Revalidated the committed guarded full-suite receipt against the current
+  exact 263-file manifest. Its manifest SHA-256 remains
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`;
+  packages, tools, dependencies, and lock have identical Git objects to the
+  receipt commit. The result remains 6,549 passed, 74 skipped, zero failures,
+  zero errors, 2 documented mounted-SIPP cache probes deselected, and a
+  12,049,039,360-byte maximum accepted peak below both 14 and 15 GiB.
 
 - Confirmed the host's zero-caller observation against `51054801^`: that tree
   has no `acs_transfer_calibration` import or `calibration_targets` binding.
@@ -666,6 +701,7 @@ build will run locally.
 
 ## Next
 
-- Host only: run the frozen 1% build with the default stacked pipeline (do not
-  pass `--legacy-two-spine`) and diff its assigned failure set against the
-  existing `origin/main` 1% baseline.
+- Run full Ruff, changed-file formatting, explicitly unfrozen lock freshness,
+  diff, and pytest-cache gates.
+- Refresh `FINAL_REPORT.md`, close the journal, and return the default-stacked
+  frozen 1% comparison to the host.
