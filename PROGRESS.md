@@ -2,13 +2,14 @@
 
 ## State
 
-The 2026-08-21 wiring continuation has been reopened for a fresh audit from
-current `HEAD` after the host reiterated the zero-effect/no-caller evidence.
-The historical journal says wiring was added after the tree tested by the host;
-that claim is not being accepted as current evidence until the live production
-call path, exact target scope, and load-bearing regression are re-established.
-The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
-continuation 1% build will run locally.
+The fresh 2026-08-21 source audit is complete. The host's zero-effect/no-caller
+evidence describes unwired `51054801^`; current production wiring is the later
+commit `51054801`. Three independent reviews re-established the default stacked
+call path, exact 20-target selection, separate Schedule-D parent handoff, and
+load-bearing regressions without finding a scope or invocation defect. Current
+module/full-suite verification is in progress. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
+build will run locally.
 
 ## Done
 
@@ -18,6 +19,31 @@ continuation 1% build will run locally.
   session, so direct source and named-commit tracing are the active fallback.
 - Reopened and committed this current-state journal before any production or
   test edit, per the standing order.
+- Located pkg3's named regression at `22b2c6bc` and implementation at
+  `176c60fc`. Current pkg1 follows the same default-empty exact-key pattern:
+  validate against the requested surface and frozen owner policy, intersect by
+  active family, execute only selected targets, and attach evidence only there.
+- Traced the default CLI into `build_stacked_pool`, then through early gap fill
+  and all late-transfer groups to the common post-decode/pre-fill calibration
+  seam. The frozen registry is exactly 20 targets / 15 carrier legs / 23 amount
+  legs; its live owner surfaces partition 7 early and 13 late with zero overlap,
+  omission, or selected unassigned target. The direct empty-default transfer in
+  `_impute_pool` is reachable only behind explicit `--legacy-two-spine`.
+- Traced Schedule-D from `prepare_stacked_tail_derivation` into the exact
+  prepared frame consumed by `derive_multispine_pool_inputs`, where the
+  preservation-specific equal-weight-swap reconciler runs before deterministic
+  leaf derivation. This is the Schedule-D kernel selected in the original
+  design notes; the generic four-state helper is not the production remedy.
+- Audited the committed fixture regressions. The direct same-batch test records
+  the imported magnitude primitive, proves default/unassigned non-invocation,
+  proves assigned invocation, preserves the unassigned raw-transfer output,
+  and rejects an unassigned selector. Separate early and late owner fixtures
+  fail if their exact production bindings are removed. Schedule-D role,
+  prepared-frame handoff, kernel effect, and checkpoint-resume fixtures fail if
+  that path is unwired.
+- Three independent read-only reviews found no blocking default-path defect.
+  One review replayed nine expanded load-bearing cases successfully. A separate
+  replay of the four slow tool-entrypoint cases passed in 342.35 seconds.
 
 - Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
   the worktree and branch history, and preserved the user-owned untracked
@@ -824,8 +850,7 @@ continuation 1% build will run locally.
 
 ## Next
 
-- Locate and compare pkg3's named scoped-binding precedent, then trace the live
-  default ACS and Schedule-D paths from their production owners into the
-  calibration kernels. Repair any scope or invocation gap, make the wiring
-  regression load-bearing, run the resource-constrained suite and static gates,
-  then refresh `FINAL_REPORT.md` and close this journal for host handoff.
+- Run the complete relevant modules, resource-constrained full suite, static
+  gates, lock check, frozen-policy comparison, and clean-tree audit. Then
+  refresh `FINAL_REPORT.md`, commit the final journal state, and hand the frozen
+  1% comparison back to the host.
