@@ -2,13 +2,14 @@
 
 ## State
 
-The 2026-08-21 wiring continuation is reopened at `3ef6613c`. The host reports
-that its tested tree produced an identical 127-line 1% failure set because the
-calibration kernel had no production caller. This checkout contains a later
-candidate wiring commit (`51054801`), but its live call path, exact scope, and
-load-bearing regression are being re-established from source and fresh tests
-before handoff. The user-provided `_WIRING-CONTINUATION.md` remains untracked
-and untouched. No continuation 1% build will run locally.
+The 2026-08-21 wiring continuation is verified through focused fixtures at
+`432a0487`. The host's identical 127-line 1% failure set accurately describes
+`51054801^`, while the current tree contains the later production wiring in
+`51054801`. Direct tracing and three independent reviews find that wiring
+load-bearing and exactly scoped; its focused transfer, owner, and Schedule-D
+fixtures are green. Module and full-suite gates remain before handoff. The
+user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+continuation 1% build will run locally.
 
 ## Done
 
@@ -19,6 +20,26 @@ and untouched. No continuation 1% build will run locally.
 - Located pkg3's named scoped-binding regression at `22b2c6bc` and the existing
   candidate pkg1 production wiring at `51054801`; neither historical journal
   claims nor prior receipts are being treated as current evidence.
+- Re-read pkg3 implementation `176c60fc` and regression `22b2c6bc`. The current
+  wiring follows their default-empty exact-key selector, request validation,
+  per-family active intersection, selected-only execution, and selected-only
+  evidence pattern.
+- Traced the default stacked CLI through both early gap fill and all bounded
+  late-transfer groups into the common post-decode/pre-fill calibration seam.
+  The frozen 20-target policy partitions into exactly 7 early and 13 late
+  targets (17 person and 3 tax-unit), with no overlap, omission, or selected
+  unassigned target. The explicit legacy route retains the empty default.
+- Traced the Schedule-D parent separately from tail-role preparation to
+  `_complete_schedule_d_input`, where the preservation-specific reconciler is
+  invoked for ASEC-clone-0 reference and ACS-clone-0 recipient roles before
+  deterministic leaf derivation.
+- Completed three independent read-only reviews of the pkg3 precedent,
+  production call graph, target inventory, and regression landscape. All found
+  no current call-path or scope defect.
+- Replayed the three load-bearing fixtures for primitive invocation plus
+  same-batch unassigned exclusion, exact stacked-owner binding, and Schedule-D
+  role consumption. All 3 passed in 8.71 seconds with fit/BLAS widths pinned to
+  one and pytest's cache disabled.
 
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected
   the branch/worktree, and preserved the user-owned untracked continuation
@@ -767,12 +788,7 @@ and untouched. No continuation 1% build will run locally.
 
 ## Next
 
-- Trace pkg3's exact selector pattern and the default stacked ACS production
-  route, then verify or correct the candidate wiring so only the assigned
-  PUF-tax targets and Schedule-D parent can invoke calibration.
-- Add or strengthen a fixture-scale call-recording regression that fails if the
-  assigned production call edge is removed and proves an unassigned sibling is
-  not invoked.
-- Run the focused tests, full suite, lint, lock, and diff gates under the memory
-  ceiling; update `FINAL_REPORT.md`; commit each coherent step. The host alone
-  will run and diff the frozen 1% build.
+- Run the complete ACS transfer, calibration-kernel, and Schedule-D modules,
+  then the full suite, lint, lock, and diff gates under the memory ceiling.
+- Update `FINAL_REPORT.md` with fresh evidence and commit the final journal
+  state. The host alone will run and diff the frozen 1% build.
