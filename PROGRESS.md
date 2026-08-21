@@ -2,7 +2,7 @@
 
 ## State
 
-Continuation revalidation is active on branch `battery-pkg1-puf-tax`. Source
+Continuation complete on branch `battery-pkg1-puf-tax`. Source
 inspection and a fresh pkg3 comparison confirm that the PUF-tax kernels run
 at the common post-decode, pre-fill ACS seam for a default-empty exact-target
 selection, and the stacked early/late owners bind only their active assigned
@@ -12,10 +12,11 @@ the production-path audit found no missing caller or runtime scope leak:
 the canonical build reaches all and only the 20 assigned transfer targets (7
 early and 13 late) plus the separate Schedule-D repair. The four load-bearing
 fixtures and all 110 ACS transfer/calibration/Schedule-D kernel tests pass.
-Runtime code remains identical to the implementation revision covered by the
-committed green full-suite and under-15-GiB guarded replay. Full Ruff, unfrozen
-lock freshness, and diff integrity pass. No frozen gate parameter or band
-changed, no continuation build ran, and the host owns the next 1% comparison.
+Runtime and test code remain identical to the implementation revision covered
+by the committed green full-suite and under-15-GiB guarded replay. Full Ruff,
+unfrozen lock freshness, and diff integrity pass. No frozen gate parameter or
+band changed, no continuation build ran, and the host owns the next 1%
+comparison.
 
 ## Done
 
@@ -261,9 +262,23 @@ changed, no continuation build ran, and the host owns the next 1% comparison.
   all passed. Re-ran the complete ACS transfer, calibration-kernel, and
   Schedule-D-kernel modules with all fit/BLAS widths pinned to one; all 110
   tests passed.
+- Completed three independent read-only reviews of the pkg3 precedent,
+  production call graph/exact target inventory, and wiring-test/Schedule-D
+  coverage. The live policy intersection is exactly 20 of 20 assigned targets:
+  7 early and 13 late, with no overlap, omission, or unassigned invocation.
+  Seven independently selected wiring/order nodes also passed.
+- Confirmed with an empty Python/test/dependency diff that runtime remains
+  identical to `51054801`, the implementation tree covered by the committed
+  6,551-passed/74-skipped full-suite run and the exact 263-file guarded replay
+  whose highest accepted peak was 11,841,650,688 bytes. The two unrelated
+  cache-conditional 3.73-GB SIPP nodes remain covered by the green monolithic
+  run but excluded from the accepted resource profile, as previously recorded.
+- Re-ran full Ruff, explicitly unfrozen lock freshness, `git diff --check`,
+  and the empty pytest `lastfailed` check; all passed. Finalized the current
+  `FINAL_REPORT.md` without changing runtime or tests.
 
 ## Next
 
-- Finish the independent exact-target and Schedule-D coverage audit.
-- Revalidate the full-suite evidence at the unchanged implementation tree,
-  run static checks, and update `FINAL_REPORT.md` without launching a 1% build.
+- Host: rerun the frozen default-stacked 1% branch build, compare it with the
+  existing `origin/main` 1% baseline, and adjudicate the assigned failure-set
+  delta. Do not use the retiring `--legacy-two-spine` compatibility flag.

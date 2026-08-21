@@ -13,10 +13,11 @@ or comparator changed. No continuation 1% build was run; the host retains the
 next frozen branch/baseline comparison.
 
 The final continuation audit independently re-read pkg3's named `22b2c6bc`
-scoped-binding regression and its production successors, then traced the live
-default build route. It found no missing caller or runtime scope leak. The
-canonical policy is reachable as 7 early and 13 late targets with no overlap or
-omission; family suffixing cannot broaden the stable `(entity, target)` keys.
+scoped-binding regression and production commits `176c60fc`, `887df056`, and
+`94b7aecb`, then traced the live default build route. Three independent reviews
+found no missing caller or runtime scope leak. The canonical policy is
+reachable as 7 early and 13 late targets with no overlap or omission; family
+suffixing cannot broaden the stable `(entity, target)` keys.
 
 ## Production wiring
 
@@ -61,11 +62,12 @@ default stacked remedy.
 
 ## Verification
 
-- Three independent final read-only audits found no blocking production-scope,
-  wiring-regression, or Schedule-D/reporting defect at pre-audit tip
-  `a9d930ef`.
-- Four load-bearing assigned/unassigned and Schedule-D wiring fixtures: pass.
-- Current replay of the complete ACS transfer, calibration-kernel, and
+- Three fresh independent read-only audits found no blocking production-scope,
+  wiring-regression, or Schedule-D/reporting defect. The exact policy
+  intersection is 20 of 20 assigned targets: 7 early and 13 late.
+- Four load-bearing assigned/unassigned and Schedule-D wiring fixtures: pass;
+  an independent seven-node wiring/order selection also passes.
+- Fresh replay of the complete ACS transfer, calibration-kernel, and
   Schedule-D-kernel modules: 110 tests pass with fit/BLAS widths pinned to one.
 - Complete ACS transfer module: 73 tests pass.
 - Touched runtime modules: 1,020 tests pass.
@@ -82,10 +84,12 @@ default stacked remedy.
 - Ruff format check on all 13 changed Python files: pass.
 - `git diff --check`: pass.
 
-No runtime or test file changed after `51054801`; the later commits are journal
-and verification updates. The committed full-suite and memory-isolated replay
-therefore exercise the same implementation tree revalidated by the current
-focused runs.
+No runtime, test, dependency, or lock file changed after `51054801`; an explicit
+tree diff confirms the later commits are journal and verification updates. The
+committed full-suite and memory-isolated replay therefore exercise the exact
+implementation tree revalidated by the current focused runs. Pytest's
+`lastfailed` cache is empty, full Ruff and explicitly unfrozen lock freshness
+pass, and no 1% build ran during this continuation.
 
 The fresh monolithic full-suite process peaked at 27,285,979,136 bytes, so its
 green result is not claimed as memory-compliant. A guarded replay therefore
@@ -107,6 +111,8 @@ were not changed.
 - `51054801` — wire scoped ACS transfer calibration.
 - `a1b31586` — reopen the final wiring continuation audit.
 - `0dfa2cf7` — record the independent wiring audit.
+- `737f2077` — reopen the scoped wiring verification.
+- `77095103` — record the fresh source and focused-test audit.
 
 ## Host handoff
 
@@ -114,4 +120,6 @@ Run the frozen 1% build for this branch, compare it against the existing
 `origin/main` 1% baseline, and diff the assigned failure set. Unlike the prior
 identical 127-line result, the build now traverses the calibrated production
 seam; the committed fixture makes a green test run impossible if that assigned
-invocation is removed or leaks to an unassigned target.
+invocation is removed or leaks to an unassigned target. Use the default stacked
+pipeline; the explicit retiring `--legacy-two-spine` compatibility path remains
+intentionally byte-stable and outside this remedy.
