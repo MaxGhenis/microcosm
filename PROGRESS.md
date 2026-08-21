@@ -2,14 +2,14 @@
 
 ## State
 
-The 2026-08-21 wiring continuation is verified through all local quality gates
-at `a213ab17`. The host's identical 127-line 1% failure set accurately
-describes unwired `51054801^`, while the current production tree contains the
-later wiring in `51054801`. Direct tracing, three independent reviews, 110
-relevant module tests, the resource-compliant suite, and all static gates find
-that wiring load-bearing and exactly scoped. Only the final report remains
-before host handoff. The user-provided `_WIRING-CONTINUATION.md` remains
-untracked and untouched. No continuation 1% build ran locally.
+The 2026-08-21 wiring continuation is complete through report commit
+`e5858389`. The host's identical 127-line 1% failure set accurately describes
+unwired `51054801^`, while the current production tree contains the later
+wiring in `51054801`. Direct tracing, three independent reviews, 110 relevant
+module tests, the resource-compliant suite, and all static gates find that
+wiring load-bearing and exactly scoped. `FINAL_REPORT.md` is current for host
+handoff. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
+untouched. No continuation 1% build ran locally.
 
 ## Done
 
@@ -66,6 +66,10 @@ untracked and untouched. No continuation 1% build ran locally.
   comparator tolerances literally with `origin/main`; all frozen battery values
   are unchanged. No seed, fold, comparator, or band edit was made in this
   continuation.
+- Rewrote and committed `FINAL_REPORT.md` at `010d546f`, then applied the
+  independent report review's two precision corrections at `e5858389`: each
+  target invokes only its policy-specified primitive stages, and unassigned
+  siblings remain QRF-imputed but receive no calibration adjustment or receipt.
 
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected
   the branch/worktree, and preserved the user-owned untracked continuation
@@ -814,5 +818,7 @@ untracked and untouched. No continuation 1% build ran locally.
 
 ## Next
 
-- Update `FINAL_REPORT.md` with the fresh evidence and commit the final journal
-  state. The host alone will run and diff the frozen 1% build.
+- Host only: run the frozen 1% build from the final current commit with the
+  default stacked pipeline (do not pass `--legacy-two-spine`), diff the assigned
+  failure set against the existing `origin/main` baseline, and inspect the
+  PUF-tax plus Schedule-D reconciliation receipts.
