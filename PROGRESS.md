@@ -2,13 +2,13 @@
 
 ## State
 
-The fresh continuation audit is complete through source tracing, guarded test
-verification, and all static/lock gates. Three independent reviews found no
-remaining wiring or scope defect in implementation commit `51054801`; its
-default-stacked path reaches every assigned target and no unassigned target.
-Only the final report refresh remains. The user-provided
+The continuation is complete through final-report commit `73e9b3fb`. Three
+independent reviews found no remaining wiring or scope defect in implementation
+commit `51054801`; its default-stacked path reaches every assigned target and no
+unassigned target. Guarded test evidence and all static/lock gates are green,
+and `FINAL_REPORT.md` is current for host handoff. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
-build ran or will run locally.
+build ran locally.
 
 ## Done
 
@@ -55,6 +55,9 @@ build ran or will run locally.
 - Ran full Ruff, Ruff formatting checks on all 17 branch-changed Python files,
   explicitly unfrozen `uv lock --check`, `git diff --check`, and the pytest
   cache audit. All pass and `lastfailed` is `{}`.
+- Refreshed and committed `FINAL_REPORT.md` at `73e9b3fb` with the current
+  production trace, three-review verdict, guarded test evidence, unchanged
+  frozen comparator contract, and host-only 1% handoff.
 
 - Confirmed the host's zero-caller observation against `51054801^`: that tree
   has no `acs_transfer_calibration` import or `calibration_targets` binding.
@@ -704,5 +707,6 @@ build ran or will run locally.
 
 ## Next
 
-- Refresh `FINAL_REPORT.md`, close the journal, and return the default-stacked
-  frozen 1% comparison to the host.
+- Host only: run the frozen 1% build with the default stacked pipeline (do not
+  pass `--legacy-two-spine`) and diff its assigned failure set against the
+  existing `origin/main` 1% baseline.
