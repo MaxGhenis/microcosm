@@ -2,17 +2,50 @@
 
 ## State
 
-The 2026-08-21 host-requested wiring continuation is open at `4aaafd4c` for a
-fresh live-tree audit. The branch already contains historical claims that the
-scoped ACS calibration wiring and load-bearing regressions are complete, but
-those claims are not being treated as current proof. The active work is to
-re-read pkg3's named precedent, trace the default production call path and
-exact assigned surface, repair any live gap, and rerun the required tests under
-the 15 GiB ceiling. The user-provided `_WIRING-CONTINUATION.md` remains
-untracked and untouched. No continuation 1% build will run locally.
+The 2026-08-21 continuation audit at `90d0f1e7` confirms that the live branch
+already contains the requested scoped production wiring and load-bearing
+regressions. Both QRF execution modes converge on the selected-only calibration
+seam; the canonical default-stacked owners partition all 20 assigned targets
+into 7 early and 13 late targets with no overlap or omission; and the
+preservation-specific Schedule-D parent reconciliation is reached later through
+the prepared derive handoff. No implementation repair is required. Focused and
+full resource-bounded verification remain active. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
+build will run locally.
 
 ## Done
 
+- Attempted the GitNexus workflow after `gitnexus status` reported no index.
+  The analyzer could not write its sandboxed global registry; the lingering
+  process was stopped and its two-file partial local index was moved intact to
+  `/private/tmp/microcosm-gitnexus-partial.mf18LA/.gitnexus` before direct
+  source/history tracing continued.
+- Re-read pkg3's `22b2c6bc` scoped-binding regression, its `176c60fc`
+  implementation, and the later mixed-family hardenings. The applicable
+  contract is a default-empty exact `(entity, target)` selector, validation
+  against the requested surface, per-batch intersection, selected-only
+  execution/evidence, and owner-side exact selection.
+- Confirmed current implementation commit `51054801` follows that contract:
+  `transfer_acs_inputs` validates the selector against both its requested
+  surface and the frozen policy, intersects only live missing targets, and
+  invokes imported carrier/sign and conditional-magnitude primitives after
+  banked or in-memory decoding and before null-only fill.
+- Evaluated the live canonical surfaces against the frozen registry: all 20
+  assigned targets are reachable as 7 early and 13 late targets, with zero
+  overlap, omission, or extra target. Early and bounded late owners bind only
+  their exact active keys, including inside mixed suffixed families.
+- Traced the default CLI through stacked early gap fill, the bounded late DAG,
+  tail preparation, and derive. The Schedule-D parent kernel consumes exact
+  ASEC-clone-0 reference and ACS-clone-0 recipient roles before deterministic
+  leaf derivation; the prepared frame is passed by identity to derive.
+- Independently reviewed the fixture regressions. Removing the imported
+  magnitude-kernel call, leaking to a same-family unassigned target, omitting
+  the early owner selector, bypassing the prepared Schedule-D frame, skipping
+  derive dispatch, or skipping the parent reconciliation makes at least one
+  committed fixture fail. One independent focused replay reported 8 passed.
+- Kept the explicit retiring `--legacy-two-spine` route outside this default
+  remedy. It deliberately passes the selector's empty default; the host must
+  use the default stacked path for the frozen comparison.
 - Reopened the continuation at `4aaafd4c`, read `CLAUDE.md` and the complete
   GitNexus debugging workflow, inspected the live branch/worktree state, and
   preserved the user-owned untracked continuation brief. GitNexus graph tools
@@ -488,12 +521,9 @@ untracked and untouched. No continuation 1% build will run locally.
 
 ## Next
 
-- Re-read pkg3's scoped-binding regression and implementation, then trace the
-  live default ACS transfer and Schedule-D paths against the exact assigned
-  target registry.
-- Repair or strengthen production wiring and its load-bearing fixture if the
-  fresh audit finds any gap.
-- Run focused checks, the full suite under the RSS limit, Ruff, lock, and diff
-  gates; update `FINAL_REPORT.md` and this journal with current evidence.
+- Run the load-bearing and complete focused modules with constrained execution
+  widths, then replay the full tracked suite within the 15 GiB ceiling.
+- Run Ruff, lock, format, diff, and pytest-cache gates; update
+  `FINAL_REPORT.md` and this journal with current evidence.
 - Host only: run the frozen 1% build through the default stacked pipeline and
   diff the assigned failures against the existing `origin/main` baseline.
