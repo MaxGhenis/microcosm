@@ -36,6 +36,17 @@ and untouched. No continuation 1% build will run locally.
   authority, per-active-family intersection, and selected-only execution
   pattern; no default-path scope defect was found. The explicit retiring
   `--legacy-two-spine` route intentionally keeps the empty selection.
+- Completed two further independent read-only audits of the complete production
+  call graph and regression coupling. Both banked and in-memory QRF modes
+  converge on the selected-only post-decode seam, bank resumes still traverse
+  it, and removing the common call, either owner binding, the prepared
+  Schedule-D frame, or the parent reconciler makes a committed fixture fail.
+  No blocking implementation or test change remains.
+- Traced checkpoint behavior explicitly: cold and assembled routes execute both
+  ACS calibration stages plus Schedule-D; transferred resumes authenticate the
+  already-calibrated frame and rerun Schedule-D; simulated resumes authenticate
+  the persisted post-derive frame. The default CLI selects this stacked route,
+  while legacy requires the explicit `--legacy-two-spine` flag.
 - Reopened the continuation on 2026-08-21 at `47b22df0`, read `CLAUDE.md` and
   the complete GitNexus exploration workflow, inspected the branch/worktree,
   and preserved the user-owned untracked continuation brief. GitNexus MCP
