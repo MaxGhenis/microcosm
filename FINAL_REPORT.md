@@ -10,8 +10,9 @@ targets (15 carrier checks and 23 conditional-amount checks, representing all
 kernel executes later in the mandatory default-stacked derive path, before the
 deterministic Schedule-D leaf is produced.
 
-Fresh 2026-08-21 source tracing and three independent read-only reviews found
-no missing production caller or unassigned-target leak in the current tree.
+The final 2026-08-21 source tracing pass and three independent read-only
+reviews found no missing production caller or unassigned-target leak in the
+current tree.
 The canonical transfer surfaces partition the frozen policy into 7 early and
 13 late targets, with zero overlap and zero omission. Direct history inspection
 confirms the earlier identical 127-line host comparison describes the tree
@@ -83,13 +84,13 @@ frame can no longer remain green.
 
 ## Verification
 
-- Fresh eight-test-function load-bearing replay: 10 parameterized cases passed
-  at 1,194,409,984 bytes maximum monitored root RSS. It covers imported-kernel
+- Final eight-test-function load-bearing replay: 10 parameterized cases passed
+  at 1,064,779,776 bytes maximum monitored root RSS. It covers imported-kernel
   invocation, same-family unassigned non-invocation, exact early and late owner
   references, Schedule-D role production and consumption/preservation, all
   three terminal entrypoint states, and checkpoint resume.
-- Fresh complete ACS transfer, calibration-kernel, and Schedule-D-kernel
-  modules: 110 passed at 601,669,632 bytes
+- Final complete ACS transfer, calibration-kernel, and Schedule-D-kernel
+  modules: 110 passed at 601,849,856 bytes
   maximum monitored root RSS.
 - The complete 155-test multispine tool module passed inside the fresh
   exhaustive replay at 1,815,429,120 bytes maximum monitored root RSS.
@@ -117,9 +118,10 @@ frame can no longer remain green.
 
 Runtime, dependencies, and lock are unchanged after implementation commit
 `51054801`; the only later Python changes are the Schedule-D handoff fixture
-hardenings at `7298590f` and `86f9dfcd`. All Python is byte-identical to the
-guarded evidence commit `afbc80aa`. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched.
+hardenings at `7298590f` and `86f9dfcd`. Packages, tools, `pyproject.toml`, and
+`uv.lock` have the same Git objects as guarded receipt commit `3e93ada6`; all
+Python is also byte-identical to guarded evidence commit `afbc80aa`. The
+user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched.
 
 ## Key commits
 
@@ -136,6 +138,9 @@ guarded evidence commit `afbc80aa`. The user-provided
 - `ce081c24` — record three independent wiring audits.
 - `3e93ada6` — record the fresh guarded 263-file replay.
 - `10cc9de9` — record the final static and lock gates.
+- `2881edb9` — reopen the final continuation audit.
+- `156557a1` — record final scoped wiring and regression verification.
+- `7434737d` — record final static and lock gate replay.
 
 ## Host handoff
 
