@@ -2,13 +2,15 @@
 
 ## State
 
-The 2026-08-20 host-requested wiring continuation is open on branch
-`battery-pkg1-puf-tax` at `342876fc`. Earlier commits and journals claim the
-kernel is wired, but those claims are being revalidated against the live
-default production call path, pkg3's scoped-binding precedent, and a
-fixture-scale assigned-versus-unassigned invocation test before they are
-accepted. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
-untouched. No 1% build will run in this continuation.
+The 2026-08-20 host-requested wiring continuation is verified through its
+focused gate on branch `battery-pkg1-puf-tax`. Direct tracing and independent
+review confirm that implementation commit `51054801` is live in the default
+stacked path: both QRF modes converge on the selected-only post-decode kernel
+seam, all 20 assigned targets are partitioned into 7 early and 13 late targets,
+and Schedule-D reconciliation executes in the later derive stage. Four
+load-bearing invocation/scope/Schedule-D tests pass. Full-suite applicability
+and repository checks remain to be finalized. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build ran.
 
 ## Done
 
@@ -380,12 +382,37 @@ untouched. No 1% build will run in this continuation.
   commit `51054801` is the 21-line Schedule-D handoff regression in
   `test_us_multispine_pool_tool.py`; runtime, dependencies, and lock remain
   unchanged. The only untracked file is the untouched user continuation brief.
+- Reopened the host continuation at `342876fc`, committed the current
+  state/done/next journal as `0b78c148`, and treated all historical completion
+  claims as untrusted pending live source and test evidence.
+- Attempted the prescribed GitNexus trace. The repository is not indexed and
+  `gitnexus analyze` cannot write its global registry under the managed
+  sandbox; its partial local artifact was moved out of the worktree before
+  direct call-site tracing continued.
+- Re-read pkg3's `22b2c6bc` regression and `176c60fc` production follow-up.
+  The current selector matches their default-empty exact `(entity, target)`,
+  requested-surface validation, owner-side active intersection, and
+  selected-only execution/evidence pattern; batch or family membership grants
+  no authority.
+- Traced the default CLI through `build_stacked_pool`, early gap fill, the
+  bounded late-producer DAG, tail preparation, and pool derivation. Both banked
+  and in-memory transfer paths invoke the imported calibration seam after
+  decoding and before null-only fill. The unselected direct call in
+  `_impute_pool` belongs only to explicit `--legacy-two-spine` compatibility.
+- Evaluated the live canonical surfaces against the frozen policy: exactly 20
+  of 20 targets are reachable, split into 7 early and 13 late targets with no
+  overlap, omission, or extra target. Schedule-D remains separately scoped by
+  a transient clone-0 role consumed by `_complete_schedule_d_input` before leaf
+  derivation.
+- Re-ran the four load-bearing fixtures covering imported-kernel invocation,
+  same-batch unassigned non-invocation, production-owner exact selection, and
+  Schedule-D role consumption/preservation. All four passed in 8.77 seconds
+  with fit and BLAS widths pinned to one and pytest's cache disabled.
 
 ## Next
 
-- Trace the current default build from both stacked ACS owners through the
-  post-decode transfer seam and Schedule-D derive seam.
-- Compare the exact selector boundary and regression with pkg3 commit
-  `22b2c6bc`; close any scope or invocation gap found.
-- Run focused verification and then the complete suite below 15 GiB RSS,
-  update this journal and `FINAL_REPORT.md`, and commit each coherent step.
+- Run the complete ACS transfer/calibration/Schedule-D module set and repository
+  lint/integrity checks.
+- Confirm that the already committed resource-isolated full-suite replay still
+  applies to the unchanged runtime/test tree, then finalize this journal and
+  `FINAL_REPORT.md` for the host's 1% rerun.
