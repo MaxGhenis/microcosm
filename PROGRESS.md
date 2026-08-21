@@ -9,7 +9,8 @@ pre-fill transfer seam, with default-empty exact-target activation from both
 stacked production owners. The canonical surfaces partition all 20 assigned
 targets into 7 early and 13 late targets with no overlap or omission, while
 Schedule-D reconciliation remains isolated to the subsequent derive stage.
-Fresh focused and full-suite verification is next. The user-provided
+Fresh load-bearing and complete focused-module verification pass under 0.61 GiB
+RSS; the resource-isolated full-suite replay is next. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run.
 
 ## Done
@@ -331,11 +332,15 @@ Fresh focused and full-suite verification is next. The user-provided
   stacked-owner fixture separately proves the production caller passes only
   the assigned tuple; Schedule-D fixtures prove role consumption, parent
   preservation, and the marker-absent compatibility no-op.
+- Re-ran the four load-bearing invocation/scope/Schedule-D fixtures with all
+  fit and BLAS widths pinned to one and pytest's cache disabled. All four
+  passed; the process peaked at 608,157,696 bytes RSS.
+- Re-ran the complete ACS transfer, calibration-kernel, and Schedule-D-kernel
+  modules under the same controls. All 110 tests passed; the process peaked at
+  600,834,048 bytes RSS.
 
 ## Next
 
-- Re-run the assigned-versus-unassigned invocation fixture, production-owner
-  scope fixture, and Schedule-D invocation/preservation fixtures.
 - Run the required broader suite under the 15 GiB constraint; fix and commit
   any discovered defect without changing frozen bands.
 - Refresh `FINAL_REPORT.md`, commit the terminal journal, and hand the frozen
