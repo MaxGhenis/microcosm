@@ -2,13 +2,13 @@
 
 ## State
 
-Fresh continuation verification is complete through the resource-bounded full
-suite and static quality gates. Three independent audits found no remaining
-implementation or regression gap in the live wiring from implementation commit
-`51054801`; the fresh load-bearing and 263-file replays are green under the
-charter ceiling. Only the terminal report/journal refresh remains in progress.
-The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
-continuation 1% build ran or will run locally.
+The continuation is complete through host-report commit `e91e1655`. Three
+independent audits found no remaining implementation or regression gap in the
+live wiring from implementation commit `51054801`; the fresh load-bearing and
+263-file replays are green under the charter ceiling, and all static/lock gates
+pass. `FINAL_REPORT.md` is committed and current for host handoff. The
+user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+continuation 1% build ran locally.
 
 ## Done
 
@@ -62,6 +62,9 @@ continuation 1% build ran or will run locally.
   cache audit. All pass and `lastfailed` is `{}`. Runtime is byte-identical to
   wiring commit `51054801`; all Python is byte-identical to guarded evidence
   commit `afbc80aa`.
+- Refreshed and committed `FINAL_REPORT.md` at `e91e1655` with the current
+  production trace, three-review verdict, fresh guarded-suite receipt, static
+  gates, unchanged frozen comparator contract, and host-only 1% handoff.
 - Reopened the continuation on 2026-08-21 at `47b22df0`, read `CLAUDE.md` and
   the complete GitNexus exploration workflow, inspected the branch/worktree,
   and preserved the user-owned untracked continuation brief. GitNexus MCP
@@ -657,5 +660,6 @@ continuation 1% build ran or will run locally.
 
 ## Next
 
-- Refresh `FINAL_REPORT.md`, close the journal, and hand the default-stacked 1%
-  comparison back to the host.
+- Host only: run the frozen 1% build with the default stacked pipeline (do not
+  pass `--legacy-two-spine`) and diff its assigned failure set against the
+  existing `origin/main` 1% baseline.
