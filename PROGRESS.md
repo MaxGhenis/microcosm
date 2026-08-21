@@ -2,19 +2,15 @@
 
 ## State
 
-The 2026-08-21 continuation audit and verification at `4fd3ca0c` confirm that
-the live branch contains the requested scoped production wiring and
-load-bearing regressions. Both QRF execution modes converge on the selected-only
-calibration seam; the default-stacked owners partition all 20 assigned targets
-into 7 early and 13 late targets with no overlap or omission; and the
-preservation-specific Schedule-D parent reconciliation is reached through the
-prepared derive handoff. The 8 load-bearing nodes, complete 110-test focused
-set, and exact 263-file resource-isolated replay pass. The replay recorded 6,549
-passed, 74 skipped, exactly 2 documented mounted-SIPP cache-only deselections,
-and an 11,899,813,888-byte maximum root RSS. All static, format, lock, diff, and
-cache gates pass. `FINAL_REPORT.md` contains the current host handoff. The
+The 2026-08-21 continuation has been reopened at `a3e00a68` in response to the
+host's zero-effect report. That report describes a tree where
+`acs_transfer_calibration.py` has no production caller, while the current live
+tree contains an import in `acs_transfer.py` and later wiring commits. Prior
+completion and suite claims below are historical evidence, not current truth;
+the current source, pkg3 scoped-binding precedent, exact target ownership,
+load-bearing regressions, and permitted full suite are being re-verified. The
 user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
-continuation 1% build ran.
+continuation 1% build will run locally.
 
 ## Done
 
@@ -550,8 +546,16 @@ continuation 1% build ran.
   all pass. No implementation or regression change was needed during this
   final audit because the requested wiring and load-bearing tests are already
   present in the live tree.
+- Reopened the continuation at `a3e00a68`, read `CLAUDE.md` and the complete
+  GitNexus debugging skill, and inspected the live branch/worktree before
+  trusting historical journal claims. GitNexus graph tools are unavailable in
+  this session, so direct source and Git call-path tracing is the fallback.
 
 ## Next
 
-- Host only: run the frozen 1% build through the default stacked pipeline and
-  diff the assigned failures against the existing `origin/main` baseline.
+- Re-read pkg3's named scoped-binding commit and independently trace the live
+  default stacked path through both ACS transfer modes and Schedule-D derive.
+- Prove the exact assigned/unassigned invocation contract with fixture tests;
+  change code only if the live implementation or regression is incomplete.
+- Run the full permitted suite under the 15 GiB ceiling, refresh
+  `FINAL_REPORT.md`, and leave the frozen 1% build to the host.
