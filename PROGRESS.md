@@ -2,15 +2,22 @@
 
 ## State
 
-The continuation is complete through final-report commit `73e9b3fb`. Three
-independent reviews found no remaining wiring or scope defect in implementation
-commit `51054801`; its default-stacked path reaches every assigned target and no
-unassigned target. Guarded test evidence and all static/lock gates are green,
-and `FINAL_REPORT.md` is current for host handoff. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
-build ran locally.
+The 2026-08-21 continuation audit is reopened at `df2fe2dc`. The branch already
+contains candidate production wiring in `51054801`; fresh source tracing,
+load-bearing regression replay, and the permitted full-suite/static gates are
+in progress. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
+untouched. No continuation 1% build will run locally.
 
 ## Done
+
+- Re-read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected
+  the branch/worktree, and preserved the user-owned untracked continuation
+  brief. GitNexus graph endpoints are unavailable in this session, so direct
+  source, test, and named-commit tracing will supply the fresh caller evidence.
+- Confirmed the host's stated no-caller symptom against the history boundary:
+  the current branch advertises candidate wiring in `51054801`, while the
+  continuation audit must still prove that the live default build reaches it
+  for assigned targets only.
 
 - Read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected the
   branch and worktree, and preserved the user-owned untracked continuation
