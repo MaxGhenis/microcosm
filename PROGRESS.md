@@ -7,10 +7,12 @@ already contains the scoped production wiring, load-bearing invocation
 regressions, full-suite evidence, and final report from the preceding pass.
 This pass is independently re-reading pkg3's named scoped-binding precedent,
 tracing the current default production call graph, and replaying the focused
-assigned/unassigned and Schedule-D tests before deciding whether a corrective
-implementation commit is required. No frozen gate parameter or band will
-change, no continuation build will run, and the host retains the next 1%
-comparison.
+assigned/unassigned and Schedule-D tests. Those audits found no runtime scope
+bug or missing caller: all 20 assigned transfer targets are reachable exactly
+once and the separate Schedule-D parent kernel runs at derive. Proportional
+quality checks and the terminal journal/report update remain. No frozen gate
+parameter or band will change, no continuation build will run, and the host
+retains the next 1% comparison.
 
 ## Done
 
@@ -208,12 +210,25 @@ comparison.
   default-empty exact-target selector, and contains an assigned-versus-
   unassigned call-recording regression. Further production-path and test
   verification is in progress.
+- Re-read pkg3's named `22b2c6bc` scoped-binding regression and production
+  successors `176c60fc`, `887df056`, and `94b7aecb`. The pkg1 selector has the
+  same default-empty exact `(entity, target)`, active-surface intersection, and
+  selected-only execution shape, with an additional fail-closed 20-target
+  policy check. Independent review found no unassigned runtime mutation leak.
+- Independently traced the default CLI through stacked gap-fill, the bounded
+  late-producer DAG, and the derive stage. Live canonical constants partition
+  the policy into 7 early and 13 late targets with no overlap or omission;
+  banked and in-memory fits converge on the same post-decode/pre-fill seam.
+  Schedule-D derivation is disabled in every late group, then its clone-0 role
+  authority is consumed by the parent reconciliation before leaf derivation.
+- Replayed the four load-bearing call/scope/Schedule-D fixtures; all passed.
+  Replayed the complete 110-test ACS transfer, calibration-kernel, and
+  Schedule-D-kernel set with all fit/BLAS widths pinned to one; all passed.
+  Runtime code is unchanged from `51054801`, the implementation tree already
+  covered by the committed full-suite and guarded-replay evidence.
 
 ## Next
 
-- Complete independent pkg3-pattern, production-call-graph, and regression
-  audits; correct and commit any discovered defect.
-- Replay the focused wiring/Schedule-D tests and proportional quality gates
-  under 15 GiB without running a build.
+- Run Ruff, lock freshness, and diff-integrity checks without running a build.
 - Restore terminal State/Next, update `FINAL_REPORT.md`, and commit the final
   handoff for the host's frozen 1% comparison.
