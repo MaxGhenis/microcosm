@@ -10,12 +10,14 @@ targets (15 carrier checks and 23 conditional-amount checks, representing all
 kernel executes later in the mandatory default-stacked derive path, before the
 deterministic Schedule-D leaf is produced.
 
-Fresh source tracing found no missing production caller or unassigned-target
-leak in the current tree. The canonical transfer surfaces partition the frozen
-policy into 7 early and 13 late targets, with zero overlap and zero omission.
-No comparator band, incidence threshold, QED ceiling, quantile, seed, fold, or
-comparator changed. No continuation 1% build ran; the host retains that frozen
-comparison.
+Fresh source tracing plus three independent reviews found no missing production
+caller or unassigned-target leak in the current tree. The canonical transfer
+surfaces partition the frozen policy into 7 early and 13 late targets, with
+zero overlap and zero omission. The earlier identical 127-line host comparison
+therefore describes the pre-wiring tree; the current default-stacked path now
+contains the production call. No comparator band, incidence threshold, QED
+ceiling, quantile, seed, fold, or comparator changed. No continuation 1% build
+ran; the host retains that frozen comparison.
 
 ## Production wiring
 
@@ -70,10 +72,13 @@ frame can no longer remain green.
 
 ## Verification
 
-- Four load-bearing assigned/unassigned, production-owner, and Schedule-D
-  fixtures: pass; peak RSS 608,157,696 bytes.
-- Complete ACS transfer, calibration-kernel, and Schedule-D-kernel modules:
-  110 tests pass; peak RSS 600,834,048 bytes.
+- Fresh four-test replay of the load-bearing assigned/unassigned,
+  production-owner, and Schedule-D fixtures: 4 passed in 8.77 seconds. The
+  committed resource profile for this unchanged set peaked at 608,157,696
+  bytes RSS.
+- Fresh complete ACS transfer, calibration-kernel, and Schedule-D-kernel
+  replay: 110 passed in 237.03 seconds. The committed resource profile for this
+  unchanged set peaked at 600,834,048 bytes RSS.
 - Complete multispine tool module after handoff hardening: 155 tests pass; peak
   RSS 1,333,870,592 bytes.
 - Exact 263-file test manifest
@@ -107,6 +112,8 @@ regression in `test_us_multispine_pool_tool.py`. The user-provided
 - `7298590f` — pin the Schedule-D prepare-to-derive handoff.
 - `86f9dfcd` — support repeated cold/resumed handoffs in that fixture.
 - `afbc80aa` — record the guarded full-suite replay.
+- `0b78c148` — reopen and bind the current host continuation.
+- `43bf500f` — record the fresh scoped wiring verification checkpoint.
 
 ## Host handoff
 

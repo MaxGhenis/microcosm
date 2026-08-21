@@ -2,15 +2,17 @@
 
 ## State
 
-The 2026-08-20 host-requested wiring continuation is verified through its
-focused gate on branch `battery-pkg1-puf-tax`. Direct tracing and independent
-review confirm that implementation commit `51054801` is live in the default
-stacked path: both QRF modes converge on the selected-only post-decode kernel
-seam, all 20 assigned targets are partitioned into 7 early and 13 late targets,
-and Schedule-D reconciliation executes in the later derive stage. Four
-load-bearing invocation/scope/Schedule-D tests pass. Full-suite applicability
-and repository checks remain to be finalized. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build ran.
+The 2026-08-20 host-requested wiring continuation is complete on branch
+`battery-pkg1-puf-tax`. Direct tracing and three independent reviews confirm
+that implementation commit `51054801` is live in the default stacked path:
+both QRF modes converge on the selected-only post-decode kernel seam, all 20
+assigned targets are partitioned into 7 early and 13 late targets, and
+Schedule-D reconciliation executes in the later derive stage. The four
+load-bearing fixtures and complete 110-test ACS calibration/transfer/
+Schedule-D set pass. Runtime and tests are byte-identical to the committed
+resource-isolated full-suite replay at `afbc80aa`; full Ruff, lock freshness,
+and diff integrity pass. The user-provided `_WIRING-CONTINUATION.md` remains
+untracked and untouched. No 1% build ran.
 
 ## Done
 
@@ -408,11 +410,26 @@ and repository checks remain to be finalized. The user-provided
   same-batch unassigned non-invocation, production-owner exact selection, and
   Schedule-D role consumption/preservation. All four passed in 8.77 seconds
   with fit and BLAS widths pinned to one and pytest's cache disabled.
+- Completed three independent read-only reviews of the pkg3 precedent,
+  production call graph/checkpoint routing, and load-bearing regression set.
+  All found no blocking defect. Removing or bypassing the early owner, late
+  owner, common transfer seam, Schedule-D derive dispatch, or prepared-frame
+  handoff makes at least one committed test fail.
+- Re-ran all 110 tests in the ACS transfer, calibration-kernel, and Schedule-D
+  reconciliation modules with fit and BLAS widths pinned to one and pytest's
+  cache disabled. They reached 100% and exited zero in 237.03 seconds.
+- Confirmed the runtime, tests, dependencies, and lock are byte-identical to
+  `afbc80aa`, whose exact 263-file resource-isolated suite replay recorded
+  6,549 passed, 74 skipped, 2 cache-only mounted-SIPP nodes explicitly
+  deselected, and an 11,844,042,752-byte maximum accepted peak below 15 GiB.
+  Only `PROGRESS.md` and `FINAL_REPORT.md` changed after that evidence commit.
+- Re-ran full Ruff, explicitly unfrozen lock freshness, and `git diff --check`;
+  all pass. No implementation or regression change was needed during this
+  final audit because the requested wiring and load-bearing tests are already
+  present in the live tree.
 
 ## Next
 
-- Run the complete ACS transfer/calibration/Schedule-D module set and repository
-  lint/integrity checks.
-- Confirm that the already committed resource-isolated full-suite replay still
-  applies to the unchanged runtime/test tree, then finalize this journal and
-  `FINAL_REPORT.md` for the host's 1% rerun.
+- Host: run the frozen 1% comparison at the current branch tip through the
+  default stacked pipeline, without `--legacy-two-spine`, and adjudicate the
+  assigned failure-set delta against the existing `origin/main` baseline.
