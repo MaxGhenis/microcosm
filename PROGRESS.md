@@ -2,19 +2,24 @@
 
 ## State
 
-The 2026-08-21 capital-gains tail-guard continuation is in progress at
-`50a8e240`. A guarded no-build checkpoint replay reproduced a material
+The 2026-08-21 capital-gains tail-guard continuation has completed final
+verification and is ready for its implementation commit.
+The pre-fix guarded checkpoint replay measured a real
 `non_sch_d_capital_gains` increase from `0.84607664843916197` to
-`0.84611424753688269` (delta `3.7599097720719676e-05`, versus `1e-9` noise
-tolerance). The rounded host message was misleading, but the live guard's
-decision was correct. The generating mechanism is now isolated to recipient
-selection: all 15,228 selected donors carry zero for this leg, while the current
-seeded in-band allocation can displace one of 805 positive modeled recipients
-and add zero back. Implementation will preserve the real-return reporting route
-and replace modeled tail recipients within the existing status/AGI doctrine.
-Thresholds, bands, gates, seeds, and folds remain frozen. No host build will run
-in this lane, and work must stay below 15 GiB RSS. The existing untracked
-helper/continuation files remain untouched.
+`0.84611424753688269` (delta `3.7599097720719676e-05`, versus the unchanged
+`1e-9` noise tolerance). The corrected transfer now matches the donor and
+recipient direct-vs-Schedule-D reporting route and replaces modeled ST+LT tail
+recipients before seeded ties
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2011-2064`).
+A second no-build replay of the same authenticated
+checkpoint inputs measured pre and post both as `0.84607664843916197`, with
+exact delta `0`; the guard reports
+`pre_existing_over_threshold_not_worsened` and does not fail. Thresholds, AGI
+bands, gates, seeds, and folds remain frozen. No host build has run in this lane.
+All accepted replay/test receipts remain below 15 GiB RSS; one rejected attempt
+to run a mounted 3.73 GB SIPP cache probe jumped through its conservative cutoff
+before the monitor could terminate it, and is disclosed below. The existing
+unrelated untracked helper/continuation files remain untouched.
 
 ## Done
 
@@ -42,6 +47,78 @@ helper/continuation files remain untouched.
   selected q99.5-tail donors have zero `non_sch_d_capital_gains`; the recipient
   bank has 805 positive and 22,374 zero draws. The committed adjudication is
   `experiments/578_puf_capital_gains_tail_guard_replay.md`.
+- Corrected the generating assignment mechanism without changing its filing-
+  status or nearest-AGI-band doctrine: recipient candidates now carry tax-unit-
+  aggregate modeled capital-gains values and a direct-route identity; support
+  and assignment are route-specific; compatible recipients are ordered by
+  modeled ST+LT tail magnitude before seeded/source-ID ties
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1791-1827`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1891-2008`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2011-2064`).
+- Made the guard receipt explicit and derivable: it records full-precision pre,
+  post, delta, top-k, unchanged threshold/tolerance/minimum-carrier controls,
+  raw pre/post threshold flags, production-gate eligibility, and attribution.
+  It fails only when the raw increase exceeds `1e-9`, the raw post share is
+  over `0.75`, and the post measurement meets the unchanged 500-carrier floor.
+  An unchanged pre-existing exceedance is a non-failing report entry, while a
+  thin raw exceedance is reported separately instead of called within-threshold
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:610-820`).
+- Added separate load-bearing regressions for equal shares, a sub-tolerance
+  increase, a material increase, and an unchanged pre-existing exceedance, plus
+  reporting-route preservation and modeled-tail recipient ordering
+  (`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:641-811`,
+  `packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1191-1391`).
+- Replayed the corrected transfer from the same checkpointed inputs without
+  fitting, checkpoint writes, or a build. Pre and post are bit-identical at
+  `0.84607664843916197` (`0x1.b130f55de9360p-1`), delta is exactly zero, all
+  stage-attributable failures are absent, the checkpoint tree is unchanged,
+  and peak root RSS was 3,313,057,792 bytes.
+- Closed the independent review's coverage findings: tax-unit aggregation is
+  load-bearing with a multi-person route/order fixture, route insufficiency is
+  tested when status-total capacity is deceptively adequate, public transfer
+  pass/fail behavior is bound to exact messages and persisted manifest reports,
+  and schema-v3 validation derives every verdict from measured shares/carriers
+  and rejects a rehashed altered report
+  (`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:657-811`,
+  `packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:838-897`,
+  `packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1191-1442`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1488-1636`).
+- Advanced the legacy semantic checkpoint identity with the shared tail
+  implementation: the common identity binds tail manifest schema 3/support
+  contract 2, while the legacy projection removes only the stacked late-
+  producer schedule (`tools/build_us_multispine_pool.py:958-1002`). This is
+  required because the legacy route executes the shared imputation and current
+  tail transfer (`tools/build_us_multispine_pool.py:2388-2407`,
+  `tools/build_us_multispine_pool.py:3844-3897`). The outer schema-4/
+  materializer-3 envelope remains. A mocked-build fixture keeps its pool bytes
+  stable while its manifest golden advances to bind the current semantic key;
+  real tail-affected legacy data may intentionally change under the shared fix.
+- Final-tree package receipts: frame 294 passed/36 skipped at 6,527,254,528
+  bytes peak RSS; fit 125 passed at 417,792,000 bytes; calibrate 201 passed at
+  466,321,408 bytes; data 275 passed/1 skipped at 12,270,026,752 bytes. The
+  earlier build directory's cumulative process reached 77% without a test
+  failure, then the conservative 14 GiB guard stopped it at 15,554,838,528
+  bytes before the binding 15 GiB ceiling.
+- The final fresh-process build sweep ran all 226 tracked build test files:
+  5,672 passed, 37 skipped, zero failures/errors, and exactly two explicit
+  cache-probe deselections. Maximum accepted RSS was 7,022,198,784 bytes. The
+  manifest SHA-256 is
+  `855d762df4e85fd40df7ff299d444ec5f13d43111d25d731bee1bef73cef79d6`;
+  the receipt SHA-256 is
+  `67b18e5af01d1ed68134911a0f02449a7dedc8c316fa3da6f16b6a62b53afc22`.
+  Combined with the other four package shards, final accepted results are 6,567
+  passed, 74 skipped, zero failures/errors, and the same two deselections.
+- The deselections are
+  `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`. A guarded
+  attempt to run the first probe alone used a 14.875 GiB cutoff, but its next
+  sampled allocation was already 17,501,945,856 bytes; the monitor terminated
+  it before completion. The second was not attempted. Both parse the same
+  mounted 3.73 GB SIPP source; neither is accepted suite evidence.
+- Ruff passed over every tracked Python file, and `git diff --check` passed.
+  Plain `ruff check .` would additionally scan the preserved untracked helper
+  `._pkg1_full_suite.py`, whose pre-existing import-order finding remains outside
+  this commit.
 
 - Re-read `CLAUDE.md`, the continuation brief, and the complete GitNexus
   debugging workflow; inspected the live worktree and branch history; and
@@ -661,9 +738,9 @@ helper/continuation files remain untouched.
   precedent and the production call graph. Both reviews found no unassigned
   target leakage: the default stacked build reaches all 20 assigned targets
   (7 early and 13 late), including mixed suffixed batches, and reaches the
-  Schedule-D kernel only in the later derive stage. The retiring explicit
-  `--legacy-two-spine` compatibility route remains byte-stable and outside this
-  default-production remedy.
+  Schedule-D kernel only in the later derive stage. At that calibration-only
+  commit, the retiring explicit `--legacy-two-spine` route was outside the
+  remedy; the current tail section above supersedes its semantic-key claim.
 - Re-ran the four load-bearing wiring fixtures and the complete 110-test ACS
   calibration/transfer/Schedule-D kernel set; both exited zero. A fresh full
   repository run at implementation HEAD `d9a38965` then completed in 53:11
@@ -977,12 +1054,6 @@ helper/continuation files remain untouched.
 
 ## Next
 
-- Implement route-compatible, modeled-tail recipient selection inside the
-  existing filing-status/nearest-AGI-band doctrine and bind its semantics into
-  execution identity. Keep exact donor-vector fidelity and all frozen controls.
-- Make the non-regression receipt/message report full-precision pre, post,
-  delta, tolerance, threshold, and explicit pre-existing-vs-stage-worsened
-  classification without changing its pass/fail boundary.
-- Add the four requested regressions, run each package test shard plus full
-  Ruff under the lane memory ceiling, refresh `FINAL_REPORT.md`, and return the
-  final committed tree to the serial host queue.
+- Commit the verified implementation and journals as one coherent step.
+- Refresh and commit `FINAL_REPORT.md`, then return the exact final commit to the
+  serial host queue for the prohibited-in-lane 1% build.

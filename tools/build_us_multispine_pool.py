@@ -8,7 +8,8 @@ The default production path is the stacked pipeline:
 Both survey arms use one composition-preserving ``--sample-fraction``; PUF
 donors always remain full. The terminal completeness gate plus by-origin
 battery replace two-spine agreement. ``--legacy-two-spine`` retains the
-retiring pipeline byte-for-byte for reproducibility.
+retiring outer envelope; shared operator semantics still advance its checkpoint
+identity and can intentionally change tail-affected data.
 
 Every input is local and explicitly SHA-pinned; this tool never downloads
 data. It writes a nullable input-only H5 plus a manifest and terminal gate
@@ -204,9 +205,9 @@ __all__ = [
 POOL_MANIFEST_SCHEMA_VERSION = US_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION
 """Schema version for the companion pool build manifest."""
 
-# ``--legacy-two-spine`` is a byte-stable compatibility surface.  Stacked
-# publication and checkpoint-envelope versions may advance without rewriting
-# the retiring pipeline's last supported envelope.
+# ``--legacy-two-spine`` retains its outer compatibility envelope. Shared
+# operator semantics still advance its checkpoint identity so stale banks
+# cannot be reused under current code.
 _LEGACY_POOL_MANIFEST_SCHEMA_VERSION = 4
 _LEGACY_POOL_STAGE_CHECKPOINT_MATERIALIZER_VERSION = 3
 
@@ -3841,7 +3842,7 @@ def _fsync_parent_directory(path: Path) -> None:
 
 
 def _main_legacy(args: argparse.Namespace) -> int:
-    """Run the retiring two-spine implementation without semantic changes."""
+    """Run the retiring topology in its legacy outer envelope."""
 
     outputs = _output_paths(
         args.out,

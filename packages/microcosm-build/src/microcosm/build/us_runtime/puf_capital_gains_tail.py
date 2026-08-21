@@ -75,8 +75,8 @@ __all__ = [
 
 PUF_CAPITAL_GAINS_TAIL_STAGE_NAME = "capital_gains_tail_transfer"
 PUF_CAPITAL_GAINS_TAIL_SUPPORT_CHANNEL = PUF_TAX_DETAIL_SUPPORT_CHANNEL
-PUF_CAPITAL_GAINS_TAIL_MANIFEST_SCHEMA_VERSION = 2
-PUF_CAPITAL_GAINS_TAIL_SUPPORT_CONTRACT_VERSION = 1
+PUF_CAPITAL_GAINS_TAIL_MANIFEST_SCHEMA_VERSION = 3
+PUF_CAPITAL_GAINS_TAIL_SUPPORT_CONTRACT_VERSION = 2
 PUF_CAPITAL_GAINS_TAIL_POSITIVE_MASS_FIVE_X_TARGET = 1_270_900_000_000.0
 PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_TOP_K = 100
 PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE = 0.75
@@ -119,6 +119,36 @@ _TAIL_COMBINED_COLUMN = "_puf_capital_gains_tail_combined"
 _TAIL_AGI_BAND_INDEX_COLUMN = "_puf_capital_gains_tail_agi_band_index"
 _TAIL_AGI_BAND_LABEL_COLUMN = "_puf_capital_gains_tail_agi_band_label"
 _TAIL_SYNTHETIC_COLUMN = "_puf_capital_gains_tail_is_synthetic"
+_DIRECT_ROUTE_COLUMN = "non_sch_d_capital_gains"
+_RECIPIENT_DIRECT_ROUTE_COLUMN = "_puf_capital_gains_tail_recipient_direct_route"
+_RECIPIENT_COMBINED_COLUMN = "_puf_capital_gains_tail_recipient_combined"
+_REPORTING_ROUTES = (
+    (False, "schedule_d_or_no_direct_distribution"),
+    (True, "direct_form_1040_distribution"),
+)
+_FRAME_CONCENTRATION_RECEIPT_FIELDS = frozenset(
+    {
+        "pre_stage_top_share",
+        "post_stage_top_share",
+        "post_minus_pre_top_share",
+        "top_k",
+        "threshold",
+        "min_nonzero_records",
+        "worsening_share_tolerance",
+        "pre_stage_carriers",
+        "post_stage_carriers",
+        "pre_stage_distinct_values",
+        "post_stage_distinct_values",
+        "pre_stage_raw_share_over_threshold",
+        "post_stage_raw_share_over_threshold",
+        "pre_stage_production_gate_eligible",
+        "post_stage_production_gate_eligible",
+        "post_stage_production_gate_over_threshold",
+        "stage_worsened_share",
+        "stage_guard_failed",
+        "stage_guard_classification",
+    }
+)
 
 PUF_CAPITAL_GAINS_TAIL_APPLIED_COLUMN = "puf_capital_gains_tail_transfer_applied"
 PUF_CAPITAL_GAINS_TAIL_DONOR_SOURCE_ID_COLUMN = "puf_capital_gains_tail_donor_source_id"
@@ -176,8 +206,17 @@ def puf_capital_gains_tail_support_contract_identity(
         "insufficient_support_action": (
             "skip_entire_filing_status_attachment_without_widening"
         ),
+        "reporting_route_partition": {
+            "column": _DIRECT_ROUTE_COLUMN,
+            "direct_route_comparison": "strictly_greater_than_zero",
+            "matching": "exact_donor_recipient_route_state",
+        },
         "agi_band_policy": (
             "nearest_band_first_then_all_agi_bands_within_filing_status"
+        ),
+        "recipient_order_policy": (
+            "descending_tax_unit_aggregate_short_term_plus_long_term_then_"
+            "seeded_order_then_source_ids"
         ),
         "agi_band_count": len(resolved_agi_bands),
     }
@@ -217,7 +256,7 @@ def puf_capital_gains_tail_concentration_controls_identity() -> dict[str, object
     """Return the explicit selected-tail and produced-frame gate controls."""
 
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "selection_quantile": PUF_CAPITAL_GAINS_TAIL_QUANTILE,
         "selection_comparison": "strictly_greater_than",
         "reference_quantile": PUF_CAPITAL_GAINS_TAIL_REFERENCE_QUANTILE,
@@ -230,6 +269,11 @@ def puf_capital_gains_tail_concentration_controls_identity() -> dict[str, object
         "worsening_share_tolerance": (PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE),
         "ordered_recipient_agi_proxy_columns": list(_RECIPIENT_AGI_PROXY_COLUMNS),
         "ordered_joint_vector_columns": list(_JOINT_VECTOR_COLUMNS),
+        "recipient_reporting_route_column": _DIRECT_ROUTE_COLUMN,
+        "recipient_tail_order_columns": [
+            "short_term_capital_gains",
+            "long_term_capital_gains_before_response",
+        ],
         "recipient_owned_candidate_overlap": sorted(_RECIPIENT_OWNED_CANDIDATE_OVERLAP),
         "top_k": PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_TOP_K,
         "max_top_share": PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE,
@@ -556,8 +600,8 @@ def assert_puf_capital_gains_tail_survives_selection(
 
 #: Float tolerance for the worsening comparator (microcosm#571 review):
 #: weight splitting and changed summation order move shares by ULPs; a
-#: strict > would fail 0.84 -> 0.8400000000000001. Anything below this is
-#: numerical noise, not a worsening.
+#: strict > would fail 0.84 -> 0.8400000000000001. Anything at or below this
+#: is numerical noise, not a material worsening.
 PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE = 1e-9
 # Retained for the low-level comparator regression and private callers.
 _WORSENING_SHARE_TOLERANCE = PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE
@@ -615,48 +659,165 @@ def _stage_attributable_concentration_failures(
     post_receipts: Mapping[str, Mapping[str, object]],
     post_gate: GateResult,
 ) -> tuple[list[str], dict[str, dict[str, object]]]:
-    """Fail only columns the stage left over threshold AND strictly worsened.
+    """Fail only eligible, raw-over-threshold columns materially worsened.
 
     microcosm#567/#570 adjudication: the stage's frame check exists to catch
     stage-caused pathology (a broadcast or a bad transfer concentrating
     mass). Concentration the frame already carried BEFORE the stage is
     owned by the release-side gate, which measures the calibrated artifact
-    and has its own reviewed per-run register. Over-threshold membership
-    comes from the production gate on the post frame; the pre/post shares
-    come from the raw measurement so thin pre-stage columns compare
-    truthfully. Per-column receipts (shares, carriers, distinct values —
-    the last a visibility signal for share-preserving value collapses)
-    ride the stage manifest either way.
+    and has its own reviewed per-run register. Raw pre/post shares determine
+    attribution, including for structurally thin columns that the production
+    gate deliberately reports but does not check. Production-gate eligibility
+    remains a separate receipt fact so a raw over-threshold state cannot be
+    mislabeled as within-threshold merely because it has fewer than the gate's
+    minimum carriers. Per-column receipts (shares, carriers, distinct values —
+    the last a visibility signal for share-preserving value collapses) ride
+    the stage manifest either way.
     """
 
-    over_threshold = {line.partition(":")[0].strip() for line in post_gate.failures}
+    if set(pre_receipts) != set(post_receipts):
+        raise ValueError(
+            "PUF capital-gains tail raw pre/post measurement columns disagree."
+        )
+    gate_checked = set(post_gate.details.get("top_share", {}))
+    gate_thin = set(post_gate.details.get("thin_columns", {}))
+    measured_columns = set(post_receipts)
+    if gate_checked | gate_thin != measured_columns or gate_checked & gate_thin:
+        raise ValueError(
+            "PUF capital-gains tail production-gate coverage disagrees with "
+            "the raw post-stage measurements."
+        )
+    expected_gate_checked = {
+        column
+        for column, receipt in post_receipts.items()
+        if int(receipt["carriers"])
+        >= PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+    }
+    gate_over_threshold = {
+        column
+        for column, receipt in post_receipts.items()
+        if column in expected_gate_checked
+        and float(receipt["top_share"])
+        > PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
+    }
+    expected_gate_passed = not gate_over_threshold
+    if gate_checked != expected_gate_checked or (
+        post_gate.passed != expected_gate_passed
+    ):
+        raise ValueError(
+            "PUF capital-gains tail production-gate verdict disagrees with "
+            "the raw post-stage measurements."
+        )
     failures: list[str] = []
     receipts: dict[str, dict[str, object]] = {}
     for column in sorted(post_receipts):
-        pre = pre_receipts.get(column, {})
-        pre_share = float(pre.get("top_share", 0.0))
+        pre = pre_receipts[column]
+        pre_share = float(pre["top_share"])
         post_share = float(post_receipts[column]["top_share"])
-        over = column in over_threshold
-        worsened = (
-            post_share > pre_share + PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE
+        pre_carriers = int(pre["carriers"])
+        post_carriers = int(post_receipts[column]["carriers"])
+        (
+            delta,
+            worsened,
+            pre_over,
+            post_over,
+            pre_gate_eligible,
+            post_gate_eligible,
+            failed,
+            classification,
+        ) = _stage_concentration_disposition(
+            pre_share=pre_share,
+            post_share=post_share,
+            pre_carriers=pre_carriers,
+            post_carriers=post_carriers,
         )
+        tolerance = PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE
+        threshold = PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
         receipts[column] = {
             "pre_stage_top_share": pre_share,
             "post_stage_top_share": post_share,
-            "pre_stage_carriers": int(pre.get("carriers", 0)),
-            "post_stage_carriers": int(post_receipts[column]["carriers"]),
-            "pre_stage_distinct_values": int(pre.get("distinct_values", 0)),
+            "post_minus_pre_top_share": delta,
+            "top_k": PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_TOP_K,
+            "threshold": threshold,
+            "min_nonzero_records": (
+                PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+            ),
+            "worsening_share_tolerance": tolerance,
+            "pre_stage_carriers": pre_carriers,
+            "post_stage_carriers": post_carriers,
+            "pre_stage_distinct_values": int(pre["distinct_values"]),
             "post_stage_distinct_values": int(post_receipts[column]["distinct_values"]),
-            "over_threshold": over,
+            "pre_stage_raw_share_over_threshold": pre_over,
+            "post_stage_raw_share_over_threshold": post_over,
+            "pre_stage_production_gate_eligible": pre_gate_eligible,
+            "post_stage_production_gate_eligible": post_gate_eligible,
+            "post_stage_production_gate_over_threshold": (
+                post_gate_eligible and post_over
+            ),
             "stage_worsened_share": worsened,
+            "stage_guard_failed": failed,
+            "stage_guard_classification": classification,
         }
-        if over and worsened:
+        if failed:
             failures.append(
-                f"{column}: post-stage top-100 share {post_share:.4f} is over "
-                f"the threshold and worsened from pre-stage {pre_share:.4f} — "
-                "the transfer caused or deepened the concentration."
+                f"{column}: pre-stage top-"
+                f"{PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_TOP_K} share "
+                f"{pre_share:.17g}; post-stage {post_share:.17g}; delta "
+                f"{delta:.17g} exceeded the numerical-noise tolerance "
+                f"{tolerance:.17g}. The raw post-stage share exceeded the "
+                f"unchanged threshold {threshold:.17g}; post-stage carriers="
+                f"{post_carriers} met the unchanged production-gate minimum "
+                f"{PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS}."
             )
     return failures, receipts
+
+
+def _stage_concentration_disposition(
+    *,
+    pre_share: float,
+    post_share: float,
+    pre_carriers: int,
+    post_carriers: int,
+) -> tuple[float, bool, bool, bool, bool, bool, bool, str]:
+    """Classify one raw pre/post measurement under the frozen guard controls."""
+
+    delta = float(post_share - pre_share)
+    worsened = delta > PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE
+    pre_over = pre_share > PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
+    post_over = post_share > PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
+    pre_gate_eligible = (
+        pre_carriers
+        >= PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+    )
+    post_gate_eligible = (
+        post_carriers
+        >= PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+    )
+    failed = post_over and post_gate_eligible and worsened
+    if failed:
+        classification = "stage_worsened_over_threshold"
+    elif not post_gate_eligible:
+        classification = "production_gate_ineligible"
+    elif post_over and pre_over:
+        classification = "pre_existing_over_threshold_not_worsened"
+    elif post_over:
+        classification = "post_over_threshold_without_material_stage_worsening"
+    elif pre_over:
+        classification = "stage_reduced_below_threshold"
+    elif worsened:
+        classification = "stage_worsened_within_threshold"
+    else:
+        classification = "within_threshold_not_worsened"
+    return (
+        delta,
+        worsened,
+        pre_over,
+        post_over,
+        pre_gate_eligible,
+        post_gate_eligible,
+        failed,
+        classification,
+    )
 
 
 def transfer_puf_capital_gains_tail(
@@ -805,8 +966,9 @@ def transfer_puf_capital_gains_tail(
     )
     if stage_attributable_failures:
         raise ValueError(
-            "PUF capital-gains tail transfer worsened weighted concentration "
-            "above the threshold:\n  " + "\n  ".join(stage_attributable_failures)
+            "PUF capital-gains tail transfer measured a material weighted-"
+            "concentration increase above the threshold:\n  "
+            + "\n  ".join(stage_attributable_failures)
         )
     observed_tail = _observed_tail_transfer(transferred)
     carrier_reconciliation = _reconcile_observed_tail_transfer(
@@ -1015,6 +1177,7 @@ def _validate_recipient_support_receipt(
         "required_minimum",
         "attached_donor_count",
         "skipped_donor_count",
+        "reporting_routes",
     }
     required_total = 0
     observed_total = 0
@@ -1024,6 +1187,7 @@ def _validate_recipient_support_receipt(
     insufficient: list[str] = []
     not_applicable = 0
     attached_by_code: dict[int, int] = {}
+    attached_by_code_route: dict[tuple[int, bool], int] = {}
     for (expected_code, expected_name), raw_stratum in zip(
         _FILING_STATUS_BY_CODE.items(),
         strata,
@@ -1062,11 +1226,77 @@ def _validate_recipient_support_receipt(
         required = counts["required_minimum"]
         attached = counts["attached_donor_count"]
         skipped = counts["skipped_donor_count"]
+        raw_routes = stratum["reporting_routes"]
+        if not isinstance(raw_routes, list) or len(raw_routes) != len(
+            _REPORTING_ROUTES
+        ):
+            raise ValueError(
+                "PUF capital-gains tail recipient-support reporting routes must "
+                "enumerate both route states exactly once."
+            )
+        route_observed_total = 0
+        route_required_total = 0
+        route_support_sufficient = True
+        required_by_route: dict[bool, int] = {}
+        expected_route_fields = {
+            "direct_route",
+            "reporting_route",
+            "observed_count",
+            "required_minimum",
+            "sufficient",
+        }
+        for (expected_direct, expected_route), raw_route in zip(
+            _REPORTING_ROUTES,
+            raw_routes,
+            strict=True,
+        ):
+            if not isinstance(raw_route, Mapping) or set(raw_route) != (
+                expected_route_fields
+            ):
+                raise ValueError(
+                    "PUF capital-gains tail recipient-support reporting-route "
+                    "schema mismatch."
+                )
+            route = dict(raw_route)
+            if (
+                route["direct_route"] is not expected_direct
+                or route["reporting_route"] != expected_route
+            ):
+                raise ValueError(
+                    "PUF capital-gains tail recipient-support reporting-route "
+                    "order or identity changed."
+                )
+            route_counts: dict[str, int] = {}
+            for field in ("observed_count", "required_minimum"):
+                value = route[field]
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(
+                        "PUF capital-gains tail recipient-support reporting-route "
+                        "counts must be nonnegative integers."
+                    )
+                route_counts[field] = value
+            route_observed = route_counts["observed_count"]
+            route_required = route_counts["required_minimum"]
+            route_sufficient = route_observed >= route_required
+            if route["sufficient"] is not route_sufficient:
+                raise ValueError(
+                    "PUF capital-gains tail recipient-support reporting-route "
+                    "sufficiency arithmetic is inconsistent."
+                )
+            route_observed_total += route_observed
+            route_required_total += route_required
+            route_support_sufficient &= route_sufficient
+            required_by_route[expected_direct] = route_required
+        if route_observed_total != observed or route_required_total != required:
+            raise ValueError(
+                "PUF capital-gains tail recipient-support reporting-route counts "
+                f"do not sum to filing status {expected_name}."
+            )
         status = stratum["status"]
         if required == 0:
             valid = status == "not_applicable" and attached == skipped == 0
             not_applicable += 1
-        elif observed < required:
+        elif not route_support_sufficient:
             valid = (
                 status == "insufficient_support"
                 and attached == 0
@@ -1086,6 +1316,10 @@ def _validate_recipient_support_receipt(
         attached_total += attached
         skipped_total += skipped
         attached_by_code[expected_code] = attached
+        for direct_route, _route_name in _REPORTING_ROUTES:
+            attached_by_code_route[(expected_code, direct_route)] = (
+                required_by_route[direct_route] if status == "attached" else 0
+            )
 
     if nonnegative_integer("candidate_count") != observed_total:
         raise ValueError(
@@ -1119,6 +1353,7 @@ def _validate_recipient_support_receipt(
         )
     if records is not None:
         record_counts: Counter[int] = Counter()
+        record_route_counts: Counter[tuple[int, bool]] = Counter()
         for record in records:
             if not isinstance(record, Mapping):
                 raise ValueError(
@@ -1136,12 +1371,54 @@ def _validate_recipient_support_receipt(
                     "PUF capital-gains tail record filing-status identity changed."
                 )
             record_counts[code] += 1
+            joint_vector = record.get("joint_vector")
+            if not isinstance(joint_vector, Mapping):
+                raise ValueError(
+                    "PUF capital-gains tail record joint vector is malformed."
+                )
+            try:
+                direct_route = float(joint_vector[_DIRECT_ROUTE_COLUMN]) > 0.0
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError(
+                    "PUF capital-gains tail record reporting route is malformed."
+                ) from error
+            if (
+                record.get("donor_direct_route") is not direct_route
+                or record.get("recipient_direct_route") is not direct_route
+                or record.get("reporting_route_match") is not True
+            ):
+                raise ValueError(
+                    "PUF capital-gains tail record crossed its reporting route."
+                )
+            modeled_combined = record.get(
+                "recipient_modeled_short_term_plus_long_term"
+            )
+            if (
+                isinstance(modeled_combined, bool)
+                or not isinstance(
+                    modeled_combined,
+                    (int, float, np.integer, np.floating),
+                )
+                or not np.isfinite(float(modeled_combined))
+            ):
+                raise ValueError(
+                    "PUF capital-gains tail record recipient modeled-tail "
+                    "magnitude is malformed."
+                )
+            record_route_counts[(code, direct_route)] += 1
         if dict(record_counts) != {
             code: count for code, count in attached_by_code.items() if count
         }:
             raise ValueError(
                 "PUF capital-gains tail attached records do not equal the "
                 "recipient-support status counts."
+            )
+        if dict(record_route_counts) != {
+            key: count for key, count in attached_by_code_route.items() if count
+        }:
+            raise ValueError(
+                "PUF capital-gains tail attached record routes do not equal the "
+                "recipient-support route counts."
             )
 
 
@@ -1208,6 +1485,157 @@ def validate_puf_capital_gains_tail_terminal_support_receipt(
     return actual
 
 
+def _validate_frame_concentration_receipts(receipts: object) -> None:
+    if not isinstance(receipts, Mapping):
+        raise ValueError(
+            "PUF capital-gains tail frame-concentration receipts must be an object."
+        )
+    expected_columns = {*_JOINT_VECTOR_COLUMNS, _COMBINED_COLUMN}
+    if set(receipts) != expected_columns:
+        raise ValueError(
+            "PUF capital-gains tail frame-concentration receipt columns changed."
+        )
+    for column in sorted(expected_columns):
+        raw = receipts[column]
+        if not isinstance(raw, Mapping) or set(raw) != (
+            _FRAME_CONCENTRATION_RECEIPT_FIELDS
+        ):
+            raise ValueError(
+                "PUF capital-gains tail frame-concentration receipt schema "
+                f"changed for {column}."
+            )
+        receipt = dict(raw)
+        numeric: dict[str, float] = {}
+        for field in (
+            "pre_stage_top_share",
+            "post_stage_top_share",
+            "post_minus_pre_top_share",
+            "threshold",
+            "worsening_share_tolerance",
+        ):
+            value = receipt[field]
+            if isinstance(value, bool) or not isinstance(
+                value,
+                (int, float, np.integer, np.floating),
+            ):
+                raise ValueError(
+                    "PUF capital-gains tail frame-concentration numeric field "
+                    f"{column}.{field} is malformed."
+                )
+            numeric[field] = float(value)
+            if not np.isfinite(numeric[field]):
+                raise ValueError(
+                    "PUF capital-gains tail frame-concentration numeric field "
+                    f"{column}.{field} must be finite."
+                )
+        for field in (
+            "top_k",
+            "min_nonzero_records",
+            "pre_stage_carriers",
+            "post_stage_carriers",
+            "pre_stage_distinct_values",
+            "post_stage_distinct_values",
+        ):
+            value = receipt[field]
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(
+                    "PUF capital-gains tail frame-concentration count field "
+                    f"{column}.{field} is malformed."
+                )
+        for field in (
+            "pre_stage_raw_share_over_threshold",
+            "post_stage_raw_share_over_threshold",
+            "pre_stage_production_gate_eligible",
+            "post_stage_production_gate_eligible",
+            "post_stage_production_gate_over_threshold",
+            "stage_worsened_share",
+            "stage_guard_failed",
+        ):
+            if not isinstance(receipt[field], bool):
+                raise ValueError(
+                    "PUF capital-gains tail frame-concentration boolean field "
+                    f"{column}.{field} is malformed."
+                )
+        if (
+            receipt["top_k"] != PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_TOP_K
+            or numeric["threshold"]
+            != PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
+            or receipt["min_nonzero_records"]
+            != PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+            or numeric["worsening_share_tolerance"]
+            != PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE
+        ):
+            raise ValueError(
+                "PUF capital-gains tail frame-concentration controls changed."
+            )
+        if not (
+            0.0 <= numeric["pre_stage_top_share"] <= 1.0
+            and 0.0 <= numeric["post_stage_top_share"] <= 1.0
+        ):
+            raise ValueError(
+                "PUF capital-gains tail frame-concentration shares must be "
+                f"within [0, 1] for {column}."
+            )
+        if (
+            receipt["pre_stage_distinct_values"] > receipt["pre_stage_carriers"]
+            or receipt["post_stage_distinct_values"]
+            > receipt["post_stage_carriers"]
+        ):
+            raise ValueError(
+                "PUF capital-gains tail frame-concentration distinct counts "
+                f"exceed carrier counts for {column}."
+            )
+        for stage in ("pre_stage", "post_stage"):
+            carriers = receipt[f"{stage}_carriers"]
+            distinct = receipt[f"{stage}_distinct_values"]
+            share = numeric[f"{stage}_top_share"]
+            empty_geometry_changed = carriers == 0 and (
+                distinct != 0 or share != 0.0
+            )
+            positive_geometry_changed = carriers > 0 and (
+                distinct == 0 or share == 0.0
+            )
+            if empty_geometry_changed or positive_geometry_changed:
+                raise ValueError(
+                    "PUF capital-gains tail frame-concentration carrier/share "
+                    f"geometry is impossible for {column}.{stage}."
+                )
+        expected = _stage_concentration_disposition(
+            pre_share=numeric["pre_stage_top_share"],
+            post_share=numeric["post_stage_top_share"],
+            pre_carriers=receipt["pre_stage_carriers"],
+            post_carriers=receipt["post_stage_carriers"],
+        )
+        (
+            delta,
+            worsened,
+            pre_over,
+            post_over,
+            pre_gate_eligible,
+            post_gate_eligible,
+            failed,
+            classification,
+        ) = expected
+        if (
+            numeric["post_minus_pre_top_share"] != delta
+            or receipt["stage_worsened_share"] is not worsened
+            or receipt["pre_stage_raw_share_over_threshold"] is not pre_over
+            or receipt["post_stage_raw_share_over_threshold"] is not post_over
+            or receipt["pre_stage_production_gate_eligible"]
+            is not pre_gate_eligible
+            or receipt["post_stage_production_gate_eligible"]
+            is not post_gate_eligible
+            or receipt["post_stage_production_gate_over_threshold"]
+            is not (post_gate_eligible and post_over)
+            or receipt["stage_guard_failed"] is not failed
+            or receipt["stage_guard_classification"] != classification
+        ):
+            raise ValueError(
+                "PUF capital-gains tail frame-concentration attribution "
+                f"arithmetic changed for {column}."
+            )
+
+
 def validate_puf_capital_gains_tail_manifest(
     manifest: Mapping[str, object],
 ) -> str:
@@ -1226,6 +1654,9 @@ def validate_puf_capital_gains_tail_manifest(
         raise ValueError(
             "PUF capital-gains tail manifest artifact/schema/stage identity changed."
         )
+    _validate_frame_concentration_receipts(
+        payload.get("frame_concentration_receipts")
+    )
     records = payload.get("records")
     if not isinstance(records, list):
         raise ValueError("PUF capital-gains tail manifest records must be a list.")
@@ -1357,6 +1788,45 @@ def _recipient_candidates(
         puf_tax_units["recipient_household_weight"] >= maximum_transfer_weight
     ].copy()
 
+    # This is a post-QRF tail replacement, so recipient route and ordering must
+    # come from the modeled capital-gains vector at the same tax-unit grain as
+    # the donor vector. A first-person lookup would misclassify multi-person
+    # units and a seeded-only queue can replace a body draw while leaving the
+    # modeled tail in place.
+    recipient_tax_unit_ids = set(
+        puf_tax_units["recipient_tax_unit_id"].to_numpy(dtype=np.int64)
+    )
+    recipient_people = puf_people.loc[
+        puf_people["person_tax_unit_id"].isin(recipient_tax_unit_ids),
+        ["person_tax_unit_id", *PUF_CAPITAL_GAINS_TAIL_PERSON_COLUMNS],
+    ].copy()
+    recipient_people[list(PUF_CAPITAL_GAINS_TAIL_PERSON_COLUMNS)] = recipient_people[
+        list(PUF_CAPITAL_GAINS_TAIL_PERSON_COLUMNS)
+    ].apply(pd.to_numeric, errors="raise")
+    recipient_person_values = recipient_people[
+        list(PUF_CAPITAL_GAINS_TAIL_PERSON_COLUMNS)
+    ].to_numpy(dtype=np.float64)
+    if not np.isfinite(recipient_person_values).all():
+        raise ValueError("PUF tail recipient capital-gains vectors must be finite.")
+    recipient_vectors = recipient_people.groupby(
+        "person_tax_unit_id",
+        sort=False,
+    )[list(PUF_CAPITAL_GAINS_TAIL_PERSON_COLUMNS)].sum()
+    recipient_vectors = recipient_vectors.reindex(
+        puf_tax_units["recipient_tax_unit_id"].to_numpy(dtype=np.int64)
+    )
+    if recipient_vectors.isna().any().any():
+        raise ValueError("A PUF tail recipient tax unit has no person-level vector.")
+    puf_tax_units[_RECIPIENT_COMBINED_COLUMN] = (
+        recipient_vectors["short_term_capital_gains"].to_numpy(dtype=np.float64)
+        + recipient_vectors["long_term_capital_gains_before_response"].to_numpy(
+            dtype=np.float64
+        )
+    )
+    puf_tax_units[_RECIPIENT_DIRECT_ROUTE_COLUMN] = (
+        recipient_vectors[_DIRECT_ROUTE_COLUMN].to_numpy(dtype=np.float64) > 0.0
+    )
+
     filing_status = puf_tax_units["filing_status_input"].map(_normalized_filing_status)
     puf_tax_units["recipient_filing_status"] = filing_status
     puf_tax_units["recipient_filing_status_code"] = filing_status.map(
@@ -1433,6 +1903,15 @@ def _recipient_support_receipt(
         candidates["recipient_filing_status_code"],
         errors="raise",
     ).astype("int64")
+    donor_routes = pd.to_numeric(
+        tail[_DIRECT_ROUTE_COLUMN],
+        errors="raise",
+    ).to_numpy(dtype=np.float64) > 0.0
+    if _RECIPIENT_DIRECT_ROUTE_COLUMN not in candidates:
+        raise ValueError(
+            "PUF capital-gains tail candidates do not declare reporting routes."
+        )
+    candidate_routes = candidates[_RECIPIENT_DIRECT_ROUTE_COLUMN].to_numpy(dtype=bool)
     unknown_donor_codes = sorted(set(donor_codes) - set(_FILING_STATUS_BY_CODE))
     unknown_candidate_codes = sorted(set(candidate_codes) - set(_FILING_STATUS_BY_CODE))
     if unknown_donor_codes or unknown_candidate_codes:
@@ -1452,11 +1931,34 @@ def _recipient_support_receipt(
     for code, name in _FILING_STATUS_BY_CODE.items():
         required = int(required_counts.get(code, 0))
         observed = int(observed_counts.get(code, 0))
+        reporting_routes: list[dict[str, object]] = []
+        route_support_sufficient = True
+        for direct_route, route_name in _REPORTING_ROUTES:
+            route_required = int(
+                ((donor_codes.to_numpy() == code) & (donor_routes == direct_route)).sum()
+            )
+            route_observed = int(
+                (
+                    (candidate_codes.to_numpy() == code)
+                    & (candidate_routes == direct_route)
+                ).sum()
+            )
+            route_sufficient = route_observed >= route_required
+            route_support_sufficient &= route_sufficient
+            reporting_routes.append(
+                {
+                    "direct_route": direct_route,
+                    "reporting_route": route_name,
+                    "observed_count": route_observed,
+                    "required_minimum": route_required,
+                    "sufficient": route_sufficient,
+                }
+            )
         if required == 0:
             status = "not_applicable"
             attached = 0
             skipped = 0
-        elif observed < required:
+        elif not route_support_sufficient:
             status = "insufficient_support"
             attached = 0
             skipped = required
@@ -1473,6 +1975,7 @@ def _recipient_support_receipt(
                 "required_minimum": required,
                 "attached_donor_count": attached,
                 "skipped_donor_count": skipped,
+                "reporting_routes": reporting_routes,
             }
         )
 
@@ -1517,21 +2020,25 @@ def _assign_tail_donors(
     )
     if len(tail) != len(assigned_weights):
         raise ValueError("Assigned tail weights must align with donor rows.")
-    queues: dict[tuple[int, int], list[int]] = {}
+    queues: dict[tuple[int, int, bool], list[int]] = {}
     ordered_candidates = candidates.sort_values(
         [
             "recipient_filing_status_code",
             "recipient_agi_band_index",
+            _RECIPIENT_DIRECT_ROUTE_COLUMN,
+            _RECIPIENT_COMBINED_COLUMN,
             "seeded_order",
             "recipient_household_source_id",
             "recipient_tax_unit_source_id",
         ],
+        ascending=[True, True, True, False, True, True, True],
         kind="mergesort",
     )
     for index, row in ordered_candidates.iterrows():
         key = (
             int(row["recipient_filing_status_code"]),
             int(row["recipient_agi_band_index"]),
+            bool(row[_RECIPIENT_DIRECT_ROUTE_COLUMN]),
         )
         queues.setdefault(key, []).append(int(index))
     for queue in queues.values():
@@ -1545,19 +2052,21 @@ def _assign_tail_donors(
                 f"Unknown PUF donor filing status code {filing_status_code}."
             )
         donor_band = int(donor_row[_TAIL_AGI_BAND_INDEX_COLUMN])
+        donor_direct_route = float(donor_row[_DIRECT_ROUTE_COLUMN]) > 0.0
         candidate_index: int | None = None
         for band in sorted(
             range(len(resolved_agi_bands)),
             key=lambda value: (abs(value - donor_band), value),
         ):
-            queue = queues.get((filing_status_code, band))
+            queue = queues.get((filing_status_code, band, donor_direct_route))
             if queue:
                 candidate_index = queue.pop()
                 break
         if candidate_index is None:
             raise ValueError(
-                "Insufficient unique, single-tax-unit PUF recipient households "
-                f"for filing status {_FILING_STATUS_BY_CODE[filing_status_code]!r}."
+                "Insufficient unique, route-compatible, single-tax-unit PUF "
+                "recipient households for filing status "
+                f"{_FILING_STATUS_BY_CODE[filing_status_code]!r}."
             )
         candidate = candidates.loc[candidate_index]
         row = donor_row.to_dict()
@@ -1851,7 +2360,15 @@ def _clone_and_transfer(
         source_before - assignments["assigned_weight"]
     )
     clone_receipt: dict[str, object] = {
-        "method": "selective_post_qrf_household_weight_split",
+        "method": "route_matched_modeled_tail_post_qrf_household_weight_split",
+        "recipient_selection": {
+            "reporting_route": "exact_match",
+            "tail_order": (
+                "descending_tax_unit_aggregate_short_term_plus_long_term"
+            ),
+            "agi_band": "nearest_band_first_within_filing_status_and_route",
+            "ties": "seeded_order_then_source_ids",
+        },
         "support_channel": PUF_CAPITAL_GAINS_TAIL_SUPPORT_CHANNEL,
         "clone_index": 2,
         "id_multiplier": int(id_multiplier),
@@ -2269,6 +2786,12 @@ def _manifest_records(assignments: pd.DataFrame) -> list[dict[str, object]]:
             joint_vector["short_term_capital_gains"]
             + joint_vector["long_term_capital_gains_before_response"]
         )
+        donor_direct_route = joint_vector[_DIRECT_ROUTE_COLUMN] > 0.0
+        recipient_direct_route = bool(row[_RECIPIENT_DIRECT_ROUTE_COLUMN])
+        if donor_direct_route != recipient_direct_route:
+            raise AssertionError(
+                "PUF tail assignment crossed the direct-vs-Schedule-D reporting route."
+            )
         records.append(
             {
                 "donor_source_id": int(row["donor_source_id"]),
@@ -2283,6 +2806,12 @@ def _manifest_records(assignments: pd.DataFrame) -> list[dict[str, object]]:
                 "donor_agi_band": str(row[_TAIL_AGI_BAND_LABEL_COLUMN]),
                 "recipient_agi_band_index": int(row["recipient_agi_band_index"]),
                 "recipient_agi_band": str(row["recipient_agi_band"]),
+                "donor_direct_route": donor_direct_route,
+                "recipient_direct_route": recipient_direct_route,
+                "reporting_route_match": True,
+                "recipient_modeled_short_term_plus_long_term": float(
+                    row[_RECIPIENT_COMBINED_COLUMN]
+                ),
                 "agi_band_exact_match": bool(
                     int(row[_TAIL_AGI_BAND_INDEX_COLUMN])
                     == int(row["recipient_agi_band_index"])

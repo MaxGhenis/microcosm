@@ -3965,7 +3965,7 @@ def test_late_primary_resources_bind_donor_content_and_execution_config(
     }
     assert execution["capital_gains_tail"]["soi_e19200_agi_bands"]["asset_sha256"]
     assert execution["capital_gains_tail"]["concentration_gate"] == {
-        "schema_version": 2,
+        "schema_version": 3,
         "selection_quantile": 0.995,
         "selection_comparison": "strictly_greater_than",
         "reference_quantile": 0.999,
@@ -3987,6 +3987,11 @@ def test_late_primary_resources_bind_donor_content_and_execution_config(
             "long_term_capital_gains_on_collectibles",
             "non_sch_d_capital_gains",
             "unrecaptured_section_1250_gain",
+        ],
+        "recipient_reporting_route_column": "non_sch_d_capital_gains",
+        "recipient_tail_order_columns": [
+            "short_term_capital_gains",
+            "long_term_capital_gains_before_response",
         ],
         "recipient_owned_candidate_overlap": sorted(
             set(stacked_spine_module.PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS)
@@ -4035,6 +4040,7 @@ def test_late_primary_resources_bind_donor_content_and_execution_config(
             "_JOINT_VECTOR_COLUMNS",
             tuple(reversed(tail_module._JOINT_VECTOR_COLUMNS)),
         ),
+        ("_DIRECT_ROUTE_COLUMN", "fixture_direct_route"),
         ("_RECIPIENT_OWNED_CANDIDATE_OVERLAP", frozenset()),
     ),
 )
@@ -6519,7 +6525,7 @@ def test_run_stacked_puf_pass_applies_clone_two_capital_gains_tail() -> None:
                 2_000_000_000.0,
                 1_000_000_000.0,
             ],
-            "non_sch_d_capital_gains": [0.0, 3_000_000_000.0, 0.0],
+            "non_sch_d_capital_gains": [0.0, 0.0, 0.0],
             "unrecaptured_section_1250_gain": [
                 0.0,
                 4_000_000_000.0,
@@ -6627,7 +6633,10 @@ def test_run_stacked_puf_pass_applies_clone_two_capital_gains_tail() -> None:
     tampered_terminal["sha256"] = stacked_spine_module._canonical_sha256(
         terminal_payload
     )
-    with pytest.raises(ValueError, match="recipient-support candidate count"):
+    with pytest.raises(
+        ValueError,
+        match="recipient-support reporting-route counts",
+    ):
         stacked_spine_module._validate_stacked_gate_manifest_details(
             terminal_gates[0].name,
             tampered_details,
@@ -6823,7 +6832,7 @@ def test_tail_preservation_pairs_clones_by_assembly_unique_source_id() -> None:
                 2_000_000_000.0,
                 1_000_000_000.0,
             ],
-            "non_sch_d_capital_gains": [0.0, 3_000_000_000.0, 0.0],
+            "non_sch_d_capital_gains": [0.0, 0.0, 0.0],
             "unrecaptured_section_1250_gain": [
                 0.0,
                 4_000_000_000.0,

@@ -34,14 +34,105 @@
   mtime fingerprints unchanged, and peaked at 3,373,678,592 bytes root RSS.
 - Read-only bank inspection found 15,228 selected donors, all zero on
   `non_sch_d_capital_gains`, versus 805 positive and 22,374 zero recipient
-  draws. The current allocator chooses seeded recipients within status/nearest
-  AGI band, while the clone replaces the chosen recipient slice with the donor
-  vector (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1520-1556`,
-  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1695-1812`).
-  The regression is therefore caused by displacing positive below-top-100 mass
-  with a zero donor leg, not by redraw duplication or float noise.
+  draws. At pre-fix commit `5abaf92c`, the allocator chose seeded recipients
+  within status/nearest AGI band, while the clone replaced the chosen recipient
+  slice with the donor vector
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1520-1556`
+  at `5abaf92c`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1695-1812`
+  at `5abaf92c`).
+  The unsupported cross-route replacement therefore removed positive direct-leg
+  mass while adding a zero donor leg; the checkpoint replay measured the
+  resulting concentration increase. It was not redraw duplication or float
+  noise, and the replay did not separately record the selected carrier's
+  top-100 rank.
 - Full method, values, identities, and mechanism reasoning are committed in
   `experiments/578_puf_capital_gains_tail_guard_replay.md`.
+
+### Corrected mechanism and replay receipt
+
+- Recipient capital-gains vectors are now validated and aggregated to tax-unit
+  grain, with a direct-route flag and modeled ST+LT ordering value attached to
+  each candidate
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1791-1827`).
+  Support is sufficient only when each direct-vs-Schedule-D route within a
+  filing status has enough recipients
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1891-2008`).
+  Assignment retains nearest-band search but cannot cross route, and chooses
+  the largest modeled ST+LT values before seeded/source-ID ties
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2011-2064`).
+- The stage comparator measures raw pre/post shares on the production gate's
+  finite positive-mass population, derives threshold state from those shares,
+  and derives production eligibility from carrier counts. It fails only when
+  `post - pre > 1e-9`, raw post share is over the unchanged `0.75`, and post
+  carriers meet the unchanged 500 minimum. Receipts keep raw threshold state
+  separate from production eligibility, so a thin raw exceedance is never
+  mislabeled as within-threshold
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:610-820`).
+- The corrected no-build replay authenticated and resumed all 47 survey, one
+  housing, and 65 primary-QRF target banks; QRF fitting and target-bank writes
+  were replaced with fail-closed sentinels. It measured pre and post as exactly
+  `0.84607664843916197` (`0x1.b130f55de9360p-1`) with delta `0`
+  (`0x0.0p+0`), 805 carriers, and 425 distinct values on both sides. The report
+  entry is `pre_existing_over_threshold_not_worsened`, `stage_guard_failed` is
+  false, and the complete stage-failure list is empty.
+- The replay fingerprinted the checkpoint tree before and after and found no
+  change. Peak root RSS was 3,313,057,792 bytes under the 15,032,385,536-byte
+  guard; elapsed time was 47.531 seconds. It did not run a build.
+- Separate regressions cover equal pre/post, a sub-tolerance increase, a
+  material increase, and an unchanged pre-existing exceedance, while allocation
+  regressions make route matching and modeled-tail ordering load-bearing
+  (`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:641-811`,
+  `packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1191-1391`).
+
+### Final verification receipt
+
+- Initial independent review confirmed the route-aware allocator, then a
+  post-review found and closed two semantic-identity holes. Raw threshold state
+  and production eligibility are now separately measured and every stored
+  verdict is recomputed from sealed shares/carriers
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:657-820`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1488-1636`).
+  The legacy checkpoint key now advances with the shared tail schema/support
+  contract because the legacy route executes that same transfer; only its
+  stacked late-producer schedule is omitted
+  (`tools/build_us_multispine_pool.py:958-1002`,
+  `tools/build_us_multispine_pool.py:2388-2407`,
+  `tools/build_us_multispine_pool.py:3844-3897`).
+- Review-driven tests cover multi-person aggregation, wrong-route capacity,
+  transfer-level failure/report persistence, thin raw-over reporting, and
+  rehashed verdict tampering
+  (`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:657-811`,
+  `packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:838-897`,
+  `packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1191-1442`).
+- Final-tree package receipts under direct-process guards: frame 294 passed/36
+  skipped, peak 6,527,254,528 bytes; fit 125 passed, peak 417,792,000;
+  calibrate 201 passed, peak 466,321,408; data 275 passed/1 skipped, peak
+  12,270,026,752.
+- A single cumulative build-directory process reached 77% with no failure, then
+  crossed the conservative 14 GiB guard at 15,554,838,528 bytes. That is below
+  the binding 15 GiB ceiling but the terminated run is not accepted as suite
+  evidence. The build tests were therefore replayed in fresh per-file processes.
+- The fresh build manifest contains 226 tracked files (SHA-256
+  `855d762df4e85fd40df7ff299d444ec5f13d43111d25d731bee1bef73cef79d6`).
+  The final-tree sweep recorded 5,672 passed, 37 skipped, zero failures/errors,
+  and maximum accepted root RSS 7,022,198,784 bytes in
+  `test_us_trade_imdb_goldens.py`. The receipt at
+  `/private/tmp/pkg1-tail-final-suite.kDinVn/receipt.jsonl` has SHA-256
+  `67b18e5af01d1ed68134911a0f02449a7dedc8c316fa3da6f16b6a62b53afc22`.
+  Across all five package shards, final accepted results are 6,567 passed, 74
+  skipped, zero failures/errors, and the same two deselections.
+- Exactly two mounted-cache probes were deselected:
+  `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`. A guarded
+  attempt to run the first alone could not contain its allocation jump: the
+  14.875 GiB cutoff next sampled 17,501,945,856 bytes and terminated the test.
+  The second, which parses the same 3.73 GB source, was not attempted. This
+  rejected attempt exceeded the lane order and is not accepted evidence; no
+  further full-cache probe was run.
+- Ruff passed over every tracked Python file and `git diff --check` passed. The
+  pre-existing untracked `._pkg1_full_suite.py` import-order finding remains
+  outside the commit. No host build ran.
 
 ## Scope and frozen constraints
 
@@ -250,5 +341,6 @@ Pinned local inputs for both builds:
   exited zero in 53:11 with 6,551 passed, 74 skipped, 1,890 established
   warnings, and an empty `lastfailed` cache (6,625 collected). Separate scope
   and call-flow audits found no default-stacked leakage or unwired assigned
-  target; the explicit retiring `--legacy-two-spine` compatibility route is
-  intentionally unchanged and remains outside this remedy.
+  target. At that calibration-only implementation HEAD, the explicit retiring
+  `--legacy-two-spine` route was outside the remedy; the current tail section
+  above supersedes its semantic-key claim.

@@ -15,6 +15,8 @@ from microcosm.build.us_runtime import (
     clone_us_frame_for_puf_support,
 )
 from microcosm.build.us_runtime.puf_capital_gains_tail import (
+    _COMBINED_COLUMN,
+    _JOINT_VECTOR_COLUMNS,
     PUF_CAPITAL_GAINS_TAIL_MANIFEST_SCHEMA_VERSION,
     PUF_CAPITAL_GAINS_TAIL_STAGE_NAME,
     puf_capital_gains_tail_support_contract_identity,
@@ -55,7 +57,11 @@ def _valid_capital_gains_tail_manifest() -> dict[str, object]:
         "donor_agi_band_index": 0,
         "donor_agi_band": "fixture",
         "donor_is_synthetic": False,
-        "joint_vector": {},
+        "joint_vector": {"non_sch_d_capital_gains": 0.0},
+        "donor_direct_route": False,
+        "recipient_direct_route": False,
+        "reporting_route_match": True,
+        "recipient_modeled_short_term_plus_long_term": 0.0,
         "recipient_household_source_id": 1,
         "recipient_tax_unit_source_id": 1,
         "recipient_household_id": 1,
@@ -74,6 +80,22 @@ def _valid_capital_gains_tail_manifest() -> dict[str, object]:
             "required_minimum": 1 if code == 1 else 0,
             "attached_donor_count": 1 if code == 1 else 0,
             "skipped_donor_count": 0,
+            "reporting_routes": [
+                {
+                    "direct_route": False,
+                    "reporting_route": "schedule_d_or_no_direct_distribution",
+                    "observed_count": 1 if code == 1 else 0,
+                    "required_minimum": 1 if code == 1 else 0,
+                    "sufficient": True,
+                },
+                {
+                    "direct_route": True,
+                    "reporting_route": "direct_form_1040_distribution",
+                    "observed_count": 0,
+                    "required_minimum": 0,
+                    "sufficient": True,
+                },
+            ],
         }
         for code, name in (
             (1, "SINGLE"),
@@ -96,6 +118,27 @@ def _valid_capital_gains_tail_manifest() -> dict[str, object]:
         "strata": strata,
     }
     recipient_support["sha256"] = _canonical_sha256(recipient_support)
+    concentration_receipt = {
+        "pre_stage_top_share": 0.0,
+        "post_stage_top_share": 0.0,
+        "post_minus_pre_top_share": 0.0,
+        "top_k": 100,
+        "threshold": 0.75,
+        "min_nonzero_records": 500,
+        "worsening_share_tolerance": 1e-9,
+        "pre_stage_carriers": 0,
+        "post_stage_carriers": 0,
+        "pre_stage_distinct_values": 0,
+        "post_stage_distinct_values": 0,
+        "pre_stage_raw_share_over_threshold": False,
+        "post_stage_raw_share_over_threshold": False,
+        "pre_stage_production_gate_eligible": False,
+        "post_stage_production_gate_eligible": False,
+        "post_stage_production_gate_over_threshold": False,
+        "stage_worsened_share": False,
+        "stage_guard_failed": False,
+        "stage_guard_classification": "production_gate_ineligible",
+    }
     donor_projection = [
         {
             key: record[key]
@@ -132,6 +175,10 @@ def _valid_capital_gains_tail_manifest() -> dict[str, object]:
         "schema_version": PUF_CAPITAL_GAINS_TAIL_MANIFEST_SCHEMA_VERSION,
         "stage": PUF_CAPITAL_GAINS_TAIL_STAGE_NAME,
         "boundary": {"tail_record_count": 1},
+        "frame_concentration_receipts": {
+            column: dict(concentration_receipt)
+            for column in (*_JOINT_VECTOR_COLUMNS, _COMBINED_COLUMN)
+        },
         "recipient_support": recipient_support,
         "donor_records_sha256": _canonical_sha256(donor_projection),
         "assignment_sha256": _canonical_sha256(assignment_projection),

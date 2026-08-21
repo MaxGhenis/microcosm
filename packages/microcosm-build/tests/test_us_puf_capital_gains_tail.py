@@ -6,7 +6,7 @@ import dataclasses
 import hashlib
 import importlib.util
 import json
-import pickle
+from collections.abc import Mapping
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,6 +16,7 @@ import pytest
 
 import microcosm.build.us_runtime.puf_capital_gains_tail as tail_module
 import microcosm.build.us_runtime.puf_interest_components as interest_module
+from microcosm.build.gates import GateResult
 from microcosm.build.us_runtime.capital_gain_distributions import (
     load_capital_gain_distribution_shares,
 )
@@ -81,7 +82,9 @@ def _expanded_recipient_frame() -> Frame:
                 4_000.0,
             ],
             "long_term_capital_gains_on_collectibles": [1.0, 2.0, 3.0, 4.0],
-            "non_sch_d_capital_gains": [5.0, 6.0, 7.0, 8.0],
+            # The SINGLE tail donor uses the Schedule-D route, so the
+            # partially attached fixture needs a route-compatible recipient.
+            "non_sch_d_capital_gains": [5.0, 0.0, 7.0, 8.0],
         }
     )
     tables = {
@@ -254,47 +257,6 @@ def _replace_entity_table(frame: Frame, entity: str, table: pd.DataFrame) -> Fra
         mass_log=frame.mass_log,
         metadata=frame.metadata,
     )
-
-
-def _frame_digest(frame: Frame) -> str:
-    """Hash every frame byte-bearing surface for pre-fix parity checks."""
-
-    payload = (
-        [(entity, frame.table(entity)) for entity in frame.entities],
-        [
-            (
-                entity,
-                frame.weights_for(entity).values,
-                frame.weights_for(entity).kind.value,
-            )
-            for entity in frame.weighted_entities
-        ],
-        frame.strata,
-        frame.mass_log,
-    )
-    return hashlib.sha256(pickle.dumps(payload, protocol=5)).hexdigest()
-
-
-def _pre_652_all_adequate_reference_frame() -> Frame:
-    """Run the pre-support-filter allocation path in the live test runtime."""
-
-    frame = _expanded_recipient_frame()
-    donor = _donor()
-    tail, _selection = select_puf_capital_gains_tail_donors(donor)
-    normalization = frame.weights_for("household").total / float(donor["weight"].sum())
-    assigned_weights = tail["weight"].to_numpy(dtype=np.float64) * normalization
-    candidates = tail_module._recipient_candidates(
-        frame,
-        maximum_transfer_weight=float(assigned_weights.max()),
-        seed=567,
-    )
-    assignments = tail_module._assign_tail_donors(
-        tail,
-        assigned_weights=assigned_weights,
-        candidates=candidates,
-    )
-    reference, _clone_receipt = tail_module._clone_and_transfer(frame, assignments)
-    return reference
 
 
 def _load_support_builder_module():
@@ -652,15 +614,19 @@ def test_thin_filing_status_is_named_counted_and_not_attached() -> None:
     by_status = {receipt["filing_status"]: receipt for receipt in support["strata"]}
     assert support["insufficient_support_stratum_count"] == 1
     assert support["insufficient_support_strata"] == ["SEPARATE"]
-    assert by_status["SEPARATE"] == {
-        "filing_status_code": 3,
-        "filing_status": "SEPARATE",
-        "status": "insufficient_support",
-        "observed_count": 0,
-        "required_minimum": 1,
-        "attached_donor_count": 0,
-        "skipped_donor_count": 1,
+    separate = by_status["SEPARATE"]
+    assert separate["status"] == "insufficient_support"
+    assert separate["observed_count"] == 0
+    assert separate["required_minimum"] == 1
+    assert separate["attached_donor_count"] == 0
+    assert separate["skipped_donor_count"] == 1
+    separate_routes = {
+        route["direct_route"]: route for route in separate["reporting_routes"]
     }
+    assert separate_routes[False]["required_minimum"] == 0
+    assert separate_routes[False]["sufficient"] is True
+    assert separate_routes[True]["required_minimum"] == 1
+    assert separate_routes[True]["sufficient"] is False
     assert by_status["SINGLE"]["status"] == "attached"
     assert by_status["SINGLE"]["observed_count"] == 2
     assert by_status["SINGLE"]["required_minimum"] == 1
@@ -672,25 +638,177 @@ def test_thin_filing_status_is_named_counted_and_not_attached() -> None:
     assert transferred.n("household") == frame.n("household") + 1
 
 
-def test_adequate_strata_match_pre_fix_frame_bytes() -> None:
-    """All-adequate fixtures preserve the exact pre-#652 allocation bytes."""
+def test_adequate_strata_preserve_reporting_route() -> None:
+    """Every attached donor replaces a recipient on the same tax route."""
 
-    transferred, manifest = transfer_puf_capital_gains_tail(
+    _transferred, manifest = transfer_puf_capital_gains_tail(
         _expanded_recipient_frame(),
         _donor(),
         seed=567,
     )
 
-    # Pandas' pickle bytes vary across supported runtime versions, so compare
-    # against the exact pre-#652 path under the same runtime instead of blessing
-    # one environment's pickle digest.
-    assert _frame_digest(transferred) == _frame_digest(
-        _pre_652_all_adequate_reference_frame()
-    )
-    assert manifest["assignment_sha256"] == (
-        "1b2262da65fa851e0a990ca9f04dee661de0145724f82aef679557bc92418937"
-    )
     assert manifest["recipient_support"]["insufficient_support_strata"] == []
+    assert manifest["records"]
+    for record in manifest["records"]:
+        assert record["reporting_route_match"] is True
+        assert record["donor_direct_route"] is record["recipient_direct_route"]
+
+
+def test_route_support_fails_when_only_status_total_is_sufficient() -> None:
+    """A status-total match cannot hide a missing direct-route recipient."""
+
+    tail, _selection = select_puf_capital_gains_tail_donors(_donor())
+    direct_tail = tail.loc[tail["non_sch_d_capital_gains"].gt(0.0)].copy()
+    direct_tail["filing_status_code"] = 1
+    candidates = tail_module._recipient_candidates(
+        _expanded_recipient_frame(),
+        maximum_transfer_weight=0.0,
+        seed=567,
+    )
+    wrong_route = candidates.loc[
+        candidates["recipient_filing_status_code"].eq(1)
+        & ~candidates[tail_module._RECIPIENT_DIRECT_ROUTE_COLUMN]
+    ].head(1)
+    assert len(direct_tail) == len(wrong_route) == 1
+
+    support = tail_module._recipient_support_receipt(direct_tail, wrong_route)
+    single = next(
+        stratum
+        for stratum in support["strata"]
+        if stratum["filing_status"] == "SINGLE"
+    )
+    assert single["observed_count"] == single["required_minimum"] == 1
+    assert single["status"] == "insufficient_support"
+    routes = {route["direct_route"]: route for route in single["reporting_routes"]}
+    assert routes[True]["required_minimum"] == 1
+    assert routes[True]["observed_count"] == 0
+    assert routes[True]["sufficient"] is False
+
+
+def test_recipient_route_and_tail_order_aggregate_all_tax_unit_people() -> None:
+    """A second person can determine both route and modeled ST+LT magnitude."""
+
+    frame = _expanded_recipient_frame()
+    person = frame.table("person").copy()
+    first = person.loc[
+        person["person_tax_unit_id"].eq(100_020)
+    ].iloc[0].copy()
+    assert first["non_sch_d_capital_gains"] == 0.0
+    second = first.copy()
+    second["person_id"] = 200_002
+    second[support_source_id_column("person")] = 200_002
+    second["short_term_capital_gains"] = 4_000.0
+    second["long_term_capital_gains_before_response"] = 6_000.0
+    second["non_sch_d_capital_gains"] = 9.0
+    person = pd.concat([person, second.to_frame().T], ignore_index=True)
+    person = person.astype(frame.table("person").dtypes.to_dict())
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["person"] = person
+    strata = pd.concat(
+        [frame.strata, frame.strata.iloc[[int(first.name)]]],
+        ignore_index=True,
+    )
+    multi_person = Frame(
+        tables,
+        frame.schema,
+        {
+            entity: frame.weights_for(entity)
+            for entity in frame.weighted_entities
+        },
+        strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+    candidates = tail_module._recipient_candidates(
+        multi_person,
+        maximum_transfer_weight=0.0,
+        seed=567,
+    )
+    candidate = candidates.loc[
+        candidates["recipient_tax_unit_id"].eq(100_020)
+    ].iloc[0]
+    expected_combined = (
+        float(first["short_term_capital_gains"])
+        + float(first["long_term_capital_gains_before_response"])
+        + float(second["short_term_capital_gains"])
+        + float(second["long_term_capital_gains_before_response"])
+    )
+    assert candidate[tail_module._RECIPIENT_DIRECT_ROUTE_COLUMN]
+    assert candidate[tail_module._RECIPIENT_COMBINED_COLUMN] == expected_combined
+
+
+def test_recipient_order_replaces_the_modeled_tail_within_nearest_band() -> None:
+    """Seed order only breaks ties after modeled ST+LT tail magnitude."""
+
+    frame = _expanded_recipient_frame()
+    donor = _donor()
+    selected_tail, _selection = select_puf_capital_gains_tail_donors(donor)
+    positive_tail = selected_tail.loc[
+        selected_tail["non_sch_d_capital_gains"].gt(0.0)
+    ].reset_index(drop=True)
+    candidates = tail_module._recipient_candidates(
+        frame,
+        maximum_transfer_weight=0.0,
+        seed=567,
+    )
+    candidates = candidates.loc[
+        candidates["recipient_filing_status_code"].eq(2)
+        & candidates[tail_module._RECIPIENT_DIRECT_ROUTE_COLUMN]
+    ].copy()
+    assert len(candidates) == 2
+    candidates["recipient_agi_band_index"] = 0
+    candidates["seeded_order"] = candidates[
+        tail_module._RECIPIENT_COMBINED_COLUMN
+    ].rank(method="first")
+    expected = candidates.loc[
+        candidates[tail_module._RECIPIENT_COMBINED_COLUMN].idxmax(),
+        "recipient_tax_unit_id",
+    ]
+
+    assignments = tail_module._assign_tail_donors(
+        positive_tail,
+        assigned_weights=np.asarray([1.0]),
+        candidates=candidates,
+    )
+
+    assert assignments["recipient_tax_unit_id"].tolist() == [expected]
+
+
+def test_recipient_assignment_rejects_better_ordered_wrong_route() -> None:
+    """Modeled order cannot outrank the donor's exact reporting route."""
+
+    selected_tail, _selection = select_puf_capital_gains_tail_donors(_donor())
+    direct_tail = selected_tail.loc[
+        selected_tail["non_sch_d_capital_gains"].gt(0.0)
+    ].reset_index(drop=True)
+    candidates = tail_module._recipient_candidates(
+        _expanded_recipient_frame(),
+        maximum_transfer_weight=0.0,
+        seed=567,
+    )
+    candidates = candidates.loc[
+        candidates["recipient_filing_status_code"].eq(2)
+    ].copy()
+    assert len(candidates) == 2
+    candidates["recipient_agi_band_index"] = 0
+    wrong_index, matching_index = candidates.index.tolist()
+    candidates.loc[wrong_index, tail_module._RECIPIENT_DIRECT_ROUTE_COLUMN] = False
+    candidates.loc[matching_index, tail_module._RECIPIENT_DIRECT_ROUTE_COLUMN] = True
+    candidates.loc[wrong_index, tail_module._RECIPIENT_COMBINED_COLUMN] = 1e12
+    candidates.loc[matching_index, tail_module._RECIPIENT_COMBINED_COLUMN] = 1.0
+    candidates.loc[wrong_index, "seeded_order"] = 0.0
+    candidates.loc[matching_index, "seeded_order"] = 1.0
+    expected = int(candidates.loc[matching_index, "recipient_tax_unit_id"])
+
+    assignments = tail_module._assign_tail_donors(
+        direct_tail,
+        assigned_weights=np.asarray([1.0]),
+        candidates=candidates,
+    )
+
+    assert assignments["recipient_tax_unit_id"].tolist() == [expected]
+    assert assignments[tail_module._RECIPIENT_DIRECT_ROUTE_COLUMN].tolist() == [True]
 
 
 def test_tail_support_receipt_tampering_fails_closed() -> None:
@@ -707,6 +825,75 @@ def test_tail_support_receipt_tampering_fails_closed() -> None:
     tampered["manifest_sha256"] = tail_module._canonical_sha256(tampered)
 
     with pytest.raises(ValueError, match="recipient-support SHA mismatch"):
+        tail_module.validate_puf_capital_gains_tail_manifest(tampered)
+
+    missing_report = json.loads(json.dumps(manifest))
+    del missing_report["frame_concentration_receipts"]
+    missing_report.pop("manifest_sha256")
+    missing_report["manifest_sha256"] = tail_module._canonical_sha256(missing_report)
+    with pytest.raises(ValueError, match="frame-concentration receipts"):
+        tail_module.validate_puf_capital_gains_tail_manifest(missing_report)
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "post_stage_raw_share_over_threshold",
+        "post_stage_production_gate_eligible",
+        "stage_guard_failed",
+    ),
+)
+def test_frame_concentration_derived_verdict_tampering_fails_closed(
+    field: str,
+) -> None:
+    """Rehashing cannot launder a verdict detached from shares/carriers."""
+
+    _transferred, manifest = transfer_puf_capital_gains_tail(
+        _expanded_recipient_frame(),
+        _donor(),
+        seed=567,
+    )
+    tampered = json.loads(json.dumps(manifest))
+    receipt = tampered["frame_concentration_receipts"][
+        "non_sch_d_capital_gains"
+    ]
+    receipt[field] = not receipt[field]
+    tampered.pop("manifest_sha256")
+    tampered["manifest_sha256"] = tail_module._canonical_sha256(tampered)
+
+    with pytest.raises(ValueError, match="attribution arithmetic"):
+        tail_module.validate_puf_capital_gains_tail_manifest(tampered)
+
+
+@pytest.mark.parametrize(
+    "geometry",
+    ("zero_carriers_with_positive_share", "positive_carriers_without_distinct"),
+)
+def test_frame_concentration_impossible_geometry_fails_closed(
+    geometry: str,
+) -> None:
+    """A rehash cannot launder impossible share/carrier geometry."""
+
+    _transferred, manifest = transfer_puf_capital_gains_tail(
+        _expanded_recipient_frame(),
+        _donor(),
+        seed=567,
+    )
+    tampered = json.loads(json.dumps(manifest))
+    receipt = tampered["frame_concentration_receipts"][
+        "non_sch_d_capital_gains"
+    ]
+    assert receipt["post_stage_top_share"] > 0.0
+    if geometry == "zero_carriers_with_positive_share":
+        receipt["post_stage_carriers"] = 0
+        receipt["post_stage_distinct_values"] = 0
+    else:
+        assert receipt["post_stage_carriers"] > 0
+        receipt["post_stage_distinct_values"] = 0
+    tampered.pop("manifest_sha256")
+    tampered["manifest_sha256"] = tail_module._canonical_sha256(tampered)
+
+    with pytest.raises(ValueError, match="geometry is impossible"):
         tail_module.validate_puf_capital_gains_tail_manifest(tampered)
 
 
@@ -947,18 +1134,325 @@ def test_joint_vectors_arrive_verbatim_from_selected_donors() -> None:
                 assert float(clone[column]) == float(record["joint_vector"][column])
 
 
+def _guard_receipt(
+    top_share: float,
+    *,
+    carriers: int = 805,
+) -> dict[str, object]:
+    return {
+        "top_share": top_share,
+        "carriers": carriers,
+        "distinct_values": 425,
+    }
+
+
+def _guard_gate(
+    column: str,
+    *,
+    post_share: float,
+    carriers: int = 805,
+) -> GateResult:
+    return _guard_gate_for_receipts(
+        {column: _guard_receipt(post_share, carriers=carriers)}
+    )
+
+
+def _guard_gate_for_receipts(
+    receipts: Mapping[str, Mapping[str, object]],
+) -> GateResult:
+    minimum = tail_module.PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+    threshold = tail_module.PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
+    checked = {
+        column: float(receipt["top_share"])
+        for column, receipt in receipts.items()
+        if int(receipt["carriers"]) >= minimum
+    }
+    thin = {
+        column: int(receipt["carriers"])
+        for column, receipt in receipts.items()
+        if int(receipt["carriers"]) < minimum
+    }
+    failures = tuple(
+        f"{column}: synthetic over-threshold test receipt"
+        for column, share in checked.items()
+        if share > threshold
+    )
+    return GateResult(
+        name="tail_concentration",
+        passed=not failures,
+        failures=failures,
+        details={
+            "top_share": checked,
+            "thin_columns": thin,
+        },
+    )
+
+
+def test_concentration_guard_equal_pre_post_passes() -> None:
+    column = "non_sch_d_capital_gains"
+    share = 0.70
+
+    failures, receipts = tail_module._stage_attributable_concentration_failures(
+        {column: _guard_receipt(share)},
+        {column: _guard_receipt(share)},
+        _guard_gate(column, post_share=share),
+    )
+
+    assert failures == []
+    assert receipts[column]["post_minus_pre_top_share"] == 0.0
+    assert receipts[column]["stage_worsened_share"] is False
+    assert receipts[column]["stage_guard_failed"] is False
+    assert (
+        receipts[column]["stage_guard_classification"]
+        == "within_threshold_not_worsened"
+    )
+
+
+def test_concentration_guard_tiny_noise_increase_passes() -> None:
+    column = "non_sch_d_capital_gains"
+    tolerance = tail_module.PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE
+    pre_share = 0.84
+    post_share = pre_share + tolerance / 2
+
+    failures, receipts = tail_module._stage_attributable_concentration_failures(
+        {column: _guard_receipt(pre_share)},
+        {column: _guard_receipt(post_share)},
+        _guard_gate(column, post_share=post_share),
+    )
+
+    assert failures == []
+    assert receipts[column]["post_minus_pre_top_share"] == pytest.approx(
+        tolerance / 2
+    )
+    assert receipts[column]["worsening_share_tolerance"] == tolerance
+    assert receipts[column]["stage_worsened_share"] is False
+    assert receipts[column]["stage_guard_failed"] is False
+    assert (
+        receipts[column]["stage_guard_classification"]
+        == "pre_existing_over_threshold_not_worsened"
+    )
+
+
+def test_concentration_guard_real_increase_fails_with_exact_measurements() -> None:
+    column = "non_sch_d_capital_gains"
+    pre_share = 0.80
+    post_share = 0.81
+
+    failures, receipts = tail_module._stage_attributable_concentration_failures(
+        {column: _guard_receipt(pre_share)},
+        {column: _guard_receipt(post_share)},
+        _guard_gate(column, post_share=post_share),
+    )
+
+    assert len(failures) == 1
+    assert f"pre-stage top-100 share {pre_share:.17g}" in failures[0]
+    assert f"post-stage {post_share:.17g}" in failures[0]
+    assert (
+        f"delta {post_share - pre_share:.17g} exceeded the numerical-noise"
+        in failures[0]
+    )
+    tolerance = tail_module.PUF_CAPITAL_GAINS_TAIL_WORSENING_SHARE_TOLERANCE
+    threshold = tail_module.PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
+    assert f"tolerance {tolerance:.17g}" in failures[0]
+    assert f"unchanged threshold {threshold:.17g}" in failures[0]
+    minimum = tail_module.PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+    assert f"production-gate minimum {minimum}" in failures[0]
+    assert receipts[column]["stage_worsened_share"] is True
+    assert receipts[column]["stage_guard_failed"] is True
+    assert (
+        receipts[column]["stage_guard_classification"]
+        == "stage_worsened_over_threshold"
+    )
+
+
+def test_concentration_guard_reports_pre_existing_over_threshold_unchanged() -> None:
+    column = "non_sch_d_capital_gains"
+    share = 0.84607664843916197
+
+    failures, receipts = tail_module._stage_attributable_concentration_failures(
+        {column: _guard_receipt(share)},
+        {column: _guard_receipt(share)},
+        _guard_gate(column, post_share=share),
+    )
+
+    report = receipts[column]
+    assert failures == []
+    assert report["pre_stage_raw_share_over_threshold"] is True
+    assert report["post_stage_raw_share_over_threshold"] is True
+    assert report["pre_stage_production_gate_eligible"] is True
+    assert report["post_stage_production_gate_eligible"] is True
+    assert report["post_stage_production_gate_over_threshold"] is True
+    assert report["threshold"] == (
+        tail_module.PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
+    )
+    assert report["stage_worsened_share"] is False
+    assert report["stage_guard_failed"] is False
+    assert (
+        report["stage_guard_classification"]
+        == "pre_existing_over_threshold_not_worsened"
+    )
+
+
+def test_concentration_guard_reports_thin_raw_over_threshold_unchanged() -> None:
+    """Thinness is reported separately; it cannot mean "within threshold"."""
+
+    column = "non_sch_d_capital_gains"
+    share = 0.90
+    carriers = 425
+    receipt = _guard_receipt(share, carriers=carriers)
+
+    failures, receipts = tail_module._stage_attributable_concentration_failures(
+        {column: receipt},
+        {column: receipt},
+        _guard_gate(column, post_share=share, carriers=carriers),
+    )
+
+    report = receipts[column]
+    assert failures == []
+    assert report["pre_stage_raw_share_over_threshold"] is True
+    assert report["post_stage_raw_share_over_threshold"] is True
+    assert report["pre_stage_production_gate_eligible"] is False
+    assert report["post_stage_production_gate_eligible"] is False
+    assert report["post_stage_production_gate_over_threshold"] is False
+    assert report["stage_guard_failed"] is False
+    assert report["stage_guard_classification"] == "production_gate_ineligible"
+
+
+def test_concentration_guard_reports_thin_material_increase_without_failing() -> None:
+    """The frozen production floor remains non-blocking but fully reported."""
+
+    column = "non_sch_d_capital_gains"
+    pre_share = 0.80
+    post_share = 0.90
+    carriers = 425
+
+    failures, receipts = tail_module._stage_attributable_concentration_failures(
+        {column: _guard_receipt(pre_share, carriers=carriers)},
+        {column: _guard_receipt(post_share, carriers=carriers)},
+        _guard_gate(column, post_share=post_share, carriers=carriers),
+    )
+
+    report = receipts[column]
+    assert failures == []
+    assert report["post_minus_pre_top_share"] == pytest.approx(0.10)
+    assert report["stage_worsened_share"] is True
+    assert report["post_stage_raw_share_over_threshold"] is True
+    assert report["post_stage_production_gate_eligible"] is False
+    assert report["post_stage_production_gate_over_threshold"] is False
+    assert report["stage_guard_failed"] is False
+    assert report["stage_guard_classification"] == "production_gate_ineligible"
+
+
+def test_transfer_persists_pre_existing_over_threshold_report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The transfer returns and seals the non-failing attribution receipt."""
+
+    column = "non_sch_d_capital_gains"
+    share = 0.84607664843916197
+    real_raw_receipts = tail_module._raw_top_share_receipts
+    calls = 0
+    latest_receipts: dict[str, dict[str, object]] = {}
+
+    def unchanged_raw_receipts(values, weights):
+        nonlocal calls
+        receipts = real_raw_receipts(values, weights)
+        receipts[column] = _guard_receipt(share)
+        latest_receipts.clear()
+        latest_receipts.update(receipts)
+        calls += 1
+        return receipts
+
+    monkeypatch.setattr(
+        tail_module,
+        "_raw_top_share_receipts",
+        unchanged_raw_receipts,
+    )
+    monkeypatch.setattr(
+        tail_module,
+        "_frame_capital_gains_concentration_gate",
+        lambda _frame: _guard_gate_for_receipts(latest_receipts),
+    )
+
+    _transferred, manifest = transfer_puf_capital_gains_tail(
+        _expanded_recipient_frame(),
+        _donor(),
+        seed=567,
+    )
+
+    assert calls == 2
+    report = manifest["frame_concentration_receipts"][column]
+    assert report["post_minus_pre_top_share"] == 0.0
+    assert report["stage_guard_failed"] is False
+    assert (
+        report["stage_guard_classification"]
+        == "pre_existing_over_threshold_not_worsened"
+    )
+    tail_module.validate_puf_capital_gains_tail_manifest(manifest)
+
+
+def test_transfer_raises_with_exact_material_increase_report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A material over-threshold delta reaches the transfer's public error."""
+
+    column = "non_sch_d_capital_gains"
+    pre_share = 0.80
+    post_share = 0.81
+    real_raw_receipts = tail_module._raw_top_share_receipts
+    calls = 0
+    latest_receipts: dict[str, dict[str, object]] = {}
+
+    def worsened_raw_receipts(values, weights):
+        nonlocal calls
+        receipts = real_raw_receipts(values, weights)
+        receipts[column] = _guard_receipt(
+            pre_share if calls == 0 else post_share
+        )
+        latest_receipts.clear()
+        latest_receipts.update(receipts)
+        calls += 1
+        return receipts
+
+    monkeypatch.setattr(
+        tail_module,
+        "_raw_top_share_receipts",
+        worsened_raw_receipts,
+    )
+    monkeypatch.setattr(
+        tail_module,
+        "_frame_capital_gains_concentration_gate",
+        lambda _frame: _guard_gate_for_receipts(latest_receipts),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="measured a material weighted-concentration increase",
+    ) as error:
+        transfer_puf_capital_gains_tail(
+            _expanded_recipient_frame(),
+            _donor(),
+            seed=567,
+        )
+
+    assert calls == 2
+    message = str(error.value)
+    assert f"pre-stage top-100 share {pre_share:.17g}" in message
+    assert f"post-stage {post_share:.17g}" in message
+    assert f"delta {post_share - pre_share:.17g}" in message
+
+
 def test_frame_gate_scopes_to_stage_attributable_worsening() -> None:
     """microcosm#571 rounds 1-2: the comparator reads RAW pre/post
-    measurements under the production gate's finite/positive-mass mask
-    (only the min-carriers floor omitted), derives over-threshold
-    membership from the PRODUCTION gate, tolerates ULP noise, and fails
-    only over-threshold columns the stage strictly worsened. The replay
+    measurements under the production gate's finite/positive-mass mask,
+    derives raw threshold state from the shares and production eligibility
+    from carrier counts, tolerates ULP noise, and fails only eligible raw-
+    over-threshold columns the stage strictly worsened. The replay
     case pins the exact Base-P3 geometry: pre 100%/97 carriers (thin —
     the production gate omits it), post ~83.9%/1,135 carriers (over
     threshold, gate-flagged), NOT worsened -> passes."""
     from microcosm.build.gates import tail_concentration_gate
     from microcosm.build.us_runtime.puf_capital_gains_tail import (
-        _WORSENING_SHARE_TOLERANCE,
         _raw_top_share_receipts,
         _stage_attributable_concentration_failures,
     )
@@ -1003,50 +1497,14 @@ def test_frame_gate_scopes_to_stage_attributable_worsening() -> None:
         pre_receipts, post_receipts, post_gate
     )
     assert failures == []
-    assert receipts["collect"]["over_threshold"] is True
+    assert receipts["collect"]["post_stage_raw_share_over_threshold"] is True
+    assert receipts["collect"]["post_stage_production_gate_eligible"] is True
+    assert (
+        receipts["collect"]["post_stage_production_gate_over_threshold"] is True
+    )
     assert receipts["collect"]["stage_worsened_share"] is False
     assert receipts["collect"]["pre_stage_carriers"] == 97
     assert receipts["collect"]["post_stage_carriers"] == 1_135
-
-    # A stage-worsened over-threshold column still fails, derived through
-    # the production gate as well.
-    worsened_pre = np.zeros(n)
-    worsened_pre[:700] = np.linspace(1.0, 700.0, 700)
-    worsened_post = np.zeros(n)
-    worsened_post[:600] = 1.0
-    worsened_post[:100] = 1_000_000.0
-    worsened_gate = tail_concentration_gate({"w": worsened_post}, {"w": weights})
-    assert not worsened_gate.passed
-    worsened_failures, worsened_receipts = _stage_attributable_concentration_failures(
-        _raw_top_share_receipts({"w": worsened_pre}, weights),
-        _raw_top_share_receipts({"w": worsened_post}, weights),
-        worsened_gate,
-    )
-    assert len(worsened_failures) == 1 and worsened_failures[0].startswith("w:")
-    assert worsened_receipts["w"]["stage_worsened_share"] is True
-
-    # ULP-scale movement is numerical noise, not a worsening — asserted
-    # against an OVER-THRESHOLD gate result so the tolerance is load-bearing
-    # (review round 3: an all-zero gate made this vacuous).
-    noisy = np.zeros(n)
-    noisy[:600] = 1.0
-    noisy[:100] = 1_000_000.0
-    noisy_gate = tail_concentration_gate({"n": noisy}, {"n": weights})
-    assert not noisy_gate.passed
-    noise_failures, noise_receipts = _stage_attributable_concentration_failures(
-        {"n": {"top_share": 0.84, "carriers": 900, "distinct_values": 900}},
-        {
-            "n": {
-                "top_share": 0.84 + _WORSENING_SHARE_TOLERANCE / 2,
-                "carriers": 900,
-                "distinct_values": 900,
-            }
-        },
-        noisy_gate,
-    )
-    assert noise_failures == []
-    assert noise_receipts["n"]["over_threshold"] is True
-    assert noise_receipts["n"]["stage_worsened_share"] is False
 
 
 def test_undeclared_candidate_overlap_fails_loud() -> None:
