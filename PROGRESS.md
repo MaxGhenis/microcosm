@@ -3,11 +3,11 @@
 ## State
 
 Fresh continuation verification is complete through the resource-bounded full
-suite. Three independent audits found no remaining implementation or regression
-gap in the live wiring from implementation commit `51054801`; the fresh
-load-bearing and 263-file replays are green under the charter ceiling. Static
-and lock gates plus the terminal report refresh remain in progress. The
-user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+suite and static quality gates. Three independent audits found no remaining
+implementation or regression gap in the live wiring from implementation commit
+`51054801`; the fresh load-bearing and 263-file replays are green under the
+charter ceiling. Only the terminal report/journal refresh remains in progress.
+The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
 continuation 1% build ran or will run locally.
 
 ## Done
@@ -57,6 +57,11 @@ continuation 1% build ran or will run locally.
   memory ceiling. Every other test in both files passed. Maximum accepted root
   RSS was 12,049,039,360 bytes in
   `packages/microcosm-data/tests/test_loader.py`, below both 14 and 15 GiB.
+- Ran full Ruff, Ruff formatting checks on all 17 branch-changed Python files,
+  explicitly unfrozen `uv lock --check`, `git diff --check`, and the pytest
+  cache audit. All pass and `lastfailed` is `{}`. Runtime is byte-identical to
+  wiring commit `51054801`; all Python is byte-identical to guarded evidence
+  commit `afbc80aa`.
 - Reopened the continuation on 2026-08-21 at `47b22df0`, read `CLAUDE.md` and
   the complete GitNexus exploration workflow, inspected the branch/worktree,
   and preserved the user-owned untracked continuation brief. GitNexus MCP
@@ -652,7 +657,5 @@ continuation 1% build ran or will run locally.
 
 ## Next
 
-- Run full Ruff, changed-file formatting, explicitly unfrozen lock freshness,
-  diff, and pytest cache gates.
 - Refresh `FINAL_REPORT.md`, close the journal, and hand the default-stacked 1%
   comparison back to the host.
