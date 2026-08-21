@@ -24,6 +24,25 @@
   `._pkg1_full_suite.py` and reports its import order; the helper is preserved
   outside this lane's commits.
 
+### Checkpoint replay receipt
+
+- Guarded no-build replay: pre top-100 share
+  `0.84607664843916197`, post `0.84611424753688269`, delta
+  `3.7599097720719676e-05`; the delta exceeds the unchanged `1e-9` noise
+  tolerance. Both measurements have 805 carriers and 425 distinct values.
+- The replay stopped at the comparator, left all checkpoint/source size and
+  mtime fingerprints unchanged, and peaked at 3,373,678,592 bytes root RSS.
+- Read-only bank inspection found 15,228 selected donors, all zero on
+  `non_sch_d_capital_gains`, versus 805 positive and 22,374 zero recipient
+  draws. The current allocator chooses seeded recipients within status/nearest
+  AGI band, while the clone replaces the chosen recipient slice with the donor
+  vector (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1520-1556`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1695-1812`).
+  The regression is therefore caused by displacing positive below-top-100 mass
+  with a zero donor leg, not by redraw duplication or float noise.
+- Full method, values, identities, and mechanism reasoning are committed in
+  `experiments/578_puf_capital_gains_tail_guard_replay.md`.
+
 ## Scope and frozen constraints
 
 - Assigned work package: all 38 checks in

@@ -3,14 +3,18 @@
 ## State
 
 The 2026-08-21 capital-gains tail-guard continuation is in progress at
-`5abca070`. The serial host queue's fresh 1% run reached the wired kernel and
-reported `non_sch_d_capital_gains` top-100 shares as 0.8461 before and after the
-stage while raising a regression error. The immediate task is a read-only,
-no-build replay from the supplied checkpoint to recover both shares at full
-precision, followed by a semantics fix or a generating-mechanism fix according
-to that evidence. Thresholds, bands, gates, seeds, and folds are frozen. No host
-build will run in this lane, and work must stay below 15 GiB RSS. The existing
-untracked helper/continuation files remain untouched.
+`50a8e240`. A guarded no-build checkpoint replay reproduced a material
+`non_sch_d_capital_gains` increase from `0.84607664843916197` to
+`0.84611424753688269` (delta `3.7599097720719676e-05`, versus `1e-9` noise
+tolerance). The rounded host message was misleading, but the live guard's
+decision was correct. The generating mechanism is now isolated to recipient
+selection: all 15,228 selected donors carry zero for this leg, while the current
+seeded in-band allocation can displace one of 805 positive modeled recipients
+and add zero back. Implementation will preserve the real-return reporting route
+and replace modeled tail recipients within the existing status/AGI doctrine.
+Thresholds, bands, gates, seeds, and folds remain frozen. No host build will run
+in this lane, and work must stay below 15 GiB RSS. The existing untracked
+helper/continuation files remain untouched.
 
 ## Done
 
@@ -29,6 +33,15 @@ untracked helper/continuation files remain untouched.
   import-order violation only in pre-existing untracked
   `._pkg1_full_suite.py`; that unrelated helper remains untouched and outside
   the commit.
+- Replayed the supplied assembled checkpoint without a build and printed full
+  IEEE-754 values: pre `0.84607664843916197`, post
+  `0.84611424753688269`, delta `3.7599097720719676e-05`. The 14 GiB guard
+  recorded 3,373,678,592 bytes peak root RSS; all checkpoint and source-input
+  size/mtime fingerprints were unchanged.
+- Independently authenticated the primary-QRF and donor inputs: all 15,228
+  selected q99.5-tail donors have zero `non_sch_d_capital_gains`; the recipient
+  bank has 805 positive and 22,374 zero draws. The committed adjudication is
+  `experiments/578_puf_capital_gains_tail_guard_replay.md`.
 
 - Re-read `CLAUDE.md`, the continuation brief, and the complete GitNexus
   debugging workflow; inspected the live worktree and branch history; and
@@ -964,11 +977,12 @@ untracked helper/continuation files remain untouched.
 
 ## Next
 
-- Replay the supplied checkpoint without a build and print the pre-stage,
-  post-stage, and delta shares at full binary precision.
-- Trace the guard and transfer mechanism. Change only non-regression/reporting
-  semantics if the delta is numerical noise; if the delta is real, correct the
-  causal transfer mechanism first.
+- Implement route-compatible, modeled-tail recipient selection inside the
+  existing filing-status/nearest-AGI-band doctrine and bind its semantics into
+  execution identity. Keep exact donor-vector fidelity and all frozen controls.
+- Make the non-regression receipt/message report full-precision pre, post,
+  delta, tolerance, threshold, and explicit pre-existing-vs-stage-worsened
+  classification without changing its pass/fail boundary.
 - Add the four requested regressions, run each package test shard plus full
   Ruff under the lane memory ceiling, refresh `FINAL_REPORT.md`, and return the
   final committed tree to the serial host queue.
