@@ -2,8 +2,10 @@
 
 ## State
 
-The 2026-08-21 capital-gains tail-guard continuation has completed final
-verification and is ready for its implementation commit.
+The 2026-08-21 capital-gains tail-guard continuation is complete locally.
+Implementation commit `8422cb15` contains the verified mechanism and guard
+fixes. `FINAL_REPORT.md` carries the exact replay, verification, and handoff
+evidence; only the serial host queue's prohibited-in-lane 1% rerun remains.
 The pre-fix guarded checkpoint replay measured a real
 `non_sch_d_capital_gains` increase from `0.84607664843916197` to
 `0.84611424753688269` (delta `3.7599097720719676e-05`, versus the unchanged
@@ -14,8 +16,9 @@ recipients before seeded ties
 A second no-build replay of the same authenticated
 checkpoint inputs measured pre and post both as `0.84607664843916197`, with
 exact delta `0`; the guard reports
-`pre_existing_over_threshold_not_worsened` and does not fail. Thresholds, AGI
-bands, gates, seeds, and folds remain frozen. No host build has run in this lane.
+`pre_existing_over_threshold_not_worsened` and does not fail. Numeric gate and
+comparator controls, AGI bands, seeds, and folds remain frozen. No host build
+has run in this lane.
 All accepted replay/test receipts remain below 15 GiB RSS; one rejected attempt
 to run a mounted 3.73 GB SIPP cache probe jumped through its conservative cutoff
 before the monitor could terminate it, and is disclosed below. The existing
@@ -82,13 +85,17 @@ unrelated untracked helper/continuation files remain untouched.
   (`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:657-811`,
   `packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:838-897`,
   `packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1191-1442`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:76-83`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1030-1036`,
   `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1488-1636`).
 - Advanced the legacy semantic checkpoint identity with the shared tail
   implementation: the common identity binds tail manifest schema 3/support
   contract 2, while the legacy projection removes only the stacked late-
   producer schedule (`tools/build_us_multispine_pool.py:958-1002`). This is
-  required because the legacy route executes the shared imputation and current
-  tail transfer (`tools/build_us_multispine_pool.py:2388-2407`,
+  required because the stacked and legacy routes execute the shared imputation
+  and current tail transfer
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:10492-10500`,
+  `tools/build_us_multispine_pool.py:2388-2407`,
   `tools/build_us_multispine_pool.py:3844-3897`). The outer schema-4/
   materializer-3 envelope remains. A mocked-build fixture keeps its pool bytes
   stable while its manifest golden advances to bind the current semantic key;
@@ -119,6 +126,10 @@ unrelated untracked helper/continuation files remain untouched.
   Plain `ruff check .` would additionally scan the preserved untracked helper
   `._pkg1_full_suite.py`, whose pre-existing import-order finding remains outside
   this commit.
+- Committed the verified implementation, regressions, replay adjudication, and
+  journals as `8422cb15`, then replaced `FINAL_REPORT.md` with the exact
+  checkpoint evidence, final suite receipts, memory disclosure, and host
+  handoff.
 
 - Re-read `CLAUDE.md`, the continuation brief, and the complete GitNexus
   debugging workflow; inspected the live worktree and branch history; and
@@ -1054,6 +1065,5 @@ unrelated untracked helper/continuation files remain untouched.
 
 ## Next
 
-- Commit the verified implementation and journals as one coherent step.
-- Refresh and commit `FINAL_REPORT.md`, then return the exact final commit to the
-  serial host queue for the prohibited-in-lane 1% build.
+- Return the final branch tip to the serial host queue for the prohibited-in-
+  lane 1% build; no local host build or push is authorized.

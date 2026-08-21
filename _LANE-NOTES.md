@@ -96,7 +96,8 @@
   The legacy checkpoint key now advances with the shared tail schema/support
   contract because the legacy route executes that same transfer; only its
   stacked late-producer schedule is omitted
-  (`tools/build_us_multispine_pool.py:958-1002`,
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:10492-10500`,
+  `tools/build_us_multispine_pool.py:958-1002`,
   `tools/build_us_multispine_pool.py:2388-2407`,
   `tools/build_us_multispine_pool.py:3844-3897`).
 - Review-driven tests cover multi-person aggregation, wrong-route capacity,
@@ -133,6 +134,10 @@
 - Ruff passed over every tracked Python file and `git diff --check` passed. The
   pre-existing untracked `._pkg1_full_suite.py` import-order finding remains
   outside the commit. No host build ran.
+- The verified mechanism/guard implementation and replay adjudication are
+  committed at `8422cb15`. `FINAL_REPORT.md` now carries the exact reproduction,
+  code-cited mechanism, final receipts, memory disclosure, and serial-host
+  handoff in this docs-only closing commit.
 
 ## Scope and frozen constraints
 

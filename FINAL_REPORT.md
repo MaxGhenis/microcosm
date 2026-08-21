@@ -1,154 +1,154 @@
-# Final report: pkg1 ACS calibration wiring
+# Final report: pkg1 PUF capital-gains tail guard
 
 ## Outcome
 
-The current `battery-pkg1-puf-tax` tree executes calibration in the default
-stacked production path for exactly the assigned PUF-tax targets, plus the
-separate Schedule-D joint-parent reconciliation. The requested wiring was
-already present in post-host commit `51054801`; the host's identical 127-line
-failure sets came from its unwired parent, `e16b8b50` (`51054801^`). Current
-production-source blobs remain byte-identical to `51054801`, so this
-continuation audited the live call graph and replayed the load-bearing tests
-rather than adding a duplicate call site.
+Implementation commit `8422cb15` fixes both the real transfer regression and
+the guard's attribution semantics. The checkpointed 1% inputs did contain a
+material increase hidden by the four-decimal error text; after the route-aware
+assignment fix, a no-build replay is bit-identical pre/post and the unchanged
+over-threshold state is reported without failing.
 
-No 1% build ran locally. The next 1% comparison belongs to the host and must use
-the final committed tree's default stacked entrypoint.
+No numeric gate/comparator control, AGI band, seed, or fold was tuned. No host
+build ran in this lane. The serial host queue should rerun the 1% build from
+`8422cb15` or the later docs-only branch tip.
 
-| Evidence tree | Production state | Meaning |
-| --- | --- | --- |
-| `e16b8b50` (`51054801^`) | Kernel definitions exist, but ACS transfer has no import, selector, or call | This is consistent with the host's zero-effect result |
-| `51054801` and current production blobs | Default stacked owners pass exact selectors into the shared post-decode calibration seam | The assigned kernel is callable in production and unassigned targets remain excluded |
+## Full-precision checkpoint reproduction
 
-## Exact production scope
+The supplied assembled checkpoint was replayed without fitting, checkpoint
+writes, or a build:
 
-The frozen PUF-tax policy contains 20 unique ACS `(entity, target)` leaves: 17
-person targets and 3 tax-unit targets. Those leaves implement exactly the 15
-carrier legs and 23 conditional-amount legs assigned to this work package. The
-live stacked transfer surfaces partition them into 7 early-gap-fill targets and
-13 late-transfer targets, with no overlap, omission, or selected unassigned
-target.
+| Measurement | Value | IEEE-754 hex |
+| --- | ---: | --- |
+| Pre-stage top-100 share | `0.84607664843916197` | `0x1.b130f55de9360p-1` |
+| Pre-fix post-stage share | `0.84611424753688269` | `0x1.b135e2fbb37c9p-1` |
+| Post minus pre | `3.7599097720719676e-05` | `0x1.3b677291a4000p-15` |
 
-`transfer_acs_inputs` defaults to an empty calibration selection. The default
-stacked production owners derive an active exact-key allowlist and explicitly
-pass it, caller-owned recipient scopes, and frozen target references into the
-transfer seam. The transfer validates that selection against both its requested
-surface and `PUF_TAX_TRANSFER_CALIBRATION_POLICY`, then calibrates only the live
-selected intersection. An unassigned sibling in the same QRF family and batch
-receives neither an adjustment nor reconciliation evidence.
+The increase is about 37,599 times the unchanged `1e-9` numerical-noise
+tolerance, so it was real rather than exact equality or a rounding artifact.
+Both measurements had 805 carriers and 425 distinct values. The replay
+authenticated all 47 survey-transfer, 1 housing-transfer, and 65 primary-QRF
+target banks; before/after checkpoint fingerprints were unchanged. Peak root
+RSS was 3,373,678,592 bytes.
+The full reproducibility receipt is in
+`experiments/578_puf_capital_gains_tail_guard_replay.md`.
 
-Both banked and in-memory QRF execution converge on the same order:
+## Generating mechanism and correction
 
-1. decode predictions;
-2. invoke the selected policy's `allocate_weighted_signs`,
-   `select_weighted_binary_carriers`, and/or
-   `map_sign_preserving_weighted_magnitudes` primitive;
-3. apply the existing null-only fill.
+Input inspection found that all 15,228 selected tail donors had zero
+`non_sch_d_capital_gains`, while the recipient predictions contained 805
+positive and 22,374 zero values for the direct-route leg. In the pre-fix tree, recipient
+assignment keyed filing status and nearest AGI band but then used seeded order
+without the donor's reporting route
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1520-1556`
+at `5abaf92c`). The clone stage then transferred the selected donor joint vector
+into the chosen recipient-weight slice
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1695-1812`
+at `5abaf92c`). That allowed a zero-direct-leg non-direct-route donor to replace
+a positive direct-route recipient. The direct Form-1040 and Schedule-D reporting
+routes are structurally exclusive on a real return
+(`packages/microcosm-build/src/microcosm/build/us_runtime/capital_gain_distributions.py:1-18`).
 
-The default CLI reaches this seam through `gap_fill_stacked_spine` for the early
-owner and `run_stacked_late_producer_dag` for all bounded late owners. The
-explicit retiring `--legacy-two-spine` route retains the safe empty default and
-is outside this remedy.
+The correction derives route and modeled ST+LT order from the validated
+tax-unit aggregate of all person-grain capital-gains values
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1791-1827`).
+Support is now sufficient only when each filing-status/reporting-route stratum
+has enough recipients
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1891-2008`).
+Within the unchanged nearest-AGI-band search, the allocator selects only the
+matching route and prioritizes the largest modeled ST+LT tail value before the
+existing seeded/source-ID ties
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2011-2064`).
+The donor joint vector remains donor-owned and is copied verbatim
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2087-2096`).
 
-Schedule-D is deliberately separate from the ACS QRF calibration seam. The
-default tool's `prepare_stacked_tail_derivation` marks only ASEC clone 0 as the
-reference and ACS clone 0 as the recipient, and passes that exact prepared frame
-to `derive_multispine_pool_inputs`. `_complete_schedule_d_input` consumes the
-roles and invokes the preservation-specific
-`reconcile_schedule_d_joint_parents` equal-weight-swap kernel before
-deterministic leaf derivation.
+A corrected replay of the same authenticated checkpoint inputs measured pre and
+post as exactly `0.84607664843916197`, with delta `0`, 805 carriers, and 425
+distinct values. It emitted
+`pre_existing_over_threshold_not_worsened`, returned no stage-attributable
+failure, did not modify the checkpoint tree, and peaked at 3,313,057,792 bytes.
 
-## Load-bearing wiring regressions
+## Guard semantics
 
-The direct fixture-scale regression
-`test_calibration_kernel_is_invoked_only_for_selected_assigned_target` places
-assigned `qualified_dividend_income` beside unassigned
-`taxable_interest_income` in one family/batch and records calls to the imported
-magnitude primitive. It proves that:
+The guard now measures raw finite positive weighted absolute mass for every
+column before applying the production minimum-carrier eligibility rule
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:610-654`).
+It records pre/post shares, delta, carriers, distinct values, raw threshold
+flags, production eligibility, the material-worsening verdict, and an explicit
+classification. It fails only when all three facts are true:
 
-- the empty default makes zero calls;
-- selecting the assigned target invokes the kernel with only its assigned
-  reference;
-- the unassigned sibling remains identical to the raw-transfer baseline and
-  has no reconciliation receipt; and
-- selecting the unassigned target is rejected before fitting or invocation.
+1. `post - pre > 1e-9`;
+2. raw post-stage share is above the unchanged `0.75` threshold; and
+3. post-stage carriers meet the unchanged 500-record production minimum.
 
-Separate stacked fixtures capture the exact early and late production-owner
-bindings. Schedule-D fixtures require role creation, exact prepared-frame
-handoff, parent-kernel consumption, role removal, preserved parent geometry,
-all terminal tool states, and checkpoint resume. Removing the common call,
-either owner binding, the prepared-frame handoff, or the Schedule-D reconciler
-therefore makes a committed test fail.
+Those controls remain top-k 100, threshold `0.75`, minimum 500, and tolerance
+`1e-9`
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:81-83`,
+`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:601-605`).
+The complete disposition and full-precision public failure message are derived
+from the measurements
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:657-820`,
+`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:940-972`).
+Thus equal and sub-tolerance increases pass; an eligible material increase over
+threshold fails; an unchanged pre-existing exceedance is a non-failing report;
+and a structurally thin raw exceedance remains visible but production-gate
+ineligible.
 
-This matches pkg3's scoped-binding pattern from regression `22b2c6bc` and
-implementation `176c60fc`: a default-empty exact-key selector, request
-validation, owner-side active intersection, selected-only execution, and
-selected-only evidence.
+Manifest schema 3 stores this attribution receipt, and validation recomputes
+every boolean and classification from the sealed shares and carrier counts
+instead of trusting stored verdict text
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:76-83`,
+`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1030-1036`,
+`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1488-1636`).
+Both pool routes execute the shared transfer, so the legacy semantic checkpoint
+identity also binds the current tail schema/support contract while omitting only
+the stacked late-producer schedule
+(`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:10492-10500`,
+`tools/build_us_multispine_pool.py:958-1002`,
+`tools/build_us_multispine_pool.py:2388-2407`,
+`tools/build_us_multispine_pool.py:3844-3897`).
 
-## Fresh verification
+## Regression coverage and verification
 
-- Nine expanded load-bearing wiring cases passed; a separate replay of the four
-  slow tool-entrypoint states passed in 342.35 seconds.
-- All 110 tests in the ACS transfer, calibration-primitives, and
-  Schedule-D reconciliation modules passed in 21.04 test seconds under a
-  14 GiB live root-RSS guard. Maximum root RSS was 600,440,832 bytes.
-- The exact 263-file tracked test manifest ran in fresh interpreters with
-  fit/BLAS thread widths pinned to one, pytest's cache disabled, and a
-  15,032,385,536-byte (14 GiB) live root-RSS guard. Results were 6,549 passed,
-  74 skipped, zero failures, zero errors, and exactly two explicit full-donor
-  cache-probe deselections. No guard fired.
-- Maximum accepted full-suite RSS was 11,843,141,632 bytes in
-  `packages/microcosm-data/tests/test_loader.py`, below both the 14 GiB guard
-  and the 15 GiB order.
-- The two deselected cache probes each independently parse the mounted 3.73 GB
-  SIPP donor and cannot execute within this lane's memory ceiling. Every other
-  test in both containing files passed. A platform-only PostgreSQL module
-  recorded its normal collection skip because `pgserver` is unavailable.
-- The tracked-manifest SHA-256 is
-  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`.
-  The 263 JUnit files are in
-  `/private/tmp/pkg1-suite-current-retry-42c471aa`; their ordered aggregate
-  SHA-256 is
-  `7a60dc30fffb02c54030f405f7158ef377e06e0c19f90c706659fed72eb8c6cb`.
-- `ruff check .`, Ruff formatting for all 17 branch-changed Python files, an
-  explicitly unfrozen `uv lock --check`, `git diff --check`, and the pytest
-  `lastfailed` audit all passed. The last-failed cache is `{}`.
+Dedicated tests cover equal pre/post, a sub-tolerance increase, a real eligible
+increase, and an unchanged pre-existing over-threshold state
+(`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1191-1293`).
+Additional tests bind route preservation, route-specific support, multi-person
+tax-unit aggregation, modeled-tail ordering, persisted non-failure reporting,
+the exact public failure text, and rehashed receipt-tamper rejection
+(`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:641-897`,
+`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1346-1442`).
 
-An optional wheel-build probe could not begin in this network-restricted
-environment: isolated building would need to fetch `hatchling`, and the active
-environment does not have that backend installed. No packaging, dependency,
-lock, production, or test source changed in this continuation.
+Final-tree guarded test receipts:
 
-## Frozen-gate check
+| Package | Result | Peak root RSS (bytes) |
+| --- | ---: | ---: |
+| microcosm-frame | 294 passed, 36 skipped | 6,527,254,528 |
+| microcosm-fit | 125 passed | 417,792,000 |
+| microcosm-calibrate | 201 passed | 466,321,408 |
+| microcosm-data | 275 passed, 1 skipped | 12,270,026,752 |
+| microcosm-build | 5,672 passed, 37 skipped | 7,022,198,784 |
+| **Total** | **6,567 passed, 74 skipped, 0 failures/errors** | — |
 
-The live runtime comparator declaration is literally equal to `origin/main`:
-incidence bounds `(0.8, 1.25)`, conditional quantiles
-`(0.10, 0.25, 0.50, 0.75, 0.90)`, quantile-envelope tolerance `0.25`,
-categorical-TVD tolerance `0.25`, and the Schedule-D
-`monetary_sign_separated` metric are unchanged. Sample/clone seed `578` and
-pool seed `0` are also unchanged; no relevant fold changed.
+The build sweep used 226 fresh per-file processes. Its manifest SHA-256 is
+`855d762df4e85fd40df7ff299d444ec5f13d43111d25d731bee1bef73cef79d6` and
+receipt SHA-256 is
+`67b18e5af01d1ed68134911a0f02449a7dedc8c316fa3da6f16b6a62b53afc22`.
+Exactly two mounted-cache probes were deselected:
+`test_cached_full_donor_matches_pinned_household_support` and
+`test_cached_full_donor_matches_locked_response_and_weight_facts`.
 
-`origin/main` now has newer redundant `us/spec/battery.yaml` and runtime-adapter
-representations that this older branch does not contain, but their gate values
-agree with this branch's runtime constants. That is branch staleness, not a
-band, threshold, or metric change. The Schedule-D kernel's internal
-`abs_tol=1e-12` exact-margin assertion is arithmetic validation, not a battery
-comparator tolerance.
-
-## Causal commits
-
-- `56fd9bf6` — add the sign-aware calibration primitives.
-- `e16b8b50` — last unwired production tree; this is `51054801^`.
-- `51054801` — wire exact scoped ACS calibration and its invocation regression.
-- `7298590f` — make the Schedule-D prepared-frame handoff load-bearing.
-- `86f9dfcd` — cover repeated cold/resumed Schedule-D handoffs.
-- `de811725`, `42c471aa`, `2d50f419`, and `4f038481` — reopen the continuation,
-  audit current source scope, replay the guarded suite, and record final static
-  and frozen-gate evidence.
+One non-accepted attempt to run the first 3.73 GB cache probe alone crossed from
+below its sampled cutoff to 17,501,945,856 bytes before the monitor terminated
+it. It violated the lane memory order, produced no accepted test evidence, and
+was not retried; the second probe reads the same source and was not attempted.
+All accepted replays and suites stayed below 15 GiB. Tracked-file Ruff and
+`git diff --check` passed.
 
 ## Host handoff
 
-Run the frozen 1% comparison from the final committed tree using the default
-stacked pipeline; do not pass `--legacy-two-spine`. Diff the assigned failure
-set against the existing `origin/main` 1% baseline and inspect the PUF-tax
-target reconciliation receipts plus the Schedule-D joint-parent receipt. That
-host run—not this source audit—will establish post-wiring empirical effect.
+The serial host owner should rerun the prohibited-in-lane 1% build from
+implementation commit `8422cb15` (or the docs-only final branch tip), using the
+unchanged threshold/band/gate configuration. Expected guard evidence for the
+replayed failing column is a full-precision non-failing entry with pre = post =
+`0.84607664843916197`, delta `0`, and classification
+`pre_existing_over_threshold_not_worsened`.
