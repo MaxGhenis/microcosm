@@ -2,127 +2,118 @@
 
 ## Outcome
 
-Completed the wiring continuation on `battery-pkg1-puf-tax`. The PUF-tax
-calibration kernels now execute in the default stacked production ACS transfer
-path for exactly the assigned 20 targets (15 carrier checks and 23
-conditional-amount checks, 38 assigned rows total), with the Schedule-D
-joint-parent repair executing in the default stacked derive path.
+Completed the wiring continuation on `battery-pkg1-puf-tax`. The production
+implementation at `51054801` imports and invokes the PUF-tax calibration
+kernels from the default stacked ACS transfer path for exactly the assigned 20
+targets (15 carrier checks and 23 conditional-amount checks, representing all
+38 PUF-tax work-package rows). The preservation-specific Schedule-D parent
+kernel executes later in the mandatory default-stacked derive path, before the
+deterministic Schedule-D leaf is produced.
 
-No frozen battery band, incidence threshold, QED ceiling, quantile, seed, fold,
-or comparator changed. No continuation 1% build was run; the host retains the
-next frozen branch/baseline comparison.
-
-The current continuation audit independently re-read pkg3's named `22b2c6bc`
-scoped-binding regression and production successor `176c60fc`, then traced the
-live default build route. Three independent reviews found no missing caller or
-runtime scope leak. The canonical policy is reachable as 7 early and 13 late
-targets with no overlap or omission; family suffixing cannot broaden the
-stable `(entity, target)` keys.
+Fresh source tracing found no missing production caller or unassigned-target
+leak in the current tree. The canonical transfer surfaces partition the frozen
+policy into 7 early and 13 late targets, with zero overlap and zero omission.
+No comparator band, incidence threshold, QED ceiling, quantile, seed, fold, or
+comparator changed. No continuation 1% build ran; the host retains that frozen
+comparison.
 
 ## Production wiring
 
-- `transfer_acs_inputs` now calibrates decoded QRF predictions at the common
-  banked/non-banked seam before null-only recipient filling.
-- Activation is a default-empty exact `(entity, target)` selector, following
-  pkg3's scoped-binding pattern. It fails closed outside both the caller's
-  requested transfer surface and the frozen pkg1 policy.
-- The stacked early and late owners pass only their active assigned keys and
-  bind source-aware recipient scopes plus the exact frozen reference rows.
-  Unassigned siblings in the same QRF family never enter a calibration kernel.
-- Schedule-D reconciliation consumes transient source-neutral clone-0 roles in
-  `_complete_schedule_d_input`, removes the marker, byte-preserves the
-  long-term parent, and uses exact-equal-weight swaps for the mutable
-  `non_sch_d_capital_gains` parent before deriving the leaf.
-- The Schedule-D operator contract and kernel receipt explicitly disclose both
-  the mutable parent and derived leaf. Its role-authority SHA covers the final
-  role counts. Independent review confirmed this derive-only declaration does
-  not enter any early or late ACS transfer surface.
+- `transfer_acs_inputs` exposes a default-empty exact `(entity, target)`
+  selector. It validates requested keys against both the active transfer
+  surface and `PUF_TAX_TRANSFER_CALIBRATION_POLICY`, then intersects them with
+  actually incomplete targets.
+- Banked and in-memory QRF paths converge on the same seam: decode raw draws,
+  calibrate copies for selected targets only, then perform the existing
+  null-only recipient fill. Raw chain priors, bank checkpoints, native cells,
+  zero-weight draws, and unassigned siblings remain unchanged.
+- The stacked early and late owners derive exact active selections and bind
+  caller-owned opaque recipient scopes plus target-specific frozen references.
+  Family names and bounded-batch suffixes never grant calibration authority.
+- The default CLI reaches early gap fill, the bounded late-producer DAG, and
+  then `prepare_stacked_tail_derivation` followed by
+  `derive_multispine_pool_inputs`. Late transfer groups deliberately suppress
+  ACS-local Schedule-D derivation.
+- The derive chain runs `_complete_schedule_d_input` first. It consumes the
+  transient ASEC-clone-0 reference and ACS-clone-0 recipient roles, invokes
+  `reconcile_schedule_d_joint_parents`, removes the role marker, preserves the
+  long-term parent byte-for-byte and the weighted direct-parent distribution,
+  then derives `schedule_d_capital_gain_distributions`.
+- The retiring explicit `--legacy-two-spine` compatibility route remains
+  outside this default-stacked remedy.
 
-## Load-bearing regression
+## Load-bearing regressions
 
-The fixture wiring test places assigned `qualified_dividend_income` beside
-unassigned `taxable_interest_income` in the same `puf_tax_itemization` batch and
-records the production-imported magnitude kernel:
+The fixture-scale ACS wiring regression places assigned
+`qualified_dividend_income` beside unassigned `taxable_interest_income` in the
+same `puf_tax_itemization` batch and records calls to the imported magnitude
+kernel. It proves:
 
-- default selection: zero calibration calls;
-- assigned selection: calls only with the assigned target/reference;
-- unassigned sibling: bit-equal raw output and no reconciliation receipt;
-- attempted unassigned selection: rejected before fitting.
+- default selection makes zero calibration calls;
+- assigned selection invokes the real kernel with the assigned reference;
+- the unassigned sibling remains bit-equal to its raw baseline and receives no
+  reconciliation receipt; and
+- attempting to select the unassigned target fails before fitting.
 
-The stacked mixed-family regression independently verifies that the production
-owner passes only the assigned tuple and emits a receipt only for that target.
-The Schedule-D regressions prove real invocation, role consumption/removal,
-parent preservation, and legacy no-op behavior without the transient marker.
+The stacked-owner fixture separately captures the production call and proves
+that only the assigned tuple is passed. Schedule-D role-producer and
+kernel-consumer fixtures prove clone-0 role scope, role consumption/removal,
+parent preservation, target incidence, and the marker-absent compatibility
+no-op.
 
-Independent scope and call-flow audits found all 20 targets reachable (7 in
-early gap-fill and 13 in late bounded groups) with no leakage to unassigned
-siblings, including within suffixed mixed batches. The retiring explicit
-`--legacy-two-spine` compatibility path remains byte-stable and outside this
-default stacked remedy.
+This continuation added one further tool-level regression: tail preparation
+returns a distinct frame carrying the transient Schedule-D role, and every
+derive call—cold or resumed—must receive that exact most-recently prepared
+frame before consuming the marker. A regression from
+`derive_multispine_pool_inputs(derivation_input)` to the unprepared `current`
+frame can no longer remain green.
 
 ## Verification
 
-- Three current independent read-only audits found no blocking production-scope,
-  wiring-regression, or Schedule-D defect. The exact policy intersection is 20
-  of 20 assigned targets: 7 early and 13 late.
-- Current replay of the four load-bearing assigned/unassigned and Schedule-D
-  wiring fixtures: pass.
-- Current replay of the complete ACS transfer, calibration-kernel, and
-  Schedule-D-kernel modules: 110 tests pass with fit/BLAS widths pinned to one.
-- Complete ACS transfer module: 73 tests pass.
-- Touched runtime modules: 1,020 tests pass.
-- Committed full repository collection on the unchanged implementation tree:
-  6,623 tests reached 100% and exited zero in 4,210.702 seconds; pytest's
-  current `lastfailed` cache is `{}`.
-- Memory-isolated explicit-file replay: all 263 test files covered under the
-  manifest digest
-  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`,
-  with 6,549 passed, 74 skipped, and two optional mounted-donor nodes
-  deselected. The highest accepted peak was 11,841,650,688 bytes RSS, below 15
-  GiB.
+- Four load-bearing assigned/unassigned, production-owner, and Schedule-D
+  fixtures: pass; peak RSS 608,157,696 bytes.
+- Complete ACS transfer, calibration-kernel, and Schedule-D-kernel modules:
+  110 tests pass; peak RSS 600,834,048 bytes.
+- Complete multispine tool module after handoff hardening: 155 tests pass; peak
+  RSS 1,333,870,592 bytes.
+- Exact 263-file test manifest
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`:
+  6,549 passed, 74 skipped, and 2 explicitly deselected cache-only nodes. Every
+  file exited zero in a fresh process with fit/BLAS widths pinned to one and a
+  14 GiB live guard. The maximum accepted peak was 11,844,042,752 bytes RSS in
+  `packages/microcosm-data/tests/test_loader.py`, below 15 GiB.
+- The two deselections were the vehicle-support and voluntary-filing checks
+  that each parse the locally mounted 3.73 GB SIPP donor. Prior guarded runs
+  established that these environment-conditional nodes cannot complete inside
+  this lane's memory ceiling; all other tests in both files passed. No accepted
+  process reached the guard.
 - Full `ruff check .`: pass.
 - Explicitly unfrozen `uv lock --check`: pass.
-- Ruff format check on all 17 branch-changed Python files: pass.
+- Ruff formatting for all 17 branch-changed Python files: pass.
 - `git diff --check`: pass.
+- Pytest `lastfailed` cache: `{}`.
 
-No runtime, test, dependency, or lock file changed after `51054801`; an explicit
-tree diff confirms the later commits are journal and verification updates. The
-committed full-suite and memory-isolated replay therefore exercise the exact
-implementation tree revalidated by the current focused runs. Pytest's
-`lastfailed` cache is empty, full Ruff and explicitly unfrozen lock freshness
-pass, and no 1% build ran during this continuation.
-
-The fresh monolithic full-suite process peaked at 27,285,979,136 bytes, so its
-green result is not claimed as memory-compliant. A guarded replay therefore
-used fresh processes. Two cache-conditional tests attempted to parse the
-locally mounted 3.73 GB SIPP donor and crossed conservative live guards at
-15,066,742,784 and 13,073,645,568 bytes; they were terminated below the hard 15
-GiB ceiling and explicitly deselected from the accepted replay. Those tests
-normally skip when the restricted donor is absent, and both had already passed
-in the green monolithic run. No local build or 1% comparison was launched. The
-repository-wide format audit also lists 49 pre-existing unrelated files; they
-were not changed.
+Runtime, dependencies, and lock are unchanged after implementation commit
+`51054801`; the only later Python change is the 21-line Schedule-D handoff
+regression in `test_us_multispine_pool_tool.py`. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched.
 
 ## Key commits
 
 - `56fd9bf6` — add sign-aware calibration primitives.
 - `974f36c3` — bound exact QRF leaf storage.
-- `209eae98` — journal ACS calibration wiring continuation.
 - `e16b8b50` — support exact capped ragged QRF leaves.
 - `51054801` — wire scoped ACS transfer calibration.
-- `a1b31586` — reopen the final wiring continuation audit.
-- `0dfa2cf7` — record the independent wiring audit.
-- `737f2077` — reopen the scoped wiring verification.
-- `77095103` — record the fresh source and focused-test audit.
-- `e06fcf75` — reopen the current scoped wiring continuation.
-- `73d197bd` — record the current source and load-bearing audit checkpoint.
+- `7298590f` — pin the Schedule-D prepare-to-derive handoff.
+- `86f9dfcd` — support repeated cold/resumed handoffs in that fixture.
+- `afbc80aa` — record the guarded full-suite replay.
 
 ## Host handoff
 
-Run the frozen 1% build for this branch, compare it against the existing
-`origin/main` 1% baseline, and diff the assigned failure set. Unlike the prior
-identical 127-line result, the build now traverses the calibrated production
-seam; the committed fixture makes a green test run impossible if that assigned
-invocation is removed or leaks to an unassigned target. Use the default stacked
-pipeline; the explicit retiring `--legacy-two-spine` compatibility path remains
-intentionally byte-stable and outside this remedy.
+Run the frozen 1% build for this branch with the default stacked pipeline,
+compare it against the existing `origin/main` 1% baseline, and diff the
+assigned failure set. Do not pass `--legacy-two-spine`. Unlike the earlier
+identical 127-line comparison, the default build now traverses the calibrated
+production seam, and the committed regressions make missing assigned
+invocation, unassigned batch leakage, or loss of the Schedule-D prepared-frame
+handoff fail in the fixture suite.

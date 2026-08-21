@@ -2,22 +2,20 @@
 
 ## State
 
-Current continuation verification in progress on branch
-`battery-pkg1-puf-tax`. Fresh source tracing confirms that implementation
-commit `51054801` wires the imported kernel at the shared post-decode,
-pre-fill transfer seam, with default-empty exact-target activation from both
-stacked production owners. The canonical surfaces partition all 20 assigned
-targets into 7 early and 13 late targets with no overlap or omission, while
-Schedule-D reconciliation remains isolated to the subsequent derive stage.
-Fresh load-bearing and complete focused-module verification pass under 0.61 GiB
-RSS. The tool-level fixture now also pins the transient Schedule-D role frame
-across the production prepare-to-derive handoff, closing the only compositional
-assertion gap found in review. The exact 263-file resource-isolated suite replay
-is green: 6,549 passed, 74 skipped, and 2 cache-only mounted-SIPP nodes were
-explicitly deselected; the highest peak was 11,844,042,752 bytes RSS, below 15
-GiB. Final static, lock, diff, and report checks remain.
-The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
-1% build will run.
+Continuation complete on branch `battery-pkg1-puf-tax`. Fresh source tracing
+confirms that implementation commit `51054801` wires the imported kernel at the
+shared post-decode, pre-fill transfer seam, with default-empty exact-target
+activation from both stacked production owners. The canonical surfaces
+partition all 20 assigned targets into 7 early and 13 late targets with no
+overlap or omission, while Schedule-D reconciliation remains isolated to the
+subsequent derive stage. The tool-level fixture now also pins the transient
+Schedule-D role frame across the production prepare-to-derive handoff. The
+exact 263-file resource-isolated suite replay is green: 6,549 passed, 74
+skipped, and 2 cache-only mounted-SIPP nodes were explicitly deselected; the
+highest peak was 11,844,042,752 bytes RSS, below 15 GiB. Full Ruff, explicitly
+unfrozen lock freshness, formatting for all 17 branch-changed Python files,
+diff integrity, and the empty `lastfailed` cache pass. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build ran.
 
 ## Done
 
@@ -382,10 +380,16 @@ The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
   calibration module, 19-test Schedule-D kernel module, 72-test multispine
   pool module, 155-test pool-tool module, and 231-test stacked-spine module all
   passed inside the replay.
+- Ran full `ruff check .`, an explicitly unfrozen `uv lock --check`, Ruff
+  formatting checks on all 17 branch-changed Python files, `git diff --check`,
+  and the pytest `lastfailed` check. All pass; `lastfailed` is `{}`.
+- Confirmed that the only Python/dependency change after runtime implementation
+  commit `51054801` is the 21-line Schedule-D handoff regression in
+  `test_us_multispine_pool_tool.py`; runtime, dependencies, and lock remain
+  unchanged. The only untracked file is the untouched user continuation brief.
 
 ## Next
 
-- Run full Ruff, explicitly unfrozen lock freshness, changed-file formatting,
-  and diff-integrity checks.
-- Refresh `FINAL_REPORT.md`, commit the terminal journal, and hand the frozen
-  1% branch/baseline comparison back to the host.
+- Host: run the frozen default-stacked 1% branch build, compare it with the
+  existing `origin/main` 1% baseline, and adjudicate the assigned failure-set
+  delta. Do not use the retiring `--legacy-two-spine` compatibility flag.
