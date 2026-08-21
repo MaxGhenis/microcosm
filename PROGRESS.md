@@ -2,15 +2,17 @@
 
 ## State
 
-The 2026-08-21 continuation has been reopened at `a3e00a68` in response to the
-host's zero-effect report. That report describes a tree where
-`acs_transfer_calibration.py` has no production caller, while the current live
-tree contains an import in `acs_transfer.py` and later wiring commits. Prior
-completion and suite claims below are historical evidence, not current truth;
-the current source, pkg3 scoped-binding precedent, exact target ownership,
-load-bearing regressions, and permitted full suite are being re-verified. The
-user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
-continuation 1% build will run locally.
+The current source audit at `d2a0c301` confirms that implementation commit
+`51054801` already closes the host-reported pre-wiring gap. The live
+`acs_transfer.py` imports and invokes the PUF-tax kernels after both QRF decode
+modes and before null-only fill; default-empty exact owner selections prevent
+unassigned activation. The canonical early and late surfaces partition all 20
+assigned targets into 7 and 13 targets with no overlap, omission, or extra.
+Schedule-D clone-0 roles reach the preservation-specific parent reconciler
+through the prepared derive frame. Load-bearing and full-suite verification is
+now in progress; earlier suite claims below remain historical evidence until
+replayed. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
+untouched. No continuation 1% build will run locally.
 
 ## Done
 
@@ -550,12 +552,32 @@ continuation 1% build will run locally.
   GitNexus debugging skill, and inspected the live branch/worktree before
   trusting historical journal claims. GitNexus graph tools are unavailable in
   this session, so direct source and Git call-path tracing is the fallback.
+- Re-read pkg3 regression `22b2c6bc` and its implementation follow-up
+  `176c60fc`. Their applicable pattern is a default-empty exact
+  `(entity, target)` selector, validation against the requested surface,
+  owner-side active intersection, and selected-only evidence even when an
+  unassigned sibling shares a bounded QRF batch.
+- Confirmed the host's zero-caller evidence describes the tree before
+  `51054801`: the predecessor has no calibration import or selector, while the
+  current tree directly imports all three primitives, validates selection
+  against the requested surface and frozen policy, intersects live missing
+  targets, and invokes the common post-decode/pre-fill seam for banked and
+  in-memory QRF execution.
+- Evaluated the live canonical surfaces against the frozen 20-target policy.
+  Early gap fill reaches 7 exact targets and the bounded late DAG reaches the
+  other 13, with zero overlap, omission, or unassigned target.
+- Traced the default tool from `gap_fill_stacked_spine` through
+  `run_stacked_late_producer_dag`, `prepare_stacked_tail_derivation`, and
+  `derive_multispine_pool_inputs`. The prepared frame assigns ASEC clone 0 as
+  Schedule-D reference and ACS clone 0 as recipient; `_complete_schedule_d_input`
+  consumes those roles and invokes `reconcile_schedule_d_joint_parents` before
+  deriving the Schedule-D leaf. The explicit legacy route remains outside the
+  remedy.
 
 ## Next
 
-- Re-read pkg3's named scoped-binding commit and independently trace the live
-  default stacked path through both ACS transfer modes and Schedule-D derive.
-- Prove the exact assigned/unassigned invocation contract with fixture tests;
-  change code only if the live implementation or regression is incomplete.
+- Prove the exact assigned/unassigned invocation contract and production-owner
+  binding with the committed fixture regressions, including Schedule-D role
+  consumption and prepared-frame handoff.
 - Run the full permitted suite under the 15 GiB ceiling, refresh
   `FINAL_REPORT.md`, and leave the frozen 1% build to the host.
