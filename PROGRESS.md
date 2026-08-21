@@ -2,16 +2,15 @@
 
 ## State
 
-The fresh 2026-08-21 source audit and every requested local quality gate are
-complete. The host's zero-effect/no-caller evidence describes unwired
-`51054801^`; current production wiring is the later commit `51054801`. Three
-independent reviews re-established the default stacked call path, exact
-20-target selection, separate Schedule-D parent handoff, and load-bearing
-regressions without finding a scope or invocation defect. The relevant-module
-and guarded 263-file suite replays, static checks, lock check, and frozen-policy
-comparison are green. Only the committed final-report refresh and closing
-journal entry remain. The user-provided `_WIRING-CONTINUATION.md` remains
-untracked and untouched. No continuation 1% build ran locally.
+The 2026-08-21 continuation is complete. The host's zero-effect/no-caller
+evidence describes unwired `51054801^`; current production wiring is the later
+commit `51054801`. Three independent reviews re-established the default stacked
+call path, exact 20-target selection, separate Schedule-D parent handoff, and
+load-bearing regressions without finding a scope or invocation defect. The
+relevant-module and guarded 263-file suite replays, static checks, lock check,
+and frozen-policy comparison are green. The final host report is committed at
+`504ad593`. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
+untouched. No continuation 1% build ran locally.
 
 ## Done
 
@@ -84,6 +83,10 @@ untracked and untouched. No continuation 1% build ran locally.
   environment does not have that backend installed. No packaging or source
   change was made in this continuation; the requested guarded suite and static
   gates are complete.
+- Refreshed and committed `FINAL_REPORT.md` at `504ad593` with the causal
+  host-tested/current-tree distinction, exact assigned scope, load-bearing
+  regression proof, current guarded-suite receipts, frozen-gate comparison,
+  and host-only 1% instructions.
 
 - Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
   the worktree and branch history, and preserved the user-owned untracked
@@ -890,5 +893,6 @@ untracked and untouched. No continuation 1% build ran locally.
 
 ## Next
 
-- Refresh and commit `FINAL_REPORT.md`, close this journal with the report
-  commit, and hand the frozen 1% comparison back to the host.
+- Host: rerun the frozen 1% comparison from the final committed tree using the
+  default stacked pipeline (never `--legacy-two-spine`), then diff the assigned
+  failures and inspect PUF-tax plus Schedule-D reconciliation receipts.
