@@ -2,14 +2,16 @@
 
 ## State
 
-The 2026-08-21 wiring continuation has been reopened from current HEAD. The
-host's zero-effect/no-caller report is the symptom under investigation; prior
-journal claims and receipts are historical until revalidated against live
-source. Candidate production wiring and fixture regressions exist in branch
-history, but their exact assigned-only reachability, Schedule-D handoff, and
-load-bearing behavior are being checked afresh. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run
-locally.
+The fresh current-HEAD source audit is complete. The host's zero-caller symptom
+matches `e16b8b50` (`51054801^`), while the live production blobs contain the
+later exact-scoped wiring from `51054801`. The default stacked path reaches all
+20 frozen PUF-tax targets as a disjoint 7-early/13-late partition, invokes the
+shared post-decode/pre-fill seam only for selected targets, and separately
+hands Schedule-D roles into the parent reconciler before leaf derivation. Five
+load-bearing fixture cases are green. No source or test correction is currently
+indicated; relevant-module and full-suite verification remain. The
+user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No 1%
+build will run locally.
 
 ## Done
 
@@ -20,6 +22,45 @@ locally.
   call tracing are the active fallback.
 - Reopened and committed this live state journal before any production or test
   change, preserving the user-owned untracked continuation brief.
+- Re-read pkg3 regression `22b2c6bc` and implementation `176c60fc`. Their
+  applicable pattern is a default-empty exact-key selector, validation against
+  the requested surface, owner-side intersection, and selected-only execution
+  and evidence even when unassigned siblings share a bounded QRF batch.
+- Confirmed the causal history boundary: `e16b8b50` has no calibration import,
+  selector, or Schedule-D parent call; `51054801` adds all three. Current
+  production-source blobs are unchanged from the latter commit.
+- Traced `transfer_acs_inputs`: the explicit selector defaults empty, is checked
+  against both the requested surface and the frozen PUF-tax policy, intersects
+  the actually missing targets, and passes only that exact subset to the
+  calibration kernel after prediction decode and before null-only fill.
+- Mechanically evaluated the live canonical surfaces. The 20-target policy
+  partitions into exactly 7 early-gap-fill and 13 late-DAG targets, with zero
+  overlap and zero omission. Each production owner constructs target-specific
+  reference authority and passes its exact active selection; other transferred
+  targets remain outside the kernel.
+- Traced the default CLI into `build_stacked_pool`, early gap fill, every bounded
+  late-transfer producer, tail-role preparation, and pool derivation. Only the
+  explicit `--legacy-two-spine` branch bypasses this route. Schedule-D assigns
+  ASEC clone 0 as reference and ACS clone 0 as recipient, then invokes
+  `reconcile_schedule_d_joint_parents` before deterministic leaf derivation.
+- Ran five load-bearing fixtures with fit/BLAS widths pinned to one and pytest's
+  cache disabled. Assigned primitive invocation, same-batch unassigned
+  exclusion, early and late production reference binding, Schedule-D role
+  production, and parent-kernel consumption all passed in 6.91 test seconds.
+- Three independent read-only audits found no assigned-scope omission,
+  unassigned-target leakage, or default-path bypass. One audit replaced the
+  production calibration seam with a no-op at runtime; the direct call-recording
+  regression failed at its required nonempty-call assertion, proving the test
+  cannot remain green when the kernel is unwired.
+- Confirmed checkpoint routing is versioned for this calibration/Schedule-D
+  materializer: pre-wiring identities cannot resume, transferred resumes rerun
+  tail preparation and derivation, and simulated resumes authenticate an
+  already-derived frame and receipts.
+- Recorded but did not expand scope for one pre-existing non-default API
+  inconsistency: a custom partial transfer's Schedule-D execution identity is
+  enabled when either parent is requested while its expectation helper names
+  both. The default stacked path transfers both parents before the separately
+  scoped parent reconciler, so this is not a bypass of the requested wiring.
 
 - Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
   the current branch/worktree, and preserved the user-owned untracked
@@ -900,9 +941,7 @@ locally.
 
 ## Next
 
-- Compare pkg3's scoped-binding precedent with current production owners and
-  trace every assigned target plus the Schedule-D parent through the default
-  tool path.
-- Strengthen or correct source and fixture wiring if any invocation or scope
-  gap remains, then run the guarded relevant and full suites, static/frozen
-  checks, refresh `FINAL_REPORT.md`, and hand the 1% run back to the host.
+- Complete independent read-only review, then run the guarded relevant modules
+  and full tracked suite plus static, lock, and frozen-gate checks.
+- Refresh `FINAL_REPORT.md`, close this journal, and hand the 1% comparison back
+  to the host.
