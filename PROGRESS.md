@@ -7,10 +7,12 @@ The 2026-08-20 host-requested wiring continuation has been reopened at
 reviews confirm that production wiring commit `51054801` is present and exact:
 the live policy partitions into 7 early and 13 late targets with no overlap or
 omission, and the Schedule-D parent kernel is reached through the prepared
-derive handoff. The load-bearing core and tool-path fixtures pass. The
-resource-bounded full-suite replay is next. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run
-in this continuation.
+derive handoff. The load-bearing core, tool-path fixtures, complete focused
+modules, and exact 263-file resource-isolated suite all pass. The guarded suite
+recorded 6,549 passed, 74 skipped, exactly 2 documented cache-only deselections,
+and an 11,495,079,936-byte maximum aggregate RSS. Static, formatting, lock, and
+diff gates pass. `FINAL_REPORT.md` remains to be refreshed. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build ran.
 
 ## Done
 
@@ -45,6 +47,27 @@ in this continuation.
 - Replayed all three terminal variants of the default stacked tool fixture;
   the prepared Schedule-D role frame reached derive in every applicable path.
   All 3 tests passed in 33.93 seconds.
+- Replayed the complete ACS transfer, calibration-kernel, and Schedule-D
+  reconciliation modules. All 110 tests passed in 6.58 seconds at 601,145,344
+  bytes peak RSS.
+- Confirmed the tracked test manifest still contains exactly 263 files with
+  SHA-256 `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`
+  and that source, tests, dependencies, and lock are unchanged from the earlier
+  guarded evidence commit `afbc80aa`.
+- Replayed every manifest file in a fresh interpreter with all fit and BLAS
+  widths pinned to one, pytest's cache disabled, and a 14 GiB live aggregate-
+  RSS process-group guard. The accepted result was 6,549 passed, 74 skipped,
+  exactly 2 documented cache-only SIPP nodes deselected, zero failures, and no
+  guard event. Maximum sampled aggregate RSS was 11,495,079,936 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below both 14 and 15 GiB.
+- The two exact deselections remain
+  `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`. Their two
+  files' remaining tests passed; both cache probes parse the locally mounted
+  3.73 GB SIPP donor and are covered by the earlier green monolithic run whose
+  27,285,979,136-byte peak is not accepted as resource-compliant evidence.
+- Ran full Ruff, Ruff formatting checks on all 17 branch-changed Python files,
+  explicitly unfrozen lock freshness, and `git diff --check`; all pass.
 
 - Ran the required `uv sync --all-packages --extra us`. The default cache was
   denied by the managed filesystem; a retry with a writable cache reached
@@ -460,6 +483,4 @@ in this continuation.
 
 ## Next
 
-- Run the full suite in resource-isolated shards under the 15 GiB RSS ceiling.
-- Run Ruff, lock freshness, and diff-integrity checks; then finalize the
-  journal and `FINAL_REPORT.md` for the host's frozen 1% rerun.
+- Refresh `FINAL_REPORT.md`, close this journal, and commit the host handoff.
