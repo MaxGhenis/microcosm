@@ -7,11 +7,12 @@ matches `e16b8b50` (`51054801^`), while the live production blobs contain the
 later exact-scoped wiring from `51054801`. The default stacked path reaches all
 20 frozen PUF-tax targets as a disjoint 7-early/13-late partition, invokes the
 shared post-decode/pre-fill seam only for selected targets, and separately
-hands Schedule-D roles into the parent reconciler before leaf derivation. Five
-load-bearing fixture cases are green. No source or test correction is currently
-indicated; relevant-module and full-suite verification remain. The
-user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No 1%
-build will run locally.
+hands Schedule-D roles into the parent reconciler before leaf derivation. The
+five load-bearing cases and all 110 relevant module tests are green under a
+14 GiB root-RSS guard. No source or test correction is indicated; the guarded
+full-suite and final static/frozen checks remain. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run
+locally.
 
 ## Done
 
@@ -61,6 +62,14 @@ build will run locally.
   enabled when either parent is requested while its expectation helper names
   both. The default stacked path transfers both parents before the separately
   scoped parent reconciler, so this is not a bypass of the requested wiring.
+- Replayed the complete relevant modules in fresh processes with fit/BLAS
+  widths pinned to one, pytest's cache disabled, and a 14 GiB live root-RSS
+  guard: 73 ACS-transfer, 18 calibration-primitive, and 19 Schedule-D tests all
+  passed (110 total). Maximum monitored root RSS was 600,260,608 bytes.
+- The first aggregate monitor attempted process-tree enumeration, which macOS
+  sandboxing forbids; it produced no accepted receipt. The accepted replays
+  monitor the direct pytest process used by the prior lane convention and ran
+  each module independently, with no guard event.
 
 - Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
   the current branch/worktree, and preserved the user-owned untracked
@@ -941,7 +950,6 @@ build will run locally.
 
 ## Next
 
-- Complete independent read-only review, then run the guarded relevant modules
-  and full tracked suite plus static, lock, and frozen-gate checks.
+- Run the guarded full tracked suite plus static, lock, and frozen-gate checks.
 - Refresh `FINAL_REPORT.md`, close this journal, and hand the 1% comparison back
   to the host.
