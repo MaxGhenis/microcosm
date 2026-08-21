@@ -2,11 +2,13 @@
 
 ## State
 
-Continuation complete on branch `battery-pkg1-puf-tax`. The PUF-tax kernels run
+Continuation revalidation is active on branch `battery-pkg1-puf-tax`. The
+committed tree claims that the PUF-tax kernels run
 at the common post-decode, pre-fill ACS seam for a default-empty exact-target
 selection, and the stacked early/late owners bind only their active assigned
 keys. The Schedule-D parent kernel runs later in the default stacked derive
-stage. A fresh independent audit found no missing caller or runtime scope leak:
+stage. This pass is rechecking that claim from source and executable fixtures;
+the prior audit found no missing caller or runtime scope leak:
 the canonical build reaches all and only the 20 assigned transfer targets (7
 early and 13 late) plus the separate Schedule-D repair. The four load-bearing
 fixtures and all 110 ACS transfer/calibration/Schedule-D kernel tests pass.
@@ -242,8 +244,14 @@ changed, no continuation build ran, and the host owns the next 1% comparison.
   110-test ACS transfer/calibration/Schedule-D set; both exited zero. Full
   Ruff, explicitly unfrozen lock freshness, and `git diff --check` also pass.
   No 1% build ran.
+- Reopened the host-requested wiring continuation at `ea2fb474`. Preserved the
+  user-owned `_WIRING-CONTINUATION.md`, confirmed the implementation and its
+  earlier verification commits are present, and began a fresh source/test
+  audit rather than relying on the root journal's historical state claims.
 
 ## Next
 
-- Host: rerun the frozen 1% branch build, compare it with the `origin/main` 1%
-  baseline, and adjudicate the assigned failure-set delta.
+- Reconfirm pkg3's scoped-binding precedent and trace the live default build
+  route into the assigned-only ACS and Schedule-D calibration seams.
+- Re-run the load-bearing invocation regression and proportionate verification
+  without launching a 1% build; update `FINAL_REPORT.md` with accepted evidence.
