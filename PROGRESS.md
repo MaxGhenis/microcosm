@@ -2,26 +2,23 @@
 
 ## State
 
-The continuation is complete through host-report commit `44e06476`.
-Implementation commit `51054801` closes the host-reported pre-wiring gap. The
-live `acs_transfer.py` imports and invokes the PUF-tax kernels after both QRF
-decode modes and before null-only fill; default-empty exact owner selections
-prevent unassigned activation. The canonical early and late surfaces partition
-all 20 assigned targets into 7 and 13 targets with no overlap, omission, or
-extra.
-Schedule-D clone-0 roles reach the preservation-specific parent reconciler
-through the prepared derive frame. All 10 load-bearing fixture cases pass under
-a 14 GiB guard at 1,146,896,384 bytes maximum root RSS. The full permitted
-263-file replay is green with 6,549 passed, 74 skipped, zero failures/errors,
-exactly 2 documented mounted-SIPP cache probes deselected, and an
-11,845,337,088-byte maximum root RSS. Full Ruff, changed-file formatting,
-explicitly unfrozen lock freshness, and diff gates also pass. `FINAL_REPORT.md`
-is committed and current for the host handoff. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
-build ran locally.
+Fresh continuation verification is in progress from `47b22df0`. The live tree
+already claims implementation commit `51054801` closes the host-reported
+pre-wiring gap, but the repository charter makes prior journal claims
+historical rather than current evidence. This pass will independently compare
+the live binding to pkg3's named scoped-binding precedent, trace both ACS QRF
+paths and the Schedule-D parent route, replay the invocation/non-invocation
+regressions and full suite under the resource ceiling, and refresh
+`FINAL_REPORT.md`. The user-provided `_WIRING-CONTINUATION.md` remains untracked
+and untouched. No continuation 1% build will run locally.
 
 ## Done
 
+- Reopened the continuation on 2026-08-21 at `47b22df0`, read `CLAUDE.md` and
+  the complete GitNexus exploration workflow, inspected the branch/worktree,
+  and preserved the user-owned untracked continuation brief. GitNexus MCP
+  graph resources are unavailable in this session, so named-commit and direct
+  source tracing will supply the fresh call-edge evidence.
 - Replayed 10 parameterized load-bearing cases with all fit/BLAS widths pinned
   to one and pytest's cache disabled. All 10 passed, including three
   terminal-state entrypoint variants and the checkpoint-resume handoff;
@@ -612,6 +609,9 @@ build ran locally.
 
 ## Next
 
-- Host only: run the frozen 1% build with the default stacked pipeline (do not
-  pass `--legacy-two-spine`) and diff its assigned failure set against the
-  existing `origin/main` 1% baseline.
+- Compare the live selector and owner bindings to pkg3's named regression and
+  implementation, then verify exact assigned-target reachability and the
+  Schedule-D parent call path.
+- Replay the load-bearing wiring regressions, complete suite, lint, lock, and
+  diff gates under the frozen resource rules; update the final report and
+  commit each coherent checkpoint.
