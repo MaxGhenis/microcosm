@@ -12,7 +12,9 @@ Schedule-D reconciliation remains isolated to the subsequent derive stage.
 Fresh load-bearing and complete focused-module verification pass under 0.61 GiB
 RSS. The tool-level fixture now also pins the transient Schedule-D role frame
 across the production prepare-to-derive handoff, closing the only compositional
-wiring gap found in review. The resource-isolated full-suite replay is next.
+wiring gap found in review. The resource-isolated full-suite replay is in
+progress and has passed the modified tool module after a fixture-only resume
+assertion correction.
 The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
 1% build will run.
 
@@ -351,6 +353,16 @@ The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
 - Re-ran all three terminal-state variants of the stacked tool entrypoint
   fixture after that hardening; all passed at 1,243,398,144 bytes peak RSS.
   Focused Ruff, formatting, and `git diff --check` pass.
+- Began the exact 263-file resource-isolated suite replay under a 14 GiB live
+  guard. The first pass through the modified tool module exposed a fixture-only
+  assumption: its checkpoint-resume test legitimately prepares and derives
+  twice, while the new assertion required one lifetime call. Changed the
+  assertion to require every derive call to receive the most recently prepared
+  frame, preserving the intended handoff guarantee across cold and resumed
+  builds.
+- Re-ran the complete 155-test multispine tool module after that correction;
+  it reached 100% and exited zero at 1,333,870,592 bytes peak RSS. The broader
+  isolated replay will resume from the next file.
 
 ## Next
 

@@ -1529,8 +1529,8 @@ def _install_stacked_entrypoint_stubs(
         def stage(frame: Frame):
             order.append(name)
             if name == "derive":
-                assert len(tail_prepared_frames) == 1
-                assert frame is tail_prepared_frames[0]
+                assert tail_prepared_frames
+                assert frame is tail_prepared_frames[-1]
                 person = frame.table("person")
                 assert stacked_spine_module.SCHEDULE_D_JOINT_ROLE_COLUMN in person
                 frame = _replace_person(
