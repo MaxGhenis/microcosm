@@ -27,6 +27,15 @@ and untouched. No continuation 1% build will run locally.
   early and both late reference owners, Schedule-D role production and kernel
   consumption, three terminal states, and checkpoint resume all passed; peak
   monitored root RSS was 1,194,409,984 bytes with no guard event.
+- Replayed all 110 tests in the ACS transfer, calibration-kernel, and
+  Schedule-D reconciliation modules under the same constrained guard. They
+  reached 100% and exited zero at 601,669,632 bytes peak root RSS.
+- Completed the first independent read-only comparison with pkg3 regression
+  `22b2c6bc`, production follow-up `176c60fc`, and its later mixed-family
+  hardenings. The live implementation follows the same default-empty exact-key
+  authority, per-active-family intersection, and selected-only execution
+  pattern; no default-path scope defect was found. The explicit retiring
+  `--legacy-two-spine` route intentionally keeps the empty selection.
 - Reopened the continuation on 2026-08-21 at `47b22df0`, read `CLAUDE.md` and
   the complete GitNexus exploration workflow, inspected the branch/worktree,
   and preserved the user-owned untracked continuation brief. GitNexus MCP
