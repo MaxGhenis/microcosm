@@ -2,15 +2,21 @@
 
 ## State
 
-The continuation is complete through host-report commit `e91e1655`. Three
-independent audits found no remaining implementation or regression gap in the
-live wiring from implementation commit `51054801`; the fresh load-bearing and
-263-file replays are green under the charter ceiling, and all static/lock gates
-pass. `FINAL_REPORT.md` is committed and current for host handoff. The
-user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
-continuation 1% build ran locally.
+Reopened on 2026-08-21 for a fresh source-and-test verification of the host's
+wiring continuation. The current tree already contains production wiring from
+implementation commit `51054801`; this pass will independently compare that
+tree with the named pkg3 scoped-binding precedent, verify exact assigned-target
+reachability and Schedule-D routing, and replay the load-bearing and full
+allowed suites under the charter memory ceiling. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
+build will run locally.
 
 ## Done
+
+- Read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected the
+  branch and worktree, and preserved the user-owned untracked continuation
+  brief. GitNexus graph tools are unavailable in this session, so named-commit
+  history and direct source tracing will supply the required caller evidence.
 
 - Confirmed the host's zero-caller observation against `51054801^`: that tree
   has no `acs_transfer_calibration` import or `calibration_targets` binding.
