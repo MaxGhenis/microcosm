@@ -1509,9 +1509,19 @@ def _install_stacked_entrypoint_stubs(
         lambda _frame, _manifest: {"passed": True},
     )
 
+    tail_prepared_frames: list[Frame] = []
+
     def tail_prepare(frame: Frame):
         order.append("tail_prepare")
-        return frame, {"fixture": "tail_prepare"}
+        person = frame.table("person").copy()
+        person[stacked_spine_module.SCHEDULE_D_JOINT_ROLE_COLUMN] = np.full(
+            len(person),
+            stacked_spine_module.SCHEDULE_D_JOINT_ROLE_EXCLUDED,
+            dtype=np.int8,
+        )
+        prepared = _replace_person(frame, person)
+        tail_prepared_frames.append(prepared)
+        return prepared, {"fixture": "tail_prepare"}
 
     monkeypatch.setattr(pool_tool, "prepare_stacked_tail_derivation", tail_prepare)
 
@@ -1519,6 +1529,16 @@ def _install_stacked_entrypoint_stubs(
         def stage(frame: Frame):
             order.append(name)
             if name == "derive":
+                assert len(tail_prepared_frames) == 1
+                assert frame is tail_prepared_frames[0]
+                person = frame.table("person")
+                assert stacked_spine_module.SCHEDULE_D_JOINT_ROLE_COLUMN in person
+                frame = _replace_person(
+                    frame,
+                    person.drop(
+                        columns=[stacked_spine_module.SCHEDULE_D_JOINT_ROLE_COLUMN]
+                    ),
+                )
                 return _fixture_qbi_stage_output(frame, {"fixture": name})
             return PoolStageOutput(frame, {"fixture": name})
 

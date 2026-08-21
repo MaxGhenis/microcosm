@@ -10,8 +10,11 @@ stacked production owners. The canonical surfaces partition all 20 assigned
 targets into 7 early and 13 late targets with no overlap or omission, while
 Schedule-D reconciliation remains isolated to the subsequent derive stage.
 Fresh load-bearing and complete focused-module verification pass under 0.61 GiB
-RSS; the resource-isolated full-suite replay is next. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run.
+RSS. The tool-level fixture now also pins the transient Schedule-D role frame
+across the production prepare-to-derive handoff, closing the only compositional
+wiring gap found in review. The resource-isolated full-suite replay is next.
+The user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
+1% build will run.
 
 ## Done
 
@@ -338,6 +341,16 @@ RSS; the resource-isolated full-suite replay is next. The user-provided
 - Re-ran the complete ACS transfer, calibration-kernel, and Schedule-D-kernel
   modules under the same controls. All 110 tests passed; the process peaked at
   600,834,048 bytes RSS.
+- Found and closed one narrow Schedule-D regression gap: producer-role and
+  consumer-kernel tests were separately load-bearing, but the stubbed default
+  tool fixture returned the original frame from tail preparation. It now
+  returns a distinct frame carrying the transient role, and the derive stub
+  asserts exact object handoff and role presence before consuming it. A future
+  regression from `derive_multispine_pool_inputs(derivation_input)` back to the
+  unprepared `current` frame can no longer remain green.
+- Re-ran all three terminal-state variants of the stacked tool entrypoint
+  fixture after that hardening; all passed at 1,243,398,144 bytes peak RSS.
+  Focused Ruff, formatting, and `git diff --check` pass.
 
 ## Next
 
