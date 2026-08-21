@@ -2,22 +2,15 @@
 
 ## State
 
-Continuation complete on branch `battery-pkg1-puf-tax`. The PUF-tax kernels now
-run at the common post-decode, pre-fill ACS seam for an explicit default-empty
-exact-target selection, and the stacked early/late owners bind only their active
-assigned keys. Schedule-D parent reconciliation runs in the default stacked
-derive stage. Independent scope and integration reviews are closed; the
-Schedule-D mutation contract now explicitly declares both its parent rewrite
-and derived leaf, and its role-authority digest covers the final role counts.
-A fresh independent audit confirmed the default production call graph reaches
-all and only the 20 assigned transfer targets plus the separate Schedule-D
-derive-stage repair. The four load-bearing fixtures and all 73 ACS transfer
-tests pass. The default 6,623-test collection reached 100% and exited zero; an
-explicit memory-isolated replay covered all 263 test files with 6,549 passed,
-74 skipped, and two mounted 3.73 GB donor replays deselected after their live
-guards activated below 15 GiB. The highest accepted replay peak was
-11,841,650,688 bytes. No frozen gate parameter or band has changed, no
-continuation build was run, and the host owns the next 1% comparison.
+Continuation audit reopened on branch `battery-pkg1-puf-tax`. The branch
+already contains the scoped production wiring, load-bearing invocation
+regressions, full-suite evidence, and final report from the preceding pass.
+This pass is independently re-reading pkg3's named scoped-binding precedent,
+tracing the current default production call graph, and replaying the focused
+assigned/unassigned and Schedule-D tests before deciding whether a corrective
+implementation commit is required. No frozen gate parameter or band will
+change, no continuation build will run, and the host retains the next 1%
+comparison.
 
 ## Done
 
@@ -210,8 +203,17 @@ continuation build was run, and the host owns the next 1% comparison.
   neither resource profile is accepted under this charter.
 - Preserved the user-provided `_WIRING-CONTINUATION.md` as the sole untracked
   file and did not stage or modify it.
+- Reopened the continuation audit at `b5b3bc9b`; confirmed the committed tree
+  already imports the calibration primitives into `acs_transfer.py`, exposes a
+  default-empty exact-target selector, and contains an assigned-versus-
+  unassigned call-recording regression. Further production-path and test
+  verification is in progress.
 
 ## Next
 
-- Host: rerun the frozen 1% branch build, compare it with the `origin/main` 1%
-  baseline, and adjudicate the assigned failure-set delta.
+- Complete independent pkg3-pattern, production-call-graph, and regression
+  audits; correct and commit any discovered defect.
+- Replay the focused wiring/Schedule-D tests and proportional quality gates
+  under 15 GiB without running a build.
+- Restore terminal State/Next, update `FINAL_REPORT.md`, and commit the final
+  handoff for the host's frozen 1% comparison.
