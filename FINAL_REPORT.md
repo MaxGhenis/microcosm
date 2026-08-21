@@ -10,14 +10,16 @@ targets (15 carrier checks and 23 conditional-amount checks, representing all
 kernel executes later in the mandatory default-stacked derive path, before the
 deterministic Schedule-D leaf is produced.
 
-Fresh 2026-08-21 source tracing plus three independent reviews found no missing
-production caller or unassigned-target leak in the current tree. The canonical
-transfer surfaces partition the frozen policy into 7 early and 13 late targets,
-with zero overlap and zero omission. The earlier identical 127-line host
-comparison therefore describes the pre-wiring tree; the current default-stacked
-path now contains the production call. No comparator band, incidence threshold,
-QED ceiling, quantile, seed, fold, or comparator changed. No continuation 1%
-build ran; the host retains that frozen comparison.
+Fresh 2026-08-21 source tracing and three independent read-only reviews found
+no missing production caller or unassigned-target leak in the current tree.
+The canonical transfer surfaces partition the frozen policy into 7 early and
+13 late targets, with zero overlap and zero omission. Direct history inspection
+confirms the earlier identical 127-line host comparison describes the tree
+before `51054801`; that predecessor has no calibration import or selector,
+while the current default-stacked path contains the production call. No
+comparator band, incidence threshold, QED ceiling, quantile, seed, fold, or
+comparator changed. No continuation 1% build ran; the host retains that frozen
+comparison.
 
 ## Production wiring
 
@@ -81,25 +83,25 @@ frame can no longer remain green.
 
 ## Verification
 
-- Fresh eight-node load-bearing replay: 8 passed at 1,626,488,832 bytes
-  maximum monitored root RSS. It covers imported-kernel invocation,
-  same-family unassigned non-invocation, production-owner exact selection,
-  derive dispatch, Schedule-D role consumption/preservation, three terminal
-  entrypoint states, and checkpoint resume.
+- Fresh eight-test-function load-bearing replay: 10 parameterized cases passed
+  at 1,146,896,384 bytes maximum monitored root RSS. It covers imported-kernel
+  invocation, same-family unassigned non-invocation, exact early and late owner
+  references, Schedule-D role production and consumption/preservation, all
+  three terminal entrypoint states, and checkpoint resume.
 - Fresh complete ACS transfer, calibration-kernel, and Schedule-D-kernel
-  replay: 110 passed at 602,849,280 bytes maximum monitored root RSS.
+  modules: 110 passed inside the exhaustive replay, at 602,537,984 bytes
+  maximum monitored root RSS.
 - The complete 155-test multispine tool module passed inside the exhaustive
-  replay at 1,690,484,736 bytes maximum monitored root RSS.
+  replay at 1,692,549,120 bytes maximum monitored root RSS.
 - Exact 263-file test manifest
   `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`:
   6,549 passed, 74 skipped, zero failures/errors, and 2 explicitly deselected
   cache-only nodes. All 263 files have a passing JUnit receipt from a fresh
   process with fit/BLAS widths pinned to one and a 14 GiB live root-RSS guard;
   there were zero accepted guard events. Maximum fresh monitored root RSS was
-  11,899,813,888 bytes in `packages/microcosm-data/tests/test_loader.py`, below
-  both 14 and 15 GiB. The runtime/test tree is byte-identical to the earlier
-  process-group-guarded evidence at `65c6be05`, which independently recorded an
-  11,495,079,936-byte aggregate maximum.
+  11,845,337,088 bytes in `packages/microcosm-data/tests/test_loader.py`, below
+  both 14 and 15 GiB. The fresh receipt is
+  `/private/tmp/pkg1-wiring-suite.p1I5ZN/receipt.jsonl`.
 - The two deselections were the vehicle-support and voluntary-filing checks
   that each independently parses the locally mounted 3.73 GB SIPP donor. A
   fresh isolated vehicle-node attempt crossed the conservative 14.5 GiB cutoff
@@ -132,6 +134,10 @@ regression in `test_us_multispine_pool_tool.py`. The user-provided
 - `90d0f1e7` — reopen the 2026-08-21 continuation audit.
 - `4fd3ca0c` — record the fresh scoped production-path audit.
 - `9986ecf1` — record the fresh guarded wiring verification.
+- `f95234af` — record the current scoped production-path audit.
+- `9772a43d` — record the current load-bearing replay.
+- `83e9e399` — record the current guarded 263-file replay.
+- `50814d1c` — record the current static and lock gates.
 
 ## Host handoff
 
