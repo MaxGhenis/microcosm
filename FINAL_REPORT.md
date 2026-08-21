@@ -12,6 +12,12 @@ No frozen battery band, incidence threshold, QED ceiling, quantile, seed, fold,
 or comparator changed. No continuation 1% build was run; the host retains the
 next frozen branch/baseline comparison.
 
+The final continuation audit independently re-read pkg3's named `22b2c6bc`
+scoped-binding regression and its production successors, then traced the live
+default build route. It found no missing caller or runtime scope leak. The
+canonical policy is reachable as 7 early and 13 late targets with no overlap or
+omission; family suffixing cannot broaden the stable `(entity, target)` keys.
+
 ## Production wiring
 
 - `transfer_acs_inputs` now calibrates decoded QRF predictions at the common
@@ -56,6 +62,8 @@ default stacked remedy.
 ## Verification
 
 - Four load-bearing assigned/unassigned and Schedule-D wiring fixtures: pass.
+- Current replay of the complete ACS transfer, calibration-kernel, and
+  Schedule-D-kernel modules: 110 tests pass with fit/BLAS widths pinned to one.
 - Complete ACS transfer module: 73 tests pass.
 - Touched runtime modules: 1,020 tests pass.
 - Fresh default repository collection: 6,623 tests reached 100% and exited zero
@@ -67,9 +75,14 @@ default stacked remedy.
   deselected. The highest accepted peak was 11,841,650,688 bytes RSS, below 15
   GiB.
 - Full `ruff check .`: pass.
-- `uv lock --check`: pass.
+- Explicitly unfrozen `uv lock --check`: pass.
 - Ruff format check on all 13 changed Python files: pass.
 - `git diff --check`: pass.
+
+No runtime or test file changed after `51054801`; the later commits are journal
+and verification updates. The committed full-suite and memory-isolated replay
+therefore exercise the same implementation tree revalidated by the current
+focused runs.
 
 The fresh monolithic full-suite process peaked at 27,285,979,136 bytes, so its
 green result is not claimed as memory-compliant. A guarded replay therefore
@@ -89,6 +102,8 @@ were not changed.
 - `209eae98` — journal ACS calibration wiring continuation.
 - `e16b8b50` — support exact capped ragged QRF leaves.
 - `51054801` — wire scoped ACS transfer calibration.
+- `a1b31586` — reopen the final wiring continuation audit.
+- `0dfa2cf7` — record the independent wiring audit.
 
 ## Host handoff
 

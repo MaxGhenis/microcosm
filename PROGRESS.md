@@ -2,17 +2,18 @@
 
 ## State
 
-Continuation audit reopened on branch `battery-pkg1-puf-tax`. The branch
-already contains the scoped production wiring, load-bearing invocation
-regressions, full-suite evidence, and final report from the preceding pass.
-This pass is independently re-reading pkg3's named scoped-binding precedent,
-tracing the current default production call graph, and replaying the focused
-assigned/unassigned and Schedule-D tests. Those audits found no runtime scope
-bug or missing caller: all 20 assigned transfer targets are reachable exactly
-once and the separate Schedule-D parent kernel runs at derive. Proportional
-quality checks and the terminal journal/report update remain. No frozen gate
-parameter or band will change, no continuation build will run, and the host
-retains the next 1% comparison.
+Continuation complete on branch `battery-pkg1-puf-tax`. The PUF-tax kernels run
+at the common post-decode, pre-fill ACS seam for a default-empty exact-target
+selection, and the stacked early/late owners bind only their active assigned
+keys. The Schedule-D parent kernel runs later in the default stacked derive
+stage. A fresh independent audit found no missing caller or runtime scope leak:
+the canonical build reaches all and only the 20 assigned transfer targets (7
+early and 13 late) plus the separate Schedule-D repair. The four load-bearing
+fixtures and all 110 ACS transfer/calibration/Schedule-D kernel tests pass.
+Runtime code remains identical to the implementation revision covered by the
+committed green full-suite and under-15-GiB guarded replay. Full Ruff, unfrozen
+lock freshness, and diff integrity pass. No frozen gate parameter or band
+changed, no continuation build ran, and the host owns the next 1% comparison.
 
 ## Done
 
@@ -226,9 +227,15 @@ retains the next 1% comparison.
   Schedule-D-kernel set with all fit/BLAS widths pinned to one; all passed.
   Runtime code is unchanged from `51054801`, the implementation tree already
   covered by the committed full-suite and guarded-replay evidence.
+- Re-ran full Ruff, an explicitly unfrozen `uv lock --check`, and
+  `git diff --check`; all passed. The first lock invocation inherited
+  `UV_FROZEN=1` and therefore checked validity only, so the accepted freshness
+  result is the explicit `env -u UV_FROZEN ... uv lock --check` replay.
+- Updated the terminal `FINAL_REPORT.md`. The only untracked file remains the
+  user-provided `_WIRING-CONTINUATION.md`, preserved byte-for-byte and excluded
+  from every commit.
 
 ## Next
 
-- Run Ruff, lock freshness, and diff-integrity checks without running a build.
-- Restore terminal State/Next, update `FINAL_REPORT.md`, and commit the final
-  handoff for the host's frozen 1% comparison.
+- Host: rerun the frozen 1% branch build, compare it with the `origin/main` 1%
+  baseline, and adjudicate the assigned failure-set delta.
