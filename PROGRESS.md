@@ -9,10 +9,11 @@ modes and before null-only fill; default-empty exact owner selections prevent
 unassigned activation. The canonical early and late surfaces partition all 20
 assigned targets into 7 and 13 targets with no overlap, omission, or extra.
 Schedule-D clone-0 roles reach the preservation-specific parent reconciler
-through the prepared derive frame. Load-bearing and full-suite verification is
-now in progress; earlier suite claims below remain historical evidence until
-replayed. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
-untouched. No continuation 1% build will run locally.
+through the prepared derive frame. All 10 load-bearing fixture cases pass under
+a 14 GiB guard at 1,146,896,384 bytes maximum root RSS. The full permitted
+suite replay is next; earlier full-suite claims below remain historical evidence
+until replayed. The user-provided `_WIRING-CONTINUATION.md` remains untracked
+and untouched. No continuation 1% build will run locally.
 
 ## Done
 
@@ -573,11 +574,14 @@ untouched. No continuation 1% build will run locally.
   consumes those roles and invokes `reconcile_schedule_d_joint_parents` before
   deriving the Schedule-D leaf. The explicit legacy route remains outside the
   remedy.
+- Replayed 10 load-bearing fixture cases with all fit/BLAS widths pinned to one,
+  pytest's cache disabled, and a 14 GiB root-RSS guard. They cover the imported
+  assigned-kernel call and same-batch unassigned non-call; exact early-owner and
+  both late-owner references; Schedule-D role production and parent-kernel
+  consumption/preservation; all three terminal tool states; and checkpoint
+  resume. All passed at 1,146,896,384 bytes maximum root RSS with no guard event.
 
 ## Next
 
-- Prove the exact assigned/unassigned invocation contract and production-owner
-  binding with the committed fixture regressions, including Schedule-D role
-  consumption and prepared-frame handoff.
 - Run the full permitted suite under the 15 GiB ceiling, refresh
   `FINAL_REPORT.md`, and leave the frozen 1% build to the host.
