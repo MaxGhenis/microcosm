@@ -2,13 +2,16 @@
 
 ## State
 
-The host-requested wiring continuation is open on branch
-`battery-pkg1-puf-tax`. The branch already contains a candidate scoped wiring
-implementation and regression at `51054801`; they are being re-audited against
-the named pkg3 precedent and the live default production call path rather than
-accepted from the historical journal. The user-provided
-`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will be
-run locally.
+The host-requested wiring continuation is verified at the source and
+load-bearing-fixture layers on branch `battery-pkg1-puf-tax`. The candidate at
+`51054801` follows pkg3's exact `(entity, target)` scope boundary, and the live
+default stacked build reaches all 20 assigned transfer targets as 7 early and
+13 late targets with no overlap or omission. Schedule-D reconciliation is
+separately reachable in the later derive stage. The assigned/unassigned
+primitive spy, production-owner receipt test, and two Schedule-D integration
+fixtures pass with fit and BLAS widths pinned to one. Broader suite and static
+verification remain. The user-provided `_WIRING-CONTINUATION.md` is still
+untracked and untouched; no 1% build will run locally.
 
 ## Done
 
@@ -272,11 +275,27 @@ run locally.
   preserved the user-provided untracked continuation brief, and began fresh
   read-only reviews of the pkg3 scope pattern, production transfer path, and
   load-bearing invocation regression.
+- Read pkg3's named `22b2c6bc` regression and production successor
+  `176c60fc`. The applicable boundary is default-empty exact
+  `(entity, target)` selection, active-surface intersection, and selected-only
+  evidence; a shared family or suffixed batch is not calibration authority.
+- Traced `tools/build_us_multispine_pool.py` through the default stacked early
+  gap fill, bounded late-producer DAG, and post-transfer derive stage. Both ACS
+  QRF modes converge on the same imported post-decode/pre-fill seam, while the
+  Schedule-D parent repair consumes its transient role only in derive.
+- Evaluated the live canonical surfaces against
+  `PUF_TAX_TRANSFER_CALIBRATION_POLICY`: exactly 20 of 20 targets are reachable
+  (7 early, 13 late), with no overlap, omission, or out-of-policy target.
+- Ran the four load-bearing nodes with all fit/BLAS widths pinned to one. The
+  primitive call recorder, production-owner exact-scope receipt, Schedule-D
+  role consumption/preservation, and legacy no-marker behavior all passed.
+- Confirmed runtime, tests, dependencies, and lock remain byte-identical to
+  implementation commit `51054801`; later commits through this audit are
+  journals and reports only.
 
 ## Next
 
-- Resolve the three fresh audits, correct any production wiring or fixture
-  defect they expose, and commit each coherent implementation/test step.
-- Run the focused wiring regressions and the full suite under the charter's
-  resource constraints; update this journal and `FINAL_REPORT.md` with current
-  evidence. Leave the frozen 1% comparison to the host.
+- Run the complete ACS transfer/calibration/Schedule-D modules, static checks,
+  and the full repository suite under the charter's resource constraints.
+- Update this journal and `FINAL_REPORT.md` with current terminal evidence,
+  then leave the frozen 1% comparison to the host.
