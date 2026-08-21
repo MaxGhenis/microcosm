@@ -2,19 +2,21 @@
 
 ## State
 
-The 2026-08-20 host-requested wiring continuation is complete on branch
-`battery-pkg1-puf-tax`. Direct tracing and three independent reviews confirm
-that implementation commit `51054801` is live in the default stacked path:
-both QRF modes converge on the selected-only post-decode kernel seam, all 20
-assigned targets are partitioned into 7 early and 13 late targets, and
-Schedule-D reconciliation executes in the later derive stage. The four
-load-bearing fixtures and complete 110-test ACS calibration/transfer/
-Schedule-D set pass. Runtime and tests are byte-identical to the committed
-resource-isolated full-suite replay at `afbc80aa`; full Ruff, lock freshness,
-and diff integrity pass. The user-provided `_WIRING-CONTINUATION.md` remains
-untracked and untouched. No 1% build ran.
+The 2026-08-20 host-requested wiring continuation has been reopened at
+`474d8817` for a fresh live-tree audit. The branch already contains production
+wiring commit `51054801` and its load-bearing regressions, but historical
+completion claims are not being accepted without renewed source and test
+evidence. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
+untouched. No 1% build will run in this continuation.
 
 ## Done
+
+- Reopened the continuation at `474d8817`, read `CLAUDE.md` and the complete
+  GitNexus debugging workflow, inspected the branch/worktree state, and
+  preserved the user-owned untracked continuation brief.
+- Confirmed that GitNexus query tools are unavailable in this session; direct
+  commit, call-site, and source tracing will provide the required fresh
+  evidence.
 
 - Ran the required `uv sync --all-packages --extra us`. The default cache was
   denied by the managed filesystem; a retry with a writable cache reached
@@ -430,6 +432,8 @@ untracked and untouched. No 1% build ran.
 
 ## Next
 
-- Host: run the frozen 1% comparison at the current branch tip through the
-  default stacked pipeline, without `--legacy-two-spine`, and adjudicate the
-  assigned failure-set delta against the existing `origin/main` baseline.
+- Re-read pkg3's named scoped-binding commit and audit the current production
+  call chain, exact assigned-target intersection, and Schedule-D derive seam.
+- Re-run the load-bearing wiring regressions, then the full suite under the
+  stated memory limit; finish the journal and `FINAL_REPORT.md` only after all
+  evidence is current.
