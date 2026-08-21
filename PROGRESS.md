@@ -13,9 +13,11 @@ through the prepared derive frame. All 10 load-bearing fixture cases pass under
 a 14 GiB guard at 1,146,896,384 bytes maximum root RSS. The full permitted
 263-file replay is green with 6,549 passed, 74 skipped, zero failures/errors,
 exactly 2 documented mounted-SIPP cache probes deselected, and an
-11,845,337,088-byte maximum root RSS. Static and lock gates are next. The
-user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No
-continuation 1% build will run locally.
+11,845,337,088-byte maximum root RSS. Full Ruff, changed-file formatting,
+explicitly unfrozen lock freshness, and diff gates also pass. `FINAL_REPORT.md`
+is being refreshed for the host handoff. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No continuation 1%
+build ran locally.
 
 ## Done
 
@@ -599,8 +601,12 @@ continuation 1% build will run locally.
   `test_cached_full_donor_matches_locked_response_and_weight_facts`. Each
   independently parses the locally mounted 3.73 GB SIPP donor and exceeds this
   lane's memory ceiling; every other test in both files passed.
+- Ran full Ruff, Ruff formatting checks on all 17 branch-changed Python files,
+  an explicitly unfrozen `uv lock --check`, and `git diff --check`; all pass.
+  The first Ruff attempt hit uv's sandbox-denied home cache and the first lock
+  attempt inherited `UV_FROZEN=1`; clean retries used a writable temporary
+  cache and removed that environment override before recording success.
 
 ## Next
 
-- Run full Ruff, format, lock-freshness, and diff gates; refresh
-  `FINAL_REPORT.md`; leave the frozen 1% build to the host.
+- Refresh and commit `FINAL_REPORT.md`; leave the frozen 1% build to the host.
