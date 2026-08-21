@@ -2,21 +2,22 @@
 
 ## State
 
-The 2026-08-20 host-requested wiring continuation has been reopened at
-`474d8817` for a fresh live-tree audit. Source tracing and three independent
-reviews confirm that production wiring commit `51054801` is present and exact:
-the live policy partitions into 7 early and 13 late targets with no overlap or
-omission, and the Schedule-D parent kernel is reached through the prepared
-derive handoff. The load-bearing core, tool-path fixtures, complete focused
-modules, and exact 263-file resource-isolated suite all pass. The guarded suite
-recorded 6,549 passed, 74 skipped, exactly 2 documented cache-only deselections,
-and an 11,495,079,936-byte maximum aggregate RSS. Static, formatting, lock, and
-diff gates pass, and `FINAL_REPORT.md` contains the current host handoff. The
-user-provided `_WIRING-CONTINUATION.md` remains untracked and untouched. No 1%
-build ran.
+The 2026-08-21 host-requested wiring continuation is open at `4aaafd4c` for a
+fresh live-tree audit. The branch already contains historical claims that the
+scoped ACS calibration wiring and load-bearing regressions are complete, but
+those claims are not being treated as current proof. The active work is to
+re-read pkg3's named precedent, trace the default production call path and
+exact assigned surface, repair any live gap, and rerun the required tests under
+the 15 GiB ceiling. The user-provided `_WIRING-CONTINUATION.md` remains
+untracked and untouched. No continuation 1% build will run locally.
 
 ## Done
 
+- Reopened the continuation at `4aaafd4c`, read `CLAUDE.md` and the complete
+  GitNexus debugging workflow, inspected the live branch/worktree state, and
+  preserved the user-owned untracked continuation brief. GitNexus graph tools
+  are unavailable in this session, so local history and direct source tracing
+  will provide the fresh call-edge evidence.
 - Reopened the continuation at `474d8817`, read `CLAUDE.md` and the complete
   GitNexus debugging workflow, inspected the branch/worktree state, and
   preserved the user-owned untracked continuation brief.
@@ -487,6 +488,12 @@ build ran.
 
 ## Next
 
-- Host: run the frozen 1% build at the current branch tip through the default
-  stacked pipeline without `--legacy-two-spine`, then diff the assigned failure
-  set against the existing `origin/main` 1% baseline.
+- Re-read pkg3's scoped-binding regression and implementation, then trace the
+  live default ACS transfer and Schedule-D paths against the exact assigned
+  target registry.
+- Repair or strengthen production wiring and its load-bearing fixture if the
+  fresh audit finds any gap.
+- Run focused checks, the full suite under the RSS limit, Ruff, lock, and diff
+  gates; update `FINAL_REPORT.md` and this journal with current evidence.
+- Host only: run the frozen 1% build through the default stacked pipeline and
+  diff the assigned failures against the existing `origin/main` baseline.
