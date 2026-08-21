@@ -2,13 +2,13 @@
 
 ## State
 
-Continuation revalidation is active on branch `battery-pkg1-puf-tax`. The
-committed tree claims that the PUF-tax kernels run
+Continuation revalidation is active on branch `battery-pkg1-puf-tax`. Source
+inspection and a fresh pkg3 comparison confirm that the PUF-tax kernels run
 at the common post-decode, pre-fill ACS seam for a default-empty exact-target
 selection, and the stacked early/late owners bind only their active assigned
 keys. The Schedule-D parent kernel runs later in the default stacked derive
-stage. This pass is rechecking that claim from source and executable fixtures;
-the prior audit found no missing caller or runtime scope leak:
+stage. The current executable fixtures also confirm invocation and isolation;
+the production-path audit found no missing caller or runtime scope leak:
 the canonical build reaches all and only the 20 assigned transfer targets (7
 early and 13 late) plus the separate Schedule-D repair. The four load-bearing
 fixtures and all 110 ACS transfer/calibration/Schedule-D kernel tests pass.
@@ -248,10 +248,22 @@ changed, no continuation build ran, and the host owns the next 1% comparison.
   user-owned `_WIRING-CONTINUATION.md`, confirmed the implementation and its
   earlier verification commits are present, and began a fresh source/test
   audit rather than relying on the root journal's historical state claims.
+- Re-read pkg3's named regression `22b2c6bc` and production scoping commits
+  `176c60fc`, `887df056`, and `94b7aecb`. The current pkg1 boundary mirrors
+  their default-empty exact `(entity, target)` selection, active-surface
+  intersection, and selected-only evidence shape, with an additional frozen
+  20-target policy check. No default-stacked scope leak was found.
+- Traced the default CLI into the stacked early and late owners. Both banked
+  and in-memory QRF fits converge on the imported post-decode/pre-fill kernel
+  seam. The explicit retiring `--legacy-two-spine` route deliberately retains
+  its empty selector and is outside the default production remedy.
+- Re-ran the four load-bearing assigned/unassigned and Schedule-D fixtures;
+  all passed. Re-ran the complete ACS transfer, calibration-kernel, and
+  Schedule-D-kernel modules with all fit/BLAS widths pinned to one; all 110
+  tests passed.
 
 ## Next
 
-- Reconfirm pkg3's scoped-binding precedent and trace the live default build
-  route into the assigned-only ACS and Schedule-D calibration seams.
-- Re-run the load-bearing invocation regression and proportionate verification
-  without launching a 1% build; update `FINAL_REPORT.md` with accepted evidence.
+- Finish the independent exact-target and Schedule-D coverage audit.
+- Revalidate the full-suite evidence at the unchanged implementation tree,
+  run static checks, and update `FINAL_REPORT.md` without launching a 1% build.
