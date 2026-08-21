@@ -58,21 +58,29 @@ default stacked remedy.
 - Four load-bearing assigned/unassigned and Schedule-D wiring fixtures: pass.
 - Complete ACS transfer module: 73 tests pass.
 - Touched runtime modules: 1,020 tests pass.
-- Complete repository at implementation HEAD (`d9a38965`): 6,551 passed, 74
-  skipped (6,625 collected), with 1,890 established warnings and pytest's
-  `lastfailed` cache `{}`. The run reached 100% and exited 0 in 53:11.
+- Fresh default repository collection: 6,623 tests reached 100% and exited zero
+  in 4,210.702 seconds; pytest's `lastfailed` cache is `{}`.
+- Memory-isolated explicit-file replay: all 263 test files covered under the
+  manifest digest
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`,
+  with 6,549 passed, 74 skipped, and two optional mounted-donor nodes
+  deselected. The highest accepted peak was 11,841,650,688 bytes RSS, below 15
+  GiB.
 - Full `ruff check .`: pass.
 - `uv lock --check`: pass.
 - Ruff format check on all 13 changed Python files: pass.
 - `git diff --check`: pass.
 
-An earlier full-suite verification was wrapped in macOS `/usr/bin/time -l` to
-seek an RSS receipt. After pytest completed, that wrapper returned 1 because
-its own `sysctl kern.clockrate` probe is forbidden by the sandbox; `time -l
-true` reproduces the same wrapper-only failure. The fresh 6,625-test
-verification above ran pytest directly and exited zero. No local build was
-launched. The repository-wide format audit also lists 49 pre-existing
-unrelated files; they were not changed.
+The fresh monolithic full-suite process peaked at 27,285,979,136 bytes, so its
+green result is not claimed as memory-compliant. A guarded replay therefore
+used fresh processes. Two cache-conditional tests attempted to parse the
+locally mounted 3.73 GB SIPP donor and crossed conservative live guards at
+15,066,742,784 and 13,073,645,568 bytes; they were terminated below the hard 15
+GiB ceiling and explicitly deselected from the accepted replay. Those tests
+normally skip when the restricted donor is absent, and both had already passed
+in the green monolithic run. No local build or 1% comparison was launched. The
+repository-wide format audit also lists 49 pre-existing unrelated files; they
+were not changed.
 
 ## Commits
 

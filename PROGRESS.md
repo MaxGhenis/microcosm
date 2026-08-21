@@ -9,10 +9,15 @@ assigned keys. Schedule-D parent reconciliation runs in the default stacked
 derive stage. Independent scope and integration reviews are closed; the
 Schedule-D mutation contract now explicitly declares both its parent rewrite
 and derived leaf, and its role-authority digest covers the final role counts.
-All 73 ACS transfer tests, the 1,020-test touched-runtime set, and the complete
-6,625-test repository collection are green. No frozen gate parameter or band
-has changed, no continuation build was run, and the host owns the next 1%
-comparison.
+A fresh independent audit confirmed the default production call graph reaches
+all and only the 20 assigned transfer targets plus the separate Schedule-D
+derive-stage repair. The four load-bearing fixtures and all 73 ACS transfer
+tests pass. The default 6,623-test collection reached 100% and exited zero; an
+explicit memory-isolated replay covered all 263 test files with 6,549 passed,
+74 skipped, and two mounted 3.73 GB donor replays deselected after their live
+guards activated below 15 GiB. The highest accepted replay peak was
+11,841,650,688 bytes. No frozen gate parameter or band has changed, no
+continuation build was run, and the host owns the next 1% comparison.
 
 ## Done
 
@@ -178,6 +183,33 @@ comparison.
   with 6,551 passed, 74 skipped, 1,890 established warnings, and an empty
   `lastfailed` cache (6,625 collected). Full Ruff, lock freshness, and
   `git diff --check` pass.
+- Re-read pkg3's named `22b2c6bc` scoped-binding regression and its production
+  successor `176c60fc`. The committed pkg1 boundary follows the same
+  default-empty stable `(entity, target)` selection, owner-side active-surface
+  intersection, and selected-only receipt pattern.
+- Re-audited the current default build call graph from
+  `tools/build_us_multispine_pool.py` through early gap fill, the bounded late
+  producer DAG, and `transfer_acs_inputs`. Both banked and in-memory QRF paths
+  converge on the post-decode/pre-fill calibration seam; the Schedule-D parent
+  kernel remains isolated to the later derive stage.
+- Re-ran the four invocation/scope/Schedule-D load-bearing fixtures and the
+  complete 73-test ACS transfer module with all fit and BLAS widths pinned to
+  one; both exited zero. Full Ruff, targeted formatting, unfrozen lock
+  freshness, and `git diff --check` pass.
+- Ran the default 6,623-test repository collection to 100% and exit zero in
+  4,210.702 seconds. Its process reached 27,285,979,136 bytes RSS, so that green
+  result is not treated as memory-compliance evidence.
+- Replayed the exact 263-file manifest
+  (`f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`)
+  in fresh guarded processes. Accepted results were 6,549 passed and 74
+  skipped; the maximum accepted peak was 11,841,650,688 bytes. The two
+  cache-conditional tests that each parse the mounted 3.73 GB SIPP donor were
+  explicitly deselected after isolated live guards stopped them at
+  15,066,742,784 and 13,073,645,568 bytes, respectively, both below the hard
+  15 GiB ceiling. Both had already passed in the green monolithic run, but
+  neither resource profile is accepted under this charter.
+- Preserved the user-provided `_WIRING-CONTINUATION.md` as the sole untracked
+  file and did not stage or modify it.
 
 ## Next
 
