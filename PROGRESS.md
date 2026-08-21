@@ -2,21 +2,13 @@
 
 ## State
 
-Continuation complete on branch `battery-pkg1-puf-tax`. Source
-inspection and a fresh pkg3 comparison confirm that the PUF-tax kernels run
-at the common post-decode, pre-fill ACS seam for a default-empty exact-target
-selection, and the stacked early/late owners bind only their active assigned
-keys. The Schedule-D parent kernel runs later in the default stacked derive
-stage. The current executable fixtures also confirm invocation and isolation;
-the production-path audit found no missing caller or runtime scope leak:
-the canonical build reaches all and only the 20 assigned transfer targets (7
-early and 13 late) plus the separate Schedule-D repair. The four load-bearing
-fixtures and all 110 ACS transfer/calibration/Schedule-D kernel tests pass.
-Runtime and test code remain identical to the implementation revision covered
-by the committed green full-suite and under-15-GiB guarded replay. Full Ruff,
-unfrozen lock freshness, and diff integrity pass. No frozen gate parameter or
-band changed, no continuation build ran, and the host owns the next 1%
-comparison.
+The host-requested wiring continuation is open on branch
+`battery-pkg1-puf-tax`. The branch already contains a candidate scoped wiring
+implementation and regression at `51054801`; they are being re-audited against
+the named pkg3 precedent and the live default production call path rather than
+accepted from the historical journal. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will be
+run locally.
 
 ## Done
 
@@ -276,9 +268,15 @@ comparison.
 - Re-ran full Ruff, explicitly unfrozen lock freshness, `git diff --check`,
   and the empty pytest `lastfailed` check; all passed. Finalized the current
   `FINAL_REPORT.md` without changing runtime or tests.
+- Reopened the wiring task at `2874f562`, loaded the current repository rules,
+  preserved the user-provided untracked continuation brief, and began fresh
+  read-only reviews of the pkg3 scope pattern, production transfer path, and
+  load-bearing invocation regression.
 
 ## Next
 
-- Host: rerun the frozen default-stacked 1% branch build, compare it with the
-  existing `origin/main` 1% baseline, and adjudicate the assigned failure-set
-  delta. Do not use the retiring `--legacy-two-spine` compatibility flag.
+- Resolve the three fresh audits, correct any production wiring or fixture
+  defect they expose, and commit each coherent implementation/test step.
+- Run the focused wiring regressions and the full suite under the charter's
+  resource constraints; update this journal and `FINAL_REPORT.md` with current
+  evidence. Leave the frozen 1% comparison to the host.
