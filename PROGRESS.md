@@ -2,11 +2,14 @@
 
 ## State
 
-Current continuation audit in progress on branch `battery-pkg1-puf-tax`.
-Repository rules and the GitNexus debugging workflow have been loaded, and the
-existing implementation at `51054801` is being treated as unverified until its
-production caller chain, exact target scope, and load-bearing regression are
-re-established from source and fresh test runs. The user-provided
+Current continuation verification in progress on branch
+`battery-pkg1-puf-tax`. Fresh source tracing confirms that implementation
+commit `51054801` wires the imported kernel at the shared post-decode,
+pre-fill transfer seam, with default-empty exact-target activation from both
+stacked production owners. The canonical surfaces partition all 20 assigned
+targets into 7 early and 13 late targets with no overlap or omission, while
+Schedule-D reconciliation remains isolated to the subsequent derive stage.
+Fresh focused and full-suite verification is next. The user-provided
 `_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run.
 
 ## Done
@@ -301,13 +304,39 @@ re-established from source and fresh test runs. The user-provided
   GitNexus debugging skill, inspected branch/worktree state, and preserved the
   user-owned untracked continuation brief. Fresh source and regression audits
   are underway before accepting any historical completion claim.
+- Attempted the GitNexus debugging trace. This worktree was not indexed, and
+  analysis could not register it because the sandbox denies writes to the
+  global `~/.gitnexus/registry.json`; the analyzer cleaned up its partial local
+  artifact. Continued with direct source/call-site tracing.
+- Re-read pkg3's named regression commit `22b2c6bc` and its production follow-up
+  `176c60fc`. The applicable pattern is default-empty exact `(entity, target)`
+  selection, validation against the requested surface, per-family
+  intersection, and selected-only evidence even for mixed bounded batches.
+- Confirmed `transfer_acs_inputs` normalizes the exact selection against both
+  the requested surface and the frozen PUF-tax policy, intersects it with live
+  missing targets, invokes `_calibrate_puf_tax_predictions` after either QRF
+  path decodes and before null-only fill, and passes only the selected target
+  arrays to the imported kernels.
+- Traced the default build CLI through `gap_fill_stacked_spine`, the bounded
+  late-producer DAG, and `derive_multispine_pool_inputs`. Both stacked transfer
+  owners bind exact active selections and caller-owned references; the derive
+  chain invokes `_complete_schedule_d_input`, which consumes the transient
+  Schedule-D role and calls `reconcile_schedule_d_joint_parents` before leaf
+  derivation.
+- Evaluated the live canonical surfaces against
+  `PUF_TAX_TRANSFER_CALIBRATION_POLICY`: all 20 assigned targets are reachable
+  as 7 early and 13 late targets, with zero overlap and zero omission.
+- Inspected the existing load-bearing regressions. The low-level same-batch
+  call recorder proves assigned invocation and unassigned non-invocation; the
+  stacked-owner fixture separately proves the production caller passes only
+  the assigned tuple; Schedule-D fixtures prove role consumption, parent
+  preservation, and the marker-absent compatibility no-op.
 
 ## Next
 
-- Trace the live default ACS transfer caller chain and compare its exact-target
-  binding against pkg3's named scoped regression.
-- Re-run the assigned-versus-unassigned invocation fixture and the required
-  broader suite under the 15 GiB constraint; fix and commit any discovered
-  defect without changing frozen bands.
+- Re-run the assigned-versus-unassigned invocation fixture, production-owner
+  scope fixture, and Schedule-D invocation/preservation fixtures.
+- Run the required broader suite under the 15 GiB constraint; fix and commit
+  any discovered defect without changing frozen bands.
 - Refresh `FINAL_REPORT.md`, commit the terminal journal, and hand the frozen
   1% branch/baseline comparison back to the host.
