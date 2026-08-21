@@ -2,17 +2,24 @@
 
 ## State
 
-The 2026-08-21 continuation is complete. The host's zero-effect/no-caller
-evidence describes unwired `51054801^`; current production wiring is the later
-commit `51054801`. Three independent reviews re-established the default stacked
-call path, exact 20-target selection, separate Schedule-D parent handoff, and
-load-bearing regressions without finding a scope or invocation defect. The
-relevant-module and guarded 263-file suite replays, static checks, lock check,
-and frozen-policy comparison are green. The final host report is committed at
-`504ad593`. The user-provided `_WIRING-CONTINUATION.md` remains untracked and
-untouched. No continuation 1% build ran locally.
+The 2026-08-21 wiring continuation has been reopened from current HEAD. The
+host's zero-effect/no-caller report is the symptom under investigation; prior
+journal claims and receipts are historical until revalidated against live
+source. Candidate production wiring and fixture regressions exist in branch
+history, but their exact assigned-only reachability, Schedule-D handoff, and
+load-bearing behavior are being checked afresh. The user-provided
+`_WIRING-CONTINUATION.md` remains untracked and untouched. No 1% build will run
+locally.
 
 ## Done
+
+- Re-read `CLAUDE.md`, the continuation brief, and the complete GitNexus
+  debugging workflow; inspected the live worktree and branch history; and
+  identified `FINAL_REPORT.md` as the requested output file. GitNexus graph
+  endpoints are unavailable in this session, so named-commit and direct-source
+  call tracing are the active fallback.
+- Reopened and committed this live state journal before any production or test
+  change, preserving the user-owned untracked continuation brief.
 
 - Re-read `CLAUDE.md` and the complete GitNexus exploration workflow, inspected
   the current branch/worktree, and preserved the user-owned untracked
@@ -893,6 +900,9 @@ untouched. No continuation 1% build ran locally.
 
 ## Next
 
-- Host: rerun the frozen 1% comparison from the final committed tree using the
-  default stacked pipeline (never `--legacy-two-spine`), then diff the assigned
-  failures and inspect PUF-tax plus Schedule-D reconciliation receipts.
+- Compare pkg3's scoped-binding precedent with current production owners and
+  trace every assigned target plus the Schedule-D parent through the default
+  tool path.
+- Strengthen or correct source and fixture wiring if any invocation or scope
+  gap remains, then run the guarded relevant and full suites, static/frozen
+  checks, refresh `FINAL_REPORT.md`, and hand the 1% run back to the host.
