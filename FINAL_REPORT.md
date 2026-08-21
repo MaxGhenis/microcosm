@@ -37,11 +37,12 @@ production callability and regression coverage—not empirical 1% efficacy. No
   with live incomplete targets per family/batch, and invokes calibration only
   for that intersection.
 - Banked and in-memory QRF modes converge on one seam: decode predictions,
-  invoke `allocate_weighted_signs`,
+  invoke whichever carrier/sign and conditional-magnitude primitives each
+  selected target's frozen policy specifies, then run the existing null-only
+  fill. Those primitives are `allocate_weighted_signs`,
   `select_weighted_binary_carriers`, and
-  `map_sign_preserving_weighted_magnitudes` for selected targets, then run
-  the existing null-only fill. Unassigned siblings receive neither mutation
-  nor reconciliation evidence.
+  `map_sign_preserving_weighted_magnitudes`. Unassigned siblings receive no
+  calibration adjustment or reconciliation evidence.
 - The default CLI reaches the seam through both
   `gap_fill_stacked_spine` (early) and
   `run_stacked_late_producer_dag` (late). The explicit retiring
@@ -66,8 +67,8 @@ failure-set diff.
 
 The fixture-scale transfer regression places assigned
 `qualified_dividend_income` beside unassigned
-`taxable_interest_income` in the same bounded family and records calls to the
-real imported magnitude kernel. It proves:
+`taxable_interest_income` in the same transfer family/batch and records calls
+to the real imported magnitude kernel. It proves:
 
 - empty selection makes zero calls;
 - the assigned selection invokes the kernel with only its assigned reference;
