@@ -33,6 +33,12 @@ reproduces them.
    The result carries a new `Frame` with `CALIBRATED` weights, per-target
    diagnostics, and the loss trajectory.
 
+Standalone population artifacts that are not representable as person/group
+`Frame`s can use `calibrate_bounded_moment(values, target_count=...,
+target_total=..., weight_bounds=...)`. It performs the bounded exponential
+count-and-total tilt and returns a receipt with both margin residuals and bound
+counts. Bounds are absolute and explicit; the API has no policy default.
+
 ## Load-bearing options
 
 - **`mass="free"`** (default) lets the total weight move to fit the targets;

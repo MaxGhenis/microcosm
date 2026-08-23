@@ -91,6 +91,10 @@ from microcosm.calibrate.diagnostics import (  # noqa: E402 - after the compat g
     past_cap_census,
     write_calibration_diagnostics,
 )
+from microcosm.calibrate.entropy import (  # noqa: E402 - after the compat gate
+    BoundedMomentCalibrationResult,
+    calibrate_bounded_moment,
+)
 from microcosm.calibrate.exact_k import (  # noqa: E402 - after the compat gate
     assert_exact_k_support,
     select_exact_k,
@@ -138,6 +142,7 @@ __all__ = [
     "TARGET_LOSS_BASIS_HASH_ALGORITHM",
     "CalibrationProblem",
     "CalibrationResult",
+    "BoundedMomentCalibrationResult",
     "L0RefitResult",
     "SkippedTarget",
     "Target",
@@ -147,6 +152,7 @@ __all__ = [
     "TargetSpec",
     "build_constraint_matrix",
     "calibrate",
+    "calibrate_bounded_moment",
     "calibrate_l0_refit",
     "assert_exact_k_support",
     "default_target_loss_scales",
