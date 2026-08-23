@@ -71,6 +71,12 @@ history at `d69131a3`.
   migration harness, leaves OSHA dormant without an explicit employee cap,
   and refuses an existing output directory. Four CLI tests pass and the
   conditional real-data build skips without staged files.
+- Corrected the ported target sidecar's loader and seam ownership references,
+  re-pinned both sidecar receipts, and kept its QWI/J2J entries explicitly
+  labelled as dynamics-reference provenance rather than frame targets. The
+  offline staging `--list` path now bypasses the heavyweight US runtime import
+  and completes without creating the configured data directory. All 28 staging
+  and target tests pass after the correction.
 
 ## Next
 

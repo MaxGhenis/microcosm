@@ -1,14 +1,18 @@
 # Employer-firm target extract provenance
 
-Provenance sidecar for the committed aggregate extracts that
-feed the employer-firm extension's calibration targets and gate
-references (E1/E2/E7/E11/E12; issue #192, ADR 0003, workstream B).
+Provenance sidecar ported from the committed aggregate extracts that fed the
+employer-firm extension's calibration targets and gate references
+(E1/E2/E7/E11/E12; issue #192, ADR 0003, workstream B). Only the SUSB and BDS
+extracts are consumed by this Microcosm builder; QWI/J2J entries below remain
+repo-pinned dynamics-reference provenance and are not frame targets.
 All are small, tidy derivatives of published public aggregate files —
 never raw microdata. Every file was fetched on **2026-07-14** by
 keyless HTTPS GET via `scripts/fetch_employer_firm_targets.py`, which
 pins the source URLs and the sha256 of each raw download and rebuilds
 the extracts deterministically. Loaders (label-verified, with pinned
-totals) live at `src/populace_dynamics/firms/targets.py`.
+totals) now live at
+`microcosm.build.us_runtime.us_firms.targets`. The extraction-script paths
+below identify the historical dynamics-side derivations and were not ported.
 
 Note on the Census data API: `api.census.gov` now requires an API key
 (probed 2026-07-14: keyless queries 302-redirect to
@@ -44,9 +48,9 @@ are keyless and authoritative.
   reallocation, firm deaths); all 450 rows (45 years x 10 firm-size
   categories) kept verbatim. Rates are per 100 employees, as
   published. The BDS `fsize` categories (1-4 ... 10000+) do not all
-  nest in the canonical bands; see
-  `banding.bds_fsize_to_canonical` (the 20-99 category straddles
-  the canonical 50 edge).
+  nest in the private frame-calibration cells. The Microcosm target loader
+  exposes only exact comparisons because the 20-99 category straddles the
+  calibration 50 edge; dynamics still owns canonical IC2 banding at its seam.
 
 ## 3. `qwi_us_firmsize_sector_2015on.csv` — QWI flows by firm size x sector
 

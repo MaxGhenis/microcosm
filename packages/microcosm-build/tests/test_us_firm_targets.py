@@ -115,7 +115,7 @@ def test_susb_migration_harness_refuses_provenance_drift(
     monkeypatch.setattr(target_module, "TARGET_PROVENANCE_PATH", changed)
 
     assert TARGET_PROVENANCE_SHA256 == (
-        "262e2194c1b9e7f0acf02964febf2a7beffacf29c16791cda2ddd31932eaf46b"
+        "5b9eb0b42a3bc189fc7b1f75118d7f8a5db3448d2ce719aacbd904f71c29477d"
     )
     with pytest.raises(ValueError, match="hash mismatch"):
         load_susb_migration_harness()

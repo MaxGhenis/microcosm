@@ -26,8 +26,8 @@
       "use": "Only complete exact comparison bands are exposed: LT10, B100_499, and B500_PLUS"
     },
     "employer_firm_target_sources.md": {
-      "role": "Source provenance copied verbatim from microcosm-dynamics",
-      "extract_sha256": "5a3e74e2c6b03b7dcb84209516cccd895b47c489d6967223740fb4e677dd6c0b"
+      "role": "Ported source provenance; loader and seam references adapted to Microcosm ownership",
+      "extract_sha256": "a3e978316ff3487b66c066a4ea508e0ca0bb38be38c6d24eb0247e12199cd938"
     }
   },
   "calibration_contract": {

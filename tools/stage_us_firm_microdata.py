@@ -15,20 +15,42 @@ Examples::
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import ModuleType
 
-sys.path.insert(
-    0, str(Path(__file__).resolve().parents[1] / "packages" / "microcosm-build" / "src")
-)
 
-from microcosm.build.us_runtime.us_firms.staging import (  # noqa: E402
-    MAX_RAW_AND_STAGED_BYTES,
-    load_us_firm_source_pins,
-    stage_us_firm_microdata,
-    us_firm_data_dir,
-)
+def _load_staging_module() -> ModuleType:
+    """Load the standalone staging module without the heavy US runtime init."""
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "packages"
+        / "microcosm-build"
+        / "src"
+        / "microcosm"
+        / "build"
+        / "us_runtime"
+        / "us_firms"
+        / "staging.py"
+    )
+    module_name = "_microcosm_us_firm_staging_cli"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load US firm staging module at {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_STAGING = _load_staging_module()
+MAX_RAW_AND_STAGED_BYTES = _STAGING.MAX_RAW_AND_STAGED_BYTES
+load_us_firm_source_pins = _STAGING.load_us_firm_source_pins
+stage_us_firm_microdata = _STAGING.stage_us_firm_microdata
+us_firm_data_dir = _STAGING.us_firm_data_dir
 
 
 def main(argv: list[str] | None = None) -> int:
