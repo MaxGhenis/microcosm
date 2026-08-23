@@ -66,9 +66,13 @@ history at `d69131a3`.
 - Added an atomic three-file `populace-us-firms` artifact writer and verifier.
   Both sides validate the firm table and Parquet metadata; the manifest binds
   firm bytes, diagnostics, configuration, row count, and the build identity.
+- Added a local artifact build CLI that refuses an implicit target choice,
+  re-verifies pinned staging, requires explicit acknowledgement of the SUSB
+  migration harness, leaves OSHA dormant without an explicit employee cap,
+  and refuses an existing output directory. Four CLI tests pass and the
+  conditional real-data build skips without staged files.
 
 ## Next
 
-- Commit and validate the explicit migration-harness build CLI.
 - Run shard and workspace validation, build the touched wheels, update
   `FINAL_REPORT.md`, push, and open the required draft pull request.

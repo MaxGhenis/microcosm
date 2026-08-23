@@ -91,6 +91,9 @@ only. It supports port-parity tests and a secrets-free synthetic PR-CI build,
 but it is not a production fallback. The named follow-up is to create and
 publish a Chronicle source package for the Census SUSB 2022 sector-by-enterprise
 size facts and then register an explicit Ledger `us_firms` target profile.
+The temporary command-line builder refuses to run unless the operator passes
+`--use-susb-migration-harness`; the flag is an acknowledgement, not a way to
+promote the extract into a Ledger target.
 
 BDS is not a calibration target. It is a national held-out reference only for
 the bands that require no allocation: 1-9, 100-499, and 500+. BDS 20-99
@@ -173,6 +176,10 @@ Kish effective sample size per cell and overall.
 
 Real-data certification and artifact publication are deliberately outside PR
 CI. This implementation lane does not publish or promote `populace-us-firms`.
+`tools/build_us_firm_frame.py` only builds into a new local directory after
+rehashing staged sources. It never downloads inputs, overwrites an artifact,
+or publishes one. OSHA remains dormant unless the command receives an explicit
+`--osha-max-employees` cap.
 
 ## Phase 6: dynamics seam
 
