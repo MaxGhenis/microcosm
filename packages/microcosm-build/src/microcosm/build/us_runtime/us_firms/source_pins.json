@@ -1,0 +1,34 @@
+{
+  "collection": "us_firm_microdata",
+  "pin_recorded_on": "2026-08-11",
+  "schema_version": 1,
+  "sources": [
+    {
+      "key": "form5500_2023",
+      "raw_filename": "F_5500_2023_Latest.zip",
+      "sha256": "cc89e54c57cb6549ab23842bccc6f4ad20e531ebc42a394732359f6a42b7f595",
+      "size_bytes": 29317144,
+      "staged_filename": "f_5500_2023_latest.csv",
+      "url": "https://askebsa.dol.gov/FOIA%20Files/2023/Latest/F_5500_2023_Latest.zip",
+      "zip_member": "f_5500_2023_latest.csv"
+    },
+    {
+      "key": "form5500_sf_2023",
+      "raw_filename": "F_5500_SF_2023_Latest.zip",
+      "sha256": "fa9ff9b15f0eef01dba7533121f33dfa5cc8befca9ce885db9b97063b32fb828",
+      "size_bytes": 131009006,
+      "staged_filename": "f_5500_sf_2023_latest.csv",
+      "url": "https://askebsa.dol.gov/FOIA%20Files/2023/Latest/F_5500_SF_2023_Latest.zip",
+      "zip_member": "f_5500_sf_2023_latest.csv"
+    },
+    {
+      "key": "osha_ita_2025",
+      "raw_filename": "ITA_300A_Summary_Data_2025_through_03-15-2026_v2.csv",
+      "sha256": "986f7025c54599c5d022fc472181a013e231b2df0c6e6b8ef5f4f9192d1ff50a",
+      "size_bytes": 84600899,
+      "staged_filename": "ITA_300A_Summary_Data_2025.csv",
+      "url": "https://www.osha.gov/sites/default/files/ITA_300A_Summary_Data_2025_through_03-15-2026_v2.csv",
+      "zip_member": null
+    }
+  ]
+}

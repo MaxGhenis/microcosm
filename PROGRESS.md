@@ -38,6 +38,11 @@ history at `d69131a3`.
   OSHA retains record/establishment identifiers and ownership and still
   requires an explicit quality cap. The 25 fixture tests pass and two pinned
   real-data tests skip because no external files are staged.
+- Added fail-closed external staging for the three immutable raw pins (a
+  244,927,049-byte download set): exact size and SHA-256 admission, atomic
+  partial-file adoption, exact ZIP-member extraction, a 3 GB raw-plus-expanded
+  ceiling, and a rehashing builder receipt. All nine staging and CLI tests pass;
+  no source download was attempted.
 
 ## Next
 
