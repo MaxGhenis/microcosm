@@ -4,8 +4,9 @@
 
 Implementation is active on branch `us-firms-frame-port` from `origin/main` at
 `d69131a3`. The required source PRs, adversarial review, ADR, and Microcosm
-precedents have been audited. No external data has been staged, no artifact has
-been built or published, and nothing has been pushed.
+precedents have been audited. No external data has been staged, no real-data
+artifact has been built or published, and nothing has been pushed. Synthetic
+test artifacts exist only in pytest temporary directories.
 
 This dated lane state supersedes the completed replacement-scorecard journal
 that was present on the branch point; that journal remains available in git
@@ -48,10 +49,26 @@ history at `d69131a3`.
   97 positive cells, 446 published detail rows, 6,461,497 non-additive sector
   firm counts, 135,748,407 employment, and 132,086,430 employment after the
   NAICS 55 scope exclusion. All 18 target tests pass.
+- Added the observed sponsor-frame builder and hash-bound artifact contract.
+  Production builds rehash a typed staging receipt at the build boundary;
+  secrets-free fixtures use a separately labelled donor-content receipt.
+  The output preserves raw employment and source/entity strata, excludes
+  NAICS 55 before the employment solve, uses the public bounded dual-moment
+  calibration API, and reports bounded and support-infeasible residuals rather
+  than hiding them.
+- Added the complete positive target-cell table and rectangular-grid receipt,
+  unmatched donor-cell evidence, global and per-cell weight/leverage/Kish-ESS
+  diagnostics, both failed post-stratification attempts, source-specific OSHA
+  aggregation evidence, and a BDS firm-margin comparison that separates
+  frame/SUSB error from SUSB/BDS disagreement. Nine synthetic contract tests
+  pass and the pinned real-data builder test skips because no source files are
+  staged.
+- Added an atomic three-file `populace-us-firms` artifact writer and verifier.
+  Both sides validate the firm table and Parquet metadata; the manifest binds
+  firm bytes, diagnostics, configuration, row count, and the build identity.
 
 ## Next
 
-- Implement and test the US firm readers, staging manifest, target boundary,
-  calibrated frame builder, and hash-bound diagnostics in coherent commits.
+- Commit and validate the explicit migration-harness build CLI.
 - Run shard and workspace validation, build the touched wheels, update
   `FINAL_REPORT.md`, push, and open the required draft pull request.
