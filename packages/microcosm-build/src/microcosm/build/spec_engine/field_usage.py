@@ -26,9 +26,9 @@ from .resolver import (
 )
 from .schemas import load_schema_registry
 
-EXPECTED_AUTHORED_FIELD_COUNT = 32_189
-EXPECTED_RESOLVED_BINDING_FIELD_COUNT = 9_252
-EXPECTED_CONFIGURATION_FIELD_COUNT = 41_441
+EXPECTED_AUTHORED_FIELD_COUNT = 32_252
+EXPECTED_RESOLVED_BINDING_FIELD_COUNT = 9_219
+EXPECTED_CONFIGURATION_FIELD_COUNT = 41_471
 
 
 class FieldUsageError(AssertionError):
@@ -325,12 +325,12 @@ _PINS: dict[str, tuple[int, str]] = {
         "64182b6be1ea6d95bff345b30a2aa046b6fa7e8ee61a282b225dfa49c28fbfdc",
     ),
     "country_manifest": (
-        107,
-        "2c2099d3d5ef3d664f74a2e732870391022a852cf49d5cf96810c9a984d2b20b",
+        98,
+        "cbbda6d2d245f04325c0b5a7b986cb71d24d6e3c81a7a3af1544de7f75be2a1f",
     ),
     "generated_authorities": (
-        8_093,
-        "a5ab579d6a4aeac2f1b2f761f7b12beb2f96af2e47d18086cde3cfe51bff23e1",
+        8_060,
+        "eaa9eb5f5d4d4e4e4da624f50aeafe2a085a60dcaac0673d4b1946760f0fde35",
     ),
     "geography": (
         26,
@@ -357,8 +357,8 @@ _PINS: dict[str, tuple[int, str]] = {
         "deb4acc6f962df9eb458e4206e1a75a3fe596a9a9cdb9c9163e75fd8d4f7b77a",
     ),
     "imputation_models": (
-        4,
-        "93d4b493904c7318725feb66dc594bba4eef7cdd73fc983397572414d45ce6a8",
+        96,
+        "e4d6b6b747fcec1c027e0f1c2d1905274c0426217a61383b02e75baadb93db4d",
     ),
     "imputation_predictor_blocks": (
         62,
@@ -449,8 +449,8 @@ _PINS: dict[str, tuple[int, str]] = {
         "cf0000464013118955571dac2691d4cc1b900c97c6570349b489678cdf937649",
     ),
     "spine_pipeline_contract": (
-        108,
-        "2598e73f840ef4b3172e06535ed6eeaf8bbdb2eaf571eb4bf265a6c461b7b50b",
+        88,
+        "c6e63034c73b2b3ad06df26d03fbf7d63d52aec3a7c3a176b228bacf08d18975",
     ),
     "spine_sampling": (
         17,
@@ -1041,9 +1041,7 @@ def _verify_source_pins(context: _VerificationContext, claim: UsageClaim) -> Non
         if isinstance(row, Mapping) and isinstance(row.get("id"), str)
     ]
     if len(ids) != len(rows) or len(ids) != len(set(ids)):
-        raise FieldUsageError(
-            "source_pins: source ids are not an exact unique registry"
-        )
+        raise FieldUsageError("source_pins: source ids are not an exact unique registry")
 
     expected_refs: set[tuple[str, str, str]] = set()
     for index, value in enumerate(rows):
@@ -1386,7 +1384,9 @@ def _verify_claim(context: _VerificationContext, claim: UsageClaim) -> None:
         "legacy": lambda: _verify_legacy(context, claim),
         "source_pins": lambda: _verify_source_pins(context, claim),
         "spine_channels": lambda: _verify_spine_channels(context, claim),
-        "spine_assembly_legacy": lambda: _verify_spine_assembly_legacy(context, claim),
+        "spine_assembly_legacy": lambda: _verify_spine_assembly_legacy(
+            context, claim
+        ),
         "spine_assembly_validation": lambda: _verify_spine_assembly_validation(
             context, claim
         ),

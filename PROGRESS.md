@@ -1,67 +1,91 @@
-# Progress: passive-pass-through-722 re-verdict closure
+# Progress: replacement scorecard
 
 ## State
 
-Re-verdict findings B1 and B3 are closed locally offline on
-`passive-pass-through-722` from starting HEAD `bc0ddb0a`. No production code,
-restricted artifacts, or supervisor-owned tests have been changed. No fetch,
-push, pull-request mutation, rebase, reset, checkout, or stash is in scope.
+The `replacement-scorecard` implementation, incumbent evidence, validation,
+and owner handoff are complete. The scorer has one role-neutral
+path for the live US incumbent and either a finished-H5 or authenticated-pool
+candidate. Fiscal scoring streams fixed registry chunks across fixed household
+slices, and a gate-failed current stacked publication remains authenticated
+scorecard evidence without being promoted to simulation-ready. The incumbent
+side and its identity-pinned evidence are committed. The exact future candidate
+commands are recorded in `_LANE-NOTES.md`, and this lane's evidence report is
+in `FINAL_REPORT.md`.
+
+No pool build, push, gate change, threshold change, or band change has
+occurred. The sandbox denied `ps`/`pgrep`; before scoring, the permitted `lsof`
+process and open-file audits found no live build-runtime process or open pool,
+checkpoint, manifest, or build file. The owner command retains the required
+`ps ax | grep '[b]uild_us_multispine_pool'` check for its unrestricted host.
 
 ## Done
 
-- Read `CLAUDE.md` and the adjudicated B1/B3 sections of
-  `sol-run-reverdict-0822.log` before changing the branch.
-- Read the prior audit's stream-isolation note: its uncommitted historical
-  composition produced byte-identical v1/v2/v3 outputs and preserved global
-  NumPy RNG state.
-- Confirmed the worktree starts clean at `bc0ddb0a` on
-  `passive-pass-through-722`.
-- Attempted the GitNexus exploration workflow. No GitNexus repository resource
-  or query tool is exposed in this session, so direct source and call-path
-  inspection is the fallback.
-- Reserved
-  `packages/microcosm-build/tests/test_spec_engine_engine_abi.py` and
-  `packages/microcosm-build/tests/test_us_multispine_pool_tool.py` for their
-  other owner; this task will not touch them.
-- Froze the exact historical `qbi-v3-wiring` simulator, post-QRF reconciler,
-  and v1/v2/v3 assumption resources from `cfbf6330` as SHA-pinned test-only
-  fixtures. Current HEAD intentionally carries none of that retired runtime.
-- Added the CI-executable synthetic B1 regression over the historical runtime's
-  literal supported-version gate `(1, 2, 3)`. Every parameter realizes a
-  positive passive row count and weighted aggregate, byte-preserves the full
-  15-leaf simulation surface plus its routing-owned self-employment leaf, and
-  preserves both global NumPy state and every version-family draw (including
-  the v2/v3 host-classifier seed).
-- The targeted B1 node completed with all three parameters passing (exit 0).
-  Touched-file Ruff check and format check are clean. An earlier duplicate was
-  manually interrupted during the installed-engine collection import (exit
-  130); it produced no test result. No run exited 137.
-- Replaced the circular B3 calibration check with test-local evidence parsing,
-  inverse-CDF integration, odds shifting, row-wise weighted aggregation, and
-  bisection. Those helpers consume only committed JSON and caller-supplied raw
-  arrays; they call no production calibration or subordinate helper.
-- The two-row synthetic CI node has the hand solution `shift = ln(3)` and
-  aggregate `(100*1 + 200*2) * 0.5 * 0.75 = 187.5`; the test-local and
-  production solvers agree within the artifact-derived binary64 floor. Its
-  final run passed (exit 0).
-- The required restricted replay passed (exit 0) with the supplied SHA-pinned
-  `puf_2024.h5`: test-local solved shift `-1.157105426398319`, committed shift
-  `-1.157105426398319`, effective shift tolerance
-  `2.220446049250313e-16`, and independently seeded aggregate
-  `$55,021,131,518.061035` (`0.7187449327011208%` above the provisional
-  `$54,628,492,000` midpoint). No test run exited 137.
-- Committed the B1 closure as `bd537c42` and the B3 closure as `92dd3568`.
-  Both received independent static review with no defects found.
-- Re-ran the committed B3 synthetic node (`1 passed`) and exercised the
-  env-unset restricted node (`1 skipped`). The earlier artifact-backed replay
-  passed once. Touched-file Ruff check and format check are clean.
-- Updated `FINAL_REPORT.md` and `PROGRESS_PASSIVE_722.md` with a dated
-  2026-08-22 record that separates CI coverage from the env-gated replay,
-  maps each finding to its closing commit, and marks older self-certification
-  language as superseded.
+- `UV_CACHE_DIR=/tmp/microcosm-scorecard-uv-cache uv sync --all-packages
+  --extra us` complete (the sandbox forbids the default user cache).
+- Inspected all four salvage snapshots. The newest snapshot `5577ee4c` exactly
+  matched the inherited uncommitted scorer; its household-slicing direction
+  was retained deliberately, then replaced with slice-local scoring because
+  assembling 8,192 full-pool measure arrays would exceed 20 GiB on a 25%
+  dense pool.
+- Verified every symbol the salvaged draft imports and every cited mechanism
+  against the code: compile surface (five inputs, no membership flags),
+  dropped/skipped detection, sqrt–concept-budget–50/50 loss weights, capped
+  weighted-MAPE aggregate, relative-error rule, attribution row keys, battery
+  registries (131 + 1 joint) and receipt keys, pool-manifest authentication
+  chain, `terminal_gates` manifest shape.
+- **Corrected the incumbent identity** (see `_LANE-NOTES.md`): live
+  policyengine.py is 5.0.3 (2026-08-21), whose bundled manifest resolves the
+  US default dataset to `policyengine/populace-us` revision
+  `populace-us-2024-buildp-sparse-rmloss100-cae8640-20260728T011454Z`,
+  filename `populace_us_2024.h5`, SHA-256 `48b9d479...` — microcosm's own
+  buildp sparse artifact, not enhanced_cps_2024 (4.15.0-era). Cached bytes
+  hash-verified.
+- Probed the real incumbent bytes through the scorer's own probe path:
+  entity-tables layout, no artifact metadata (caught), CD legacy-waiver path
+  (attrs null, 436 positive unique CD geoids), calibrated weights, provenance
+  columns present on all three battery entities (person/tax_unit/spm_unit),
+  **zero `acs` rows anywhere** → battery inapplicable with the observed
+  empty-ACS-side reason.
+- Added an authenticated scoring-only pool loader. It accepts only the exact
+  current stacked `status=gate_failed` / `simulation_ready=false` pair while
+  retaining all manifest/diagnostics/H5 digest, schema, run-ID, materializer,
+  gate-alias, weight-kind, transition-authority, and row-count checks. The
+  production simulation-ready loader remains strict.
+- Added a finished-artifact battery evaluator that retains the canonical
+  authority, 132-comparison surface, 369 scalar-leg contract, formulas,
+  support rules, and tolerances, but explicitly does not claim an assembly or
+  tail receipt. The one structural ACS group-quarters scope is reconstructed
+  from retained artifact columns and marked unauthenticated.
+- Added loader-contract, missing-column, deterministic top-level fixture,
+  streaming-vs-one-shot, dense memory-plan, scalar-leg completeness,
+  origin-scope, pool-status, and metadata-free battery tests. The combined
+  focused run reached 18/19; its sole test-message mismatch was corrected and
+  the failed test reran green. Ruff, formatting, byte compilation, and
+  `git diff --check` pass.
+- Merged the six newer `origin/main` commits cleanly at merge commit
+  `34d93846`. Post-merge, all 13 scorer tests and all 8 mainline US
+  fiscal-memory tests pass (21/21).
+- Completed the incumbent-only score against the exact Build P artifact and
+  all 32,842 registry rows. Results: weighted loss
+  `0.11462448275649702`, fraction within 10% `0.2669143170330674`, 57,240
+  nonzero household weights, and all 132 battery comparisons / 369 scalar
+  legs explicitly inapplicable because observed clone-0 ACS support is empty.
+  The run peaked at 18.666 GiB and wrote
+  `experiments/replacement_scorecard/incumbent_48b9d479.{json,md}`.
+- Committed the incumbent result and run receipt at `d876c971`; recorded the
+  exact future dense-pool and sparse-57k scoring commands and the comparison
+  doctrine in `_LANE-NOTES.md`.
+- Completed the full workspace suite after correcting one documentation-only
+  source-hygiene hit: 7,028 passed, 76 skipped, zero failed in 1:39:56. The
+  earlier run had 7,027 passes and only that journal-string failure; the
+  corrected guard also passed independently before the full green rerun.
+- Repository-wide Ruff lint, format checks on all six branch-touched Python
+  files, scorer byte compilation, and `git diff --check` pass. Replaced the
+  unrelated stale `FINAL_REPORT.md` with this lane's evidence and receipts.
 
 ## Next
 
-- No local implementation work remains. The supervisor can push the committed
-  handoff and let clean-runner CI arbitrate the suite; no local push or PR
-  mutation is in scope.
+- The host queue builds the not-yet-existing 25% candidate. The owner then runs
+  the exact dense-pool and sparse-57k commands in `_LANE-NOTES.md`, reviews the
+  head-to-head evidence, and decides whether to flip. This lane has no remaining
+  implementation, scoring, build, publication, or push step.
