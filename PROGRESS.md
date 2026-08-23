@@ -28,11 +28,14 @@ history at `d69131a3`.
   `microcosm-calibrate` instead of fabricating person-to-firm memberships.
 - Passed all 210 `microcosm-calibrate` tests and focused Ruff checks for the new
   public API.
+- Added the US firm support plan and changelog, documenting artifact ownership,
+  source measurement models, the Ledger/migration boundary, the raw-employment
+  dynamics seam, the non-additive SUSB sector margin, and unresolved unit and
+  timing questions.
 
 ## Next
 
 - Implement and test the US firm readers, staging manifest, target boundary,
   calibrated frame builder, and hash-bound diagnostics in coherent commits.
-- Add the US support plan and changelog, run shard and workspace validation,
-  build the touched wheel, update `FINAL_REPORT.md`, push, and open the required
-  draft pull request.
+- Run shard and workspace validation, build the touched wheels, update
+  `FINAL_REPORT.md`, push, and open the required draft pull request.
