@@ -1,0 +1,58 @@
+{
+  "schema_version": "microcosm.us_firm_target_harness.v1",
+  "status": "migration_harness_only",
+  "production_target_authority": "Caller-supplied Ledger consumer facts selected by an explicit USFirmLedgerTargetProfile",
+  "chronicle_follow_up": "Publish Census SUSB sector by enterprise-size facts in Chronicle and register a US firm Ledger target profile; no package or record-set identifier is assigned here.",
+  "artifacts": {
+    "susb_us_sector_size_2022.csv": {
+      "role": "Calibration migration harness",
+      "source": "U.S. Census Bureau, Statistics of U.S. Businesses",
+      "source_url": "https://www2.census.gov/programs-surveys/susb/tables/2022/us_state_naics_detailedsizes_2022.txt",
+      "landing_page": "https://www.census.gov/data/tables/2022/econ/susb/2022-susb-annual.html",
+      "vintage": "2022",
+      "measurement_timing": "March 12 employment",
+      "raw_sha256": "f07eef547763a7a21cb453bf6f4119f768f5939dc499a65850a532ea74489ccf",
+      "extract_sha256": "b2db9502cf71480f4284cbeb8b78f31e8eb77f63963f679c167bfd40ade9d5e0",
+      "universe": "Employer firms; excludes government establishments, NAICS 92, crop and animal production, and non-employers"
+    },
+    "bds_us_firm_size_1978_2022.csv": {
+      "role": "Held-out validation migration harness",
+      "source": "U.S. Census Bureau, Business Dynamics Statistics",
+      "source_url": "https://www2.census.gov/programs-surveys/bds/tables/time-series/2022/bds2022_fz.csv",
+      "landing_page": "https://www.census.gov/data/datasets/time-series/econ/bds/bds-datasets.html",
+      "vintage": "1978-2022",
+      "raw_sha256": "61e0e624b00ef3876a503fdaf8c1550d9aaa14070c8962dbd76ec500560ae86b",
+      "extract_sha256": "0cbfec27392d4d328ddf8be9800c30a65d954d3a50ef170e9c98fc4babc82b31",
+      "use": "Only complete exact comparison bands are exposed: LT10, B100_499, and B500_PLUS"
+    },
+    "employer_firm_target_sources.md": {
+      "role": "Source provenance copied verbatim from microcosm-dynamics",
+      "extract_sha256": "5a3e74e2c6b03b7dcb84209516cccd895b47c489d6967223740fb4e677dd6c0b"
+    }
+  },
+  "calibration_contract": {
+    "private_size_cells": [
+      "LT10",
+      "B10_49",
+      "B50_99",
+      "B100_499",
+      "B500_PLUS"
+    ],
+    "not_an_ic2_wire_bander": true,
+    "composite_sector_crosswalk": {
+      "31": "31-33",
+      "32": "31-33",
+      "33": "31-33",
+      "44": "44-45",
+      "45": "44-45",
+      "48": "48-49",
+      "49": "48-49"
+    },
+    "employment_out_of_scope_sectors": [
+      "55"
+    ],
+    "susb_calibration_cells": 97,
+    "susb_sector_cell_firms": 6461497,
+    "susb_sector_cell_employment": 135748407
+  }
+}

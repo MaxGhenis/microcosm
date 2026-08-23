@@ -43,6 +43,11 @@ history at `d69131a3`.
   partial-file adoption, exact ZIP-member extraction, a 3 GB raw-plus-expanded
   ceiling, and a rehashing builder receipt. All nine staging and CLI tests pass;
   no source download was attempted.
+- Added the production Ledger consumer-facts target adapter and separately
+  named, hash-pinned SUSB/BDS migration harnesses. The SUSB harness reproduces
+  97 positive cells, 446 published detail rows, 6,461,497 non-additive sector
+  firm counts, 135,748,407 employment, and 132,086,430 employment after the
+  NAICS 55 scope exclusion. All 18 target tests pass.
 
 ## Next
 
