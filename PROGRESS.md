@@ -2,11 +2,16 @@
 
 ## State
 
-Implementation is active on branch `us-firms-frame-port` from `origin/main` at
-`d69131a3`. The required source PRs, adversarial review, ADR, and Microcosm
-precedents have been audited. No external data has been staged, no real-data
-artifact has been built or published, and nothing has been pushed. Synthetic
-test artifacts exist only in pytest temporary directories.
+Implementation and local validation are complete on branch
+`us-firms-frame-port` from `origin/main` at `d69131a3`. The required source
+PRs, adversarial review, ADR, and Microcosm precedents have been audited. No
+external data has been staged, no real-data artifact has been built or
+published, and nothing has been pushed. Synthetic test artifacts exist only
+in pytest temporary directories.
+
+Remote publication is blocked: the connected GitHub branch-creation write
+returned `user cancelled MCP tool call`, while the sandboxed shell cannot
+resolve `github.com`. The remote branch and draft PR therefore do not exist.
 
 This dated lane state supersedes the completed replacement-scorecard journal
 that was present on the branch point; that journal remains available in git
@@ -77,8 +82,33 @@ history at `d69131a3`.
   offline staging `--list` path now bypasses the heavyweight US runtime import
   and completes without creating the configured data directory. All 28 staging
   and target tests pass after the correction.
+- Completed lock-matched validation, one process per shard: 6,332 build tests
+  passed with 41 skips; 210 calibrate tests passed; 295 frame tests passed with
+  36 skips; 93 fit tests passed; and 275 data tests passed with one skip. The
+  workspace total is 7,205 passed, 78 skipped, and zero failed.
+- Diagnosed and discarded an initial contaminated-venv result: its NumPy 2.5.1
+  and scikit-learn 1.9.0 differed from the lock's 2.4.6 and 1.8.0, changing
+  intentionally version-bound seed/spec hashes. A wrapper-only fallback also
+  failed to reach QRF child processes. Direct inherited `PYTHONPATH` with the
+  exact locked environment made both the focused failures and the complete
+  build shard green without source or pin changes.
+- Passed repository-wide `ruff check .` and `git diff --check`.
+- Built and inspected both touched wheels. The calibrate wheel SHA-256 is
+  `e50708b10599b143c90fee6ffafb1e9c667e38c3951ff028f2ffbe5903192a7`.
+  The 2,316,925-byte build wheel SHA-256 is
+  `98f6fd312245408d0e0bab24a58352c752c6b93cfe2e4f551097d33b70d2ba65`;
+  all 365 ZIP entries validate and all 13 US-firm entries are byte-identical to
+  source.
+- Replaced the historical root report with the structured US firm port report,
+  including deliberate exclusions, all seven acceptance gates, reproduced and
+  unreproduced figures, Vahid review questions, and publication blockers.
 
 ## Next
 
-- Run shard and workspace validation, build the touched wheels, update
-  `FINAL_REPORT.md`, push, and open the required draft pull request.
+- Restore GitHub write authorization or network access, push
+  `us-firms-frame-port`, and open the required draft pull request without
+  reviewers.
+- Publish a Chronicle SUSB package and activate a Ledger `us_firms` target
+  profile before treating production targets as available.
+- Stage the exact external pins outside git and run real-data certification to
+  resolve acceptance gates 1 and 4-7 before artifact promotion.

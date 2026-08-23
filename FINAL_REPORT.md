@@ -1,162 +1,191 @@
-# Final report: US release replacement scorecard
+# Final report: US firm frame port
 
 ## Outcome
 
-The replacement yardstick is complete and the live US incumbent is scored.
-`tools/score_us_release_head_to_head.py` accepts the incumbent H5 and an
-optional candidate H5 or authenticated pool, normalizes each through one
-role-neutral loader API, and sends both through the same scoring function
-(`tools/score_us_release_head_to_head.py:495-515,1398-1536,1670-1721`). Its
-deterministic JSON contains every compiled fiscal target and every nominal
-terminal-battery scalar leg; its Markdown twin is the readable scorecard.
+The US observed-sponsor frame implementation is complete locally on
+`us-firms-frame-port`, based on `origin/main` at `d69131a3`. The work moves
+population-artifact construction into `microcosm-build`, while keeping the
+dynamics seam limited to consuming raw firm employment and applying its
+canonical IC2 bands and gates.
 
-The scorer compiles the sole US fiscal registry once, then materializes and
-scores fixed registry chunks across fixed household slices
-(`tools/score_us_release_head_to_head.py:518-579,675-852`). Every slice must
-match the target, scale, diagnostic-name, and scored-column contracts; the two
-artifacts must also have identical final scored-column contracts, so a missing
-candidate measure cannot disappear silently
-(`tools/score_us_release_head_to_head.py:858-938,1539-1553`).
+The port adapts Vahid Ahmadi's work from
+[microcosm-dynamics #386](https://github.com/PolicyEngine/microcosm-dynamics/pull/386)
+and
+[#390](https://github.com/PolicyEngine/microcosm-dynamics/pull/390), and
+addresses the concerns recorded in
+[#392](https://github.com/PolicyEngine/microcosm-dynamics/issues/392).
+Substantive port commits carry
+`Co-authored-by: Vahid Ahmadi <vahid@policyengine.org>`.
 
-No gate, threshold, tolerance, or band decides the replacement. When a
-candidate is present, the output reports its weighted-loss delta, the exact
-per-target balance of lower/equal/higher absolute relative errors, and each
-side's battery evidence, then leaves the flip to the owner
-(`tools/score_us_release_head_to_head.py:1571-1667`).
+No restricted source was downloaded or staged, no real-data artifact was
+built, and no artifact was published or promoted. The implementation and its
+secrets-free tests therefore establish code and artifact contracts, not
+empirical certification.
 
-## Frozen incumbent and yardstick
+## Ported and where
 
-The current PolicyEngine.py `5.0.3` bundle resolves the US default dataset as:
+- `packages/microcosm-build/src/microcosm/build/us_runtime/us_firms/`
+  contains strict Form 5500 and OSHA ITA readers, immutable source pins,
+  fail-closed staging, the Ledger target adapter, hash-pinned SUSB and BDS
+  migration harnesses, the observed-sponsor frame builder, diagnostics, and
+  the atomic artifact writer/verifier.
+- `packages/microcosm-calibrate/src/microcosm/calibrate/entropy.py` provides
+  the public receipt-bearing bounded exponential dual-moment calibration
+  required by a standalone firm table. This avoids fabricating person-to-firm
+  memberships merely to enter the current person/group `Frame` solver.
+- `tools/stage_us_firm_microdata.py` and
+  `tools/build_us_firm_frame.py` provide explicit local staging and build
+  entry points. Staging admits only exact byte and SHA-256 matches, and the
+  build CLI refuses an implicit target authority or an existing output
+  directory.
+- `docs/us-firm-support-plan.md` records phases, source measurement models,
+  the Ledger boundary, the `populace-us-firms` contract, the raw-employment
+  dynamics seam, and unresolved certification decisions. A sentence-case
+  changelog fragment is included.
+- Reader, staging, target, frame, artifact, and CLI tests live in
+  `packages/microcosm-build/tests/test_us_firm_*.py`; calibration tests live
+  in `packages/microcosm-calibrate/tests/test_entropy.py`.
 
-- repository: `policyengine/populace-us` (Hugging Face dataset);
-- revision/build:
-  `populace-us-2024-buildp-sparse-rmloss100-cae8640-20260728T011454Z`;
-- filename: `populace_us_2024.h5`;
-- resolved Hugging Face commit:
-  `26dcad66867687f15735dc4926523e3741920836`;
-- artifact SHA-256:
-  `48b9d479fb4fd1c3537f9383ce4697d130b6f618658409d74f6233c43b994c7e`;
-- PolicyEngine.py source commit:
-  `cfdd128fc316e07ef54c182f2149fac217e8706f`, certified for
-  `policyengine-us==1.764.6`.
+The Form donor unit is one selected plan-sponsor EIN, not a demonstrated SUSB
+enterprise. OSHA establishments remain an independent measurement reference
+and are never unioned into the Form-only donor frame.
 
-That identity comes from PolicyEngine.py `5.0.3`'s bundle manifest
-(`src/policyengine/data/bundle/manifest.json:113-140,156-160,181-189`), with
-resolution at
-`src/policyengine/provenance/manifest.py:180-187,270-299,301-318,540-560`,
-Hugging Face handling at
-`src/policyengine/provenance/dataset_sources.py:57-74,77-117`, and the US model
-selection at `src/policyengine/tax_benefit_models/us/model.py:423-462`. The
-charter's enhanced-CPS assumption is historical; it is not the dataset the
-current package resolves. The scorer independently hash-matched the cached
-bytes before attaching this identity
-(`tools/score_us_release_head_to_head.py:120-138,399-405,448-492`).
+## Deliberately not ported
 
-The frozen yardstick is registry `c4ac617743f2`: 32,842 targets compiled from
-Ledger facts SHA-256
-`b3c0835631a446eb96aa84d86f3ee962d15ca356174c7114db52974f1cacc080`.
-The production loss weights use square-root target magnitude, semantic-concept
-budgets, equal amount/count budgets, and final mean normalization; the
-aggregate is the weighted mean of capped target-scaled absolute errors, with
-no family multipliers
-(`tools/build_us_fiscal_refresh_release.py:344-348,481-516,5781-5814,6214-6290`;
-`packages/microcosm-calibrate/src/microcosm/calibrate/solve.py:471-537,576-600`).
+The following remain dynamics concerns and were not copied:
 
-## Incumbent evidence
+- `assignment.py`;
+- `ic1.py`;
+- `spell_imputation.py`;
+- worker-firm linkage and IC1 spell schemas;
+- dynamics E-gates; and
+- `firms/banding.py`, which remains the canonical IC2 bander.
 
-The committed results are:
+This lane also did not add a dynamics consumer, worker links, a release,
+artifact publication or promotion, reviewer requests, or a merge. No
+`populace-*` legacy package was touched.
 
-- `experiments/replacement_scorecard/incumbent_48b9d479.json` — complete
-  32,842-row machine-readable evidence, SHA-256
-  `b2ad1a07f9668bc5d796cc9de99ef12da781b1ee8163ea65781871a20da441c8`;
-- `experiments/replacement_scorecard/incumbent_48b9d479.md` — human scorecard,
-  SHA-256
-  `3f9171b8f63fcef61518a4af1c18a8555c4f449ac62e9283e41ac2fe9c779021`.
+## Acceptance-gate status
 
-The incumbent weighted loss is `0.11462448275649702`; its fraction of targets
-within 10% is `0.2669143170330674`; all 57,240 household weights are nonzero.
-The Markdown summary records these values and the exact identity at
-`experiments/replacement_scorecard/incumbent_48b9d479.md:5-18`.
+| Gate | Status | Evidence and remaining work |
+|---|---|---|
+| 1. Observation unit and establishment-to-enterprise reconciliation | **Open** | Form sponsor EINs, OSHA establishments, and SUSB enterprises are documented as different units. They have not been reconciled to a common legal enterprise. |
+| 2. Single-employer filtering or explicit plan-entity strata | **Closed in implementation** | No single-employer claim is made. The readers and frame preserve source plan/entity codes, source-specific types, aggregate strata, and conflicts. The production filtering policy remains a certification choice. |
+| 3. Preserve plan/entity type, full NAICS, ownership, and OSHA establishment IDs | **Closed in implementation** | Reader contracts preserve full NAICS and Form strata, plus OSHA ownership, record IDs, and establishment IDs. OSHA identifiers remain in the independent-reference evidence rather than the Form-only firm table. |
+| 4. Participant timing and per-source measurement models | **Partial** | Main and SF filings consistently use end-of-year active participants, and the artifact records explicit source measurement models. Alignment of plan-year endpoints with SUSB's March 12 measure is unresolved. |
+| 5. Committed, hash-bound coverage build with every rule | **Partial** | The implementation binds source, target, configuration, output, and diagnostic hashes and records filters, caps, recodes, deduplication, and the 31-33 / 44-45 / 48-49 crosswalk. Synthetic artifacts exercise the contract, but no real coverage artifact was built and exact crop/animal-production and government-universe reconciliation remains open. |
+| 6. Complete cells plus weight, leverage, and ESS diagnostics | **Partial** | The builder emits the complete positive-cell table, rectangular-grid receipt, unmatched donor cells, margin ratios, quantiles, bound hits, leverage, and Kish effective sample size globally and per cell. Only synthetic evidence was produced in this lane. |
+| 7. Actual employment margins with held-out validation | **Partial** | SUSB employment margins enter the bounded dual-moment solve, with NAICS 55 excluded before that solve. BDS is held out from calibration and compared over three exactly nesting bands. No real donor build ran, and BDS employment is explicitly non-comparable under the frame's scope exclusion. |
 
-The terminal battery is entirely by-origin: its canonical surface is 131
-single-column comparisons plus one joint comparison, normalized to 369 scalar
-legs (`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:3011-3025,11644-11709,11824-11832,11948-12154`). The incumbent has 120,261
-positive-weight clone-0 ASEC rows and zero ACS rows, so all 132 comparisons and
-all 369 scalar legs are explicitly **inapplicable**. No zero, pass, or failure
-was synthesized for the absent side; the human receipt is at
-`experiments/replacement_scorecard/incumbent_48b9d479.md:97-104`.
+Gates 1, 4, 5, 6, and 7 must not be described as closed until a verified
+real-data artifact resolves their remaining empirical and universe questions.
 
-A finished candidate H5 with both origins computes the same canonical formulas
-while explicitly marking the production assembly/tail receipt unauthenticated
-(`tools/score_us_release_head_to_head.py:1077-1358`;
-`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:11474-11492,11530-11898`). A pool candidate instead consumes its authenticated
-terminal receipt. The scoring-only pool loader may authenticate the exact
-current `gate_failed`/`simulation_ready=false` publication pair without
-weakening or reusing the separate production-ready loader
-(`packages/microcosm-build/src/microcosm/build/us_runtime/h5_io.py:371-588,691-869`;
-`tools/score_us_release_head_to_head.py:1361-1395`).
+## Reproduced numbers
 
-## Owner handoff
+The following were reproduced from the committed, hash-pinned target extracts
+or source manifest:
 
-`_LANE-NOTES.md`, under “Owner command when the 25% candidate exists,” contains
-the exact dense-pool and sparse-57k commands, including the required host-side
-builder-process check and manifest hash pin. “Better than the incumbent” means
-comparing each candidate view against the exact incumbent weighted loss and
-the target-by-target lower/equal/higher error balance, while separately
-inspecting every candidate battery leg that is computable. There is no invented
-threshold or automatic conjunction; the owner decides whether the dense and
-sparse evidence warrants the flip.
+| Quantity | Reproduced result | Interpretation |
+|---|---:|---|
+| Positive SUSB sector-by-size cells | 97 | Target geometry only: 97 positive cells in a 100-cell rectangle. The absent cells are NAICS 99 at 50-99, 100-499, and 500+. |
+| Published SUSB detail rows | 446 | These aggregate into the 97 calibration cells. |
+| Distinct SUSB detail size codes | 23 | The earlier prose count of 22 is not reproduced. |
+| Sector-summed SUSB firms | 6,461,497 | Non-additive across sectors; this is not the national unique-enterprise count. |
+| National unique SUSB firms | 6,395,635 | Read from the pinned national total row. |
+| SUSB employment | 135,748,407 | Full target-extract employment. |
+| In-scope SUSB employment | 132,086,430 | Employment after excluding NAICS 55 from the employment margin. |
+| Pinned raw download bytes | 244,927,049 | Three immutable downloads, before expanded staging. |
 
-The candidate does not yet exist, so the incumbent-only JSON correctly leaves
-`artifacts.candidate` and `comparison` null. This is the only external work
-remaining.
+The legacy donor-dependent claims were not repeated as facts:
 
-## Verification
+| Claim to verify | Status |
+|---|---|
+| 987,039 observed records | **Not reproduced** without staged raw sources. |
+| At least ten sponsors in every one of 97 cells | **Not reproduced**; only the 97-cell target geometry was reproduced. |
+| 43,001 Form/OSHA overlaps and 66.3% band agreement | **Not reproduced** without staged raw sources. |
+| 1.024 calibrated employment ratio | **Not reproduced** without a verified real build. |
+| Weight bound 140 | **Configuration reproduced** as bounds `(0.1, 140)`; the empirical knee was not reproduced. |
+| 24% NAICS 55 weighted employment share | **Not reproduced** without a verified real build. |
+| Failed-attempt ratios 2.058 and 2.517 and prior BDS ratios | **Not reproduced**; the attempts and comparison mechanisms are recorded, not their legacy empirical results. |
 
-- Environment sync completed with
-  `UV_CACHE_DIR=/tmp/microcosm-scorecard-uv-cache uv sync --all-packages --extra us`.
-- Full workspace suite:
-  `UV_CACHE_DIR=/tmp/microcosm-scorecard-uv-cache uv run python -m pytest` —
-  **7,028 passed, 76 skipped, 0 failed** in 1:39:56. The `python -m` form avoids
-  a copied virtualenv console-script shebang that pointed at a sibling
-  worktree.
-- Repository-wide `ruff check .`: green. All six Python files changed by this
-  branch pass `ruff format --check`; the whole-tree format audit names 69
-  pre-existing mainline files and was not used to rewrite unrelated code.
-- `py_compile` for the scorer and `git diff --check`: green.
-- Contract and loader-symmetry tests are at
-  `packages/microcosm-build/tests/test_us_release_head_to_head_scorer.py:415-499`;
-  deterministic fixture end-to-end coverage at `:502-569`; chunked/one-shot
-  equivalence at `:575-678`; scalar-leg completeness at `:285-378`; failed-pool
-  authentication at
-  `packages/microcosm-build/tests/test_us_multispine_pool_h5_io.py:1017-1085`;
-  and finished-H5 canonical battery equivalence at
-  `packages/microcosm-build/tests/test_us_stacked_spine.py:6929-6966`.
-- The real incumbent run exited zero at 18.666 GiB peak RSS, below the binding
-  20 GiB limit. Its five registry chunks used twelve household slices apiece;
-  the scorer enforces the RSS ceiling after loading, after every chunk, and
-  after releasing each side
-  (`tools/score_us_release_head_to_head.py:332-352,653-852,1398-1463,1670-1715`).
+Conditional tests compute and pin real-source evidence when exact staged files
+exist and skip cleanly in secrets-free PR CI.
 
-The sandbox denied `ps`, `pgrep`, and `top`. Before scoring, the permitted
-`lsof` process and open-file audits found no build-runtime process or open pool,
-checkpoint, manifest, or build file. This lane started no pool build. It also
-made no push and changed no gate, threshold, tolerance, or band.
+## Validation
 
-## Commits
+- Full workspace, run one process per shard: **7,205 passed, 78 skipped, 0
+  failed**.
+- `microcosm-build`: **6,332 passed, 41 skipped**.
+- `microcosm-calibrate`: **210 passed**.
+- `microcosm-frame`: **295 passed, 36 skipped**.
+- `microcosm-fit`: **93 passed**.
+- `microcosm-data`: **275 passed, 1 skipped**.
+- The focused US-firm contract suite passed **65 tests with 4 conditional
+  real-data skips**.
+- Repository-wide `ruff check .` and `git diff --check`: green.
+- `microcosm-calibrate` wheel:
+  `e50708b10599b1434c90fee6ffafb1e9c667e38c3951ff028f2ffbe5903192a7`;
+  ZIP integrity and source identity passed.
+- `microcosm-build` wheel:
+  `98f6fd312245408d0e0bab24a58352c752c6b93cfe2e4f551097d33b70d2ba65`;
+  2,316,925 bytes, 365 valid ZIP entries, all 13 US-firm package entries
+  byte-identical to source. A clean temporary installation imported every
+  module and loaded all resources, reproducing 97 calibration cells and 446
+  detail cells.
 
-- `fd7d5515` — start the replacement-scorecard lane and committed progress log.
-- `de5ca6aa` — document the yardstick audit.
-- `256165e2` — correct the live incumbent identity.
-- `90fe2364` — add the common head-to-head scorer.
-- `758aa0c4` — preserve H5 snapshot identity across cache symlinks.
-- `eebd1d6f` — make scoring chunked and memory-bounded.
-- `8226f376` — complete artifact battery evidence and pool authentication.
-- `34d93846` — merge the current `origin/main` before scoring.
-- `e834baad` — record the merge and pre-score queue audit.
-- `d876c971` — commit the live incumbent scorecard.
-- `8d2ba34c` — document the exact candidate handoff.
-- `6847d245` — keep the journal within the source-hygiene contract.
-- Final progress, validation, and this report — the commit containing this file.
+The offline worktree could not run a fresh `uv sync`, and the existing
+Microcosm venv contained co-installed NumPy and scikit-learn versions newer
+than this branch's lock. An initial run correctly failed its version-attested
+spec hashes; it was discarded rather than re-pinning valid expectations.
 
-Nothing was pushed, and no pool build or publication was performed.
+Final tests used a read-only Python 3.14 environment whose NumPy 2.4.6,
+scikit-learn 1.8.0, quantile-forest 1.4.2, and PolicyEngine-US 1.764.6 match
+`uv.lock`. Workspace package sources came first, followed by that locked
+site-packages directory and a fallback dependency directory in inherited
+`PYTHONPATH`, so worker subprocesses saw the same environment. Pytest ran one
+process per shard as CI does. Repository-wide Ruff ran through
+`uv run --active --no-sync`; the exact literal `uv run pytest` remains an
+offline-environment limitation, not an unrun behavioral suite.
+
+## Draft pull request
+
+Requested title:
+
+> US firm frame: port observed Form 5500 readers and SUSB-calibrated frame
+> builder from microcosm-dynamics #386/#390
+
+PR URL: **Not available.** The connected GitHub branch-creation write returned
+`user cancelled MCP tool call`. The sandboxed shell also cannot resolve
+`github.com`, so it cannot fall back to `git push`. The remote branch and
+draft PR were not created. No reviewers were requested and nothing was merged.
+
+## Open questions for Vahid's review
+
+- Should the publishable population unit remain a sponsor EIN, or must sponsors
+  be reconciled to SUSB legal enterprises first?
+- Should certification filter to single-employer plans, release explicit
+  plan-entity strata, or split sponsors with conflicting source types?
+- Which Form participant fields and plan-year endpoints are authoritative for
+  alignment to the SUSB March 12 employment measure?
+- What exact crop/animal-production and government exclusions define the
+  common calibration universe?
+- Is maximum-filing selection the right coherent Form metadata rule when
+  multiple filings disagree?
+- Should repeated OSHA establishment submissions be summed by EIN as the
+  current reference model does, or deduplicated under a different documented
+  measurement model?
+- Do the legacy raw-data figures reproduce under the stricter reader contracts,
+  and does the empirical evidence still justify the OSHA cap and weight bound?
+
+## Follow-ups and blockers
+
+- Publish Census SUSB sector-by-enterprise-size facts as a named Chronicle
+  package and register the corresponding Ledger `us_firms` target profile.
+  Until then, the committed SUSB extract remains a labelled migration harness,
+  never production authority.
+- Stage and verify the external Form and OSHA pins outside git, then build the
+  real hash-bound coverage artifact and resolve gates 1 and 4-7.
+- Add the dynamics consumer only after artifact certification; keep IC2 banding
+  and E-gates repo-pinned in dynamics.
+- Restore GitHub write authorization or network access, push
+  `us-firms-frame-port`, and open the requested draft PR without reviewers.
