@@ -32,6 +32,12 @@ history at `d69131a3`.
   source measurement models, the Ledger/migration boundary, the raw-employment
   dynamics seam, the non-additive SUSB sector margin, and unresolved unit and
   timing questions.
+- Ported the Form 5500 and OSHA ITA readers. Form variants now use a consistent
+  end-of-year participant measure, select one coherent size-defining filing,
+  preserve full NAICS and plan/entity strata, and refuse fractional counts;
+  OSHA retains record/establishment identifiers and ownership and still
+  requires an explicit quality cap. The 25 fixture tests pass and two pinned
+  real-data tests skip because no external files are staged.
 
 ## Next
 

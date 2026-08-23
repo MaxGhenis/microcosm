@@ -35,8 +35,11 @@ employment concept.
 A sponsor EIN is a filer key, not a demonstrated SUSB legal-enterprise key.
 Multiple plans may overlap, so sponsor aggregation uses the maximum reported
 active-participant count rather than a sum and takes metadata from that same
-size-defining filing. Conflicting full NAICS codes, states, forms, and
-plan-entity codes remain explicit provenance; they are not silently discarded.
+size-defining filing. Across the retained plan/entity strata, participant
+counts are not an ordered bound on sponsor employment: some plans span
+employers and some active participants need not be current sponsor employees.
+Conflicting full NAICS codes, states, forms, and plan-entity codes remain
+explicit provenance; they are not silently discarded.
 
 Form 5500 plan-entity codes are source-specific strata. The initial port does
 not assume that every filing is single-employer and does not silently pool a
