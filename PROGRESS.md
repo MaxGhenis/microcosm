@@ -2,10 +2,10 @@
 
 ## State
 
-Implementation and required verification are complete as of 2026-08-25. The
-runtime and all layer-specific test/fixture surfaces have been removed. The
-retained `late_transfer` names are the ordinary 19-group QRF producer DAG, not
-the deleted calibration layer. Only the committed final report remains.
+Complete as of 2026-08-26. The runtime and all layer-specific test/fixture
+surfaces have been removed. The retained `late_transfer` names are the ordinary
+19-group QRF producer DAG, not the deleted calibration layer. The final evidence
+report is committed at `out.md`.
 
 No pool/release build, publication, push, dependency installation, or network
 operation is in scope or has occurred.
@@ -54,9 +54,7 @@ operation is in scope or has occurred.
 
 ## Next
 
-1. Write and commit `out.md` with the diff, reference inventory, verification
-   evidence, checkpoint verdict, judgment calls, and commit ledger.
-2. Hand the branch off for a cold candidate-2 build and the requested
+1. Hand the branch off for a cold candidate-2 build and the requested
    three-column scorecard; those build/publication actions remain outside this
    lane and were deliberately not run here.
 
