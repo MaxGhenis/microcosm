@@ -2,10 +2,11 @@
 
 ## State
 
-In progress on `battery-rare-signed-tails` as of 2026-08-25. The worktree was
-clean at `0fa48028`, and the required `uv sync --all-packages --extra us`
-completed against the existing lock. No merge has been started and no product
-source has changed.
+Ready to merge the provisioned `origin/main` ref
+`f9d3b4838c137e113e87452ccdeaa734b11733d2` into
+`battery-rare-signed-tails` as of 2026-08-25. The semantic dry merge found no
+genuine contradiction. No merge has been started and no product source has
+changed.
 
 ## Done
 
@@ -17,15 +18,43 @@ source has changed.
   cache.
 - Historicized the prior lane-completion record below before merging main, so
   its currency claims cannot be mistaken for the state of this merge task.
+- Attempted to refresh `origin/main`; GitHub DNS is unavailable in the sandbox.
+  The provisioned ref is from 2026-08-25 and contains the cited #742/#763
+  history, so this task will merge that exact recorded SHA and report the
+  network limitation.
+- Ran `git merge-tree` against the exact two heads. The current ref has 21
+  textual conflicts: three root journals, the generated F0 coverage report,
+  four implementation/tool files, two anti-rot ledgers, and eleven tests.
+- Read the #742 F0 port precedent (`e66074ad`, `e0947020`, `1fc9055e`, with
+  follow-up `87e638bd`). Its controlling pattern is to recompute all union-tree
+  measurements, preserve both serializer paths, and use complete shard tests
+  to catch semantic omissions.
+- Established the receipt union: keep complete fitted `regimes` and selected
+  policy `target_regimes` as separate fields; carry both branch
+  group/aggregate `realized_regimes` and main's calibrated-target
+  `qrf_pattern_evidence`/owner receipts; cross-check selected persisted bank
+  regimes on both fresh and resumed paths.
+- Identified an identity collision not expressible by choosing either parent:
+  both independently advanced the stacked checkpoint materializer from 11 to
+  12. The union must advance to 13 in runtime, authored spec, schema, and stale
+  checkpoint tests. Main's manifest/H5/CD-provenance versions and this branch's
+  pool-stage/legacy-checkpoint versions otherwise compose without collision.
+- Recorded the repository-native re-pin sequence: bundle generator/check,
+  claim expansion inventory, field ledger totals, inventory observations,
+  spec-envelope digests, receipt projection identities, coverage writer/check,
+  focused union tests, then the file-isolated full no-build suite and Ruff.
 
 ## Next
 
-- Commit this merge journal initialization after its documentation-only check.
-- Inspect `origin/main`, the #742 merge-port precedent, and both sides of all
-  expected conflicts.
-- Merge main, preserve both receipt contracts, resolve journals with `--ours`,
-  re-pin every moved anti-rot surface with repository tools, and run the
-  no-build verification suite.
+- Commit this completed pre-merge analysis as the last standalone coherent
+  step.
+- Merge `origin/main` with `--no-commit`, resolve journals with `--ours`, and
+  form the semantic union including materializer version 13.
+- Recompute every moved anti-rot measurement from the union tree, run focused
+  guards and the complete no-build suite below 15 GiB RSS, then create one
+  fully justified merge commit.
+- Update this journal and `FINAL_REPORT.md`, verify the committed result, and
+  make the final documentation commit. Do not push.
 
 ---
 
