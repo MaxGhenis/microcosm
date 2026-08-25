@@ -565,22 +565,6 @@ def _authority_component_payloads(
     imputation_payloads: Mapping[str, object],
 ) -> tuple[dict[str, object], dict[str, object]]:
     battery = project_battery_authority_components(domains["battery"])
-    models = _mapping(
-        domains["imputation"].get("models"),
-        location="imputation/models",
-    )
-    regime_gated_qrf = _mapping(
-        models.get("regime_gated_qrf"),
-        location="imputation/models/regime_gated_qrf",
-    )
-    post_transfer_calibration = deepcopy(
-        dict(
-            _mapping(
-                regime_gated_qrf.get("post_draw_calibration"),
-                location=("imputation/models/regime_gated_qrf/post_draw_calibration"),
-            )
-        )
-    )
     transfer_surface, donor_channel, donor_clone_index, recipient_selection = (
         _late_transfer_surface(domains["imputation"])
     )
@@ -625,7 +609,6 @@ def _authority_component_payloads(
         "support_profile": deepcopy(battery["support_profile"]),
         "puf_capital_gains_tail_support_contract": tail_support,
         "late_producer_schedule": late_schedule,
-        "post_transfer_calibration": post_transfer_calibration,
     }
     counts = {
         "gap_fill_target_count": _gap_fill_target_count(gap_fill_plan),
@@ -655,14 +638,6 @@ def _authority_component_payloads(
             _array(
                 battery["joint_metric_registry"],
                 location="battery projection/joint_metric_registry",
-            )
-        ),
-        "post_transfer_calibration_target_count": len(
-            _array(
-                post_transfer_calibration.get("targets"),
-                location=(
-                    "imputation/models/regime_gated_qrf/post_draw_calibration/targets"
-                ),
             )
         ),
     }
@@ -775,13 +750,6 @@ def project_stacked_authority_receipt(spec: ResolvedSpec) -> dict[str, object]:
             "declared_sha256": digests["late_producer_schedule"],
             "schedule_sha256": late_schedule.get("schedule_sha256"),
             "producer_count": late_schedule.get("producer_count"),
-            "digest_matches_declared": True,
-        },
-        "post_transfer_calibration": {
-            "identity": deepcopy(payloads["post_transfer_calibration"]),
-            "sha256": digests["post_transfer_calibration"],
-            "declared_sha256": digests["post_transfer_calibration"],
-            "target_count": counts["post_transfer_calibration_target_count"],
             "digest_matches_declared": True,
         },
     }

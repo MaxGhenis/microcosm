@@ -47,7 +47,6 @@ EXPECTED_AUTHORITY_COMPONENTS = (
     "support_profile",
     "puf_capital_gains_tail_support_contract",
     "late_producer_schedule",
-    "post_transfer_calibration",
 )
 
 EXPECTED_CHECKPOINT_TOP_LEVEL = frozenset(

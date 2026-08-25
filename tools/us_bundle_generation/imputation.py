@@ -266,125 +266,6 @@ def _canonical_sha256(value: object) -> str:
     ).hexdigest()
 
 
-def _post_draw_calibration_policy() -> dict[str, object]:
-    """Author the constants-era post-transfer policy without importing it."""
-
-    payload: dict[str, object] = {
-        "artifact_kind": "microcosm_us_post_transfer_calibration_policy",
-        "schema_version": 1,
-        "scope": {
-            "reference": "asec_origin_clone_0",
-            "recipient": "acs_origin_clone_0",
-            "mutable": "caller_supplied_target_cells",
-            "provenance_masks": "caller_supplied_no_internal_inference",
-            "constraint_masks": "caller_supplied_hash_bound",
-            "value_dtype": "float64_byte_contract",
-            "zero_weight_rows": "byte_exact",
-        },
-        "quantiles": [0.10, 0.25, 0.50, 0.75, 0.90],
-        "carrier_selection": {
-            "match_reference": "weighted_positive_prevalence_nearest_prefix",
-            "removal_order": "positive_amount_descending_then_entity_id",
-            "addition_order": "entity_id",
-            "equal_distance": "lower_mass",
-        },
-        "amount_mapping": {
-            "leg": "positive",
-            "recipient_rank": "weighted_full_recipient_positive_upper_cdf",
-            "inverse_cdf": "left",
-            "exact_quantile_anchors": [0.10, 0.25, 0.50, 0.75, 0.90],
-            "infeasible_anchor_handling": "frame_owner_fail_closed",
-            "output_support": "reference_positive_values_only",
-        },
-        "targets": [
-            {
-                "entity": "person",
-                "family": "adult_care",
-                "target": "pre_subsidy_care_expenses",
-                "stage": "late_transfer",
-                "carrier_mode": "match_reference",
-                "negative_leg": "byte_exact",
-                "special_constraint": ("adult_care_qualifying_one_per_tax_unit"),
-            },
-            {
-                "entity": "person",
-                "family": "model_required_numeric",
-                "target": "unemployment_compensation",
-                "stage": "early_gap_fill",
-                "carrier_mode": "preserve_recipient",
-                "negative_leg": "byte_exact",
-                "special_constraint": "none",
-            },
-            {
-                "entity": "person",
-                "family": "source_operator_child_support",
-                "target": "child_support_expense",
-                "stage": "late_transfer",
-                "carrier_mode": "match_reference",
-                "negative_leg": "byte_exact",
-                "special_constraint": "none",
-            },
-            {
-                "entity": "person",
-                "family": "source_operator_child_support",
-                "target": "child_support_received",
-                "stage": "late_transfer",
-                "carrier_mode": "match_reference",
-                "negative_leg": "byte_exact",
-                "special_constraint": "none",
-            },
-            {
-                "entity": "person",
-                "family": "source_operator_disability_benefits",
-                "target": "disability_benefits",
-                "stage": "late_transfer",
-                "carrier_mode": "preserve_recipient",
-                "negative_leg": "byte_exact",
-                "special_constraint": "none",
-            },
-            {
-                "entity": "person",
-                "family": "source_operator_prior_year_income",
-                "target": "self_employment_income_last_year",
-                "stage": "early_gap_fill",
-                "carrier_mode": "match_reference",
-                "negative_leg": "byte_exact",
-                "special_constraint": "none",
-            },
-            {
-                "entity": "person",
-                "family": "source_operator_weeks_unemployed",
-                "target": "weeks_unemployed",
-                "stage": "late_transfer",
-                "carrier_mode": "match_reference",
-                "negative_leg": "byte_exact",
-                "special_constraint": (
-                    "weeks_requires_positive_unemployment_compensation"
-                ),
-            },
-            {
-                "entity": "person",
-                "family": "source_operator_workers_compensation",
-                "target": "workers_compensation",
-                "stage": "late_transfer",
-                "carrier_mode": "match_reference",
-                "negative_leg": "byte_exact",
-                "special_constraint": "none",
-            },
-            {
-                "entity": "spm_unit",
-                "family": "source_operator_energy_subsidy",
-                "target": "spm_unit_energy_subsidy",
-                "stage": "late_transfer",
-                "carrier_mode": "match_reference",
-                "negative_leg": "byte_exact",
-                "special_constraint": "none",
-            },
-        ],
-    }
-    return {**payload, "sha256": _canonical_sha256(payload)}
-
-
 def _without_sha256(value: Mapping[str, object]) -> dict[str, object]:
     """Copy a canonical receipt body without its derived digest snapshot."""
 
@@ -2334,7 +2215,6 @@ def build_imputation() -> dict[str, object]:
                     "max_samples_leaf": None,
                     "zero_atol": DEFAULT_ZERO_ATOL,
                 },
-                "post_draw_calibration": _post_draw_calibration_policy(),
             }
         },
         "chaining": {
