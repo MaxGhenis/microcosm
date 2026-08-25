@@ -673,9 +673,7 @@ def test_route_support_fails_when_only_status_total_is_sufficient() -> None:
 
     support = tail_module._recipient_support_receipt(direct_tail, wrong_route)
     single = next(
-        stratum
-        for stratum in support["strata"]
-        if stratum["filing_status"] == "SINGLE"
+        stratum for stratum in support["strata"] if stratum["filing_status"] == "SINGLE"
     )
     assert single["observed_count"] == single["required_minimum"] == 1
     assert single["status"] == "insufficient_support"
@@ -690,9 +688,7 @@ def test_recipient_route_and_tail_order_aggregate_all_tax_unit_people() -> None:
 
     frame = _expanded_recipient_frame()
     person = frame.table("person").copy()
-    first = person.loc[
-        person["person_tax_unit_id"].eq(100_020)
-    ].iloc[0].copy()
+    first = person.loc[person["person_tax_unit_id"].eq(100_020)].iloc[0].copy()
     assert first["non_sch_d_capital_gains"] == 0.0
     second = first.copy()
     second["person_id"] = 200_002
@@ -711,10 +707,7 @@ def test_recipient_route_and_tail_order_aggregate_all_tax_unit_people() -> None:
     multi_person = Frame(
         tables,
         frame.schema,
-        {
-            entity: frame.weights_for(entity)
-            for entity in frame.weighted_entities
-        },
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
         strata,
         mass_log=frame.mass_log,
         metadata=frame.metadata,
@@ -725,9 +718,7 @@ def test_recipient_route_and_tail_order_aggregate_all_tax_unit_people() -> None:
         maximum_transfer_weight=0.0,
         seed=567,
     )
-    candidate = candidates.loc[
-        candidates["recipient_tax_unit_id"].eq(100_020)
-    ].iloc[0]
+    candidate = candidates.loc[candidates["recipient_tax_unit_id"].eq(100_020)].iloc[0]
     expected_combined = (
         float(first["short_term_capital_gains"])
         + float(first["long_term_capital_gains_before_response"])
@@ -787,9 +778,7 @@ def test_recipient_assignment_rejects_better_ordered_wrong_route() -> None:
         maximum_transfer_weight=0.0,
         seed=567,
     )
-    candidates = candidates.loc[
-        candidates["recipient_filing_status_code"].eq(2)
-    ].copy()
+    candidates = candidates.loc[candidates["recipient_filing_status_code"].eq(2)].copy()
     assert len(candidates) == 2
     candidates["recipient_agi_band_index"] = 0
     wrong_index, matching_index = candidates.index.tolist()
@@ -854,9 +843,7 @@ def test_frame_concentration_derived_verdict_tampering_fails_closed(
         seed=567,
     )
     tampered = json.loads(json.dumps(manifest))
-    receipt = tampered["frame_concentration_receipts"][
-        "non_sch_d_capital_gains"
-    ]
+    receipt = tampered["frame_concentration_receipts"]["non_sch_d_capital_gains"]
     receipt[field] = not receipt[field]
     tampered.pop("manifest_sha256")
     tampered["manifest_sha256"] = tail_module._canonical_sha256(tampered)
@@ -880,9 +867,7 @@ def test_frame_concentration_impossible_geometry_fails_closed(
         seed=567,
     )
     tampered = json.loads(json.dumps(manifest))
-    receipt = tampered["frame_concentration_receipts"][
-        "non_sch_d_capital_gains"
-    ]
+    receipt = tampered["frame_concentration_receipts"]["non_sch_d_capital_gains"]
     assert receipt["post_stage_top_share"] > 0.0
     if geometry == "zero_carriers_with_positive_share":
         receipt["post_stage_carriers"] = 0
@@ -1221,9 +1206,7 @@ def test_concentration_guard_tiny_noise_increase_passes() -> None:
     )
 
     assert failures == []
-    assert receipts[column]["post_minus_pre_top_share"] == pytest.approx(
-        tolerance / 2
-    )
+    assert receipts[column]["post_minus_pre_top_share"] == pytest.approx(tolerance / 2)
     assert receipts[column]["worsening_share_tolerance"] == tolerance
     assert receipts[column]["stage_worsened_share"] is False
     assert receipts[column]["stage_guard_failed"] is False
@@ -1406,9 +1389,7 @@ def test_transfer_raises_with_exact_material_increase_report(
     def worsened_raw_receipts(values, weights):
         nonlocal calls
         receipts = real_raw_receipts(values, weights)
-        receipts[column] = _guard_receipt(
-            pre_share if calls == 0 else post_share
-        )
+        receipts[column] = _guard_receipt(pre_share if calls == 0 else post_share)
         latest_receipts.clear()
         latest_receipts.update(receipts)
         calls += 1
@@ -1499,12 +1480,140 @@ def test_frame_gate_scopes_to_stage_attributable_worsening() -> None:
     assert failures == []
     assert receipts["collect"]["post_stage_raw_share_over_threshold"] is True
     assert receipts["collect"]["post_stage_production_gate_eligible"] is True
-    assert (
-        receipts["collect"]["post_stage_production_gate_over_threshold"] is True
-    )
+    assert receipts["collect"]["post_stage_production_gate_over_threshold"] is True
     assert receipts["collect"]["stage_worsened_share"] is False
     assert receipts["collect"]["pre_stage_carriers"] == 97
     assert receipts["collect"]["post_stage_carriers"] == 1_135
+
+
+def test_checkpoint_collectibles_top_share_is_exactly_bounded() -> None:
+    """The fresh 1% checkpoint's all-carrier top set is exactly one.
+
+    The 19 value/weight pairs reproduce the f80593d pre-stage collectibles
+    receipt. Its old independent reductions summed the same weighted masses in
+    source and descending order and produced 1 + 1 ULP. All six frame receipt
+    columns, the shared production gate, the distribution receipt, and the
+    sealed validator must use the same constructionally bounded magnitude
+    definition. No approximate comparison may mask an out-of-domain share.
+    """
+    from microcosm.build.gates import tail_concentration_gate
+
+    values = np.asarray(
+        [
+            178273.6083937478,
+            479545.8865121014,
+            178273.6083937478,
+            86879.21196438927,
+            178273.6083937478,
+            479545.8865121014,
+            178273.6083937478,
+            545218.3616977815,
+            4173.140323377163,
+            4392.088933186845,
+            807086.9529087733,
+            594335.4968384972,
+            38535.964306272726,
+            513613.07942276547,
+            778355.2450150383,
+            13955.199181003274,
+            52674.7978051809,
+            376932.64403447625,
+            12587.02261463494,
+        ],
+        dtype=np.float64,
+    )
+    weights = np.asarray(
+        [
+            1244.8070331731981,
+            861.7894845045219,
+            1675.7017754254591,
+            7444.9036022473965,
+            1364.5000171321594,
+            3351.4035508509182,
+            1891.1491465515896,
+            1101.1754524224446,
+            6247.973762657783,
+            1627.8245818418745,
+            550.5877262112223,
+            1388.4386139239518,
+            2729.000034264319,
+            933.6052748798986,
+            1316.6228235485748,
+            1867.2105497597972,
+            2130.535114469512,
+            885.728081296314,
+            143.6315807507536,
+        ],
+        dtype=np.float64,
+    )
+    mass = values * weights
+    legacy_numerator = float(np.sort(mass)[::-1][:100].sum())
+    legacy_denominator = float(mass.sum())
+    legacy_share = legacy_numerator / legacy_denominator
+    assert legacy_numerator.hex() == "0x1.ce39fff3fa1dbp+32"
+    assert legacy_denominator.hex() == "0x1.ce39fff3fa1d9p+32"
+    assert legacy_share.hex() == "0x1.0000000000001p+0"
+    assert legacy_share > 1.0
+
+    signed_values = values.copy()
+    signed_values[::2] *= -1.0
+    values_by_column = {
+        "short_term_capital_gains": signed_values,
+        "long_term_capital_gains_before_response": signed_values,
+        "long_term_capital_gains_on_collectibles": values,
+        "non_sch_d_capital_gains": signed_values,
+        "unrecaptured_section_1250_gain": values,
+        "short_term_plus_long_term_capital_gains": signed_values,
+    }
+    raw_receipts = tail_module._raw_top_share_receipts(
+        values_by_column,
+        weights,
+    )
+    assert set(raw_receipts) == {
+        *tail_module._JOINT_VECTOR_COLUMNS,
+        tail_module._COMBINED_COLUMN,
+    }
+    for receipt in raw_receipts.values():
+        assert receipt["top_share"] == 1.0
+        assert receipt["carriers"] == 19
+    collectibles = raw_receipts["long_term_capital_gains_on_collectibles"]
+    assert collectibles["distinct_values"] == 15
+
+    failures, sealed_receipts = tail_module._stage_attributable_concentration_failures(
+        raw_receipts,
+        raw_receipts,
+        _guard_gate_for_receipts(raw_receipts),
+    )
+    assert failures == []
+    tail_module._validate_frame_concentration_receipts(sealed_receipts)
+
+    distribution = tail_module._distribution_receipt(signed_values, weights)
+    assert distribution["top_100_weighted_absolute_mass_share"] == 1.0
+
+    # Make the shared gate measure rather than skip the thin replay geometry.
+    # One negligible remainder carrier is disjoint from a 100-record top set;
+    # its rounded share can equal one but must never exceed it.
+    gate_mass = np.concatenate(
+        [mass, np.full(82, np.finfo(np.float64).tiny, dtype=np.float64)]
+    )
+    gate = tail_concentration_gate(
+        {"collectibles": gate_mass},
+        {"collectibles": np.ones_like(gate_mass)},
+        top_k=100,
+        max_top_share=0.75,
+        min_nonzero_records=101,
+    )
+    assert gate.details["top_share"]["collectibles"] == 1.0
+    mixed_sign_gate_mass = gate_mass.copy()
+    mixed_sign_gate_mass[::2] *= -1.0
+    mixed_sign_gate = tail_concentration_gate(
+        {"mixed_sign": mixed_sign_gate_mass},
+        {"mixed_sign": np.ones_like(mixed_sign_gate_mass)},
+        top_k=100,
+        max_top_share=0.75,
+        min_nonzero_records=101,
+    )
+    assert mixed_sign_gate.details["top_share"]["mixed_sign"] == 1.0
 
 
 def test_undeclared_candidate_overlap_fails_loud() -> None:

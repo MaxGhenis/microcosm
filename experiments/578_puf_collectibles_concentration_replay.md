@@ -91,7 +91,10 @@ the same weighted-absolute-mass definition for signed columns
 `packages/microcosm-build/src/microcosm/build/gates.py:2514-2526`,
 `packages/microcosm-build/src/microcosm/build/gates.py:2595-2605`). The signed
 short-term, long-term, and combined vectors have valid magnitude shares, so
-negative-leg cancellation is already excluded.
+negative-leg cancellation is already excluded. The battery's parity comparison
+separates positive and negative incidence and absolute-magnitude quantiles by
+leg; pooled absolute-mass concentration asks a different but compatible
+no-cancellation question.
 
 Collectibles itself is a rare nonnegative component within a vector that also
 contains signed legs. The archived PUF carry rejects negative E24518 values
@@ -119,3 +122,27 @@ the denominator as `top_mass + remainder_mass`. It constructionally preserves
 denominator are the same float and the share is exactly one. This is the same
 declared mathematical measure, not a clamp, tolerance, threshold change, or
 sign-policy change.
+
+## Corrected no-build replay
+
+The same authenticated checkpoint and donor inputs were replayed after the
+common disjoint top/remainder implementation. The full transfer completed and
+the sealed manifest validator passed.
+
+| Side | carriers | top mass | constructed total mass | share |
+| --- | ---: | ---: | ---: | ---: |
+| pre | 19 | `7754874867.9770136` (`0x1.ce39fff3fa1d9p+32`) | `7754874867.9770136` (`0x1.ce39fff3fa1d9p+32`) | `1` (`0x1.0000000000000p+0`) |
+| post | 202 | `8754318797.3040943` (`0x1.04e626e6a6ec9p+33`) | `8758134936.3790798` (`0x1.0503444c3085bp+33`) | `0.99956427491666811` (`0x1.ffc6e37e08b9dp-1`) |
+
+The fixed pre numerator and denominator are bit-identical because the top set
+is the full carrier set. The post top mass differs from the old independently
+reduced numerator only by floating reduction order; its disjoint remainder is
+positive and its share remains strictly below one. The validator returned
+manifest digest
+`ad5432d3a7c614419fba8aa442ef156d5441c1e1173f2b68036f63767a818e49`.
+
+The checkpoint fingerprint was identical before and after:
+`59f998b384801ada06b9434e94f4a358d2424e3cf7192b48eecddcf485ef2d1c`
+over 121 files and 295,172,085 bytes. Replay runtime was 12.2643 seconds and
+peak RSS was 2,587,181,056 bytes. No model fit, pool build, checkpoint write,
+threshold change, or clamp occurred.

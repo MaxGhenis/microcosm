@@ -4,8 +4,7 @@
 
 - Host evidence: the fresh 1% serial build passed the prior tail-transfer guard
   and now fails in `_validate_frame_concentration_*` because the sealed share
-  for signed component `long_term_capital_gains_on_collectibles` is outside
-  `[0, 1]`.
+  for `long_term_capital_gains_on_collectibles` is outside `[0, 1]`.
 - Frozen constraints: reproduce only from checkpointed inputs; do not run a pool
   build, modify host checkpoints, tune thresholds/bands/gates/seeds/folds, or
   clamp a share. Keep all processes below 15 GiB RSS and do not push.
@@ -36,7 +35,8 @@
   order versus source-order denominator creates a two-ULP mass difference and
   one-ULP ratio overshoot. This is not signed cancellation. Collectibles is
   nonnegative by source validation and finalization; signed ST/LT/combined legs
-  are already measured on magnitude, matching the shared battery semantics.
+  are already measured on magnitude, compatible with the battery's separate
+  no-cancellation treatment of positive and negative legs.
 - The same independent subset/full-set reduction exists in the raw comparator,
   shared tail gate, and tail distribution receipt. The adjudicated fix is a
   shared disjoint top/remainder reduction whose denominator is constructed as
@@ -44,6 +44,56 @@
   directly, returns exact one for all-carrier top sets, and is neither a clamp
   nor threshold/sign tuning. Full evidence is in
   `experiments/578_puf_collectibles_concentration_replay.md`.
+
+### Corrected mechanism and checkpoint replay
+
+- One shared helper partitions positive weighted-absolute masses into disjoint
+  top and remainder sets, then forms the denominator as
+  `top_mass + remainder_mass`. Nonnegative partial sums make the quotient
+  constructionally bounded; an all-carrier top set reuses one reduction and is
+  exactly `1.0`. The raw stage receipt, shared production gate, and tail
+  distribution receipt all call this helper
+  (`packages/microcosm-build/src/microcosm/build/gates.py:2595-2603`,
+  `packages/microcosm-build/src/microcosm/build/gates.py:2650-2689`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:641-649`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2724-2726`).
+  No threshold, tolerance, seed, fold, sign policy, receipt field, or schema
+  changed; no clamp was added.
+- The regression embeds every one of the fresh f80593d 19-carrier values and
+  weights, bit-for-bit and in source order. It proves the legacy numerator,
+  denominator, and ratio hex values, requires exact `1.0` across all six frame
+  components, validates the sealed derived receipts, and exercises mixed signs
+  through raw, shared-gate, and distribution paths
+  (`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1489-1616`).
+- A full corrected no-build replay of the same checkpoint now measures pre
+  collectibles top mass = total mass = `7754874867.9770136`
+  (`0x1.ce39fff3fa1d9p+32`) and share exactly `1.0`
+  (`0x1.0000000000000p+0`). Post is valid at
+  `0.99956427491666811`. The sealed validator passed with manifest digest
+  `ad5432d3a7c614419fba8aa442ef156d5441c1e1173f2b68036f63767a818e49`.
+  The checkpoint fingerprint remained
+  `59f998b384801ada06b9434e94f4a358d2424e3cf7192b48eecddcf485ef2d1c`
+  over 121 files/295,172,085 bytes. Replay peak RSS was 2,587,181,056 bytes;
+  no fit, build, or write occurred.
+
+### Verification
+
+- The complete 263-file tracked test manifest passed with 6,568 passed,
+  74 skipped, zero failures, and zero errors. Manifest SHA-256 is
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`;
+  receipt SHA-256 is
+  `e0cfce598cac7b5d5d8fcd64c7f11d4958e8877f3463c3292ced49bc85398287`.
+  Maximum root RSS was 11,850,612,736 bytes in
+  `packages/microcosm-data/tests/test_loader.py`, below the 14 GiB guard and
+  15 GiB charter ceiling.
+- The only deselections were the two already documented mounted full-donor
+  cache probes, `test_cached_full_donor_matches_pinned_household_support` and
+  `test_cached_full_donor_matches_locked_response_and_weight_facts`, which
+  cannot run below the memory ceiling. Every other test in both files passed.
+- Tracked Ruff, formatting checks on all changed Python files, an explicitly
+  unfrozen `uv lock --check`, and `git diff --check` pass. Three independent
+  reviews found no blocker; randomized partition properties and exact fixture
+  identity also passed.
 
 ## 2026-08-21 capital-gains tail-guard continuation
 

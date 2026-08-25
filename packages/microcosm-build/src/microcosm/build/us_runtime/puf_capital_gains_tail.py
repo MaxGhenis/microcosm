@@ -13,7 +13,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from microcosm.build.gates import GateResult, tail_concentration_gate
+from microcosm.build.gates import (
+    GateResult,
+    _top_k_share_of_nonnegative_mass,
+    tail_concentration_gate,
+)
 from microcosm.build.us_runtime.puf_aggregate_records import (
     PufAggregateDisaggregationSpec,
     load_default_puf_aggregate_disaggregation_spec,
@@ -639,12 +643,10 @@ def _raw_top_share_receipts(
         positive = masked_mass > 0.0
         masked_mass = masked_mass[positive]
         carriers = int(masked_mass.size)
-        total = float(masked_mass.sum())
-        if total > 0.0:
-            top = np.sort(masked_mass)[::-1][:resolved_top_k]
-            share = float(top.sum() / total)
-        else:
-            share = 0.0
+        share = _top_k_share_of_nonnegative_mass(
+            masked_mass,
+            top_k=resolved_top_k,
+        )
         carrier_values = value_vector[finite][positive]
         receipts[column] = {
             "top_share": share,
@@ -786,12 +788,10 @@ def _stage_concentration_disposition(
     pre_over = pre_share > PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
     post_over = post_share > PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MAX_TOP_SHARE
     pre_gate_eligible = (
-        pre_carriers
-        >= PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+        pre_carriers >= PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
     )
     post_gate_eligible = (
-        post_carriers
-        >= PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
+        post_carriers >= PUF_CAPITAL_GAINS_TAIL_CONCENTRATION_MIN_NONZERO_RECORDS
     )
     failed = post_over and post_gate_eligible and worsened
     if failed:
@@ -1390,9 +1390,7 @@ def _validate_recipient_support_receipt(
                 raise ValueError(
                     "PUF capital-gains tail record crossed its reporting route."
                 )
-            modeled_combined = record.get(
-                "recipient_modeled_short_term_plus_long_term"
-            )
+            modeled_combined = record.get("recipient_modeled_short_term_plus_long_term")
             if (
                 isinstance(modeled_combined, bool)
                 or not isinstance(
@@ -1578,8 +1576,7 @@ def _validate_frame_concentration_receipts(receipts: object) -> None:
             )
         if (
             receipt["pre_stage_distinct_values"] > receipt["pre_stage_carriers"]
-            or receipt["post_stage_distinct_values"]
-            > receipt["post_stage_carriers"]
+            or receipt["post_stage_distinct_values"] > receipt["post_stage_carriers"]
         ):
             raise ValueError(
                 "PUF capital-gains tail frame-concentration distinct counts "
@@ -1589,12 +1586,8 @@ def _validate_frame_concentration_receipts(receipts: object) -> None:
             carriers = receipt[f"{stage}_carriers"]
             distinct = receipt[f"{stage}_distinct_values"]
             share = numeric[f"{stage}_top_share"]
-            empty_geometry_changed = carriers == 0 and (
-                distinct != 0 or share != 0.0
-            )
-            positive_geometry_changed = carriers > 0 and (
-                distinct == 0 or share == 0.0
-            )
+            empty_geometry_changed = carriers == 0 and (distinct != 0 or share != 0.0)
+            positive_geometry_changed = carriers > 0 and (distinct == 0 or share == 0.0)
             if empty_geometry_changed or positive_geometry_changed:
                 raise ValueError(
                     "PUF capital-gains tail frame-concentration carrier/share "
@@ -1621,10 +1614,8 @@ def _validate_frame_concentration_receipts(receipts: object) -> None:
             or receipt["stage_worsened_share"] is not worsened
             or receipt["pre_stage_raw_share_over_threshold"] is not pre_over
             or receipt["post_stage_raw_share_over_threshold"] is not post_over
-            or receipt["pre_stage_production_gate_eligible"]
-            is not pre_gate_eligible
-            or receipt["post_stage_production_gate_eligible"]
-            is not post_gate_eligible
+            or receipt["pre_stage_production_gate_eligible"] is not pre_gate_eligible
+            or receipt["post_stage_production_gate_eligible"] is not post_gate_eligible
             or receipt["post_stage_production_gate_over_threshold"]
             is not (post_gate_eligible and post_over)
             or receipt["stage_guard_failed"] is not failed
@@ -1654,9 +1645,7 @@ def validate_puf_capital_gains_tail_manifest(
         raise ValueError(
             "PUF capital-gains tail manifest artifact/schema/stage identity changed."
         )
-    _validate_frame_concentration_receipts(
-        payload.get("frame_concentration_receipts")
-    )
+    _validate_frame_concentration_receipts(payload.get("frame_concentration_receipts"))
     records = payload.get("records")
     if not isinstance(records, list):
         raise ValueError("PUF capital-gains tail manifest records must be a list.")
@@ -1817,12 +1806,11 @@ def _recipient_candidates(
     )
     if recipient_vectors.isna().any().any():
         raise ValueError("A PUF tail recipient tax unit has no person-level vector.")
-    puf_tax_units[_RECIPIENT_COMBINED_COLUMN] = (
-        recipient_vectors["short_term_capital_gains"].to_numpy(dtype=np.float64)
-        + recipient_vectors["long_term_capital_gains_before_response"].to_numpy(
-            dtype=np.float64
-        )
-    )
+    puf_tax_units[_RECIPIENT_COMBINED_COLUMN] = recipient_vectors[
+        "short_term_capital_gains"
+    ].to_numpy(dtype=np.float64) + recipient_vectors[
+        "long_term_capital_gains_before_response"
+    ].to_numpy(dtype=np.float64)
     puf_tax_units[_RECIPIENT_DIRECT_ROUTE_COLUMN] = (
         recipient_vectors[_DIRECT_ROUTE_COLUMN].to_numpy(dtype=np.float64) > 0.0
     )
@@ -1903,10 +1891,13 @@ def _recipient_support_receipt(
         candidates["recipient_filing_status_code"],
         errors="raise",
     ).astype("int64")
-    donor_routes = pd.to_numeric(
-        tail[_DIRECT_ROUTE_COLUMN],
-        errors="raise",
-    ).to_numpy(dtype=np.float64) > 0.0
+    donor_routes = (
+        pd.to_numeric(
+            tail[_DIRECT_ROUTE_COLUMN],
+            errors="raise",
+        ).to_numpy(dtype=np.float64)
+        > 0.0
+    )
     if _RECIPIENT_DIRECT_ROUTE_COLUMN not in candidates:
         raise ValueError(
             "PUF capital-gains tail candidates do not declare reporting routes."
@@ -1935,7 +1926,9 @@ def _recipient_support_receipt(
         route_support_sufficient = True
         for direct_route, route_name in _REPORTING_ROUTES:
             route_required = int(
-                ((donor_codes.to_numpy() == code) & (donor_routes == direct_route)).sum()
+                (
+                    (donor_codes.to_numpy() == code) & (donor_routes == direct_route)
+                ).sum()
             )
             route_observed = int(
                 (
@@ -2363,9 +2356,7 @@ def _clone_and_transfer(
         "method": "route_matched_modeled_tail_post_qrf_household_weight_split",
         "recipient_selection": {
             "reporting_route": "exact_match",
-            "tail_order": (
-                "descending_tax_unit_aggregate_short_term_plus_long_term"
-            ),
+            "tail_order": ("descending_tax_unit_aggregate_short_term_plus_long_term"),
             "agi_band": "nearest_band_first_within_filing_status_and_route",
             "ties": "seeded_order_then_source_ids",
         },
@@ -2732,12 +2723,7 @@ def _distribution_receipt(
     positive_mass = float(np.dot(numeric_values[positive], numeric_weights[positive]))
     absolute_mass = np.abs(numeric_values) * numeric_weights
     nonzero_mass = absolute_mass[absolute_mass > 0.0]
-    top_count = min(100, len(nonzero_mass))
-    top_mass = (
-        float(np.partition(nonzero_mass, -top_count)[-top_count:].sum())
-        if top_count
-        else 0.0
-    )
+    top_share = _top_k_share_of_nonnegative_mass(nonzero_mass, top_k=100)
     quantiles = {
         name: (
             _weighted_quantile(
@@ -2768,9 +2754,7 @@ def _distribution_receipt(
         ),
         **quantiles,
         "maximum": (float(numeric_values[positive].max()) if positive.any() else 0.0),
-        "top_100_weighted_absolute_mass_share": (
-            float(top_mass / nonzero_mass.sum()) if len(nonzero_mass) else 0.0
-        ),
+        "top_100_weighted_absolute_mass_share": top_share,
     }
 
 

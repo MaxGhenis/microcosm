@@ -12,9 +12,12 @@ share as `1.0000000000000002`: the descending-order numerator is
 positive carriers is `7754874867.9770136`. The signed-component audit establishes
 that both the stage comparator and shared battery already use weighted absolute
 mass, so cancellation is impossible; collectibles is source-enforced
-nonnegative. The active work is a constructionally bounded top/remainder
-reduction shared by every concentration surface, with a checkpoint-pinned
-regression.
+nonnegative. The constructionally bounded top/remainder reduction is now shared
+by every concentration surface and pinned to the fresh checkpoint. A corrected
+no-build replay validates with pre-stage share exactly `1.0`, and the complete
+263-file admissible test manifest is green (6,568 passed/74 skipped; two known
+full-donor probes deselected under the memory ceiling). Only the final report
+and commits remain.
 Thresholds, bands, gates, seeds, and folds remain frozen; clamping is forbidden.
 No pool build or push is authorized, and all processes must remain below
 15 GiB RSS. Existing unrelated untracked helper/continuation files remain
@@ -62,8 +65,43 @@ unrelated untracked helper/continuation files remain untouched.
   shared battery gate, and tail distribution receipts all define concentration
   over weighted absolute mass; all three independently reduce the top subset
   and full set, so all three require the same top/remainder construction. The
-  six measured frame components include genuine signed legs, but magnitude
-  semantics already match the battery and exclude cancellation.
+  six measured frame components include genuine signed legs; pooled magnitude
+  concentration differs from the battery's per-leg comparison but is compatible
+  with its no-cancellation treatment.
+- Added one shared nonnegative-mass top-share reduction. It partitions carriers
+  into disjoint top and remainder sets and constructs total mass as
+  `top_mass + remainder_mass`, which makes the subset bound structural without
+  a clamp or tolerance. Raw frame receipts, the shared tail gate, and tail
+  distribution receipts all use it
+  (`packages/microcosm-build/src/microcosm/build/gates.py:2595-2603`,
+  `packages/microcosm-build/src/microcosm/build/gates.py:2650-2689`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:641-649`,
+  `packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2724-2726`).
+- Added a bit-exact regression containing all 19 fresh-checkpoint values and
+  weights. It proves the legacy numerator/denominator/share hex values, requires
+  exact `1.0` for all six validated components, exercises mixed-sign raw,
+  shared-gate, and distribution paths, and passes the sealed receipt validator
+  (`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1489-1616`).
+- Replayed the full corrected tail against the same authenticated checkpoint
+  without a build. Pre-stage collectibles now has bit-identical top and total
+  mass `7754874867.9770136` and exact share `1.0`; post is valid at
+  `0.99956427491666811`. The manifest validator passed with digest
+  `ad5432d3a7c614419fba8aa442ef156d5441c1e1173f2b68036f63767a818e49`.
+  The 121-file checkpoint fingerprint was unchanged; peak RSS was
+  2,587,181,056 bytes.
+- Ran the complete 263-file tracked test manifest in fresh guarded processes:
+  6,568 passed, 74 skipped, zero failures/errors. Manifest SHA-256 is
+  `f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`;
+  receipt SHA-256 is
+  `e0cfce598cac7b5d5d8fcd64c7f11d4958e8877f3463c3292ced49bc85398287`.
+  Maximum root RSS was 11,850,612,736 bytes in the data loader. The only
+  deselections were the two previously documented full-donor cache probes that
+  cannot run below the lane's memory ceiling; every other test in their files
+  passed.
+- Tracked-file Ruff, Ruff formatting over the three changed Python files,
+  `uv lock --check`, and `git diff --check` all pass. Three independent reviews
+  found no blocking issue; one also passed randomized size/range partition
+  properties and verified every fixture float bit-for-bit against f80593d.
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow; inspected
   the current branch, historical journals, output file, and unrelated untracked
   files. Reopened `PROGRESS.md` and `_LANE-NOTES.md` for host failure #3 before
@@ -1107,11 +1145,9 @@ unrelated untracked helper/continuation files remain untouched.
 
 ## Next
 
-- Implement a common disjoint top/remainder weighted-mass reduction in all
-  three audited concentration paths, without changing receipt schema,
-  thresholds, tolerance, seeds, folds, or sign doctrine.
-- Pin the exact 19-carrier fresh-checkpoint arithmetic, cover all six validated
-  frame components (including sign inversion on signed legs), and prove the
-  distribution/shared-gate paths retain shares in `[0, 1]` without clamping.
-- Run focused tests, tracked Ruff, the complete package suite under the RSS
-  cap, then commit the final journals and `FINAL_REPORT.md`.
+- Commit the verified implementation, regression, corrected replay receipt,
+  and journals.
+- Replace `FINAL_REPORT.md` with the failure-3 report, re-run documentation and
+  repository sanity checks, and commit the report.
+- Return the committed tip to the serial host queue; do not run or push a pool
+  build from this lane.

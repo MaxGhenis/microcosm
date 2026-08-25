@@ -2599,9 +2599,7 @@ def tail_concentration_gate(
         if carriers < min_nonzero_records:
             thin_columns[column] = carriers
             continue
-        total = float(mass.sum())
-        tail = float(np.partition(mass, -top_k)[-top_k:].sum())
-        share = tail / total
+        share = _top_k_share_of_nonnegative_mass(mass, top_k=top_k)
         top_share[column] = float(share)
         carrier_counts[column] = carriers
         if column in exclusions:
@@ -2647,3 +2645,45 @@ def tail_concentration_gate(
             "dormant_exclusions": dormant_exclusions,
         },
     )
+
+
+def _top_k_share_of_nonnegative_mass(
+    mass: np.ndarray,
+    *,
+    top_k: int,
+) -> float:
+    """Return a constructionally bounded top-k share of nonnegative mass.
+
+    The numerator's top set and the denominator's full set must not be reduced
+    independently: summing the same floating values in different orders can
+    make an all-carrier numerator exceed its denominator by an ULP. Partition
+    the carriers into disjoint top and remainder sets instead, then construct
+    the denominator from those two partial sums. This preserves the literal
+    subset invariant without a clamp or tolerance.
+    """
+
+    if top_k < 1:
+        raise ValueError(f"top_k must be at least 1, got {top_k!r}.")
+    numeric_mass = np.asarray(mass, dtype=np.float64).reshape(-1)
+    if not np.isfinite(numeric_mass).all() or (numeric_mass < 0.0).any():
+        raise ValueError("Top-share mass must be finite and nonnegative.")
+    positive_mass = numeric_mass[numeric_mass > 0.0]
+    carriers = int(positive_mass.size)
+    if carriers == 0:
+        return 0.0
+
+    top_count = min(top_k, carriers)
+    remainder_count = carriers - top_count
+    if remainder_count:
+        partitioned = np.partition(positive_mass, remainder_count)
+        remainder_mass = float(partitioned[:remainder_count].sum())
+        top_mass = float(partitioned[remainder_count:].sum())
+    else:
+        # The top set is the full set. Reuse its single reduction so numerator
+        # and denominator are bit-identical, independent of source row order.
+        top_mass = float(positive_mass.sum())
+        remainder_mass = 0.0
+    total_mass = top_mass + remainder_mass
+    if not np.isfinite(total_mass) or total_mass <= 0.0:
+        raise ValueError("Top-share total mass must be positive and finite.")
+    return float(top_mass / total_mass)
