@@ -2,10 +2,10 @@
 
 ## State
 
-In progress as of 2026-08-25. The runtime and all layer-specific test/fixture
-surfaces have been removed. The retained `late_transfer` names are the ordinary
-19-group QRF producer DAG, not the deleted calibration layer. Canonical identity
-and F0 coverage regeneration is complete; full repository verification remains.
+Implementation and required verification are complete as of 2026-08-25. The
+runtime and all layer-specific test/fixture surfaces have been removed. The
+retained `late_transfer` names are the ordinary 19-group QRF producer DAG, not
+the deleted calibration layer. Only the committed final report remains.
 
 No pool/release build, publication, push, dependency installation, or network
 operation is in scope or has occurred.
@@ -44,13 +44,21 @@ operation is in scope or has occurred.
   focused stale-pin rerun passes (7 tests).
 - Verified both canonical generators in check mode and replaced the now-stale
   calibration-addition changelog fragment with a removal fragment.
+- Passed repository-wide Ruff and the complete test suite in five CI-parity
+  shard processes: build 6,422 passed/40 skipped; calibrate 203 passed; data
+  318 passed/2 skipped; fit 93 passed; frame 295 passed/36 skipped.
+- Completed the final reference and scope audits: 390 underscore-form
+  `post_transfer|late_transfer` hits remain, all classified as ordinary late
+  QRF-DAG/checkpoint terminology, unrelated deterministic structure, or lane
+  history; no deleted calibration symbol or implementation residue remains.
 
 ## Next
 
-1. Run repository Ruff and one pytest process per package shard.
-2. Sweep and classify every surviving `post_transfer|late_transfer` reference,
-   then record
-   all evidence and the checkpoint-reuse verdict in `out.md`.
+1. Write and commit `out.md` with the diff, reference inventory, verification
+   evidence, checkpoint verdict, judgment calls, and commit ledger.
+2. Hand the branch off for a cold candidate-2 build and the requested
+   three-column scorecard; those build/publication actions remain outside this
+   lane and were deliberately not run here.
 
 ## Historical prior lane
 
