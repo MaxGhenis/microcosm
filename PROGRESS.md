@@ -5,7 +5,7 @@
 In progress as of 2026-08-25. The runtime and all layer-specific test/fixture
 surfaces have been removed. The retained `late_transfer` names are the ordinary
 19-group QRF producer DAG, not the deleted calibration layer. Canonical identity
-and F0 coverage regeneration is in progress before full repository verification.
+and F0 coverage regeneration is complete; full repository verification remains.
 
 No pool/release build, publication, push, dependency installation, or network
 operation is in scope or has occurred.
@@ -38,13 +38,18 @@ operation is in scope or has occurred.
 - Ran the canonical US bundle generator (new US spec SHA
   `84f55c520fec17651e750a698dd2ae2343e6a20e54743081aca4fcbed66d72cf`)
   and regenerated a complete 42,028-field, 41-item F0 coverage proof.
+- Re-pinned the source-attested seed protocol/map, eight-component stacked
+  authority, checkpoint-base identity, country envelopes, and loader semantic
+  golden through the repository's failing attestation oracles; the complete
+  focused stale-pin rerun passes (7 tests).
+- Verified both canonical generators in check mode and replaced the now-stale
+  calibration-addition changelog fragment with a removal fragment.
 
 ## Next
 
-1. Finish the focused anti-rot run and re-pin every moved seed, authority,
-   checkpoint, country-envelope, and semantic-hash identity it reports.
-2. Add the removal changelog fragment and complete focused tests.
-3. Run repository Ruff and one pytest process per package shard, then record
+1. Run repository Ruff and one pytest process per package shard.
+2. Sweep and classify every surviving `post_transfer|late_transfer` reference,
+   then record
    all evidence and the checkpoint-reuse verdict in `out.md`.
 
 ## Historical prior lane

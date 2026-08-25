@@ -347,9 +347,9 @@ EXPECTED_LEGACY_RELEASE_REGEX = EXPECTED_RELEASE_REGEX.replace(
 EXPECTED_HASHES = {
     "acs_group_predictors": "a927bb7ecf3e84f54c93583ab79318654514ac546aefafba67da5285615fbd60",
     "acs_person_predictors": "878c788a6f037d7aca12b3586ea034eff04f3034ffa11935a736493042551f25",
-    "authority": "3a980927227704d0589f246eef9cd825c2ae84f3a4134ac835e0e5ed39a563ac",
+    "authority": "ea4caa8c0d678b1485d640ca472eed55f0705aafc7ee4d940628977dfec04a53",
     "early_families": "4aa9f736fd76e83955477ad1667e58f48f264783f05bdc7f0102cd32d61323bd",
-    "full_checkpoint": "a128a85f877fb32def9382b841b8b340f974e8a9148ac029c1f04becdc956c18",
+    "full_checkpoint": "9e2ed8a1882bb863475c83486bfbc284c6ce842b73081935ab87ee2d90131643",
     "gap_fill_schedule": "1c31f9868f7884347cc19cf1ff65da43f950b9114941a715bab168246db414a7",
     "graph_nodes": "7125ad28ae2c69f22094a574bbf6ed2ddf1682a2c2c3b416f8f49304b7016ce7",
     "geography_assignment": "f49425ca8734ac559c73cf44f6458d86d3162a48956b98a27e6e758959361585",
@@ -358,8 +358,8 @@ EXPECTED_HASHES = {
     "late_schedule": "dcf3c6d2eade3449836c49a1dc4d3b8cd395aab9142db700c3c60598fa9c1c79",
     "ownership": "5f64f0aac49e2313177564f71876bffc8c81b3ded4df701e70930e60e9c98356",
     "primary_tuples": "987b501c695e31f45521c4a178528f75ab3df22c09bc407b182213b2de99ee57",
-    "seed_map": "36a9d819ef196c312888591936d49c025b0407df9928440cceefabc5458f72af",
-    "seed_protocol": "15840b380329410a7094f60b0f1dad453457fc785859f0c372f2c8e2d59b0246",
+    "seed_map": "e4b18f21d35ddceb54cec9c91017b3a8e027c413917f982f68e2a4012927e9fe",
+    "seed_protocol": "9f96e9c64e8738c7a5aa87924072bc9e843a0e69b4522f17ccffd0266310e70b",
     "source_manifest": "cd5ba8924d64da5425ee14cca82a774e3f4b2bb5aabe06df291cc3cc457287a9",
     "take_up": "fa186daea0f8dd641cc470e41d1a2953f887d45282ec990201298f47bedf8d4d",
     "tail": "ac92829c88a1a4fb6460d61190918d5d99c6c377fc8dd8f62f02b332d09bf59c",
@@ -415,7 +415,7 @@ EXPECTED_INVENTORY_ITEMS = frozenset(
 
 EXPECTED_INVENTORY_COUNTS: Mapping[str, int] = {
     "adapter_surfaces": 13,
-    "authority_components": 9,
+    "authority_components": 8,
     "early_families": 13,
     "early_targets": 48,
     "itemization_batches": 5,
