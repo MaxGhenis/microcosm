@@ -2,7 +2,20 @@
 
 ## State
 
-The 2026-08-21 capital-gains tail-guard continuation is complete locally.
+The 2026-08-25 frame-concentration follow-up is open. The fresh serial-host
+1% run passed the prior tail-guard failure and now stops earlier while
+validating the sealed tail manifest: the recorded frame-concentration share
+for `long_term_capital_gains_on_collectibles` is outside `[0, 1]`. The immediate
+work is a read-only, no-build replay from the supplied checkpoint inputs that
+prints the full-precision share and its numerator/denominator, followed by a
+signed-component audit and a generating/semantic fix with a pinned regression.
+Thresholds, bands, gates, seeds, and folds remain frozen; clamping is forbidden.
+No pool build or push is authorized, and all processes must remain below
+15 GiB RSS. Existing unrelated untracked helper/continuation files remain
+untouched.
+
+The preceding 2026-08-21 capital-gains tail-guard continuation is complete
+locally.
 Implementation commit `8422cb15` contains the verified mechanism and guard
 fixes. `FINAL_REPORT.md` carries the exact replay, verification, and handoff
 evidence; only the serial host queue's prohibited-in-lane 1% rerun remains.
@@ -26,6 +39,10 @@ unrelated untracked helper/continuation files remain untouched.
 
 ## Done
 
+- Re-read `CLAUDE.md` and the complete GitNexus debugging workflow; inspected
+  the current branch, historical journals, output file, and unrelated untracked
+  files. Reopened `PROGRESS.md` and `_LANE-NOTES.md` for host failure #3 before
+  any production or test edit.
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow, inspected
   the live branch and worktree, and identified `FINAL_REPORT.md` as the existing
   output file. GitNexus graph endpoints are unavailable in this session, so
@@ -1065,5 +1082,11 @@ unrelated untracked helper/continuation files remain untouched.
 
 ## Next
 
-- Return the final branch tip to the serial host queue for the prohibited-in-
-  lane 1% build; no local host build or push is authorized.
+- Locate and authenticate the failed host checkpoint, reproduce the invalid
+  collectibles frame-concentration share without a build, and record its exact
+  numerator and denominator.
+- Trace the concentration definition against the battery's positive/negative
+  signed-leg semantics, audit every validated component, implement the honest
+  non-clamping correction, and pin the reproduced case in regression coverage.
+- Run the complete suite and static checks below 15 GiB RSS, update the journals
+  and `FINAL_REPORT.md`, and return the committed tip to the serial host queue.

@@ -1,5 +1,23 @@
 # Battery package 1 lane notes
 
+## 2026-08-25 collectibles frame-concentration follow-up
+
+- Host evidence: the fresh 1% serial build passed the prior tail-transfer guard
+  and now fails in `_validate_frame_concentration_*` because the sealed share
+  for signed component `long_term_capital_gains_on_collectibles` is outside
+  `[0, 1]`.
+- Frozen constraints: reproduce only from checkpointed inputs; do not run a pool
+  build, modify host checkpoints, tune thresholds/bands/gates/seeds/folds, or
+  clamp a share. Keep all processes below 15 GiB RSS and do not push.
+- Decision rule: print the exact share and its exact numerator/denominator,
+  determine whether signed sums make the current ratio invalid, compare the
+  definition with the battery's signed-leg treatment, and audit every other
+  concentration component before choosing a sign-aware semantic correction or
+  an upstream generating fix.
+- Required closure: a regression pinned to the reproduced case, whole-suite and
+  static-check receipts, code-cited reasoning, committed journal updates after
+  each coherent step, and the final report in `FINAL_REPORT.md`.
+
 ## 2026-08-21 capital-gains tail-guard continuation
 
 - Host evidence: the wired capital-gains tail stage raised at a displayed
