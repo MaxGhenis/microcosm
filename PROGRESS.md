@@ -1,4 +1,39 @@
-# Rare signed-tail battery lane progress
+# PR #769 main-merge progress
+
+## State
+
+In progress on `battery-rare-signed-tails` as of 2026-08-25. The worktree was
+clean at `0fa48028`, and the required `uv sync --all-packages --extra us`
+completed against the existing lock. No merge has been started and no product
+source has changed.
+
+## Done
+
+- Read the repository agent guide and confirmed the PR-CI/certification,
+  no-publication, sharded-test, and root-journal rules.
+- Confirmed the checked-out branch and clean starting tree.
+- Completed the required US-extra workspace sync with uv's cache redirected to
+  writable temporary storage because the sandbox cannot mutate the default
+  cache.
+- Historicized the prior lane-completion record below before merging main, so
+  its currency claims cannot be mistaken for the state of this merge task.
+
+## Next
+
+- Commit this merge journal initialization after its documentation-only check.
+- Inspect `origin/main`, the #742 merge-port precedent, and both sides of all
+  expected conflicts.
+- Merge main, preserve both receipt contracts, resolve journals with `--ours`,
+  re-pin every moved anti-rot surface with repository tools, and run the
+  no-build verification suite.
+
+---
+
+# Historical rare signed-tail battery lane record
+
+> Historical note (2026-08-25): the completion and next-step claims below
+> describe the pre-merge branch at `0fa48028`. They are retained as a handoff
+> record and are not the current state of the PR #769 main merge.
 
 ## State
 
