@@ -26,15 +26,25 @@ of their named checkpoints rather than current branch instructions.
 - Started independent read-only reviews of the lineage conflict semantics, the
   pkg3/F0 anti-rot re-pin precedent, and the no-build CI/root-journal merge
   requirements. Those reviews may not edit, merge, or commit.
+- Ran the complete no-build baseline in fresh, deterministic capped processes:
+  calibrate 201 passed (0.445 GiB peak), data 275 passed/1 skipped (11.046
+  GiB), fit 93 passed (0.752 GiB), frame 294 passed/36 skipped (6.081 GiB),
+  build half A 3,576 passed/34 skipped (8.552 GiB), and build half B 2,114
+  passed/3 skipped (11.618 GiB). Repository-wide Ruff and whitespace checks
+  pass. The build split follows main's own accepted memory-safe test topology;
+  no process reached the 15 GiB ceiling and no wheel or pool build ran.
+- Attempted a direct `git fetch origin main`; sandbox DNS could not resolve
+  GitHub. The local ref remains `f9d3b4838c13` (the 2026-08-25 15:41+02 #764
+  commit), and its reflog records a same-session fast-forward fetch before this
+  lane began. Remote equality cannot be independently re-proven in this
+  sandbox, so that limitation will remain explicit in the final report.
 
 ### Next
 
-1. Run the complete no-build behavioral and lint baseline, then commit this
-   journal checkpoint.
-2. Refresh or otherwise verify `origin/main`, merge it, resolve journals with
+1. Merge the recently fetched local `origin/main`, resolve journals with
    `--ours`, and resolve executable/spec conflicts by preserving both sides'
    behavior; stop for the owner if any requirement is genuinely contradictory.
-3. Re-pin all moved field-usage, coverage, and identity attestations with the
+2. Re-pin all moved field-usage, coverage, and identity attestations with the
    repository's tools, run the full suite after every coherent commit, update
    this journal and `FINAL_REPORT.md`, and leave the merged branch unpushed.
 
