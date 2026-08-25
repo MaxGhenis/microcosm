@@ -2,10 +2,10 @@
 
 ## State
 
-In progress as of 2026-08-25. The runtime calibration module, application
-sites, calibration-selected QRF evidence plumbing, authority component, and F0
-policy declaration have been removed. The retained `late_transfer` names are
-the ordinary 19-group QRF producer DAG, not the deleted calibration layer.
+In progress as of 2026-08-25. The runtime and all layer-specific test/fixture
+surfaces have been removed. The retained `late_transfer` names are the ordinary
+19-group QRF producer DAG, not the deleted calibration layer. Canonical identity
+and F0 coverage regeneration is in progress before full repository verification.
 
 No pool/release build, publication, push, dependency installation, or network
 operation is in scope or has occurred.
@@ -28,15 +28,23 @@ operation is in scope or has occurred.
 - Determined that candidate-1 checkpoints are not reusable: the canonical
   checkpoint and transfer-bank identities embed the full stacked authority,
   so the v11-to-v12 change routes candidate 2 to a new authenticated namespace.
+- Removed the dedicated calibration test module and calibration-only fixtures,
+  assertions, tamper cases, and stale runtime-import expectations from the
+  surviving transfer suites.
+- Preserved and exercised the independent transfer target-surface, row-count,
+  aggregate-reconstruction, QRF-bank, checkpoint, and late-producer DAG gates;
+  the three largest receipt suites and the adjusted 68-module import-graph pin
+  pass their focused checks.
+- Ran the canonical US bundle generator (new US spec SHA
+  `84f55c520fec17651e750a698dd2ae2343e6a20e54743081aca4fcbed66d72cf`)
+  and regenerated a complete 42,028-field, 41-item F0 coverage proof.
 
 ## Next
 
-1. Remove or adapt layer-specific tests and fixtures while preserving generic
-   late-producer DAG and transfer row-accounting coverage.
-2. Regenerate the US bundle and coverage evidence, then re-pin all moved
-   authority, field-usage, seed, and country-envelope identities canonically.
-3. Add the removal changelog fragment and run focused tests.
-4. Run repository Ruff and one pytest process per package shard, then record
+1. Finish the focused anti-rot run and re-pin every moved seed, authority,
+   checkpoint, country-envelope, and semantic-hash identity it reports.
+2. Add the removal changelog fragment and complete focused tests.
+3. Run repository Ruff and one pytest process per package shard, then record
    all evidence and the checkpoint-reuse verdict in `out.md`.
 
 ## Historical prior lane

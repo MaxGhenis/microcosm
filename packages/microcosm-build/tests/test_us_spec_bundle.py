@@ -704,7 +704,7 @@ def test_typed_imputation_reconstructs_all_constants_authority_components(
     )
 
 
-def test_authored_imputation_sha256_fields_are_assets_or_policy_identity(
+def test_authored_imputation_sha256_fields_are_asset_pins(
     generated_documents: dict[str, dict[str, object]],
 ) -> None:
     imputation = generated_documents["imputation.yaml"]
@@ -730,21 +730,7 @@ def test_authored_imputation_sha256_fields_are_assets_or_policy_identity(
                 collect_sha256(child, (*path, "[]"))
 
     collect_sha256(imputation)
-    assert identity_digests == [
-        (
-            (
-                "models",
-                "regime_gated_qrf",
-                "post_draw_calibration",
-                "sha256",
-            ),
-            str(
-                imputation["models"]["regime_gated_qrf"]["post_draw_calibration"][
-                    "sha256"
-                ]
-            ),
-        )
-    ]
+    assert identity_digests == []
     assert len(asset_pins) == 2
     assert set(asset_pins) == {
         (
