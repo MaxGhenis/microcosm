@@ -6,9 +6,15 @@ The 2026-08-25 frame-concentration follow-up is open. The fresh serial-host
 1% run passed the prior tail-guard failure and now stops earlier while
 validating the sealed tail manifest: the recorded frame-concentration share
 for `long_term_capital_gains_on_collectibles` is outside `[0, 1]`. The immediate
-work is a read-only, no-build replay from the supplied checkpoint inputs that
-prints the full-precision share and its numerator/denominator, followed by a
-signed-component audit and a generating/semantic fix with a pinned regression.
+read-only, no-build replay is complete. It reproduced the offending pre-stage
+share as `1.0000000000000002`: the descending-order numerator is
+`7754874867.9770155`, while the frame-order denominator over the identical 19
+positive carriers is `7754874867.9770136`. The signed-component audit establishes
+that both the stage comparator and shared battery already use weighted absolute
+mass, so cancellation is impossible; collectibles is source-enforced
+nonnegative. The active work is a constructionally bounded top/remainder
+reduction shared by every concentration surface, with a checkpoint-pinned
+regression.
 Thresholds, bands, gates, seeds, and folds remain frozen; clamping is forbidden.
 No pool build or push is authorized, and all processes must remain below
 15 GiB RSS. Existing unrelated untracked helper/continuation files remain
@@ -39,6 +45,25 @@ unrelated untracked helper/continuation files remain untouched.
 
 ## Done
 
+- Replayed the fresh `f80593d...` assembled and primary-QRF checkpoints without
+  a build, fit, or write. The pre-stage collectibles numerator
+  `7754874867.9770155` (`0x1.ce39fff3fa1dbp+32`) divided by denominator
+  `7754874867.9770136` (`0x1.ce39fff3fa1d9p+32`) produces
+  `1.0000000000000002` (`0x1.0000000000001p+0`); post is valid at
+  `0.99956427491666788`. The replay authenticated all 65 target banks, left a
+  123-input fingerprint unchanged, and peaked at 3,108,896,768 bytes RSS.
+- Established the mechanism: all 19 pre-stage collectibles carriers and their
+  weights are positive, and the numerator/denominator contain the identical
+  weighted magnitudes but sum them in descending/frame order respectively.
+  This is floating reduction order, not signed-sum cancellation or an upstream
+  negative total. The full method and identities are in
+  `experiments/578_puf_collectibles_concentration_replay.md`.
+- Audited the complete concentration implementation. Raw frame receipts, the
+  shared battery gate, and tail distribution receipts all define concentration
+  over weighted absolute mass; all three independently reduce the top subset
+  and full set, so all three require the same top/remainder construction. The
+  six measured frame components include genuine signed legs, but magnitude
+  semantics already match the battery and exclude cancellation.
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow; inspected
   the current branch, historical journals, output file, and unrelated untracked
   files. Reopened `PROGRESS.md` and `_LANE-NOTES.md` for host failure #3 before
@@ -1082,11 +1107,11 @@ unrelated untracked helper/continuation files remain untouched.
 
 ## Next
 
-- Locate and authenticate the failed host checkpoint, reproduce the invalid
-  collectibles frame-concentration share without a build, and record its exact
-  numerator and denominator.
-- Trace the concentration definition against the battery's positive/negative
-  signed-leg semantics, audit every validated component, implement the honest
-  non-clamping correction, and pin the reproduced case in regression coverage.
-- Run the complete suite and static checks below 15 GiB RSS, update the journals
-  and `FINAL_REPORT.md`, and return the committed tip to the serial host queue.
+- Implement a common disjoint top/remainder weighted-mass reduction in all
+  three audited concentration paths, without changing receipt schema,
+  thresholds, tolerance, seeds, folds, or sign doctrine.
+- Pin the exact 19-carrier fresh-checkpoint arithmetic, cover all six validated
+  frame components (including sign inversion on signed legs), and prove the
+  distribution/shared-gate paths retain shares in `[0, 1]` without clamping.
+- Run focused tests, tracked Ruff, the complete package suite under the RSS
+  cap, then commit the final journals and `FINAL_REPORT.md`.

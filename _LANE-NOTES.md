@@ -18,6 +18,33 @@
   static-check receipts, code-cited reasoning, committed journal updates after
   each coherent step, and the final report in `FINAL_REPORT.md`.
 
+### Exact fresh-checkpoint replay and adjudication
+
+- Read-only replay identity: stacked `f80593d730bedafc652b6d6b0bbee462f7fac97d3cfd555b9b9e526e5dfcab6e`,
+  assembled `5394c11e947380ece2070e1c1657161009626975665e25efd3e01050913c7faf`,
+  and primary-QRF `d5d71f37fd312c2740461134121e2b0de28a101e4f655369d439994c3fc4d4e5`.
+  It authenticated all 65 target files, ran no fit/build/write, retained the
+  exact 123-input fingerprint, and peaked at 3,108,896,768 bytes RSS.
+- The offending side is pre-stage collectibles: 19 positive/0 negative
+  carriers (15 distinct), numerator `7754874867.9770155`
+  (`0x1.ce39fff3fa1dbp+32`), denominator `7754874867.9770136`
+  (`0x1.ce39fff3fa1d9p+32`), and share `1.0000000000000002`
+  (`0x1.0000000000001p+0`). Post-stage has 202 positive carriers and a valid
+  `0.99956427491666788` share. The validator reproduces the host exception.
+- Both operands are sums of `abs(value) * weight`; for pre-stage collectibles
+  they contain the identical 19 terms because `top_k=100`. Descending numerator
+  order versus source-order denominator creates a two-ULP mass difference and
+  one-ULP ratio overshoot. This is not signed cancellation. Collectibles is
+  nonnegative by source validation and finalization; signed ST/LT/combined legs
+  are already measured on magnitude, matching the shared battery semantics.
+- The same independent subset/full-set reduction exists in the raw comparator,
+  shared tail gate, and tail distribution receipt. The adjudicated fix is a
+  shared disjoint top/remainder reduction whose denominator is constructed as
+  `top_mass + remainder_mass`. It encodes the mathematical subset invariant
+  directly, returns exact one for all-carrier top sets, and is neither a clamp
+  nor threshold/sign tuning. Full evidence is in
+  `experiments/578_puf_collectibles_concentration_replay.md`.
+
 ## 2026-08-21 capital-gains tail-guard continuation
 
 - Host evidence: the wired capital-gains tail stage raised at a displayed
