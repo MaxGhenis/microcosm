@@ -1,154 +1,181 @@
-# Final report: pkg1 PUF capital-gains tail guard
+# Final report: pkg1 PUF collectibles concentration share
 
 ## Outcome
 
-Implementation commit `8422cb15` fixes both the real transfer regression and
-the guard's attribution semantics. The checkpointed 1% inputs did contain a
-material increase hidden by the four-decimal error text; after the route-aware
-assignment fix, a no-build replay is bit-identical pre/post and the unchanged
-over-threshold state is reported without failing.
+Implementation commit `f1ad8128` fixes the fresh 1% failure without clamping,
+threshold tuning, or changing sign doctrine. The failure was not division of
+signed sums and not an upstream negative collectibles total. It was floating
+reduction order: the top-100 numerator and full denominator contained the same
+19 positive weighted magnitudes but summed them in different orders.
 
-No numeric gate/comparator control, AGI band, seed, or fold was tuned. No host
-build ran in this lane. The serial host queue should rerun the 1% build from
-`8422cb15` or the later docs-only branch tip.
+One shared disjoint top/remainder reduction now makes the subset relation
+structural across the raw frame comparator, shared production gate, and tail
+distribution receipt. The exact fresh checkpoint regression, corrected
+no-build replay, complete admissible suite, static checks, and three independent
+reviews are green. No pool build ran and nothing was pushed.
 
-## Full-precision checkpoint reproduction
+## Exact checkpoint reproduction
 
-The supplied assembled checkpoint was replayed without fitting, checkpoint
-writes, or a build:
+The read-only replay used stacked checkpoint
+`f80593d730bedafc652b6d6b0bbee462f7fac97d3cfd555b9b9e526e5dfcab6e`,
+assembled identity
+`5394c11e947380ece2070e1c1657161009626975665e25efd3e01050913c7faf`,
+and primary-QRF identity
+`d5d71f37fd312c2740461134121e2b0de28a101e4f655369d439994c3fc4d4e5`.
+It authenticated all 65 QRF targets, finalized their stored draws, ran the tail
+transfer, and reached the same validator exception without fitting, writing, or
+building. The full method and input identities are in
+`experiments/578_puf_collectibles_concentration_replay.md`.
 
-| Measurement | Value | IEEE-754 hex |
-| --- | ---: | --- |
-| Pre-stage top-100 share | `0.84607664843916197` | `0x1.b130f55de9360p-1` |
-| Pre-fix post-stage share | `0.84611424753688269` | `0x1.b135e2fbb37c9p-1` |
-| Post minus pre | `3.7599097720719676e-05` | `0x1.3b677291a4000p-15` |
+The offending receipt was **pre-stage** collectibles; post-stage was valid:
 
-The increase is about 37,599 times the unchanged `1e-9` numerical-noise
-tolerance, so it was real rather than exact equality or a rounding artifact.
-Both measurements had 805 carriers and 425 distinct values. The replay
-authenticated all 47 survey-transfer, 1 housing-transfer, and 65 primary-QRF
-target banks; before/after checkpoint fingerprints were unchanged. Peak root
-RSS was 3,373,678,592 bytes.
-The full reproducibility receipt is in
-`experiments/578_puf_capital_gains_tail_guard_replay.md`.
+| Side | carriers | top-100 numerator | denominator | share |
+| --- | ---: | ---: | ---: | ---: |
+| pre | 19 | `7754874867.9770155` (`0x1.ce39fff3fa1dbp+32`) | `7754874867.9770136` (`0x1.ce39fff3fa1d9p+32`) | `1.0000000000000002` (`0x1.0000000000001p+0`) |
+| post | 202 | `8754318797.3040924` (`0x1.04e626e6a6ec8p+33`) | `8758134936.3790798` (`0x1.0503444c3085bp+33`) | `0.99956427491666788` (`0x1.ffc6e37e08b9bp-1`) |
 
-## Generating mechanism and correction
+The pre numerator exceeds its denominator by
+`1.9073486328125e-06`. All 19 values and weights are positive, and there are
+15 distinct carrier values. Since `top_k=100`, both operands contain exactly
+the same 19 `abs(value) * weight` terms. The old code summed the denominator in
+frame order and the numerator after reordering the terms, producing a two-ULP
+mass difference and one-ULP ratio overshoot. The strict manifest validator was
+right to reject the impossible share
+(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1569-1575`).
 
-Input inspection found that all 15,228 selected tail donors had zero
-`non_sch_d_capital_gains`, while the recipient predictions contained 805
-positive and 22,374 zero values for the direct-route leg. In the pre-fix tree, recipient
-assignment keyed filing status and nearest AGI band but then used seeded order
-without the donor's reporting route
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1520-1556`
-at `5abaf92c`). The clone stage then transferred the selected donor joint vector
-into the chosen recipient-weight slice
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1695-1812`
-at `5abaf92c`). That allowed a zero-direct-leg non-direct-route donor to replace
-a positive direct-route recipient. The direct Form-1040 and Schedule-D reporting
-routes are structurally exclusive on a real return
-(`packages/microcosm-build/src/microcosm/build/us_runtime/capital_gain_distributions.py:1-18`).
+The replay authenticated build-log SHA-256
+`91e9a106eec431e6c203a76c1ef1aca5893ab0fdb8422e78630d41c89e3602cb`
+and collectibles-target SHA-256
+`f61f823125b057370404eb9000e58bed8eb404adb5559da4c2608e6baf1435c9`.
+Its complete 123-input fingerprint was unchanged before and after. Peak RSS was
+3,108,896,768 bytes.
 
-The correction derives route and modeled ST+LT order from the validated
-tax-unit aggregate of all person-grain capital-gains values
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1791-1827`).
-Support is now sufficient only when each filing-status/reporting-route stratum
-has enough recipients
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1891-2008`).
-Within the unchanged nearest-AGI-band search, the allocator selects only the
-matching route and prioritizes the largest modeled ST+LT tail value before the
-existing seeded/source-ID ties
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2011-2064`).
-The donor joint vector remains donor-owned and is copied verbatim
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2087-2096`).
+## Root-cause and sign adjudication
 
-A corrected replay of the same authenticated checkpoint inputs measured pre and
-post as exactly `0.84607664843916197`, with delta `0`, 805 carriers, and 425
-distinct values. It emitted
-`pre_existing_over_threshold_not_worsened`, returned no stage-attributable
-failure, did not modify the checkpoint tree, and peaked at 3,313,057,792 bytes.
+The concentration computation already forms weighted absolute mass for every
+column, including signed columns
+(`packages/microcosm-build/src/microcosm/build/gates.py:2514-2526`,
+`packages/microcosm-build/src/microcosm/build/gates.py:2588-2603`,
+`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:632-649`).
+Its numerator and denominator therefore cannot cancel positive and negative
+legs. The fresh six-component audit confirms that only the all-carrier
+collectibles reduction escaped `[0,1]`:
 
-## Guard semantics
+| Component | Pre +/− | Post +/− | Pre share | Post share |
+| --- | ---: | ---: | ---: | ---: |
+| long-term before response | 1,523/0 | 4,230/11 | `0.86013552154801576` | `0.58669767611870127` |
+| collectibles | 19/0 | 202/0 | `1.0000000000000002` | `0.99956427491666788` |
+| non-Schedule-D | 805/0 | 805/0 | `0.84607664843916197` | `0.84607664843916197` |
+| short-term | 1,522/1 | 2,699/1,145 | `0.86215761523487267` | `0.71053093985728166` |
+| short-term + long-term | 1,523/1 | 4,249/1 | `0.85971569008878168` | `0.60066468966945119` |
+| unrecaptured section 1250 | 149/0 | 951/0 | `0.99998025879168606` | `0.95160284772377746` |
 
-The guard now measures raw finite positive weighted absolute mass for every
-column before applying the production minimum-carrier eligibility rule
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:610-654`).
-It records pre/post shares, delta, carriers, distinct values, raw threshold
-flags, production eligibility, the material-worsening verdict, and an explicit
-classification. It fails only when all three facts are true:
+Collectibles itself is source-enforced nonnegative: the PUF detail carry rejects
+negative E24518 values, and QRF finalization declares and clips the output
+nonnegative
+(`packages/microcosm-build/src/microcosm/build/us_runtime/capital_gain_details.py:112-148`,
+`packages/microcosm-build/src/microcosm/build/us_runtime/puf_support.py:369-403`,
+`packages/microcosm-build/src/microcosm/build/us_runtime/puf_support.py:1939-1945`).
+The fresh target bank had 36 positive, 23,143 zero, and zero negative raw draws;
+the finalized pre-stage frame had 19 positive and zero negative carriers. A
+negative collectibles total would be an upstream contract violation, but none
+exists here.
 
-1. `post - pre > 1e-9`;
-2. raw post-stage share is above the unchanged `0.75` threshold; and
-3. post-stage carriers meet the unchanged 500-record production minimum.
+The battery separately checks positive/negative incidence and conditional
+absolute-magnitude quantiles by sign leg
+(`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:12352-12415`).
+Pooled weighted-absolute-mass concentration asks a different but compatible
+question: whether a few records dominate total magnitude across both signs.
+It already prevents cancellation, so neither signed-net division nor new
+per-sign concentration thresholds is warranted.
 
-Those controls remain top-k 100, threshold `0.75`, minimum 500, and tolerance
-`1e-9`
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:81-83`,
-`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:601-605`).
-The complete disposition and full-precision public failure message are derived
-from the measurements
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:657-820`,
-`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:940-972`).
-Thus equal and sub-tolerance increases pass; an eligible material increase over
-threshold fails; an unchanged pre-existing exceedance is a non-failing report;
-and a structurally thin raw exceedance remains visible but production-gate
-ineligible.
+## Fix
 
-Manifest schema 3 stores this attribution receipt, and validation recomputes
-every boolean and classification from the sealed shares and carrier counts
-instead of trusting stored verdict text
-(`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:76-83`,
-`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1030-1036`,
-`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:1488-1636`).
-Both pool routes execute the shared transfer, so the legacy semantic checkpoint
-identity also binds the current tail schema/support contract while omitting only
-the stacked late-producer schedule
-(`packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:10492-10500`,
-`tools/build_us_multispine_pool.py:958-1002`,
-`tools/build_us_multispine_pool.py:2388-2407`,
-`tools/build_us_multispine_pool.py:3844-3897`).
+The common helper partitions finite nonnegative carrier masses into disjoint
+top and remainder sets, sums each set once, and constructs the denominator as
+`top_mass + remainder_mass`
+(`packages/microcosm-build/src/microcosm/build/gates.py:2650-2689`). With
+nonnegative partial sums, `top_mass <= total_mass` is true by construction. If
+the top set contains every carrier, the remainder is zero and numerator and
+denominator reuse the same binary64 sum, producing exact `1.0`. Nonfinite or
+overflowed totals fail closed. No clamp or numerical tolerance is involved.
 
-## Regression coverage and verification
+All three audited concentration sites now use that helper:
 
-Dedicated tests cover equal pre/post, a sub-tolerance increase, a real eligible
-increase, and an unchanged pre-existing over-threshold state
-(`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1191-1293`).
-Additional tests bind route preservation, route-specific support, multi-person
-tax-unit aggregation, modeled-tail ordering, persisted non-failure reporting,
-the exact public failure text, and rehashed receipt-tamper rejection
-(`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:641-897`,
-`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1346-1442`).
+- the shared tail concentration gate
+  (`packages/microcosm-build/src/microcosm/build/gates.py:2595-2603`);
+- raw pre/post frame receipts
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:641-649`); and
+- tail distribution receipts
+  (`packages/microcosm-build/src/microcosm/build/us_runtime/puf_capital_gains_tail.py:2724-2726`).
 
-Final-tree guarded test receipts:
+Receipt shape and intended weighted-absolute-mass semantics did not change, so
+the manifest/control schema was not bumped. A bump would incorrectly invalidate
+the authenticated QRF prediction bank even though this correction occurs only
+in downstream receipt arithmetic. Threshold `0.75`, top-k 100, minimum carriers
+500, worsening tolerance `1e-9`, AGI bands, seeds, folds, and reviewed
+exclusions are unchanged.
 
-| Package | Result | Peak root RSS (bytes) |
-| --- | ---: | ---: |
-| microcosm-frame | 294 passed, 36 skipped | 6,527,254,528 |
-| microcosm-fit | 125 passed | 417,792,000 |
-| microcosm-calibrate | 201 passed | 466,321,408 |
-| microcosm-data | 275 passed, 1 skipped | 12,270,026,752 |
-| microcosm-build | 5,672 passed, 37 skipped | 7,022,198,784 |
-| **Total** | **6,567 passed, 74 skipped, 0 failures/errors** | — |
+## Regression and corrected replay
 
-The build sweep used 226 fresh per-file processes. Its manifest SHA-256 is
-`855d762df4e85fd40df7ff299d444ec5f13d43111d25d731bee1bef73cef79d6` and
+The regression embeds all 19 fresh-checkpoint values and weights bit-for-bit in
+source order. It pins the legacy numerator, denominator, and ratio hexadecimal
+values; requires exact `1.0` rather than `pytest.approx`; covers every one of the
+six manifest columns; passes the sealed receipt validator; and exercises mixed
+signs through the raw, shared-gate, and distribution paths
+(`packages/microcosm-build/tests/test_us_puf_capital_gains_tail.py:1489-1616`).
+
+The corrected full tail replay of the same authenticated checkpoint passed:
+
+| Side | top mass | constructed total | share |
+| --- | ---: | ---: | ---: |
+| pre | `7754874867.9770136` (`0x1.ce39fff3fa1d9p+32`) | identical | exactly `1.0` (`0x1.0000000000000p+0`) |
+| post | `8754318797.3040943` (`0x1.04e626e6a6ec9p+33`) | `8758134936.3790798` (`0x1.0503444c3085bp+33`) | `0.99956427491666811` (`0x1.ffc6e37e08b9dp-1`) |
+
+The sealed manifest validated with digest
+`ad5432d3a7c614419fba8aa442ef156d5441c1e1173f2b68036f63767a818e49`.
+The 121-file/295,172,085-byte checkpoint fingerprint remained
+`59f998b384801ada06b9434e94f4a358d2424e3cf7192b48eecddcf485ef2d1c`.
+Runtime was 12.2643 seconds and peak RSS was 2,587,181,056 bytes. No fit, pool
+build, checkpoint write, or source mutation occurred.
+
+## Verification
+
+The complete 263-file tracked test manifest ran in fresh per-file processes
+under a 14 GiB root-RSS guard:
+
+| Package | Files | Result | Peak root RSS (bytes) |
+| --- | ---: | ---: | ---: |
+| microcosm-build | 226 | 5,673 passed, 37 skipped | 7,028,719,616 |
+| microcosm-calibrate | 9 | 201 passed | 432,570,368 |
+| microcosm-data | 8 | 275 passed, 1 skipped | 11,850,612,736 |
+| microcosm-fit | 6 | 125 passed | 411,074,560 |
+| microcosm-frame | 14 | 294 passed, 36 skipped | 4,849,188,864 |
+| **Total** | **263** | **6,568 passed, 74 skipped, 0 failures/errors** | — |
+
+Manifest SHA-256 is
+`f6e949d9813a614da9a3916a37c1dd8071b392d21cac7d8e06bed233becd0d64`;
 receipt SHA-256 is
-`67b18e5af01d1ed68134911a0f02449a7dedc8c316fa3da6f16b6a62b53afc22`.
-Exactly two mounted-cache probes were deselected:
-`test_cached_full_donor_matches_pinned_household_support` and
-`test_cached_full_donor_matches_locked_response_and_weight_facts`.
+`e0cfce598cac7b5d5d8fcd64c7f11d4958e8877f3463c3292ced49bc85398287`.
+Maximum accepted RSS was 11,850,612,736 bytes, below both the 14 GiB guard and
+15 GiB task ceiling.
 
-One non-accepted attempt to run the first 3.73 GB cache probe alone crossed from
-below its sampled cutoff to 17,501,945,856 bytes before the monitor terminated
-it. It violated the lane memory order, produced no accepted test evidence, and
-was not retried; the second probe reads the same source and was not attempted.
-All accepted replays and suites stayed below 15 GiB. Tracked-file Ruff and
-`git diff --check` passed.
+Exactly two previously documented mounted full-donor cache probes were
+deselected because they cannot run below the memory ceiling:
+`test_cached_full_donor_matches_pinned_household_support` and
+`test_cached_full_donor_matches_locked_response_and_weight_facts`. Every other
+test in both files passed. These are the only suite exclusions.
+
+Tracked-file Ruff, Ruff formatting over all changed Python files,
+`uv lock --check`, and `git diff --check` pass. Three independent reviews found
+no blocking issue; review additionally passed randomized size/range partition
+properties and verified every checkpoint fixture float bit-for-bit.
 
 ## Host handoff
 
-The serial host owner should rerun the prohibited-in-lane 1% build from
-implementation commit `8422cb15` (or the docs-only final branch tip), using the
-unchanged threshold/band/gate configuration. Expected guard evidence for the
-replayed failing column is a full-precision non-failing entry with pre = post =
-`0.84607664843916197`, delta `0`, and classification
-`pre_existing_over_threshold_not_worsened`.
+The serial host queue should rerun the prohibited-in-lane 1% build from
+implementation commit `f1ad8128` or the later report-only tip. The existing
+primary-QRF checkpoint is reusable because its predictions and identity
+semantics did not change. Expected behavior is that pre-stage collectibles
+seals as exactly `1.0`, post-stage remains below one, and manifest validation
+continues past the failure reported in the supplied build log.

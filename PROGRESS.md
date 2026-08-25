@@ -16,8 +16,9 @@ nonnegative. The constructionally bounded top/remainder reduction is now shared
 by every concentration surface and pinned to the fresh checkpoint. A corrected
 no-build replay validates with pre-stage share exactly `1.0`, and the complete
 263-file admissible test manifest is green (6,568 passed/74 skipped; two known
-full-donor probes deselected under the memory ceiling). Only the final report
-and commits remain.
+full-donor probes deselected under the memory ceiling). Implementation commit
+`f1ad8128` contains the fix, regression, replay evidence, and journals;
+`FINAL_REPORT.md` is refreshed for failure #3. Only serial host handoff remains.
 Thresholds, bands, gates, seeds, and folds remain frozen; clamping is forbidden.
 No pool build or push is authorized, and all processes must remain below
 15 GiB RSS. Existing unrelated untracked helper/continuation files remain
@@ -102,6 +103,9 @@ unrelated untracked helper/continuation files remain untouched.
   `uv lock --check`, and `git diff --check` all pass. Three independent reviews
   found no blocking issue; one also passed randomized size/range partition
   properties and verified every fixture float bit-for-bit against f80593d.
+- Wrote the complete failure-3 outcome, exact reproduction, sign adjudication,
+  code-cited correction, fixed replay, verification receipts, and serial-host
+  handoff to `FINAL_REPORT.md`.
 - Re-read `CLAUDE.md` and the complete GitNexus debugging workflow; inspected
   the current branch, historical journals, output file, and unrelated untracked
   files. Reopened `PROGRESS.md` and `_LANE-NOTES.md` for host failure #3 before
@@ -1145,9 +1149,5 @@ unrelated untracked helper/continuation files remain untouched.
 
 ## Next
 
-- Commit the verified implementation, regression, corrected replay receipt,
-  and journals.
-- Replace `FINAL_REPORT.md` with the failure-3 report, re-run documentation and
-  repository sanity checks, and commit the report.
 - Return the committed tip to the serial host queue; do not run or push a pool
   build from this lane.

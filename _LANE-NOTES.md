@@ -94,6 +94,10 @@
   unfrozen `uv lock --check`, and `git diff --check` pass. Three independent
   reviews found no blocker; randomized partition properties and exact fixture
   identity also passed.
+- `FINAL_REPORT.md` now contains the failure-3 outcome, exact old/fixed
+  arithmetic, sign decision, code citations, verification receipts, and host
+  handoff. Implementation is committed at `f1ad8128`; after the report-only tip,
+  only the serial host rerun remains.
 
 ## 2026-08-21 capital-gains tail-guard continuation
 
