@@ -107,12 +107,174 @@ def _us_domains(spec: ResolvedSpec) -> dict[str, dict[str, object]]:
         for kind in (
             "battery",
             "bundle",
+            "geography",
             "imputation",
             "publication",
             "sources",
             "spine",
             "take_up",
         )
+    }
+
+
+def _source_record(
+    sources: Mapping[str, object],
+    source_ref: str,
+) -> Mapping[str, object]:
+    source_id = source_ref.removeprefix("source:")
+    matches = [
+        row
+        for index, value in enumerate(
+            _array(sources.get("sources"), location="sources/sources")
+        )
+        for row in [_mapping(value, location=f"sources/sources/{index}")]
+        if row.get("id") == source_id
+    ]
+    if len(matches) != 1:
+        raise SpecValidationError(
+            f"sources/sources: source ref {source_ref!r} must resolve exactly once"
+        )
+    return matches[0]
+
+
+def _source_vintage_value(
+    source: Mapping[str, object],
+    vintage_ref: str,
+) -> str:
+    vintage_id = vintage_ref.removeprefix("vintage:")
+    matches = [
+        authority
+        for index, value in enumerate(
+            _array(
+                source.get("vintage_authorities"),
+                location="sources/source/vintage_authorities",
+            )
+        )
+        for authority in [
+            _mapping(
+                value,
+                location=f"sources/source/vintage_authorities/{index}",
+            )
+        ]
+        if authority.get("id") == vintage_id
+    ]
+    if len(matches) != 1:
+        raise SpecValidationError(
+            f"source vintage authority {vintage_ref!r} must resolve exactly once"
+        )
+    return _nonempty_string(
+        matches[0].get("value"),
+        location=f"sources/source/vintage_authorities/{vintage_id}/value",
+    )
+
+
+def _stacked_geography_assignment_contract(
+    spec: ResolvedSpec,
+    domains: Mapping[str, Mapping[str, object]],
+) -> dict[str, object]:
+    assignment = _mapping(
+        domains["geography"].get("assignment"),
+        location="geography/assignment",
+    )
+    kernels = _mapping(
+        assignment.get("kernels"),
+        location="geography/assignment/kernels",
+    )
+    assign_kernel_ref = _nonempty_string(
+        kernels.get("assign"),
+        location="geography/assignment/kernels/assign",
+    )
+    if assign_kernel_ref != "kernel:assign_us_puma_ladder":
+        raise SpecValidationError(
+            "geography/assignment/kernels/assign: stacked runtime requires "
+            "kernel:assign_us_puma_ladder"
+        )
+    order = _nonempty_string(
+        assignment.get("order"), location="geography/assignment/order"
+    )
+    if order != "before_gap_fill":
+        raise SpecValidationError(
+            "geography/assignment/order: stacked runtime requires before_gap_fill"
+        )
+    ladder_ref = _nonempty_string(
+        assignment.get("ladder_source"),
+        location="geography/assignment/ladder_source",
+    )
+    crosswalk = _mapping(
+        assignment.get("congressional_district_vintage_crosswalk"),
+        location=(
+            "geography/assignment/congressional_district_vintage_crosswalk"
+        ),
+    )
+    crosswalk_ref = _nonempty_string(
+        crosswalk.get("source_ref"),
+        location=(
+            "geography/assignment/congressional_district_vintage_crosswalk/"
+            "source_ref"
+        ),
+    )
+    source_vintage_ref = _nonempty_string(
+        crosswalk.get("source_vintage"),
+        location=(
+            "geography/assignment/congressional_district_vintage_crosswalk/"
+            "source_vintage"
+        ),
+    )
+    target_vintage_ref = _nonempty_string(
+        crosswalk.get("target_vintage"),
+        location=(
+            "geography/assignment/congressional_district_vintage_crosswalk/"
+            "target_vintage"
+        ),
+    )
+    ladder_source = _source_record(domains["sources"], ladder_ref)
+    crosswalk_source = _source_record(domains["sources"], crosswalk_ref)
+    seed_site = spec.seed_protocol.site("legacy_puma_ladder")
+    if seed_site.default is None:
+        raise SpecValidationError(
+            "seed_protocol/legacy_puma_ladder: default seed required"
+        )
+    return {
+        "declaration": deepcopy(dict(assignment)),
+        "algorithm": {
+            "id": "assign_us_puma_ladder.population_weighted_overlap.v1",
+            "kernel": assign_kernel_ref.removeprefix("kernel:"),
+            "operator": "assign_us_puma_ladder",
+            "order": order,
+            "assign_tract": assignment.get("assign_tract"),
+        },
+        "authorities": {
+            "puma_ladder": {
+                "input_role": "puma_ladder",
+                "source_ref": ladder_ref,
+                "sha256": _nonempty_string(
+                    ladder_source.get("sha256"),
+                    location="sources/us_puma_ladder_2020/sha256",
+                ),
+            },
+            "congressional_district_vintage_crosswalk": {
+                "input_role": "congressional_district_vintage_crosswalk",
+                "source_ref": crosswalk_ref,
+                "sha256": _nonempty_string(
+                    crosswalk_source.get("sha256"),
+                    location="sources/CD vintage crosswalk/sha256",
+                ),
+                "source_vintage_ref": source_vintage_ref,
+                "source_vintage": _source_vintage_value(
+                    crosswalk_source, source_vintage_ref
+                ),
+                "target_vintage_ref": target_vintage_ref,
+                "target_vintage": _source_vintage_value(
+                    ladder_source, target_vintage_ref
+                ),
+            },
+        },
+        "seed": {
+            "site": seed_site.id,
+            "stream": seed_site.stream,
+            "value_source": seed_site.value_source,
+            "value": seed_site.default,
+        },
     }
 
 
@@ -146,9 +308,7 @@ def _late_families(
         for index, value in enumerate(
             _array(imputation.get("families"), location="imputation/families")
         )
-        for family in [
-            _mapping(value, location=f"imputation/families/{index}")
-        ]
+        for family in [_mapping(value, location=f"imputation/families/{index}")]
         if family.get("stage") == "late_producer_dag"
     )
 
@@ -183,9 +343,7 @@ def _late_transfer_surface(
         ):
             target = _mapping(
                 value,
-                location=(
-                    f"imputation/late_families/{index}/targets/{target_index}"
-                ),
+                location=(f"imputation/late_families/{index}/targets/{target_index}"),
             )
             name = _nonempty_string(
                 target.get("name"),
@@ -208,9 +366,7 @@ def _late_transfer_surface(
         )
         projection = _mapping(
             donor.get("projection"),
-            location=(
-                f"imputation/late_families/{index}/donor_contract/projection"
-            ),
+            location=(f"imputation/late_families/{index}/donor_contract/projection"),
         )
         donor_channels.add(
             _nonempty_string(
@@ -239,8 +395,7 @@ def _late_transfer_surface(
             _nonempty_string(
                 recipient.get("selection"),
                 location=(
-                    "imputation/late_families/"
-                    f"{index}/recipient_contract/selection"
+                    f"imputation/late_families/{index}/recipient_contract/selection"
                 ),
             )
         )
@@ -277,9 +432,7 @@ def _primary_puf_output_keys(
 ) -> set[tuple[str, str]]:
     primary = [
         family
-        for value in _array(
-            imputation.get("families"), location="imputation/families"
-        )
+        for value in _array(imputation.get("families"), location="imputation/families")
         for family in [_mapping(value, location="imputation/families row")]
         if family.get("stage") == "primary_puf_qrf"
     ]
@@ -412,6 +565,22 @@ def _authority_component_payloads(
     imputation_payloads: Mapping[str, object],
 ) -> tuple[dict[str, object], dict[str, object]]:
     battery = project_battery_authority_components(domains["battery"])
+    models = _mapping(
+        domains["imputation"].get("models"),
+        location="imputation/models",
+    )
+    regime_gated_qrf = _mapping(
+        models.get("regime_gated_qrf"),
+        location="imputation/models/regime_gated_qrf",
+    )
+    post_transfer_calibration = deepcopy(
+        dict(
+            _mapping(
+                regime_gated_qrf.get("post_draw_calibration"),
+                location=("imputation/models/regime_gated_qrf/post_draw_calibration"),
+            )
+        )
+    )
     transfer_surface, donor_channel, donor_clone_index, recipient_selection = (
         _late_transfer_surface(domains["imputation"])
     )
@@ -456,6 +625,7 @@ def _authority_component_payloads(
         "support_profile": deepcopy(battery["support_profile"]),
         "puf_capital_gains_tail_support_contract": tail_support,
         "late_producer_schedule": late_schedule,
+        "post_transfer_calibration": post_transfer_calibration,
     }
     counts = {
         "gap_fill_target_count": _gap_fill_target_count(gap_fill_plan),
@@ -485,6 +655,14 @@ def _authority_component_payloads(
             _array(
                 battery["joint_metric_registry"],
                 location="battery projection/joint_metric_registry",
+            )
+        ),
+        "post_transfer_calibration_target_count": len(
+            _array(
+                post_transfer_calibration.get("targets"),
+                location=(
+                    "imputation/models/regime_gated_qrf/post_draw_calibration/targets"
+                ),
             )
         ),
     }
@@ -545,9 +723,7 @@ def project_stacked_authority_receipt(spec: ResolvedSpec) -> dict[str, object]:
             "declared_sha256": digests["post_puf_transfer_surface"],
             "target_count": counts["post_puf_target_count"],
             "puf_producer_target_count": counts["puf_producer_target_count"],
-            "source_producer_target_count": counts[
-                "source_producer_target_count"
-            ],
+            "source_producer_target_count": counts["source_producer_target_count"],
             "donor_channel": _mapping(
                 payloads["post_puf_transfer_surface"],
                 location="authority/post_puf_transfer_surface",
@@ -588,13 +764,9 @@ def project_stacked_authority_receipt(spec: ResolvedSpec) -> dict[str, object]:
             "digest_matches_declared": True,
         },
         "puf_capital_gains_tail_support_contract": {
-            "identity": deepcopy(
-                payloads["puf_capital_gains_tail_support_contract"]
-            ),
+            "identity": deepcopy(payloads["puf_capital_gains_tail_support_contract"]),
             "sha256": digests["puf_capital_gains_tail_support_contract"],
-            "declared_sha256": digests[
-                "puf_capital_gains_tail_support_contract"
-            ],
+            "declared_sha256": digests["puf_capital_gains_tail_support_contract"],
             "digest_matches_declared": True,
         },
         "late_producer_schedule": {
@@ -603,6 +775,13 @@ def project_stacked_authority_receipt(spec: ResolvedSpec) -> dict[str, object]:
             "declared_sha256": digests["late_producer_schedule"],
             "schedule_sha256": late_schedule.get("schedule_sha256"),
             "producer_count": late_schedule.get("producer_count"),
+            "digest_matches_declared": True,
+        },
+        "post_transfer_calibration": {
+            "identity": deepcopy(payloads["post_transfer_calibration"]),
+            "sha256": digests["post_transfer_calibration"],
+            "declared_sha256": digests["post_transfer_calibration"],
+            "target_count": counts["post_transfer_calibration_target_count"],
             "digest_matches_declared": True,
         },
     }
@@ -658,15 +837,12 @@ def _tail_support_contract(
     )
     contract = _mapping(
         tail.get("legacy_contract"),
-        location=(
-            "spine/support_roles/puf_tax_detail/tail_support/legacy_contract"
-        ),
+        location=("spine/support_roles/puf_tax_detail/tail_support/legacy_contract"),
     )
     schema_version = _integer(
         tail.get("manifest_schema_version"),
         location=(
-            "spine/support_roles/puf_tax_detail/tail_support/"
-            "manifest_schema_version"
+            "spine/support_roles/puf_tax_detail/tail_support/manifest_schema_version"
         ),
         minimum=1,
     )
@@ -747,9 +923,7 @@ def _take_up_identity(
     asserted = _mapping(
         legacy.get("asserted_engine"), location="projected take_up/asserted_engine"
     )
-    programs = _array(
-        legacy.get("programs"), location="projected take_up/programs"
-    )
+    programs = _array(legacy.get("programs"), location="projected take_up/programs")
     return {
         "version": legacy["version"],
         "country": legacy["country"],
@@ -808,13 +982,14 @@ def _rung_token(publication: Mapping[str, object], fraction: float) -> str:
             location="publication/release/rung_fractions",
         )
     ):
-        row = _mapping(
-            value, location=f"publication/release/rung_fractions/{index}"
-        )
-        if _finite_float(
-            row.get("fraction"),
-            location=f"publication/release/rung_fractions/{index}/fraction",
-        ) == fraction:
+        row = _mapping(value, location=f"publication/release/rung_fractions/{index}")
+        if (
+            _finite_float(
+                row.get("fraction"),
+                location=f"publication/release/rung_fractions/{index}/fraction",
+            )
+            == fraction
+        ):
             matches.append(
                 _nonempty_string(
                     row.get("token"),
@@ -869,9 +1044,7 @@ def _resolved_late_resource_semantics(
     matches = [
         _mapping(value, location="late resource semantics producer")
         for value in producers
-        if _mapping(
-            value, location="late resource semantics producer"
-        ).get("producer")
+        if _mapping(value, location="late resource semantics producer").get("producer")
         == "primary_puf_qrf"
     ]
     if len(matches) != 1:
@@ -924,9 +1097,7 @@ def _model_parameters(imputation: Mapping[str, object]) -> tuple[int, int]:
             location="imputation/families/max_targets_per_fit",
             minimum=1,
         )
-        for value in _array(
-            imputation.get("families"), location="imputation/families"
-        )
+        for value in _array(imputation.get("families"), location="imputation/families")
         for family in [_mapping(value, location="imputation/families row")]
         if family.get("max_targets_per_fit") is not None
     }
@@ -1029,6 +1200,9 @@ def project_stacked_checkpoint_base_identity(
             "fraction": attachment_fraction,
             "seed": attachment_seed_value,
         },
+        "geography_assignment": _stacked_geography_assignment_contract(
+            spec, domains
+        ),
         "stacked_authority": project_stacked_authority_receipt(spec),
         "pool_code": {
             "operator_order": deepcopy(
@@ -1044,8 +1218,7 @@ def project_stacked_checkpoint_base_identity(
                     _array(
                         pipeline.get("pre_clone_source_operator_order"),
                         location=(
-                            "spine/pipeline_contract/"
-                            "pre_clone_source_operator_order"
+                            "spine/pipeline_contract/pre_clone_source_operator_order"
                         ),
                     )
                 )
@@ -1058,8 +1231,7 @@ def project_stacked_checkpoint_base_identity(
                     _array(
                         pipeline.get("post_clone_source_operator_order"),
                         location=(
-                            "spine/pipeline_contract/"
-                            "post_clone_source_operator_order"
+                            "spine/pipeline_contract/post_clone_source_operator_order"
                         ),
                     )
                 )
@@ -1116,8 +1288,7 @@ def project_stacked_checkpoint_base_identity(
             "simulation_household_batch_size": _integer(
                 simulation_batch.get("value"),
                 location=(
-                    "spine/pipeline_contract/"
-                    "simulation_household_batch_size/value"
+                    "spine/pipeline_contract/simulation_household_batch_size/value"
                 ),
                 minimum=1,
             ),
@@ -1174,9 +1345,7 @@ def project_stacked_checkpoint_static_components(
             attachment.get("fraction"),
             location="spine/support_roles/puf_tax_detail/attachment/fraction",
         ).get("default"),
-        location=(
-            "spine/support_roles/puf_tax_detail/attachment/fraction/default"
-        ),
+        location=("spine/support_roles/puf_tax_detail/attachment/fraction/default"),
     )
     attachment_seed = _integer(
         _mapping(
@@ -1210,6 +1379,7 @@ def project_stacked_checkpoint_static_components(
         "period": full["period"],
         "model_seed": full["model_seed"],
         "policyengine_us_version": full["policyengine_us_version"],
+        "geography_assignment": deepcopy(full["geography_assignment"]),
         "stacked_authority": deepcopy(full["stacked_authority"]),
         "pool_code": deepcopy(full["pool_code"]),
     }

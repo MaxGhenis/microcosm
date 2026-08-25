@@ -160,21 +160,12 @@ UK_QRF_TAIL_EXCLUSION_REGISTER_RESOURCE = "qrf_tail_reviewed_exclusions.json"
 UK_DEGENERATE_EXCLUSION_REGISTER_RESOURCE = "degenerate_reviewed_exclusions.json"
 
 # Canonical sha256 of {"reference": {"identity": ..., "totals": ...}} for
-# the 131-column weighted input surface emitted from the pinned enhanced-FRS
-# artifact (sha 584ae33d...) by build_uk_efrs_parity_reference.py. The totals
-# remain uncommitted under the UKDS EUL; this reviewed digest lets the gate and
-# publication contract bind them without disclosing them (PR #610 review).
-#
-# Re-frozen keys-only under the #611 A4 dedup: totals keys went from
-# "entity.column" to flat frame column names, every value byte-identical to
-# the #610 freeze (whose saved totals reproduce the prior digest 11b22dd4…
-# exactly), 131 columns before and after, zero cross-entity collisions —
-# also enforced at mint time by the migrated tool's collision guard. The
-# identity is unchanged. Reviewed by María Juaristi (2026-08-12); verified
-# by loading the re-keyed totals through load_uk_input_mass_reference
-# unpatched.
+# the weighted input surface emitted from the pinned enhanced-FRS artifact by
+# build_uk_efrs_parity_reference.py. The totals remain uncommitted under the
+# UKDS EUL; this reviewed digest lets the gate and publication contract bind
+# them without disclosing them.
 UK_INPUT_MASS_REFERENCE_EVIDENCE_SHA256 = (
-    "c36c015a60f796ad9199a4a5652706f5310909cb572b1c90092ef9df1fa7187e"
+    "fd41cb5f6cf6c4ef812320f21d1942173d49ce6f8725b21fbc9d9ca5423d298c"
 )
 
 
@@ -216,7 +207,9 @@ class UKInputMassReferenceDescriptor:
                 )
         for field_name in ("sha256", "totals_sha256"):
             value = getattr(self, field_name)
-            if len(value) != 64 or any(character not in _SHA256_HEX for character in value):
+            if len(value) != 64 or any(
+                character not in _SHA256_HEX for character in value
+            ):
                 raise ValueError(
                     f"UK input-mass reference descriptor {field_name} must be "
                     "a lowercase sha256."
@@ -245,14 +238,16 @@ class UKInputMassReferenceDescriptor:
 
 _UK_INPUT_MASS_REFERENCE_DESCRIPTOR = UKInputMassReferenceDescriptor(
     name="efrs-post-calibration",
-    filename="enhanced_frs_2023_24.h5",
-    revision="655dd07e4bb9c777b00dac044949611f1feb824f",
-    sha256="584ae33d80ca0431254610a3f8254d132da73477d31966d6446282861ecae50d",
-    vintage="2023_24",
+    filename="enhanced_frs_2024_25.h5",
+    revision="a9e52499b6a6cca100a5ce4f36ca27b2e8a213df",
+    sha256="e433e532b17bd8ce76030156285816e33d44e93edabd2204adbef71d19a68712",
+    vintage="2024_25",
     totals_sha256=UK_INPUT_MASS_REFERENCE_EVIDENCE_SHA256,
     scope_note=(
-        "Post-calibration eFRS production incumbent; structurally lacks the "
-        "SPI clone channel, so SPI-channel-exclusive columns are comparable "
+        "Channel-blind post-calibration enhanced-FRS production incumbent, "
+        "pinned to the 2024-25 line; its artifact carries the SPI-synthetic "
+        "rows structurally but no admin-restored mass in the "
+        "SPI-channel-exclusive columns, so those columns are comparable "
         "only through per-reference reviewed exclusions."
     ),
 )
@@ -439,8 +434,7 @@ def coerce_input_mass_reference_registry(
         identity = entry["identity"]
         if not isinstance(identity, Mapping):
             raise TypeError(
-                f"{label} reference_registry entry {name!r} identity must be "
-                "an object."
+                f"{label} reference_registry entry {name!r} identity must be an object."
             )
         expected_identity_fields = {"filename", "revision", "sha256", "vintage"}
         if set(identity) != expected_identity_fields:
@@ -542,9 +536,9 @@ def _premature_exclusion_failure(
     )
 
 
-def _read_register_payload(source: str | Path | None, *, resource: str) -> tuple[
-    Mapping[str, object], str
-]:
+def _read_register_payload(
+    source: str | Path | None, *, resource: str
+) -> tuple[Mapping[str, object], str]:
     if source is None:
         raw = files("microcosm.build.uk").joinpath(resource).read_text("utf-8")
         label = resource

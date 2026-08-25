@@ -22,6 +22,7 @@ from microcosm.build.us_runtime.acs_transfer import (
     ACS_OPTIONAL_PERSON_TRANSFER_PREDICTORS,
     ACS_PERSON_TRANSFER_PREDICTORS,
     AcsTransferResult,
+    acs_adult_care_qualifying_rows,
     declared_acs_transfer_target_families,
     default_acs_transfer_target_families,
     transfer_acs_inputs,
@@ -516,6 +517,7 @@ def _run_bank_fixture(
         seed=37,
         n_estimators=1,
         target_bank=target_bank,
+        regime_evidence_targets=tuple(("person", target) for target in _BANK_TARGETS),
     )
 
 
@@ -859,7 +861,7 @@ def test_declared_plan_carries_the_23_stage_base_surface() -> None:
     )
     assert declared_acs_transfer_target_families()["spm_unit"][
         "model_required_boolean"
-    ] == ("is_tanf_enrolled", "receives_snap")
+    ] == ("receives_snap", "receives_tanf")
 
 
 def test_explicit_transfer_adds_requested_model_inputs(
@@ -979,6 +981,151 @@ def test_large_target_family_is_split_to_bound_retained_qrf_forests(
         "wide_numeric__batch_3",
         "wide_numeric__batch_4",
     }
+    assert all(
+        not pattern.target_regimes
+        for entry in result.imputed_inputs
+        for pattern in entry.patterns
+    )
+
+
+def test_pattern_provenance_records_ordered_exact_donor_target_regimes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    targets = (
+        "fixture_positive_only",
+        "fixture_zero_inflated_positive",
+        "fixture_three_sign",
+    )
+    selected_targets = (targets[0], targets[2])
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {
+            targets[0]: np.arange(1.0, 9.0),
+            targets[1]: [0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0],
+            targets[2]: [-3.0, -2.0, -1.0, 0.0, 0.0, 1.0, 2.0, 3.0],
+        },
+    )
+    recipient = _recipient_frame()
+    for column in (
+        "employment_income_before_lsr",
+        "self_employment_income_before_lsr",
+    ):
+        donor = _drop_column(donor, "person", column)
+        recipient = _drop_column(recipient, "person", column)
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    _MeanQRF.calls = []
+
+    result = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"person": {"fixture_regimes": targets}},
+        n_estimators=1,
+        regime_evidence_targets=tuple(
+            ("person", target) for target in selected_targets
+        ),
+    )
+
+    expected = (
+        (targets[0], Regime.POSITIVE_ONLY),
+        (targets[2], Regime.THREE_SIGN),
+    )
+    assert len(result.imputed_inputs[0].patterns) == 1
+    assert {
+        item.column: item.patterns[0].target_regimes for item in result.imputed_inputs
+    } == {
+        targets[0]: expected,
+        targets[1]: (),
+        targets[2]: expected,
+    }
+
+
+def test_selected_regime_fit_keeps_complete_selected_sibling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    targets = ("fixture_selected_complete", "fixture_selected_missing")
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {
+            targets[0]: np.arange(1.0, 9.0),
+            targets[1]: [0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0],
+        },
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {targets[0]: np.full(6, 99.0)},
+    )
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+    _MeanQRF.calls = []
+
+    result = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"person": {"selected_siblings": targets}},
+        n_estimators=1,
+        regime_evidence_targets=tuple(("person", target) for target in targets),
+    )
+
+    assert [record.column for record in result.imputed_inputs] == [targets[1]]
+    assert all(
+        tuple(target for target, _regime in pattern.target_regimes) == targets
+        for pattern in result.imputed_inputs[0].patterns
+    )
+    assert result.frame.table("person")[targets[0]].eq(99.0).all()
+
+
+def test_selected_regime_fit_does_not_expand_mixed_family_or_change_unselected_draw(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    targets = (
+        "fixture_selected_complete",
+        "fixture_selected_missing",
+        "fixture_unselected_missing",
+    )
+    donor = _with_columns(
+        _donor_frame(),
+        "person",
+        {
+            target: np.arange(1.0, 9.0) + position
+            for position, target in enumerate(targets)
+        },
+    )
+    recipient = _with_columns(
+        _recipient_frame(),
+        "person",
+        {targets[0]: np.full(6, 99.0)},
+    )
+    monkeypatch.setattr(acs_transfer_module, "QRF", _MeanQRF)
+
+    baseline = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"person": {"mixed_selection": targets}},
+        n_estimators=1,
+    )
+    selected = transfer_acs_inputs(
+        recipient,
+        donor,
+        target_families={"person": {"mixed_selection": targets}},
+        n_estimators=1,
+        regime_evidence_targets=(
+            ("person", targets[0]),
+            ("person", targets[1]),
+        ),
+    )
+
+    pd.testing.assert_series_equal(
+        selected.frame.table("person")[targets[2]],
+        baseline.frame.table("person")[targets[2]],
+    )
+    records = {record.column: record for record in selected.imputed_inputs}
+    assert all(not pattern.target_regimes for pattern in records[targets[2]].patterns)
+    assert all(
+        tuple(target for target, _regime in pattern.target_regimes) == (targets[1],)
+        for pattern in records[targets[1]].patterns
+    )
 
 
 def test_realized_regime_receipt_requires_exact_targets_and_known_labels() -> None:
@@ -1007,6 +1154,16 @@ def test_target_bank_cold_output_matches_unbanked_monolith(
     banked = _run_bank_fixture(bank)
 
     _assert_transfer_results_exact(banked, monolithic)
+    ordinary_patterns = monolithic.imputed_inputs[0].patterns
+    banked_patterns = banked.imputed_inputs[0].patterns
+    assert ordinary_patterns
+    assert tuple(pattern.target_regimes for pattern in banked_patterns) == tuple(
+        pattern.target_regimes for pattern in ordinary_patterns
+    )
+    assert all(
+        tuple(target for target, _regime in pattern.target_regimes) == _BANK_TARGETS
+        for pattern in ordinary_patterns
+    )
     _assert_bank_receipt(
         bank,
         sources=("rebuilt", "rebuilt", "rebuilt"),
@@ -1073,6 +1230,43 @@ def test_target_bank_persists_pattern_regimes_through_resume(
                 for pattern in expected_patterns
             }
             assert receipt_targets[str(target_index)]["realized_regimes"] == expected
+
+
+def test_target_bank_resume_rejects_selected_donor_regime_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _lock_bank_fixture_threads(monkeypatch)
+    bank_root = tmp_path / "regime-drift-bank"
+    cold_bank = _bank_store(bank_root)
+    _run_bank_fixture(cold_bank)
+
+    checkpoint_path = _bank_paths(cold_bank)[0]
+    metadata, _raw_bits = acs_transfer_bank_module._read_checkpoint(checkpoint_path)
+    original = metadata["pattern_steps"][0]["regime"]
+    replacement = (
+        Regime.DEGENERATE_ZERO
+        if original != Regime.DEGENERATE_ZERO
+        else Regime.POSITIVE_ONLY
+    )
+    metadata["pattern_steps"][0]["regime"] = replacement
+    metadata.pop("content_metadata_sha256")
+    metadata["content_metadata_sha256"] = acs_transfer_bank_module._mapping_sha256(
+        metadata
+    )
+    encoded = acs_transfer_bank_module._canonical_json(metadata).encode("utf-8")
+    with h5py.File(checkpoint_path, mode="r+") as h5:
+        del h5[acs_transfer_bank_module._METADATA_DATASET]
+        h5.create_dataset(
+            acs_transfer_bank_module._METADATA_DATASET,
+            data=np.frombuffer(encoded, dtype=np.uint8),
+            dtype=np.uint8,
+            track_times=False,
+        )
+        h5.flush()
+
+    with pytest.raises(RuntimeError, match="persisted target.*regime"):
+        _run_bank_fixture(_bank_store(bank_root))
 
 
 def test_target_bank_materializer_v1_artifacts_fail_closed_with_named_receipts(
@@ -1250,8 +1444,9 @@ def test_target_bank_resumes_joint_immigration_codec_as_one_model_target(
         )
         assert all(
             set(pattern.regimes) == {"__acs_transfer_immigration_status_pair"}
-            for entry in result.imputed_inputs
-            for pattern in entry.patterns
+            and not pattern.target_regimes
+            for record in result.imputed_inputs
+            for pattern in record.patterns
         )
 
     targets = warm_bank.receipt()["targets"]
@@ -2589,3 +2784,54 @@ def test_adult_care_reconciliation_enforces_statute_structure() -> None:
         "cleared_multi_carrier_rows": 1,
         "remaining_carriers": 2,
     }
+
+
+def test_adult_care_qualifying_rows_enforces_role_and_marriage_rules() -> None:
+    person = pd.DataFrame(
+        {
+            "is_incapable_of_self_care": [
+                True,
+                False,
+                True,
+                True,
+                True,
+                True,
+            ],
+            "tax_unit_role_input": [
+                "DEPENDENT",
+                "DEPENDENT",
+                "HEAD",
+                "SPOUSE",
+                "HEAD",
+                "OTHER",
+            ],
+            "person_tax_unit_id": [1, 1, 2, 2, 3, 3],
+        }
+    )
+
+    qualifying = acs_adult_care_qualifying_rows(person)
+
+    assert qualifying.tolist() == [True, False, True, True, False, False]
+
+
+@pytest.mark.parametrize(
+    "missing_column",
+    [
+        "is_incapable_of_self_care",
+        "tax_unit_role_input",
+        "person_tax_unit_id",
+    ],
+)
+def test_adult_care_qualifying_rows_fails_closed_on_missing_structure(
+    missing_column: str,
+) -> None:
+    person = pd.DataFrame(
+        {
+            "is_incapable_of_self_care": [True],
+            "tax_unit_role_input": ["DEPENDENT"],
+            "person_tax_unit_id": [1],
+        }
+    ).drop(columns=missing_column)
+
+    with pytest.raises(ValueError, match=missing_column):
+        acs_adult_care_qualifying_rows(person)

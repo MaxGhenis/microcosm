@@ -32,7 +32,7 @@ EXPECTED_RESOURCES = {
     [
         (
             "be",
-            "91d3a58e669950c7fab0aefeb74687278efca82d413a900e9ab1878b09a7a5a3",
+            "05e345f9a1c2dee52d0efb61401d2f97560319ca43d870ff07629a07ba258bbd",
             {
                 "household.household_id",
                 "person.person_id",
@@ -42,7 +42,7 @@ EXPECTED_RESOURCES = {
         ),
         (
             "uk",
-            "54c0b70167b9d36e857a116ca4c80c74af142b6f09d5894ee979de62b9634738",
+            "0d7509b2d2c2480b5a322b71f99096cced64fff1f6399d470a5b70b4977f5525",
             {
                 "benunit.benunit_id",
                 "household.household_id",
@@ -118,8 +118,7 @@ def test_country_kernel_contract_ids_are_closed_in_the_compiler_registry() -> No
     assert country_contract_ids <= F0_KERNEL_REGISTRY.ids
     assert all(F0_KERNEL_REGISTRY.contains(value) for value in country_contract_ids)
     assert not any(
-        F0_KERNEL_REGISTRY.has_implementation(value)
-        for value in country_contract_ids
+        F0_KERNEL_REGISTRY.has_implementation(value) for value in country_contract_ids
     )
 
 
