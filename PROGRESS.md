@@ -1,5 +1,43 @@
 # Battery residual-fixes progress
 
+## PR #768 origin/main merge — 2026-08-25
+
+### State
+
+In progress. The clean `battery-residual-fixes` branch starts at `1dfc9edc90f7`
+with local `origin/main` at `f9d3b4838c13`. This lane will merge main without
+running a pool build, preserve both the residual weeks/UC decoupling and main's
+subsequent F0/spec-fold behavior, re-pin every moved anti-rot attestation with
+repository-owned tools, run the complete no-build PR suite after each coherent
+commit, and leave pushing to the owner. Earlier sections are historical records
+of their named checkpoints rather than current branch instructions.
+
+### Done
+
+- Re-read `CLAUDE.md`, confirmed the five-shard workspace, PR-CI versus
+  certification boundary, root-journal rules, and the explicit no-publication
+  boundary.
+- Confirmed the tracked worktree was clean at `1dfc9edc90f7` before any merge
+  work and that `FINAL_REPORT.md` is the established final-report output file.
+- Completed `uv sync --all-packages --extra us` for all 118 locked packages.
+  The sandbox denied the default cache and network access, so the successful
+  run used a writable offline cache seeded from the host's lock-compatible uv
+  cache; all five editable workspace packages now resolve from this worktree.
+- Started independent read-only reviews of the lineage conflict semantics, the
+  pkg3/F0 anti-rot re-pin precedent, and the no-build CI/root-journal merge
+  requirements. Those reviews may not edit, merge, or commit.
+
+### Next
+
+1. Run the complete no-build behavioral and lint baseline, then commit this
+   journal checkpoint.
+2. Refresh or otherwise verify `origin/main`, merge it, resolve journals with
+   `--ours`, and resolve executable/spec conflicts by preserving both sides'
+   behavior; stop for the owner if any requirement is genuinely contradictory.
+3. Re-pin all moved field-usage, coverage, and identity attestations with the
+   repository's tools, run the full suite after every coherent commit, update
+   this journal and `FINAL_REPORT.md`, and leave the merged branch unpushed.
+
 ## Residual FIX packages — 2026-08-22 22:45Z
 
 ### State
