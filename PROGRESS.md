@@ -210,6 +210,14 @@ is authorized or planned.
   recognizes the exact terminal P2/P6 dispositions without treating them as
   validated science. Thirteen focused barrier/C1 tests, Ruff, and format
   checks pass. The authoritative barrier awaits completion of all P5 shards.
+- Implemented and independently reviewed the A18 final report assembler. It
+  preserves all 6,155 Step-0 IDs; binds the exact enumeration/adoption/C3 and
+  readings/C1 sequence; embeds the full 31-row G3 enumeration in the JSON
+  mirror; normalizes the unevaluable A16-31 P2 attributions `NOT_VALIDATED`;
+  excludes invalid/unsupported rows from Holm; recovers persisted P6 bridge
+  values; uses clone-0 support counts; and carries sourced adult-care/weeks
+  highlights plus the assembler digest for derived verdicts. Twenty-four
+  focused and 53 broader tests pass; a real partial replay is schema-valid.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
