@@ -65,8 +65,16 @@ with scientific content seal
 It reproduces all eight realized gate-sign vectors and post-draw RNG states,
 closes both ledgers exactly, and matches D0-1 incidence bit for bit.
 
-P2 is executing in the sealed A8 priority order. P5, C1, and verdicts have
-not yet executed. No pool build,
+The A8-priority severe-six P2 tranche is sealed at
+`/private/tmp/qrf_phase0_a18_p2_severe6.json`, SHA-256
+`1a812299b16a7b072742ac02e1fee87c8bd39ee4b867f9215f084d47c57a3d53`.
+All 24 C4 endpoint reproductions pass. Child-support expense, weeks, and
+workers compensation followed the target-wide R=1,000 escalation rule; the
+other three remained at R=250. Reading closures invalidate child-support
+expense pattern 02 and weeks patterns 00/02, so those aggregate attributions
+are correctly `NOT_VALIDATED_PATTERN_CLOSURE_FAILURE`; their sealed T2 ledger
+rows still stand. P2's remaining three targets are ready to resume from the
+self-verified checkpoint. P5, C1, and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
 
@@ -125,6 +133,10 @@ is authorized or planned.
   scientific content seal exactly matches the prior integration run. SEILY's
   dominant row is T2 (share `0.9012480263187225`); energy's dominant row is
   T2 (share `0.49554921511098193`); both registered legs are supported.
+- Completed and preserved the severe-six P2 priority tranche: six target
+  seals, 1,408 manifest fragments, 24/24 exact C4 endpoint reproductions, and
+  a PASS static-field manifest. Closure failures remain explicit rather than
+  being averaged away or treated as control failures.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
