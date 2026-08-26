@@ -492,6 +492,10 @@ def categorical_feature(name: str) -> bool:
     """Return the frozen transfer semantics used for categorical detail."""
     return (
         name == "is_female"
+        or name in {
+            "is_incapable_of_self_care",
+            "previous_year_income_available",
+        }
         or name.endswith("_is_household_head")
         or name.endswith("_state_fips")
         or name.endswith("_tenure_code")
@@ -507,7 +511,15 @@ def registered_categories(
     observed = sorted(
         float(value) for value in np.unique(np.concatenate((donor, recipient)))
     )
-    if name == "is_female" or name.endswith("_is_household_head"):
+    if (
+        name
+        in {
+            "is_female",
+            "is_incapable_of_self_care",
+            "previous_year_income_available",
+        }
+        or name.endswith("_is_household_head")
+    ):
         base = [0.0, 1.0]
         source = "production semantic boolean order 0,1"
     elif name.endswith("_tenure_code"):
@@ -2012,7 +2024,12 @@ def main() -> None:
     }
     source_files = [
         {"path": str(path.resolve()), "sha256": c4.sha256_file(path)}
-        for path in (Path(__file__), Path(c4.__file__), Path(replay.__file__))
+        for path in (
+            Path(__file__),
+            Path(a18_enumeration.__file__),
+            Path(c4.__file__),
+            Path(replay.__file__),
+        )
     ]
 
     if args.out.exists():

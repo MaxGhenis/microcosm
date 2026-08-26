@@ -168,6 +168,25 @@ def test_categorical_marginal_has_kish_level_detail_and_support_evidence() -> No
     assert audit["categories"][2]["difference_se"] > 0.0
 
 
+@pytest.mark.parametrize(
+    "feature",
+    ["is_incapable_of_self_care", "previous_year_income_available"],
+)
+def test_registered_g3_booleans_receive_category_level_audit(feature: str) -> None:
+    audit = P2.marginal_audit(
+        np.asarray([0.0, 1.0, 1.0]),
+        np.asarray([1.0, 2.0, 1.0]),
+        np.asarray([0.0, 0.0, 1.0]),
+        np.asarray([1.0, 1.0, 2.0]),
+        feature=feature,
+    )
+
+    assert audit["feature_kind"] == "categorical"
+    assert audit["category_order"] == [0.0, 1.0]
+    assert audit["category_order_source"] == "production semantic boolean order 0,1"
+    assert [row["category"] for row in audit["categories"]] == [0.0, 1.0]
+
+
 def test_pattern_closure_failure_invalidates_target_aggregate() -> None:
     pattern_payloads = [
         {

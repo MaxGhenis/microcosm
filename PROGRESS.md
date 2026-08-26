@@ -81,13 +81,21 @@ canonical SHA-256
 It contains exactly 2,322 Step-0 fragments with all static fields passing and
 36/36 C4 endpoint reproductions. Six targets escalated to R=1,000. In
 addition to the severe-tranche failures above, UC patterns 00/02 fail reading
-closure; all other supported aggregate P2 attributions validate. The exact
-P5 executor is independently reviewed
+closure. Independent final audit reproduced 36,010 numerical/seal checks and
+found the Shapley core clean, but D0 enumerates no A16-31 joint hybrid-domain
+predicates. That gated validity check is therefore unevaluable: all supported
+group and per-prior P2 estimates will remain visible as descriptive numbers
+but be normalized `NOT_VALIDATED` in the final report, outside Holm and H3/H4
+decisions. The audit also found that two semantic Boolean G3 priors lacked
+category-level detail and that the directly imported A18 verifier was absent
+from `source_files`; the committed executor now fixes both, and P2 will be
+regenerated after the active P5 work. The exact P5 executor is independently reviewed
 and ready. Its sealed estimate is 24 cache-distinct metric surfaces,
 479,723,507,273 recipient-donor pairs, and 5,098,887,772,670 feature-pair
 costs; the fourfold-conservative cached projection is 11.38 hours, within
 A8. Six disjoint target shards preserve every safe cache reuse while making
-the long run durable. P5, C1, and verdicts have not yet executed. No pool build,
+the long run durable. The first all-donor P5 cache-building shard is active;
+C1 and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
 
@@ -167,14 +175,20 @@ is authorized or planned.
   pattern's exact Shapley identity passes. Aggregate attributions are marked
   `NOT_VALIDATED_PATTERN_CLOSURE_FAILURE` for child-support expense, weeks,
   and UC; the ledger T2 rows remain valid independently.
+- Independently audited P2 through 36,010 internal checks. All live input,
+  target, artifact, roster, C4 endpoint, Shapley, closure, aggregate, and
+  escalation checks reproduce. Corrected the descriptive marginal audit so
+  `is_incapable_of_self_care` and `previous_year_income_available` use
+  registered Boolean category order 0/1, and added the imported A18 verifier
+  to the executor's recorded `source_files`. Focused tests and Ruff pass.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Execute exact P5 in six disjoint cache-preserving shards under its
-   mechanical A8 estimate, then seal the reading
-   boundary, execute C1, then compute VERDICTS from the
-   sealed additive ledger and available probes.
+1. Complete exact P5 in six disjoint cache-preserving shards under its
+   mechanical A8 estimate, regenerate P2 from the corrected committed
+   executor, then seal the reading boundary, execute C1, and compute VERDICTS
+   from the sealed additive ledger and valid probes.
 2. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
 
