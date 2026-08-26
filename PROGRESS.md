@@ -56,10 +56,14 @@ identical scientific payload after removing only elapsed-time/RSS fields;
 that normalized payload SHA-256 is
 `83249700d316f2c3125deb34b0fdbeb90735c1dc96f507287272445c9927a396`.
 Producer stages sealed `NO_SURFACE` remain explicitly unavailable rather than
-guessed. The two baseline1pct cross-rung rows currently bind D/J0/Iq/raw/T5
-but leave gate-dependent rows `NOT_RUN_PRIORITY_RULE`.
+guessed. An isolated baseline1pct replay is now implemented for the two
+A15.53 positive-leg cross-rung cells. Its non-authoritative integration run
+reproduced all eight realized gate-sign vectors and post-draw RNG states,
+closed both ledgers exactly, and matched D0-1 incidence bit for bit; the
+authoritative sealed replay is next.
 
-P2, P5, C1, and verdicts have not yet executed. No pool build,
+P2 is executing in the sealed A8 priority order. P5, C1, and verdicts have
+not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
 
@@ -110,14 +114,18 @@ is authorized or planned.
   `0.00015434837856797244`. Adult-care T5 is `0.0020038161254599483` with
   3,788 candidate pre-calibration rows cleared, extending D0-4's separately
   sealed 183 baseline cleared draws.
+- Implemented the two-cell A15.53 baseline1pct replay. Focused tests and Ruff
+  pass; the integration replay closes both ledgers, binds every unchanged HGB
+  gate to its banked realized signs and RNG state, and produces complete
+  top-level rows and dominant labels without a changed-data magnitude refit.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Execute P2 for the six severe-drift targets, then remaining reading work in
-   A8 priority order. Record anything predicted to exceed the bound runtime as
-   `NOT_RUN_PRIORITY` with the mechanical estimate.
-2. Seal the reading boundary, execute C1, then compute VERDICTS from the
+1. Finish the active severe-target P2 execution, run its remaining three
+   targets, and seal the authoritative baseline1pct cross-rung artifact.
+2. Execute exact P5 under its mechanical A8 estimate, seal the reading
+   boundary, execute C1, then compute VERDICTS from the
    sealed additive ledger and available probes.
 3. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
