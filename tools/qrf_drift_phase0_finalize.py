@@ -547,6 +547,9 @@ def render_markdown(result: dict[str, Any], evidence: dict[str, Any]) -> str:
     p0_i = {item["target"]: item for item in setup["setup_gates"]["A17-15(i)"]["targets"]}
     p0_ii = {item["target"]: item for item in setup["setup_gates"]["A16-15(ii)"]["targets"]}
     p0_iii = {item["target"]: item for item in setup["setup_gates"]["A17-15(iii)"]["targets"]}
+    adult_care = p0_iii["pre_subsidy_care_expenses"]
+    adult_care_rows = adult_care["row_set"]
+    adult_care_clones = adult_care["clone_split_actual"]
     p0_lines = []
     for target in result["targets"]:
         first, second, third = p0_i[target], p0_ii[target], p0_iii[target]
@@ -692,6 +695,8 @@ The three columns are A17-15(i), unchanged A16-15(ii), and A17-15(iii). Source: 
 | --- | ---: | ---: | ---: | --- | --- | --- | --- |
 {chr(10).join(p0_lines)}
 
+For `pre_subsidy_care_expenses`, A17-15(iii) matched all {adult_care_rows['count']} registered `/person/axis1` rows exactly: sorted `<i8` row-set SHA-256 `{adult_care_rows['sha256_actual']}`, clone-0/1/2 split {adult_care_clones['0']}/{adult_care_clones['1']}/{adult_care_clones['2']}. All {adult_care['D0_unequal_rows']} unequal rows had positive raw values and positive-zero terminal bits, with {adult_care['bitwise_unequal_rows'] - adult_care_rows['count']} unregistered bitwise differences. Source: `{evidence['paths']['setup']}`, SHA-256 `{digests['setup']}`, `/setup_gates/A17-15(iii)/targets/5`.
+
 ### C4 — {result['controls']['C4']['status']}
 
 All 40 no-change Shapley-null totals come from `{evidence['paths']['c4']}`, SHA-256 `{digests['c4']}`, `/statistics`; canonical payload SHA-256 `{c4['canonical_sha256']}`.
@@ -715,6 +720,8 @@ The six rostered oracle errors and two power decisions come from `{evidence['pat
 | Control | Group | Estimate | Oracle | Error | MCSE | Status |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
 {chr(10).join(c23_lines)}
+
+C3 reached {c2c3['transformations']['C3']['observed_carriers']} observed carriers, but the intervened G3 column has {c2c3['exact_oracles']['gate_split_count_G3']} splits in the frozen gate and {c2c3['exact_oracles']['controls']['C3']['direct_difference_nonzero_rows']} nonzero exact per-row differences. Consequently its exact G3 oracle and final MCSE are both {exact(c2c3['controls']['C3']['power']['absolute_oracle'])}; the strict power test is {exact(c2c3['controls']['C3']['power']['absolute_oracle'])} > {exact(c2c3['controls']['C3']['power']['threshold_5_z_mcse'])}, which is false. C3 is therefore UNDERPOWERED and the final-run instruction stops execution before readings. Source: `{evidence['paths']['c2c3']}`, SHA-256 `{digests['c2c3']}`, `/controls/C3/power`, `/transformations/C3`, and `/exact_oracles`.
 
 ### C1 — {result['controls']['C1']['status']}
 
@@ -1219,7 +1226,13 @@ def main() -> None:
             )
         final_status = requested_status
 
-    failed_text = ", ".join(failures)
+    failure_labels = [
+        f"{name}_{c23_controls[name]['status']}"
+        if name in c23_controls and c23_controls[name]["status"] != "FAIL"
+        else name
+        for name in failures
+    ]
+    failed_text = ", ".join(failure_labels)
     if final_status == "CONTROLS_FAILED":
         status_line = f"STATUS: CONTROLS_FAILED — {failed_text}; readings and C1 NOT_RUN_CONTROLS_FAILED"
     elif final_status == "PARTIAL":
@@ -1233,6 +1246,17 @@ def main() -> None:
             "execution_version": EXECUTION_VERSION,
             "status": final_status,
             "status_line": status_line,
+            "failed_controls": failures,
+            "failed_control_details": [
+                {
+                    "control": name,
+                    "status": c23_controls[name]["status"],
+                    "power": copy.deepcopy(c23_controls[name]["power"]),
+                }
+                if name in c23_controls
+                else {"control": name, "status": "FAIL"}
+                for name in failures
+            ],
             "authority": {
                 "design": source_ref(DESIGN, authority_digests[DESIGN], commit=DESIGN_COMMIT),
                 "d0_json": source_ref(D0_JSON, authority_digests[D0_JSON]),
