@@ -1542,11 +1542,22 @@ def _run_candidate_target(
 
     receipt = _receipt_for_target(data["d0"], target)
     full_drawn = np.isfinite(raw_full)
+    # D0-4's terminal comparison is the baseline1pct binding.  The matching
+    # candidate-25 raw-draw lineage is sealed in D0-5 on the same decoded-bank
+    # basis, and is the digest applicable to this primary-rung reading.
     d0_lineage = next(
-        row for row in data["d0"]["D0-4"]["targets"] if row["target"] == target
+        row
+        for row in data["d0"]["D0-5"]["recipient_raw_and_terminal"]["candidate_25"][
+            "targets"
+        ]
+        if row["target"] == target
     )
     raw_digest_matches_d0 = (
         bank["metadata"]["raw_draw_sha256"] == d0_lineage["raw_draw_sha256"]
+    )
+    raw_rows_match_d0 = len(raw_full) == int(d0_lineage["raw_rows"])
+    finite_rows_match_d0 = int(full_drawn.sum()) == int(
+        d0_lineage["raw_finite_recipient_rows"]
     )
     p0 = {
         "status": "PASS_A17_SCOPE_RECOVERY",
@@ -1562,11 +1573,25 @@ def _run_candidate_target(
         "receipt_authorized_null_rows": int(receipt["authorized_null_rows"]),
         "full_bank_matches_receipt": int(full_drawn.sum())
         == int(receipt["authorized_null_rows"]),
-        "raw_draw_digest_matches_D0_4": raw_digest_matches_d0,
+        "raw_draw_digest_matches_D0_5_candidate": raw_digest_matches_d0,
+        "raw_rows_match_D0_5_candidate": raw_rows_match_d0,
+        "finite_rows_match_D0_5_candidate": finite_rows_match_d0,
+        "raw_draw_lineage_source": {
+            "D0_section": "D0-5/recipient_raw_and_terminal/candidate_25",
+            "expected_sha256": d0_lineage["raw_draw_sha256"],
+            "observed_sha256": bank["metadata"]["raw_draw_sha256"],
+            "expected_rows": int(d0_lineage["raw_rows"]),
+            "observed_rows": int(len(raw_full)),
+        },
         "path_census": path_census,
         "receipt": receipt,
     }
-    if not p0["full_bank_matches_receipt"] or not raw_digest_matches_d0:
+    if not (
+        p0["full_bank_matches_receipt"]
+        and raw_digest_matches_d0
+        and raw_rows_match_d0
+        and finite_rows_match_d0
+    ):
         raise ValueError(f"A17/P0 mask recovery failed for {target}")
     if phi == 0.0:
         raise SurfaceUnavailableError(
