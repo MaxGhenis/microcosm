@@ -13,10 +13,11 @@ Execution has cleared the deterministic A17 setup boundary. The sealed Step-0
 deliverables and adopted C0a/C0b/C5 evidence re-verified; the mechanical
 control roster is K=122 with z*=3.526967430023352 and ordered-ID digest
 `348386d9675172b65550ef7cb157fb1387e1d45331f61253aefe40dbe8f2bbc9`.
-A17-15(i), A16-15(ii), and A17-15(iii) all pass 9/9. The next gated action is
-the fresh A14/A15-compliant C4 null replay. A numerical failure of any gated
-control will stop the run; non-gated gaps use the A16 recorded-default rule
-and do not stop execution.
+A17-15(i), A16-15(ii), and A17-15(iii) all pass 9/9. Fresh C4 has also passed
+all 40 stochastic null-total cells and all 20 deterministic empty-G3 checks.
+The next gated action is C2/C3. A numerical failure of any gated control will
+stop the run; non-gated gaps use the A16 recorded-default rule and do not stop
+execution.
 
 No pool build, refit-with-changes, network access, publication, promotion, or
 logbook write is authorized or planned. Bounded gate refits and deterministic
@@ -52,16 +53,21 @@ replay are allowed by the design.
 - Added and committed the shared QRF replay primitives and C4 executor. A
   fixed-two-replicate smoke exercised all four child-support-received pattern
   cells; the authoritative path remains the registered 250/1,000 schedule.
+- Ran authoritative C4. All 40 stochastic cells passed at
+  z*=3.526967430023352, and all 20 structural empty-G3 checks were exact zero.
+  `weeks_unemployed` and `self_employment_income_last_year` triggered the
+  registered target-wide extension to 1,000 replicates; every other target
+  remained at 250. The evidence is
+  `/private/tmp/qrf_phase0_a17_c4.json`, SHA-256
+  `8cd95aafcdb896b8f6bedc86dcb030c912b277a6b28ba87d69bac0d79a5c06c5`.
 
 ## Next
 
-1. Run the fresh C4 control at the registered 250-replicate schedule and apply
-   target-wide 1,000-replicate escalation exactly where triggered.
-2. Run C2/C3 against the six exact group-specific oracles and apply their
+1. Run C2/C3 against the six exact group-specific oracles and apply their
    recovery and power gates. Stop on any gated numerical failure.
-3. If controls permit, compute P0/P1 for all targets, prioritized P2 and the
+2. If controls permit, compute P0/P1 for all targets, prioritized P2 and the
    remaining readings, then C1 and mechanical verdicts.
-4. Render and validate the authoritative JSON and Markdown mirror, leaving
+3. Render and validate the authoritative JSON and Markdown mirror, leaving
    both output files uncommitted.
 
 ## Historical prior runs
