@@ -2,12 +2,12 @@
 
 ## State
 
-The Max-approved A17 restart is active from design commit `1c315579`.
+The Max-approved A17 restart is terminal from design commit `1c315579`.
 The governing v2 design, every amendment through v2.6/A17, both D0 bindings,
 and `CLAUDE.md` have been read in the required order. The worktree began with
 only the two requested Phase-0 output files modified by the prior A16
-fail-closed attempt; they remain uncommitted and are treated as reusable
-diagnostic evidence, not as final A17 results.
+fail-closed attempt. They have now been replaced by the final A17 report and
+remain uncommitted as required.
 
 Execution has cleared the deterministic A17 setup boundary. The sealed Step-0
 deliverables and adopted C0a/C0b/C5 evidence re-verified; the mechanical
@@ -20,6 +20,14 @@ cells and C2 power, but C3 is numerically UNDERPOWERED: its exact target-group
 oracle and MCSE are both zero, so the strict required comparison is `0 > 0`
 and fails. The FINAL RUN NOTICE requires a stop and return to Max on any
 numerical control failure. No reading has been opened or computed.
+
+The authoritative outputs have status `CONTROLS_FAILED — C3_UNDERPOWERED`.
+The JSON canonical digest (excluding its own field) is
+`e1e3e22fee3c2b64d4bf7a9bf4911b37b82bbb0c5cf38d84fb4959de70f7e407`;
+the JSON file SHA-256 is
+`e65378071bf9e9519b51eba30c63fd89ca08d982e35610bb5017fcf599e29142`,
+and the Markdown file SHA-256 is
+`5c9a60bb6364cf87fcc4f89ff1ba0bf7cacc88decde48be262d225e0e2035d68`.
 
 No pool build, refit-with-changes, network access, publication, promotion, or
 logbook write is authorized or planned. Bounded gate refits and deterministic
@@ -89,14 +97,28 @@ replay are allowed by the design.
 - Added and committed the A17 report finalizer. It preserves every sealed
   Step-0 object, validates the 6,155-ID manifest and schema, and hard-rejects
   the superseded intervention estimator semantics.
+- Made the terminal report explicit about A17's exact 183-row adult-care
+  exception and C3's 397 observed carriers, zero frozen-gate G3 splits, zero
+  nonzero exact differences, and failed strict `0 > 0` power inequality.
+- Applied A16-56/default-3 round-half-even six-significant-digit rendering to
+  Markdown numeric cells. Added all 20 deterministic empty-G3 checks to the
+  JSON control mirror and reported their 20/20 exact-zero PASS in Markdown.
+- Rendered both requested output files deterministically. The final rerender
+  reproduced their file hashes byte for byte.
+- Independently audited the final files with no remaining finding: JSON
+  Schema and canonical hash PASS; all five Step-0 object seals and their
+  composite PASS; the ordered K=122 roster PASS; required-ID/statistic
+  completeness is 6,155/6,155 with zero duplicate, missing, or extra IDs; all
+  27 unique source references match their bytes; nine target sections, 18
+  legs, 162 ledger rows, and 18 cross-target rows mirror JSON; Appendix A is
+  byte-exact; and every Markdown float token follows the bound precision.
 
 ## Next
 
-1. Render the authoritative JSON and Markdown mirror with C3 UNDERPOWERED as
-   the terminal numerical control failure and every unreached reading marked
-   `NOT_RUN_CONTROLS_FAILED`.
-2. Validate canonical SHA, JSON Schema, all Step-0 seals, all 6,155 required
-   IDs, Markdown/JSON mirroring, and Git state; leave both outputs uncommitted.
+1. Return the terminal C3 power result to Max. Do not open readings or C1
+   without a new owner-logged amendment/restart authority.
+2. Leave `experiments/qrf_drift_validation_phase0.md` and `.json` uncommitted
+   as required; there is no remaining in-scope execution step.
 
 ## Historical prior runs
 
