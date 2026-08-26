@@ -2,10 +2,11 @@
 
 ## State
 
-In progress as of 2026-08-26 on `parsimony-qrf-only`. This lane will restore
-only the late-recipient positive-unemployment-compensation weeks rule and the
-canonical `max_targets_per_fit` validation guard required by design v2 §4.1.
-The #742 margin-calibration removal remains out of scope for restoration.
+Audit complete and implementation in progress as of 2026-08-26 on
+`parsimony-qrf-only`. This lane will restore only the late-recipient
+positive-unemployment-compensation weeks rule and the canonical
+`max_targets_per_fit` validation guard required by design v2 §4.1. The #742
+margin-calibration removal remains out of scope for restoration.
 
 The prebuilt `.venv` is present. No dependency sync, network operation, push,
 pool/release build, publication, or promotion is in scope.
@@ -16,14 +17,23 @@ pool/release build, publication, or promotion is in scope.
 - Confirmed the requested branch, clean starting worktree, local base and
   removal commits, and executable prebuilt environment.
 - Established this committed state/done/next journal before modifying code.
+- Cross-read D0-10 and its JSON mirror, `bb796cb7..2d973984`, and local
+  `origin/main`; upstream and the merge base are byte-identical for both rules.
+- Isolated the self-contained canonical gap-fill width guard and its focused
+  test. It has no dependency on calibration plumbing.
+- Isolated all three parts of the weeks rule: the late ACS mutable allowed-row
+  mask in `stacked_spine.py`, the disallowed-positive clamp in the removed
+  calibration kernel, and the terminal live-frame validation in
+  `stacked_spine.py`. This rule requires a minimal non-calibration re-anchor.
+- Inventoried all other deletions into bookkeeping, consequential repins,
+  calibration policy/schema/authority/generator, runtime/receipt/evidence,
+  tests, and diagnostic-tool categories for reviewer-only reclassification.
 
 ## Next
 
-1. Derive the exact two removed hunks from `bb796cb7..2d973984`, cross-read the
-   local `origin/main` versions, and inventory every other removal for the
-   reviewer-only reclassification list.
-2. Restore only the two D0-10 parity items, adding or restoring focused tests
-   where the original hunks require them.
+1. Restore the exact gap-fill guard hunk and re-anchor the weeks mutable clamp
+   plus terminal live-frame check directly in the late-transfer owner.
+2. Restore/add focused guard, weeks reconciliation, and terminal mutation tests.
 3. Run Ruff, focused weeks/transfer-guard tests, and the full suite; then write
    the final evidence to `out.md` and commit the completed journal/report.
 
