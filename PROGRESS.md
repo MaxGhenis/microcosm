@@ -116,9 +116,19 @@ looked for a nonexistent Boolean `pass` member in P1's frozen support record,
 whose exact contract is the `status` string. The shared run was stopped before
 editing its live-hashed source. P5 now validates and consumes exactly
 `SUPPORTED` or `INSUFFICIENT_SUPPORT_NO_VERDICT`; eleven focused P5 tests and
-all 92 Phase-0 tests pass. Both P5 scopes will replay from the new commit. C1
-and verdicts have not yet executed. No
-pool build,
+all 92 Phase-0 tests pass. The final replay has now sealed the energy shard at
+`/private/tmp/qrf_phase0_a18_p5_energy.json`, file SHA-256
+`177db0d8f1484920b9bcb46390bc719fc3d639b8086ee7b0a93e2f2dafa8ed78`,
+canonical SHA-256
+`db8633337c2e1ea9e4a64b9679ec07a2cf1e4870bee9c6eb39ceaefebed55a19`.
+All 382,903 S_q rows are certified exactly once; its weight residual is
+`3.0547380447387695e-7` against a `3.0517578125e-5` bound, and its positive
+and negative T2 regrouping residuals are `1.1210650463500116e-16` and zero.
+The 62-row manifest passes with ordered-ID SHA-256
+`b8061efc89120409d0bb4276e50489c85f0e37f126a20ded3486aecae5742e57`.
+The shared four-target replay and child-support-received singleton are active
+from the same source SHA-256 `b0467fae3a1020915c5cabfd5b37616229bc5c3297f59c7c56ad90db70fbdee6`.
+C1 and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
 
@@ -210,6 +220,12 @@ is authorized or planned.
   kernel with deterministic zero scores and exercised the complete remaining
   assembly path: target status complete, 62/62 manifest rows, exact-once
   partition, and both leg drift closures all pass. It wrote no artifact.
+- Sealed the authoritative energy P5 singleton from the final committed
+  executor. It is `COMPLETE_TARGET_SUBSET`; its file/canonical and ordered-ID
+  hashes are recorded above; all 62 Step-0 rows and all live authority/source
+  bindings pass; 382,903 rows are assigned exactly once with no missing,
+  duplicate, or unexpected row; and both decile-to-T2 closures are inside the
+  recorded natural-scale bounds.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,
