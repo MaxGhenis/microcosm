@@ -499,6 +499,16 @@ def decile_drift_closure(
     }
 
 
+def support_floor_passes(support: dict[str, Any]) -> bool:
+    """Interpret the exact P1 support record without inventing a Boolean field."""
+    status = support.get("status")
+    require(
+        status in {"SUPPORTED", "INSUFFICIENT_SUPPORT_NO_VERDICT"},
+        "P5 received an invalid P1 support disposition",
+    )
+    return status == "SUPPORTED"
+
+
 def work_estimate(
     d0: dict[str, Any],
     *,
@@ -957,7 +967,8 @@ def run_target(
             f"{json.dumps(drift_closure, sort_keys=True)}",
         )
         support = p1._support(data["d0"], target, leg)
-        row_status = "OK" if support["pass"] else "INSUFFICIENT_SUPPORT_NO_VERDICT"
+        support_pass = support_floor_passes(support)
+        row_status = "OK" if support_pass else "INSUFFICIENT_SUPPORT_NO_VERDICT"
         denominator = float(np.abs(drift).sum(dtype=np.float64))
         concentration_defined = denominator > 0.0 and abs(t2["value"]) > 2.0 * t2["se"]
         concentration: float | str = (
@@ -965,7 +976,7 @@ def run_target(
         )
         concentration_status = (
             row_status
-            if concentration_defined or not support["pass"]
+            if concentration_defined or not support_pass
             else "NOT_APPLICABLE"
         )
         legs_output[leg] = {

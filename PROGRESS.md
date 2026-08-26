@@ -110,7 +110,14 @@ scale-blind `2e-14` floor. The executor now certifies every global S_q row
 exactly once (with missing, duplicate, and unexpected-row identities),
 separately bounds weight and drift regrouping at 4,096 binary64 ULPs on the
 natural survey-weight scale, and records both residuals. The first shard will
-restart from this committed code. C1 and verdicts have not yet executed. No
+restart from this committed code. That restart and the energy singleton then
+exposed a post-distance assembly bug before either artifact was written: P5
+looked for a nonexistent Boolean `pass` member in P1's frozen support record,
+whose exact contract is the `status` string. The shared run was stopped before
+editing its live-hashed source. P5 now validates and consumes exactly
+`SUPPORTED` or `INSUFFICIENT_SUPPORT_NO_VERDICT`; eleven focused P5 tests and
+all 92 Phase-0 tests pass. Both P5 scopes will replay from the new commit. C1
+and verdicts have not yet executed. No
 pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
@@ -192,6 +199,13 @@ is authorized or planned.
   drift regrouping. Its regressions reproduce both former false rejections.
   Ten focused P5 tests, all 88 Phase-0 tests, Ruff, formatting, and diff checks
   pass.
+- Diagnosed the next P5 stop after energy completed all four distance surfaces
+  as an assembly-only mismatch with P1's exact support-record API. No artifact
+  was written and no computed metric was accepted. Replaced the invented
+  `support["pass"]` access with a fail-closed interpreter of P1's registered
+  `status` values, added a regression that rejects the old shape, and stopped
+  the still-live shared shard before changing its source. Eleven focused P5
+  tests, all 92 Phase-0 tests, Ruff, formatting, and diff checks pass.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,

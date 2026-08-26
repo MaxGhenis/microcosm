@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 TOOLS = ROOT / "tools"
@@ -213,6 +214,15 @@ def test_decile_drift_closure_allows_only_natural_scale_regrouping() -> None:
         )["status"]
         == "FAIL"
     )
+
+
+def test_support_floor_uses_the_exact_p1_status_contract() -> None:
+    assert P5.support_floor_passes({"status": "SUPPORTED"}) is True
+    assert (
+        P5.support_floor_passes({"status": "INSUFFICIENT_SUPPORT_NO_VERDICT"}) is False
+    )
+    with pytest.raises(ValueError, match="invalid P1 support disposition"):
+        P5.support_floor_passes({"pass": True})
 
 
 def test_bound_d0_work_and_conservative_a8_disposition() -> None:
