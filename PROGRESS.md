@@ -57,10 +57,13 @@ that normalized payload SHA-256 is
 `83249700d316f2c3125deb34b0fdbeb90735c1dc96f507287272445c9927a396`.
 Producer stages sealed `NO_SURFACE` remain explicitly unavailable rather than
 guessed. An isolated baseline1pct replay is now implemented for the two
-A15.53 positive-leg cross-rung cells. Its non-authoritative integration run
-reproduced all eight realized gate-sign vectors and post-draw RNG states,
-closed both ledgers exactly, and matched D0-1 incidence bit for bit; the
-authoritative sealed replay is next.
+A15.53 positive-leg cross-rung cells. The authoritative artifact is
+`/private/tmp/qrf_phase0_baseline_crossrung.json`, file SHA-256
+`30f4d46ae4152655f7470efadf6c02941d65847ed38caf4ed037f4c28aa36cd2`,
+with scientific content seal
+`bf73b65a33716a417a82e85efc73a25ca10327b9488bee9fe152b662262cbb8e`.
+It reproduces all eight realized gate-sign vectors and post-draw RNG states,
+closes both ledgers exactly, and matches D0-1 incidence bit for bit.
 
 P2 is executing in the sealed A8 priority order. P5, C1, and verdicts have
 not yet executed. No pool build,
@@ -118,12 +121,16 @@ is authorized or planned.
   pass; the integration replay closes both ledgers, binds every unchanged HGB
   gate to its banked realized signs and RNG state, and produces complete
   top-level rows and dominant labels without a changed-data magnitude refit.
+- Ran the authoritative baseline replay from its committed source. Its
+  scientific content seal exactly matches the prior integration run. SEILY's
+  dominant row is T2 (share `0.9012480263187225`); energy's dominant row is
+  T2 (share `0.49554921511098193`); both registered legs are supported.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Finish the active severe-target P2 execution, run its remaining three
-   targets, and seal the authoritative baseline1pct cross-rung artifact.
+1. Finish the active severe-target P2 execution and run its remaining three
+   targets.
 2. Execute exact P5 under its mechanical A8 estimate, seal the reading
    boundary, execute C1, then compute VERDICTS from the
    sealed additive ledger and available probes.
