@@ -73,25 +73,28 @@ workers compensation followed the target-wide R=1,000 escalation rule; the
 other three remained at R=250. Reading closures invalidate child-support
 expense pattern 02 and weeks patterns 00/02, so those aggregate attributions
 are correctly `NOT_VALIDATED_PATTERN_CLOSURE_FAILURE`; their sealed T2 ledger
-rows still stand. The all-nine P2 artifact is now complete at
+rows still stand. The corrected all-nine P2 replay is now complete at
 `/private/tmp/qrf_phase0_a18_p2.json`, file SHA-256
-`7a4bcc66207806c22d1c232a05f260873a20bdd73eae0a96b4615b2b9386d792`,
+`ffe323579ecafd3ce05fcc75d68b19000b81560543cf6a6c97df8763b7e18b24`,
 canonical SHA-256
-`aec79da54daa8cf030d0b97b9cf6ad7610c12c123d3c285f9559329800faf754`.
+`96b162a89fc725c50e7c10c237ed802d89efa83e0c947d7b3589f77a9d0ca2f9`.
 It contains exactly 2,322 Step-0 fragments with all static fields passing and
 36/36 C4 endpoint reproductions. Six targets escalated to R=1,000. In
 addition to the severe-tranche failures above, UC patterns 00/02 fail reading
-closure. Independent final audit reproduced 36,010 numerical/seal checks and
-found the Shapley core clean, but D0 enumerates no A16-31 joint hybrid-domain
-predicates. That gated validity check is therefore unevaluable: all supported
-group and per-prior P2 estimates will remain visible as descriptive numbers
-but be normalized `NOT_VALIDATED` in the final report, outside Holm and H3/H4
-decisions. The audit also found that two semantic Boolean G3 priors lacked
-category-level detail and that the directly imported A18 verifier was absent
-from `source_files`. A sealed pre-P2 NON_GATED default now fixes category
-orders before recomputation, and the committed executor records that receipt
-plus the missing verifier source. P2 will be regenerated after the active P5
-work. The exact P5 executor is independently reviewed
+closure. The strict readings verifier reports 31 validated pre-domain cells,
+five closure-failed cells, four insufficient-support cells, 114 ordinary
+closure passes, six ordinary failures, and 40 exact Shapley passes. Its final
+scientific statistic tuples and every target scientific payload after removing
+its seal, runtime, and descriptive marginal audit are byte-identical to the
+pre-default artifact. The sealed
+default receipt is exact; all five recorded source hashes reverify; both
+semantic Boolean priors are categorical with ordered levels `[0, 1]` and
+unchanged base audit numerics; and the imported A18 verifier is recorded.
+D0 still enumerates no A16-31 joint hybrid-domain predicates. That gated
+validity check is therefore unevaluable: all supported group and per-prior P2
+estimates remain visible as descriptive numbers but will be normalized
+`NOT_VALIDATED` in the final report, outside Holm and H3/H4 decisions. The
+exact P5 executor is independently reviewed
 and ready. Its sealed estimate is 24 cache-distinct metric surfaces,
 479,723,507,273 recipient-donor pairs, and 5,098,887,772,670 feature-pair
 costs; the fourfold-conservative cached projection is 11.38 hours, within
@@ -211,6 +214,16 @@ is authorized or planned.
   canonical SHA-256
   `854ea209b422b9dd2c1fc6848ffc135c0988d410e3c27dad50eebf52e6e25c0a`.
   Sixteen focused P2/default tests, Ruff, and format checks pass.
+- Regenerated all nine P2 targets from the corrected committed executor after
+  sealing that default. The file and canonical hashes are the authoritative
+  values above; 2,322/2,322 manifest rows, all live inputs and sources, all 36
+  C4 endpoints, every exact Shapley identity, closure/escalation dispositions,
+  and the two Boolean category audits verify. The strict barrier verifier
+  accepts the computation as complete and assigns the required global
+  `NOT_VALIDATED` reading disposition because D0 has zero joint hybrid-domain
+  predicates. Scientific statistics and all target scientific payloads after
+  removing seal/runtime and marginal-audit fields exactly match the preserved
+  pre-default artifact.
 - Implemented the fail-closed readings-before-C1 barrier. It verifies and
   directly binds the adopted controls, fresh C3, complete P0/P1/P6/P7,
   complete-but-`NOT_VALIDATED` P2, both baseline cross-rung readings, and
@@ -235,9 +248,8 @@ is authorized or planned.
 ## Next
 
 1. Complete exact P5 in six disjoint cache-preserving shards under its
-   mechanical A8 estimate, regenerate P2 from the corrected committed
-   executor, then seal the reading boundary, execute C1, and compute VERDICTS
-   from the sealed additive ledger and valid probes.
+   mechanical A8 estimate, then seal the reading boundary, execute C1, and
+   compute VERDICTS from the sealed additive ledger and valid probes.
 2. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
 
