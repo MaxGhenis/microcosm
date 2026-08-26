@@ -35,9 +35,23 @@ import qrf_drift_phase0_replay as replay
 
 WORKTREE = Path(__file__).resolve().parents[1]
 D0_JSON = WORKTREE / "experiments/qrf_drift_validation_d0.json"
-ADOPTED_REPORT = WORKTREE / "experiments/qrf_drift_validation_phase0.json"
+DESIGN_MD = WORKTREE / "experiments/qrf_drift_validation_design.md"
+A16_BINDING = WORKTREE / "experiments/qrf_drift_validation_a16_binding_texts.md"
+DEFAULT_C0B = Path("/private/tmp/qrf_phase0_v22_c0b.json")
+DEFAULT_STEP0 = WORKTREE / "experiments/qrf_drift_validation_phase0.json"
 DEFAULT_OUT = Path("/private/tmp/qrf_phase0_p1.json")
 ZERO_ATOL = 1e-6
+EXPECTED_D0_SHA256 = "fb57f6a0695a7a7137fb7270d4fa7bce7e6a6aa079cdc82e35bdf5bb7cf737c8"
+EXPECTED_DESIGN_SHA256 = (
+    "5c8e55293215a7d1350c93825b1a4daf04e212bb84d17408b8750ed5d9d4e754"
+)
+EXPECTED_A16_BINDING_SHA256 = (
+    "7e288bce7496e1e7f41e33f078be2043673ca54ff31182caf2ce92eab68a81c1"
+)
+EXPECTED_C0B_SHA256 = "1c7bfd65660b14068c4bc96fae4b8d270cb447ea8fbbe42c8ef982c5f1dbf542"
+EXPECTED_OPERATOR_TABLE_SHA256 = (
+    "447f7c9f00220440b7ad3825223f01fec8bed28e16e6eda2a851afdda64a6e23"
+)
 LEGS = {"positive": 1, "negative": -1}
 TARGETS = (
     "child_support_expense",
@@ -75,7 +89,29 @@ def sha256_file(path: Path) -> str:
 
 
 def array_identity(values: np.ndarray) -> dict[str, Any]:
-    return c4.array_identity(np.asarray(values))
+    array = np.asarray(values)
+    if array.dtype.kind not in {"O", "S", "U"}:
+        return c4.array_identity(array)
+    normalized: list[object] = []
+    for value in array.reshape(-1):
+        if isinstance(value, bytes):
+            normalized.append({"bytes_hex": value.hex()})
+        else:
+            scalar = value.item() if isinstance(value, np.generic) else value
+            missing = pd.isna(scalar)
+            is_missing = (
+                bool(missing) if isinstance(missing, (bool, np.bool_)) else False
+            )
+            normalized.append(None if is_missing else str(scalar))
+    payload = canonical_json({"shape": list(array.shape), "values": normalized}).encode(
+        "utf-8"
+    )
+    return {
+        "dtype": array.dtype.str,
+        "shape": list(array.shape),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "encoding": "canonical_json_logical_values_v1",
+    }
 
 
 def mask_identity(mask: np.ndarray) -> dict[str, Any]:
@@ -99,11 +135,28 @@ def _text(values: np.ndarray) -> np.ndarray:
     return np.asarray(values).astype(str)
 
 
+class SurfaceUnavailableError(RuntimeError):
+    """A registered reading surface cannot be replayed deterministically."""
+
+    def __init__(self, stage: str, evidence: dict[str, Any]) -> None:
+        super().__init__(f"registered {stage} surface is unavailable")
+        self.stage = stage
+        self.evidence = evidence
+
+
+def _carrier_mask(values: np.ndarray, sign: int, *, atol: float = 0.0) -> np.ndarray:
+    values = np.asarray(values, dtype=np.float64)
+    if sign not in {-1, 1}:
+        raise ValueError(f"unsupported leg sign {sign}")
+    return values > atol if sign > 0 else values < -atol
+
+
 def _weighted_summary(
     values: np.ndarray,
     weights: np.ndarray,
     *,
     sign: int,
+    atol: float = 0.0,
 ) -> dict[str, Any]:
     values = np.asarray(values, dtype=np.float64)
     weights = np.asarray(weights, dtype=np.float64)
@@ -126,7 +179,7 @@ def _weighted_summary(
         raise ValueError("non-finite value/weight in weighted incidence")
     if (weights <= 0).any():
         raise ValueError("non-positive analysis weight")
-    carrier = values > ZERO_ATOL if sign > 0 else values < -ZERO_ATOL
+    carrier = _carrier_mask(values, sign, atol=atol)
     weight_sum = weights.sum(dtype=np.float64)
     weight_sum_squares = np.square(weights).sum(dtype=np.float64)
     incidence = weights[carrier].sum(dtype=np.float64) / weight_sum
@@ -143,6 +196,54 @@ def _weighted_summary(
         "carrier_rows": int(carrier.sum()),
         "carrier_weight_mass": float(weights[carrier].sum(dtype=np.float64)),
         "empty_set": False,
+        "sign_rule": "exact_gt_lt_zero" if atol == 0.0 else f"qrf_atol_{atol:g}",
+    }
+
+
+def _path_census(
+    authorized: np.ndarray,
+    null_before: np.ndarray,
+    drawn: np.ndarray,
+    finite_decode: np.ndarray,
+) -> dict[str, Any]:
+    """Assign every scoped row to the first failed A16-16 path predicate."""
+    masks = [
+        np.asarray(mask, dtype=bool)
+        for mask in (authorized, null_before, drawn, finite_decode)
+    ]
+    if len({len(mask) for mask in masks}) != 1:
+        raise ValueError("path-census masks do not share one scope axis")
+    authorized_mask, null_mask, drawn_mask, decoded_mask = masks
+    first_failure = {
+        "authorized": ~authorized_mask,
+        "null_before": authorized_mask & ~null_mask,
+        "drawn": authorized_mask & null_mask & ~drawn_mask,
+        "finite_decode": authorized_mask & null_mask & drawn_mask & ~decoded_mask,
+    }
+    passed = authorized_mask & null_mask & drawn_mask & decoded_mask
+    partition = passed.copy()
+    for mask in first_failure.values():
+        if np.any(partition & mask):
+            raise ValueError("path-census first-failure masks overlap")
+        partition |= mask
+    if not partition.all():
+        raise ValueError("path-census first-failure masks do not exhaust scope")
+    return {
+        "stage_pass_rows": {
+            "authorized": int(authorized_mask.sum()),
+            "null_before": int((authorized_mask & null_mask).sum()),
+            "drawn": int((authorized_mask & null_mask & drawn_mask).sum()),
+            "finite_decode": int(passed.sum()),
+        },
+        "first_failure_rows": {
+            name: int(mask.sum()) for name, mask in first_failure.items()
+        },
+        "first_failure_masks": {
+            name: mask_identity(mask) for name, mask in first_failure.items()
+        },
+        "passed_rows": int(passed.sum()),
+        "passed_mask": mask_identity(passed),
+        "_passed": passed,
     }
 
 
@@ -234,12 +335,137 @@ def _receipt_for_target(d0: dict[str, Any], target: str) -> dict[str, Any]:
     )
 
 
-def _c0b_lookup(adopted: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
-    patterns = adopted["controls"]["C0b"]["result_compacted"]["patterns"]
+def _c0b_lookup(c0b_evidence: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
+    """Read the full, direct C0b replay artifact; merged reports are not evidence."""
+    patterns = c0b_evidence.get("patterns")
+    if not isinstance(patterns, list):
+        raise ValueError("direct C0b evidence must expose a top-level patterns array")
     lookup = {(row["target"], row["pattern"]): row for row in patterns}
     if len(lookup) != 36:
-        raise ValueError(f"expected 36 adopted C0b patterns, got {len(lookup)}")
+        raise ValueError(f"expected 36 direct C0b patterns, got {len(lookup)}")
     return lookup
+
+
+def _load_operator_table(
+    step0_path: Path,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    payload = json.loads(step0_path.read_text())
+    step0 = payload.get("step0")
+    if not isinstance(step0, dict):
+        raise ValueError("Step-0 source has no sealed step0 object")
+    rows = step0.get("operator_table")
+    seals = step0.get("seals")
+    if not isinstance(rows, list) or not isinstance(seals, dict):
+        raise ValueError("Step-0 source lacks its operator table or seals")
+    actual = hashlib.sha256(canonical_json(rows).encode("utf-8")).hexdigest()
+    embedded = seals.get("operator_table_sha256")
+    if actual != embedded or actual != EXPECTED_OPERATOR_TABLE_SHA256:
+        raise ValueError(
+            "Step-0 operator-table seal mismatch: "
+            f"actual={actual}, embedded={embedded}, expected={EXPECTED_OPERATOR_TABLE_SHA256}"
+        )
+    targets = {row.get("target") for row in rows}
+    if targets != set(TARGETS):
+        raise ValueError(f"Step-0 operator targets mismatch: {sorted(targets)}")
+    source_checks: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows:
+        source = row.get("source_code")
+        if not isinstance(source, dict) or not isinstance(source.get("path"), str):
+            raise ValueError("operator row lacks a pinned source-code object")
+        relative = source["path"]
+        if relative in seen:
+            continue
+        seen.add(relative)
+        path = WORKTREE / relative
+        actual_source = sha256_file(path)
+        expected_source = source.get("sha256")
+        size = path.stat().st_size
+        match = actual_source == expected_source and size == int(
+            source.get("bytes", -1)
+        )
+        source_checks.append(
+            {
+                "path": str(path),
+                "bytes": size,
+                "sha256_expected": expected_source,
+                "sha256_actual": actual_source,
+                "match": match,
+            }
+        )
+    failed = [row["path"] for row in source_checks if not row["match"]]
+    if failed:
+        raise ValueError(f"operator source-code pin mismatch: {failed}")
+    return rows, {
+        "path": str(step0_path),
+        "sha256": sha256_file(step0_path),
+        "operator_table_sha256": actual,
+        "operator_rows": len(rows),
+        "source_code": source_checks,
+        "status": "PASS",
+    }
+
+
+def _checkpoint_pin(d0: dict[str, Any], build: str, filename: str) -> str:
+    census = d0["D0-11"]["builds"][build]
+    return next(row["sha256"] for row in census["files"] if row["filename"] == filename)
+
+
+def _verify_inputs(
+    d0: dict[str, Any],
+    d0_path: Path,
+    c0b_path: Path,
+    *,
+    include_baseline: bool,
+) -> dict[str, Any]:
+    expected: dict[Path, str] = {
+        d0_path: EXPECTED_D0_SHA256,
+        DESIGN_MD: EXPECTED_DESIGN_SHA256,
+        A16_BINDING: EXPECTED_A16_BINDING_SHA256,
+        c0b_path: EXPECTED_C0B_SHA256,
+    }
+    for build in ("candidate-25", "baseline1pct"):
+        if build == "baseline1pct" and not include_baseline:
+            continue
+        root = Path(d0["D0-11"]["builds"][build]["root"])
+        for filename in ("assembled.checkpoint.h5", "transferred.checkpoint.h5"):
+            expected[root / filename] = _checkpoint_pin(d0, build, filename)
+        bank_targets = d0["D0-0"]["artifacts"][build]["bank_target_checkpoints"]
+        for item in bank_targets:
+            if build == "candidate-25" or item["target"] in CROSS_RUNG_TARGETS:
+                expected[Path(item["path"])] = item["sha256"]
+
+    candidate_root = Path(d0["D0-11"]["builds"]["candidate-25"]["root"])
+    found_predecessors: dict[str, Path] = {}
+    for path in candidate_root.rglob("*.h5"):
+        if path.name in c4.EXPECTED_PREDECESSOR_DIGESTS:
+            found_predecessors[path.name] = path
+    missing = set(c4.EXPECTED_PREDECESSOR_DIGESTS) - set(found_predecessors)
+    if missing:
+        raise ValueError(f"missing predecessor bank(s): {sorted(missing)}")
+    for filename, path in found_predecessors.items():
+        expected[path] = c4.EXPECTED_PREDECESSOR_DIGESTS[filename]
+
+    checks: list[dict[str, Any]] = []
+    for path, expected_sha in expected.items():
+        actual_sha = sha256_file(path)
+        checks.append(
+            {
+                "path": str(path),
+                "bytes": path.stat().st_size,
+                "sha256_expected": expected_sha,
+                "sha256_actual": actual_sha,
+                "match": actual_sha == expected_sha,
+            }
+        )
+    failed = [row["path"] for row in checks if not row["match"]]
+    if failed:
+        raise ValueError(f"P1 input digest mismatch: {failed}")
+    return {
+        "status": "PASS",
+        "files": checks,
+        "all_inputs_live_hashed": True,
+    }
 
 
 def _stable_join(source_ids: np.ndarray, wanted_ids: np.ndarray) -> np.ndarray:
@@ -355,32 +581,142 @@ def _terminal_on_role(
     return values[role["recipient_physical"]]
 
 
+def _operator_row(
+    operator_table: list[dict[str, Any]], target: str, stage: str
+) -> dict[str, Any]:
+    matches = [
+        row
+        for row in operator_table
+        if row.get("target") == target and row.get("stage") == stage
+    ]
+    if len(matches) != 1:
+        raise SurfaceUnavailableError(
+            stage,
+            {
+                "target": target,
+                "reason": "registered Step-0 operator row is missing or duplicated",
+                "matching_rows": len(matches),
+            },
+        )
+    return matches[0]
+
+
+def _production_codec(
+    raw: np.ndarray,
+    donor_values: np.ndarray,
+    target: str,
+    target_spec: dict[str, Any],
+    operator_table: list[dict[str, Any]],
+) -> tuple[np.ndarray, dict[str, Any]]:
+    row = _operator_row(operator_table, target, "recipient_codec")
+    if row.get("surface_status") != "DERIVED_FROM_PERSISTED_RAW":
+        raise SurfaceUnavailableError(
+            "recipient_codec",
+            {
+                "target": target,
+                "reason": "Step-0 does not authorize deterministic derivation from raw",
+                "operator_row": row,
+            },
+        )
+    try:
+        from microcosm.build.us_runtime import acs_transfer
+
+        donor_series = pd.Series(np.asarray(donor_values), name=target)
+        encoding = acs_transfer._target_encoding(donor_series, target=target)
+        production = acs_transfer._prediction_values(
+            np.asarray(raw, dtype=np.float64),
+            encoding=encoding,
+            entity=target_spec["entity"],
+            target=target,
+        )
+        decoded = replay.as_float(np.asarray(production))
+    except Exception as error:
+        raise SurfaceUnavailableError(
+            "recipient_codec",
+            {
+                "target": target,
+                "reason": "registered production codec could not be replayed",
+                "error_type": type(error).__name__,
+                "error": str(error),
+                "operator_row": row,
+            },
+        ) from error
+    if len(decoded) != len(raw):
+        raise SurfaceUnavailableError(
+            "recipient_codec",
+            {
+                "target": target,
+                "reason": "production codec changed row count",
+                "raw_rows": len(raw),
+                "decoded_rows": len(decoded),
+                "operator_row": row,
+            },
+        )
+    support = getattr(encoding, "support", None)
+    return decoded, {
+        "status": "AVAILABLE_REPLAYED",
+        "kind": encoding.kind,
+        "model_target": encoding.model_target,
+        "support_identity": (
+            None if support is None else array_identity(np.asarray(support))
+        ),
+        "source_code": row["source_code"],
+        "source_anchor": row["source_anchor"],
+        "transformation": row["transformation"],
+        "raw_identity": array_identity(np.asarray(raw, dtype=np.float64)),
+        "decoded_identity": array_identity(decoded),
+        "bitwise_equal": np.array_equal(
+            np.asarray(raw, dtype=np.float64).view(np.uint64),
+            decoded.view(np.uint64),
+        ),
+    }
+
+
 def _structural_surface(
     data: dict[str, Any],
     aux: dict[str, Any],
     target: str,
     target_spec: dict[str, Any],
+    decoded_full: np.ndarray,
+    operator_table: list[dict[str, Any]],
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Return post-structural values in the target role's recipient order."""
     role = data["roles"][c4.role_for_target(target_spec)]
-    bank = data["current_banks"][target]
     physical = role["recipient_physical"]
-    raw_role = bank["raw"][physical]
-    decoded = raw_role.copy()
+    row = _operator_row(operator_table, target, "recipient_structural")
+    if row.get("surface_status") != "DERIVED_FROM_PERSISTED_RAW":
+        raise SurfaceUnavailableError(
+            "recipient_structural",
+            {
+                "target": target,
+                "reason": "Step-0 does not authorize structural replay",
+                "operator_row": row,
+            },
+        )
+    decoded = np.asarray(decoded_full, dtype=np.float64)
     diagnostic: dict[str, Any] = {
-        "codec": "identity_numeric",
-        "codec_exact": True,
+        "status": "AVAILABLE_REPLAYED",
         "structural_rule": "identity",
         "cleared_positive_rows": 0,
+        "source_code": row["source_code"],
+        "source_anchor": row["source_anchor"],
+        "transformation": row["transformation"],
     }
     if target == "weeks_unemployed":
-        unemployment = replay.as_float(aux["person"]["unemployment_compensation"])[
-            physical
-        ]
+        unemployment = replay.as_float(aux["person"]["unemployment_compensation"])
+        if len(unemployment) != len(decoded):
+            raise SurfaceUnavailableError(
+                "recipient_structural",
+                {
+                    "target": target,
+                    "reason": "UC structural predictor does not align to bank rows",
+                    "decoded_rows": len(decoded),
+                    "unemployment_rows": len(unemployment),
+                    "operator_row": row,
+                },
+            )
         structural = decoded.copy()
-        clear = (
-            np.isfinite(structural) & (structural > ZERO_ATOL) & ~(unemployment > 0.0)
-        )
+        clear = np.isfinite(structural) & (structural > 0.0) & ~(unemployment > 0.0)
         structural[clear] = 0.0
         diagnostic.update(
             {
@@ -391,17 +727,27 @@ def _structural_surface(
                 "code_authority": "A16-23/A13 pin 95f48a08 semantic recipient rule",
             }
         )
-        return structural, diagnostic
+        return structural[physical], diagnostic
     if target == "pre_subsidy_care_expenses":
         from microcosm.build.us_runtime.acs_transfer import (
             reconcile_acs_adult_care,
         )
 
         person = aux["person"]
-        full_raw = np.asarray(bank["raw"], dtype=np.float64)
-        mutable = np.isfinite(full_raw)
+        mutable = np.isfinite(decoded)
         expenses = replay.as_float(person[target]).copy()
-        expenses[mutable] = full_raw[mutable]
+        if len(expenses) != len(decoded):
+            raise SurfaceUnavailableError(
+                "recipient_structural",
+                {
+                    "target": target,
+                    "reason": "adult-care structural inputs do not align to bank rows",
+                    "decoded_rows": len(decoded),
+                    "person_rows": len(expenses),
+                    "operator_row": row,
+                },
+            )
+        expenses[mutable] = decoded[mutable]
         structural_frame = pd.DataFrame(
             {
                 "pre_subsidy_care_expenses": expenses,
@@ -415,8 +761,8 @@ def _structural_surface(
             mutable_rows=mutable,
         )
         structural_full = replay.as_float(reconciled.to_numpy(copy=False))
-        before_positive = mutable & (full_raw > ZERO_ATOL)
-        after_positive = mutable & (structural_full > ZERO_ATOL)
+        before_positive = mutable & (decoded > 0.0)
+        after_positive = mutable & (structural_full > 0.0)
         clear = before_positive & ~after_positive
         diagnostic.update(
             {
@@ -428,7 +774,16 @@ def _structural_surface(
             }
         )
         return structural_full[physical], diagnostic
-    return decoded, diagnostic
+    if row.get("transformation") != "identity structural transform":
+        raise SurfaceUnavailableError(
+            "recipient_structural",
+            {
+                "target": target,
+                "reason": "no registered reader for nonidentity structural transform",
+                "operator_row": row,
+            },
+        )
+    return decoded[physical].copy(), diagnostic
 
 
 def _recipient_x(
@@ -457,15 +812,33 @@ def _recipient_x(
     return result
 
 
+def _pattern_weight_terms(
+    weights: np.ndarray,
+    probabilities: np.ndarray,
+    sq_total_weight: float,
+) -> tuple[float, float]:
+    """Return alpha and E2 variance on the conditional S_q denominator."""
+    weights = np.asarray(weights, dtype=np.float64)
+    probabilities = np.asarray(probabilities, dtype=np.float64)
+    if len(weights) != len(probabilities) or sq_total_weight <= 0.0:
+        raise ValueError("invalid S_q pattern weight terms")
+    alpha = float(weights.sum(dtype=np.float64) / sq_total_weight)
+    numerator = float(np.dot(np.square(weights), probabilities * (1.0 - probabilities)))
+    return alpha, float(numerator / (sq_total_weight * sq_total_weight))
+
+
 def _pattern_readings(
     data: dict[str, Any],
     target: str,
     c0b_lookup: dict[tuple[str, str], dict[str, Any]],
+    sq: np.ndarray,
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     target_spec = data["target_specs"][target]
     role = data["roles"][c4.role_for_target(target_spec)]
-    bank = data["current_banks"][target]
-    total_weight = float(target_spec["clone0_recipient_weight_sum"])
+    recipient_weights = np.asarray(role["recipient_weights"], dtype=np.float64)
+    sq_total_weight = float(recipient_weights[sq].sum(dtype=np.float64))
+    if sq_total_weight <= 0.0:
+        raise ValueError(f"pattern readings require positive S_q weight for {target}")
     contexts: dict[str, dict[str, Any]] = {}
     results: list[dict[str, Any]] = []
     for _d0_pattern, pattern in zip(
@@ -475,9 +848,8 @@ def _pattern_readings(
         context = c4.fit_gate_context(data, target, name, c0b_lookup)
         contexts[name] = context
         positions = pattern["positions"]
-        physical = role["recipient_physical"][positions]
-        sq = role["recipient_clone0"][positions] & np.isfinite(bank["raw"][physical])
-        weights = role["recipient_weights"][positions][sq]
+        pattern_sq = sq[positions]
+        weights = recipient_weights[positions][pattern_sq]
         recipient_x = _recipient_x(data, context, positions)
         recipient_probabilities = np.asarray(
             context["gate"].predict_proba(recipient_x),
@@ -492,8 +864,8 @@ def _pattern_readings(
             raise ValueError(
                 f"recipient probability binding failed for {target}/{name}"
             )
-        recipient_sq_probability = recipient_probabilities[sq]
-        alpha = weights.sum(dtype=np.float64) / total_weight
+        recipient_sq_probability = recipient_probabilities[pattern_sq]
+        alpha = float(weights.sum(dtype=np.float64) / sq_total_weight)
         legs: dict[str, Any] = {}
         for leg, sign in LEGS.items():
             match = np.flatnonzero(context["gate_classes"] == sign)
@@ -514,25 +886,24 @@ def _pattern_readings(
             )
             donor_level = _probability_summary(donor_p, context["donor_weights"])
             recipient_level = _probability_summary(recipient_p, weights)
-            e2_variance_numerator = np.dot(
-                np.square(weights),
-                recipient_p * (1.0 - recipient_p),
+            checked_alpha, e2_contribution = _pattern_weight_terms(
+                weights, recipient_p, sq_total_weight
             )
+            if checked_alpha != alpha:
+                raise ValueError(f"pattern alpha changed by leg for {target}/{name}")
             legs[leg] = {
                 "m_observed": observed,
                 "P_D": donor_level,
                 "P_R": recipient_level,
-                "e2_conditional_variance_contribution": float(
-                    e2_variance_numerator / (total_weight * total_weight)
-                ),
+                "e2_conditional_variance_contribution": e2_contribution,
             }
         results.append(
             {
                 "pattern": name,
                 "alpha": float(alpha),
-                "S_q_rows": int(sq.sum()),
+                "S_q_rows": int(pattern_sq.sum()),
                 "S_q_weight_sum": float(weights.sum(dtype=np.float64)),
-                "S_q_mask": mask_identity(sq),
+                "S_q_mask": mask_identity(pattern_sq),
                 "gate_classes": [int(value) for value in context["gate_classes"]],
                 "gate_seed": int(context["gate_seed"]),
                 "state_before_sha256": context["state_before_sha256"],
@@ -555,22 +926,36 @@ def _native_stage_payload(
     values: np.ndarray,
     weights: np.ndarray,
     stable_ids: np.ndarray,
+    *,
+    seed: object = "DETERMINISTIC_NO_RANDOM_STAGE",
 ) -> dict[str, Any]:
+    values = np.asarray(values, dtype=np.float64)
+    weights = np.asarray(weights, dtype=np.float64)
+    stable_ids = np.asarray(stable_ids)
+    if not (len(values) == len(weights) == len(stable_ids)):
+        raise ValueError("native producer stage arrays do not align")
+    if not np.isfinite(values).all() or not np.isfinite(weights).all():
+        raise ValueError("native producer stage contains nonfinite values or weights")
+    negative = values < 0.0
+    positive = values > 0.0
+    zero = values == 0.0
     return {
         "status": "AVAILABLE",
         "row_count": int(len(values)),
-        "row_identity": array_identity(stable_ids),
-        "values_identity": array_identity(np.asarray(values, dtype=np.float64)),
-        "weights_identity": array_identity(np.asarray(weights, dtype=np.float64)),
+        "native_row_identity": array_identity(stable_ids),
+        "row_mask_digest_basis": "ordered native stable entity IDs",
+        "values_identity": array_identity(values),
+        "weights_identity": array_identity(weights),
+        "seed": seed,
         "unweighted_sign_counts": {
-            "negative": int((values < -ZERO_ATOL).sum()),
-            "zero": int((np.abs(values) <= ZERO_ATOL).sum()),
-            "positive": int((values > ZERO_ATOL).sum()),
+            "negative": int(negative.sum()),
+            "zero": int(zero.sum()),
+            "positive": int(positive.sum()),
         },
         "weighted_sign_mass": {
-            "negative": float(weights[values < -ZERO_ATOL].sum(dtype=np.float64)),
-            "zero": float(weights[np.abs(values) <= ZERO_ATOL].sum(dtype=np.float64)),
-            "positive": float(weights[values > ZERO_ATOL].sum(dtype=np.float64)),
+            "negative": float(weights[negative].sum(dtype=np.float64)),
+            "zero": float(weights[zero].sum(dtype=np.float64)),
+            "positive": float(weights[positive].sum(dtype=np.float64)),
         },
         "incidence": {
             leg: _weighted_summary(values, weights, sign=sign)["value"]
@@ -579,22 +964,60 @@ def _native_stage_payload(
     }
 
 
+def _boundary_bridge(
+    values: np.ndarray,
+    weights: np.ndarray,
+    *,
+    stage: str,
+) -> dict[str, Any]:
+    values = np.asarray(values, dtype=np.float64)
+    weights = np.asarray(weights, dtype=np.float64)
+    if len(values) != len(weights):
+        raise ValueError("boundary bridge value/weight length mismatch")
+    boundary = (values != 0.0) & (np.abs(values) <= ZERO_ATOL)
+    legs: dict[str, Any] = {}
+    for leg, sign in LEGS.items():
+        exact = _weighted_summary(values, weights, sign=sign)
+        qrf = _weighted_summary(values, weights, sign=sign, atol=ZERO_ATOL)
+        legs[leg] = {
+            "value": float(exact["value"] - qrf["value"]),
+            "exact_incidence": exact["value"],
+            "qrf_incidence": qrf["value"],
+            "same_weight_sum": exact["weight_sum"],
+        }
+    return {
+        "id": f"B1|{stage}|boundary_bridge",
+        "status": "AVAILABLE",
+        "nonadditive": True,
+        "boundary_rows": int(boundary.sum()),
+        "boundary_weight_mass": float(weights[boundary].sum(dtype=np.float64)),
+        "boundary_mask": mask_identity(boundary),
+        "legs": legs,
+        "value": {leg: row["value"] for leg, row in legs.items()},
+        "rule": "same-row exact-sign incidence minus 1e-6 QRF-sign incidence",
+    }
+
+
 def _producer_ledger(
-    adopted: dict[str, Any],
+    operator_table: list[dict[str, Any]],
     target: str,
     projection: dict[str, dict[str, np.ndarray]],
     bank: dict[str, Any],
+    fit_contexts: dict[str, dict[str, Any]],
     sq_values: np.ndarray,
     sq_weights: np.ndarray,
     sq_ids: np.ndarray,
     decoded: np.ndarray,
     structural: np.ndarray,
 ) -> dict[str, Any]:
-    operator_rows = [
-        row
-        for row in adopted.get("step0", {}).get("operator_table", [])
-        if row.get("target") == target
-    ]
+    operator_rows = [row for row in operator_table if row.get("target") == target]
+    if not operator_rows:
+        raise ValueError(f"no sealed operator rows for {target}")
+    seeds = {
+        step["pattern"]: int(step["state_after"]["model_config"]["seed"])
+        for step in bank["metadata"]["pattern_steps"]
+    }
+    recipient_seed = {"kind": "per_pattern_model_seed", "values": seeds}
     stages: list[dict[str, Any]] = []
     for operator_row in operator_rows:
         stage = operator_row["stage"]
@@ -612,20 +1035,35 @@ def _producer_ledger(
                     projection["J1"]["values"],
                     projection["J1"]["weights"],
                     projection["J1"]["stable_ids"],
+                    seed="DETERMINISTIC_PERSISTED_PROJECTION",
                 )
             )
         elif stage == "recipient_raw_draw":
-            row.update(_native_stage_payload(sq_values, sq_weights, sq_ids))
+            row.update(
+                _native_stage_payload(
+                    sq_values, sq_weights, sq_ids, seed=recipient_seed
+                )
+            )
         elif stage == "recipient_codec":
-            row.update(_native_stage_payload(decoded, sq_weights, sq_ids))
+            row.update(
+                _native_stage_payload(decoded, sq_weights, sq_ids, seed=recipient_seed)
+            )
         elif stage == "recipient_structural":
-            row.update(_native_stage_payload(structural, sq_weights, sq_ids))
+            row.update(
+                _native_stage_payload(
+                    structural, sq_weights, sq_ids, seed=recipient_seed
+                )
+            )
         elif status in {"NO_SURFACE", "PERSISTED_ONLY_AFTER_PRODUCER"}:
             row.update(
                 {
                     "status": "NO_SURFACE",
                     "value": "NA",
                     "se": "NA",
+                    "seed": {
+                        "status": "UNAVAILABLE",
+                        "reason": "the sealed stage has no persisted row surface or seed receipt",
+                    },
                     "evidence": (
                         "The sealed A16-20 operator table declares no distinct persisted "
                         "surface. A15.21 forbids whole-pipeline replay or guessing."
@@ -633,11 +1071,39 @@ def _producer_ledger(
                 }
             )
         elif status == "PERSISTED_METADATA":
+            fit_patterns: list[dict[str, Any]] = []
+            for pattern, context in fit_contexts.items():
+                if len(context["donor_y"]) != len(projection["J1"]["stable_ids"]):
+                    raise SurfaceUnavailableError(
+                        "transfer_fit_rows",
+                        {
+                            "target": target,
+                            "pattern": pattern,
+                            "reason": "fit-row metadata cannot align to J1 stable IDs",
+                        },
+                    )
+                fit_patterns.append(
+                    {
+                        "pattern": pattern,
+                        **_native_stage_payload(
+                            context["donor_y"],
+                            context["donor_weights"],
+                            projection["J1"]["stable_ids"],
+                            seed=seeds[pattern],
+                        ),
+                    }
+                )
             row.update(
                 {
-                    "status": "AVAILABLE_METADATA_ONLY",
+                    "status": "AVAILABLE_METADATA_AND_REPLAYED_FIT_SURFACES",
                     "pattern_steps": len(bank["metadata"]["pattern_steps"]),
                     "bank_path": str(bank["path"]),
+                    "patterns": fit_patterns,
+                    "aggregation": (
+                        "per-pattern only; overlapping fit populations are not "
+                        "invented as one aggregate stage"
+                    ),
+                    "seed": recipient_seed,
                 }
             )
         else:
@@ -651,20 +1117,16 @@ def _producer_ledger(
             )
         stages.append(row)
 
-    boundary = (np.abs(projection["J1"]["values"]) > 0.0) & (
-        np.abs(projection["J1"]["values"]) <= ZERO_ATOL
+    boundary_bridge = _boundary_bridge(
+        projection["J1"]["values"],
+        projection["J1"]["weights"],
+        stage="J1_donor_projection",
     )
-    boundary_rows = int(boundary.sum())
-    boundary_bridge = {
-        "id": "B1|J1_donor_projection|boundary_bridge",
-        "status": "AVAILABLE",
-        "nonadditive": True,
-        "boundary_rows": boundary_rows,
-        "value": {"positive": 0.0, "negative": 0.0},
-        "rule": "same-row exact-sign incidence minus 1e-6 QRF-sign incidence",
-    }
 
-    clone_bridge: dict[str, Any] = {"status": "UNAVAILABLE"}
+    clone_bridge: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "evidence": "J0 and J1 native source populations do not align one-to-one",
+    }
     j0 = projection["J0"]
     j1 = projection["J1"]
     if len(j0["source_ids"]) == len(j1["source_ids"]):
@@ -674,6 +1136,25 @@ def _producer_ledger(
                 "status": "AVAILABLE",
                 "rows": int(len(j0["source_ids"])),
                 "source_id_identity": array_identity(j0["source_ids"]),
+                "seed": "DETERMINISTIC_PERSISTED_CLONE_PROJECTION",
+                "J0_native": _native_stage_payload(
+                    j0["values"],
+                    j0["weights"],
+                    j0["stable_ids"],
+                    seed="DETERMINISTIC_PERSISTED_PROJECTION",
+                ),
+                "J1_on_J0_rows_and_weights": _native_stage_payload(
+                    j1["values"][joined],
+                    j0["weights"],
+                    j0["stable_ids"],
+                    seed="DETERMINISTIC_PERSISTED_CLONE_PROJECTION",
+                ),
+                "J1_native": _native_stage_payload(
+                    j1["values"],
+                    j1["weights"],
+                    j1["stable_ids"],
+                    seed="DETERMINISTIC_PERSISTED_PROJECTION",
+                ),
                 "legs": {},
             }
             for leg, sign in LEGS.items():
@@ -691,15 +1172,12 @@ def _producer_ledger(
                     ),
                     "sum_equals_B1": float(j0_level["value"] - j1_native["value"]),
                 }
-    seeds = {
-        step["pattern"]: int(step["state_after"]["model_config"]["seed"])
-        for step in bank["metadata"]["pattern_steps"]
-    }
     clone2 = projection["clone2"]
-    clone2_payload = (
-        _native_stage_payload(clone2["values"], clone2["weights"], clone2["stable_ids"])
-        if len(clone2["values"])
-        else {"status": "EMPTY", "row_count": 0}
+    clone2_payload = _native_stage_payload(
+        clone2["values"],
+        clone2["weights"],
+        clone2["stable_ids"],
+        seed="DETERMINISTIC_PERSISTED_PROJECTION",
     )
     return {
         "status": "COMPLETE_WITH_NO_SURFACE_ROWS",
@@ -739,20 +1217,55 @@ def _gq_reading(
         }
     for leg in LEGS:
         housing = output["strata"]["H"]["legs"][leg]
-        base = (
-            "NA"
-            if housing["value"] == "NA"
-            else float(j0_levels[leg]["value"] - housing["value"])
-        )
+        if housing["value"] == "NA":
+            base: dict[str, Any] = {
+                "value": "NA",
+                "se": "NA",
+                "variance": "NA",
+                "status": "INAPPLICABLE_EMPTY_HOUSING_STRATUM",
+            }
+        else:
+            base_variance = float(j0_levels[leg]["variance"]) + float(
+                housing["variance"]
+            )
+            base = {
+                "value": float(j0_levels[leg]["value"] - housing["value"]),
+                "se": float(math.sqrt(max(base_variance, 0.0))),
+                "variance": base_variance,
+                "status": "AVAILABLE_DESCRIPTIVE",
+                "variance_rule": "independent_Kish_binomial_delta",
+            }
         adjustments: dict[str, Any] = {}
         for label in ("2", "3", "U"):
             stratum = output["strata"][label]
             level = stratum["legs"][leg]
-            adjustments[label] = (
-                "NA"
-                if level["value"] == "NA" or housing["value"] == "NA"
-                else float(stratum["omega"] * (housing["value"] - level["value"]))
-            )
+            if level["value"] == "NA" or housing["value"] == "NA":
+                adjustments[label] = {
+                    "value": "NA",
+                    "se": "NA",
+                    "variance": "NA",
+                    "status": "INAPPLICABLE_EMPTY_STRATUM",
+                    "omega_fixed": float(stratum["omega"]),
+                }
+            else:
+                omega = float(stratum["omega"])
+                variance = (
+                    omega
+                    * omega
+                    * (float(housing["variance"]) + float(level["variance"]))
+                )
+                adjustments[label] = {
+                    "value": float(omega * (housing["value"] - level["value"])),
+                    "se": float(math.sqrt(max(variance, 0.0))),
+                    "variance": float(variance),
+                    "status": (
+                        "AVAILABLE_F4"
+                        if label in {"2", "3"}
+                        else "AVAILABLE_DESCRIPTIVE"
+                    ),
+                    "omega_fixed": omega,
+                    "variance_rule": "independent_Kish_binomial_delta",
+                }
         output["legs"][leg] = {
             "J0_minus_I_H": base,
             "adjustment_TYPEHUGQ_2": adjustments["2"],
@@ -762,10 +1275,221 @@ def _gq_reading(
     return output
 
 
+def _b2_telescope(
+    j1_levels: dict[str, dict[str, Any]],
+    j2_levels: dict[str, dict[str, Any]],
+    patterns: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Compute the cumulative A16-22 donor-selection telescope."""
+    if not patterns:
+        raise ValueError("B2 telescope has no patterns")
+    if not math.isclose(
+        math.fsum(float(row["alpha"]) for row in patterns),
+        1.0,
+        rel_tol=0.0,
+        abs_tol=1e-14,
+    ):
+        raise ValueError("B2 pattern alphas do not close")
+    stage_specs = (
+        ("role_channel", "role_mask", "native_weights"),
+        ("family_complete_case", "family_mask", "native_weights"),
+        (
+            "pattern_predictor_complete_case",
+            "predictor_mask",
+            "native_weights",
+        ),
+        ("weight_basis", "predictor_mask", "fit_weights"),
+    )
+    diagnostics: list[dict[str, Any]] = []
+    per_pattern_levels: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    for pattern in patterns:
+        values = np.asarray(pattern["values"], dtype=np.float64)
+        native_weights = np.asarray(pattern["native_weights"], dtype=np.float64)
+        fit_weights = np.asarray(pattern["fit_weights"], dtype=np.float64)
+        masks = {
+            name: np.asarray(pattern[name], dtype=bool)
+            for name in ("role_mask", "family_mask", "predictor_mask")
+        }
+        if not all(
+            len(array) == len(values)
+            for array in (*masks.values(), native_weights, fit_weights)
+        ):
+            raise ValueError(f"B2 arrays do not align for {pattern['pattern']}")
+        if np.any(masks["family_mask"] & ~masks["role_mask"]) or np.any(
+            masks["predictor_mask"] & ~masks["family_mask"]
+        ):
+            raise ValueError(f"B2 masks are not cumulative for {pattern['pattern']}")
+        if (
+            not np.isfinite(values[masks["role_mask"]]).all()
+            or not np.isfinite(native_weights[masks["role_mask"]]).all()
+            or not np.isfinite(fit_weights[masks["predictor_mask"]]).all()
+            or (native_weights[masks["role_mask"]] <= 0.0).any()
+            or (fit_weights[masks["predictor_mask"]] <= 0.0).any()
+        ):
+            raise ValueError(
+                f"invalid B2 value/weight surface for {pattern['pattern']}"
+            )
+        pattern_levels: dict[str, dict[str, dict[str, Any]]] = {leg: {} for leg in LEGS}
+        stage_rows: dict[str, Any] = {}
+        for stage, mask_name, weight_name in stage_specs:
+            mask = masks[mask_name]
+            weights = native_weights if weight_name == "native_weights" else fit_weights
+            if not mask.any():
+                raise SurfaceUnavailableError(
+                    "B2",
+                    {
+                        "pattern": pattern["pattern"],
+                        "stage": stage,
+                        "reason": "cumulative selection produced an empty fit population",
+                    },
+                )
+            stage_rows[stage] = {
+                "row_count": int(mask.sum()),
+                "row_mask": mask_identity(mask),
+                "weight_identity": array_identity(weights[mask]),
+                "weight_basis": weight_name,
+            }
+            for leg, sign in LEGS.items():
+                pattern_levels[leg][stage] = _weighted_summary(
+                    values[mask], weights[mask], sign=sign
+                )
+        per_pattern_levels[pattern["pattern"]] = pattern_levels
+        diagnostics.append(
+            {
+                "pattern": pattern["pattern"],
+                "alpha": float(pattern["alpha"]),
+                "seed": pattern.get("seed", "UNAVAILABLE"),
+                "stages": stage_rows,
+                "levels": pattern_levels,
+                "collapsed": bool(pattern.get("collapsed", False)),
+            }
+        )
+
+    legs: dict[str, Any] = {}
+    for leg in LEGS:
+        aggregate: dict[str, dict[str, Any]] = {"J1": j1_levels[leg]}
+        for stage, _mask_name, _weight_name in stage_specs:
+            aggregate[stage] = _combined_level(
+                [
+                    (
+                        float(pattern["alpha"]),
+                        per_pattern_levels[pattern["pattern"]][leg][stage],
+                    )
+                    for pattern in patterns
+                ]
+            )
+        aggregate["pattern_standardization"] = j2_levels[leg]
+        transitions = (
+            ("role_channel", "J1", "role_channel"),
+            (
+                "family_complete_case",
+                "role_channel",
+                "family_complete_case",
+            ),
+            (
+                "pattern_predictor_complete_case",
+                "family_complete_case",
+                "pattern_predictor_complete_case",
+            ),
+            (
+                "weight_basis",
+                "pattern_predictor_complete_case",
+                "weight_basis",
+            ),
+            (
+                "pattern_standardization",
+                "weight_basis",
+                "pattern_standardization",
+            ),
+        )
+        rows = {
+            name: _difference(aggregate[before], aggregate[after])
+            for name, before, after in transitions
+        }
+        total = math.fsum(float(row["value"]) for row in rows.values())
+        expected = float(j1_levels[leg]["value"] - j2_levels[leg]["value"])
+        closure = expected - total
+        tolerance = 1e-12 * max(abs(expected), 1.0)
+        if abs(closure) > tolerance:
+            raise ValueError(f"B2 telescope does not close for {leg}: {closure}")
+        legs[leg] = {
+            "levels": aggregate,
+            "rows": rows,
+            "sum": float(total),
+            "expected_J1_minus_J2": expected,
+            "closure_residual": float(closure),
+            "closure_tolerance": float(tolerance),
+            "passes": True,
+        }
+    return {
+        "status": "COMPLETE",
+        "fixed_order": [name for name, _mask, _weights in stage_specs]
+        + ["pattern_standardization"],
+        "order_dependence_disclosed": True,
+        "patterns": diagnostics,
+        "legs": legs,
+    }
+
+
+def _b2_pattern_surfaces(
+    data: dict[str, Any],
+    target: str,
+    projection: dict[str, dict[str, np.ndarray]],
+    pattern_results: list[dict[str, Any]],
+    contexts: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    target_spec = data["target_specs"][target]
+    role = data["roles"][c4.role_for_target(target_spec)]
+    family_targets = [
+        name
+        for name, spec in data["target_specs"].items()
+        if spec["family"] == target_spec["family"]
+        and c4.role_for_target(spec) == c4.role_for_target(target_spec)
+        and name in role["donor_targets"]
+    ]
+    family_mask = np.ones(len(projection["J1"]["values"]), dtype=bool)
+    for name in family_targets:
+        family_mask &= np.isfinite(role["donor_targets"][name])
+    output: list[dict[str, Any]] = []
+    for reading in pattern_results:
+        context = contexts[reading["pattern"]]
+        values = np.asarray(context["donor_y"], dtype=np.float64)
+        if len(values) != len(projection["J1"]["values"]) or not np.array_equal(
+            values.view(np.uint64),
+            np.asarray(projection["J1"]["values"], dtype=np.float64).view(np.uint64),
+        ):
+            raise SurfaceUnavailableError(
+                "B2",
+                {
+                    "target": target,
+                    "pattern": reading["pattern"],
+                    "reason": "fit rows cannot be aligned exactly to native J1 rows",
+                    "fit_rows": len(values),
+                    "J1_rows": len(projection["J1"]["values"]),
+                },
+            )
+        predictor_mask = family_mask & np.isfinite(context["donor_x"]).all(axis=1)
+        output.append(
+            {
+                "pattern": reading["pattern"],
+                "alpha": reading["alpha"],
+                "values": values,
+                "native_weights": projection["J1"]["weights"],
+                "fit_weights": context["donor_weights"],
+                "role_mask": np.ones(len(values), dtype=bool),
+                "family_mask": family_mask.copy(),
+                "predictor_mask": predictor_mask,
+                "seed": int(context["gate_seed"]),
+                "collapsed": len(context["gate_classes"]) == 1,
+            }
+        )
+    return output
+
+
 def _run_candidate_target(
     data: dict[str, Any],
     aux: dict[str, Any],
-    adopted: dict[str, Any],
+    operator_table: list[dict[str, Any]],
     c0b_lookup: dict[tuple[str, str], dict[str, Any]],
     target: str,
 ) -> dict[str, Any]:
@@ -773,28 +1497,66 @@ def _run_candidate_target(
     role = data["roles"][c4.role_for_target(target_spec)]
     bank = data["current_banks"][target]
     projection = _projection(aux, target, target_spec)
-    raw_role = bank["raw"][role["recipient_physical"]]
+    raw_full = np.asarray(bank["raw"], dtype=np.float64)
+    decoded_full, codec_diagnostic = _production_codec(
+        raw_full,
+        projection["J1"]["values"],
+        target,
+        target_spec,
+        operator_table,
+    )
+    raw_role = raw_full[role["recipient_physical"]]
+    decoded_role = decoded_full[role["recipient_physical"]]
     scope = np.asarray(role["recipient_clone0"], dtype=bool)
-    sq = scope & np.isfinite(raw_role)
+    scope_positions = np.flatnonzero(scope)
+    path_census = _path_census(
+        np.ones(len(scope_positions), dtype=bool),
+        np.ones(len(scope_positions), dtype=bool),
+        np.isfinite(raw_role[scope]),
+        np.isfinite(decoded_role[scope]),
+    )
+    sq = np.zeros(len(scope), dtype=bool)
+    sq[scope_positions[path_census.pop("_passed")]] = True
     so = scope & ~sq
     scope_weights = np.asarray(role["recipient_weights"], dtype=np.float64)[scope]
     sq_weights = np.asarray(role["recipient_weights"], dtype=np.float64)[sq]
-    phi = sq_weights.sum(dtype=np.float64) / scope_weights.sum(dtype=np.float64)
+    scope_weight_sum = float(scope_weights.sum(dtype=np.float64))
+    if scope_weight_sum <= 0.0:
+        raise ValueError(f"P0 scope has no positive weight for {target}")
+    phi = float(sq_weights.sum(dtype=np.float64) / scope_weight_sum)
     structural_role, structural_diagnostic = _structural_surface(
-        data, aux, target, target_spec
+        data, aux, target, target_spec, decoded_full, operator_table
     )
-    decoded_role = raw_role.copy()
     terminal_role = _terminal_on_role(aux, role, target, target_spec)
     precal_role = terminal_role.copy()
     precal_role[sq] = structural_role[sq]
-    terminal_compare = np.isfinite(raw_role)
+    terminal_compare = sq
     structural_terminal_unequal = terminal_compare & (
         np.asarray(structural_role).view(np.uint64)
         != np.asarray(terminal_role).view(np.uint64)
     )
+    if structural_terminal_unequal.any():
+        raise SurfaceUnavailableError(
+            "recipient_structural",
+            {
+                "target": target,
+                "reason": "replayed post-structural surface disagrees with pinned terminal",
+                "unequal_rows": int(structural_terminal_unequal.sum()),
+                "unequal_mask": mask_identity(structural_terminal_unequal),
+                "operator_row": _operator_row(
+                    operator_table, target, "recipient_structural"
+                ),
+            },
+        )
 
     receipt = _receipt_for_target(data["d0"], target)
-    full_drawn = np.isfinite(bank["raw"])
+    full_drawn = np.isfinite(raw_full)
+    d0_lineage = next(
+        row for row in data["d0"]["D0-4"]["targets"] if row["target"] == target
+    )
+    raw_digest_matches_d0 = (
+        bank["metadata"]["raw_draw_sha256"] == d0_lineage["raw_draw_sha256"]
+    )
     p0 = {
         "status": "PASS_A17_SCOPE_RECOVERY",
         "scope_rows": int(scope.sum()),
@@ -809,22 +1571,23 @@ def _run_candidate_target(
         "receipt_authorized_null_rows": int(receipt["authorized_null_rows"]),
         "full_bank_matches_receipt": int(full_drawn.sum())
         == int(receipt["authorized_null_rows"]),
-        "path_census": {
-            "authorized": int(scope.sum()),
-            "null_before": int(scope.sum()),
-            "drawn": int(sq.sum()),
-            "finite_decode": int(sq.sum()),
-            "first_failure_authorized": 0,
-            "first_failure_null_before": 0,
-            "first_failure_drawn": int(so.sum()),
-            "first_failure_finite_decode": 0,
-        },
+        "raw_draw_digest_matches_D0_4": raw_digest_matches_d0,
+        "path_census": path_census,
         "receipt": receipt,
     }
-    if not p0["full_bank_matches_receipt"] or not np.array_equal(sq, scope):
+    if not p0["full_bank_matches_receipt"] or not raw_digest_matches_d0:
         raise ValueError(f"A17/P0 mask recovery failed for {target}")
+    if phi == 0.0:
+        raise SurfaceUnavailableError(
+            "conditional_P1",
+            {
+                "target": target,
+                "reason": "S_q has zero artifact weight; only the L0 branch is defined",
+                "P0": p0,
+            },
+        )
 
-    pattern_results, contexts = _pattern_readings(data, target, c0b_lookup)
+    pattern_results, contexts = _pattern_readings(data, target, c0b_lookup, sq)
     j0_levels = {
         leg: _weighted_summary(
             projection["J0"]["values"], projection["J0"]["weights"], sign=sign
@@ -837,12 +1600,21 @@ def _run_candidate_target(
         )
         for leg, sign in LEGS.items()
     }
+    j2_by_leg = {
+        leg: _combined_level(
+            [(row["alpha"], row["legs"][leg]["m_observed"]) for row in pattern_results]
+        )
+        for leg in LEGS
+    }
+    b2 = _b2_telescope(
+        j1_levels,
+        j2_by_leg,
+        _b2_pattern_surfaces(data, target, projection, pattern_results, contexts),
+    )
     levels_by_leg: dict[str, Any] = {}
     ledger_by_leg: dict[str, Any] = {}
     for leg, sign in LEGS.items():
-        j2 = _combined_level(
-            [(row["alpha"], row["legs"][leg]["m_observed"]) for row in pattern_results]
-        )
+        j2 = j2_by_leg[leg]
         p_d = _combined_level(
             [(row["alpha"], row["legs"][leg]["P_D"]) for row in pattern_results]
         )
@@ -871,13 +1643,18 @@ def _run_candidate_target(
             "D": d_level,
         }
         levels_by_leg[leg] = levels
-        rows = {
-            "L0": {
+        if so.any():
+            l0 = _difference(j0_levels[leg], i_o, scale=1.0 - phi)
+            l0["empty_set"] = False
+        else:
+            l0 = {
                 "value": 0.0,
                 "se": 0.0,
                 "variance": 0.0,
                 "empty_set": True,
-            },
+            }
+        rows = {
+            "L0": l0,
             "B1": _difference(j0_levels[leg], j1_levels[leg], scale=phi),
             "B2": _difference(j1_levels[leg], j2, scale=phi),
             "T1": _difference(j2, p_d, scale=phi),
@@ -915,53 +1692,30 @@ def _run_candidate_target(
             "support": _support(data["d0"], target, leg),
             "rows": rows,
         }
-
-    b2 = {
-        "status": "COMPLETE",
-        "fixed_order": [
-            "role_channel",
-            "family_complete_case",
-            "pattern_predictor_complete_case",
-            "weight_basis",
-            "pattern_standardization",
-        ],
-        "order_dependence_disclosed": True,
-        "patterns": [
-            {
-                "pattern": row["pattern"],
-                "alpha": row["alpha"],
-                "donor_projection_rows": int(len(contexts[row["pattern"]]["donor_y"])),
-                "family_complete_case_rows": int(
-                    len(contexts[row["pattern"]]["donor_y"])
-                ),
-                "predictor_complete_case_rows": int(
-                    len(contexts[row["pattern"]]["donor_y"])
-                ),
-                "fit_weight_identity": array_identity(
-                    contexts[row["pattern"]]["donor_weights"]
-                ),
-                "collapsed": False,
-            }
-            for row in pattern_results
-        ],
-        "legs": {
-            leg: {
-                "role_channel_to_family_complete_case": 0.0,
-                "family_to_predictor_complete_case": 0.0,
-                "predictor_to_weight_basis": 0.0,
-                "weight_basis_to_pattern_standardization": float(
-                    j1_levels[leg]["value"] - levels_by_leg[leg]["J2"]["value"]
-                ),
-                "sum_equals_B2": float(ledger_by_leg[leg]["rows"]["B2"]["value"] / phi),
-            }
-            for leg in LEGS
-        },
-    }
+    b2["phi_fixed"] = phi
+    for leg in LEGS:
+        for subrow in b2["legs"][leg]["rows"].values():
+            subrow["ledger_value"] = float(phi * subrow["value"])
+            subrow["ledger_variance"] = float(phi * phi * subrow["variance"])
+            subrow["ledger_se"] = float(math.sqrt(max(subrow["ledger_variance"], 0.0)))
+        scaled_sum = math.fsum(
+            row["ledger_value"] for row in b2["legs"][leg]["rows"].values()
+        )
+        b2["legs"][leg]["scaled_sum"] = float(scaled_sum)
+        b2["legs"][leg]["top_level_B2"] = ledger_by_leg[leg]["rows"]["B2"]
+        if not math.isclose(
+            scaled_sum,
+            float(ledger_by_leg[leg]["rows"]["B2"]["value"]),
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ):
+            raise ValueError(f"scaled B2 subrows do not close for {target}/{leg}")
     p6 = _producer_ledger(
-        adopted,
+        operator_table,
         target,
         projection,
         bank,
+        contexts,
         raw_role[sq],
         sq_weights,
         role["recipient_stable_id"][sq],
@@ -989,11 +1743,10 @@ def _run_candidate_target(
                 **structural_diagnostic,
                 "terminal_unequal_rows": int(structural_terminal_unequal.sum()),
                 "terminal_unequal_mask": mask_identity(structural_terminal_unequal),
-                "terminal_comparison_is_diagnostic": True,
+                "terminal_replay_gate": "PASS",
             },
             "codec": {
-                "kind": "identity_numeric",
-                "bitwise_equal": True,
+                **codec_diagnostic,
             },
             "B2_diagnostics": b2,
         },
@@ -1049,7 +1802,17 @@ def _baseline_person_basic(
     j0 = _weighted_summary(values[j0_mask], weights[j0_mask], sign=1)
     iq = _weighted_summary(raw, raw_weights, sign=1)
     d_level = _difference(j0, iq)
-    return _baseline_basic_result(target, bank, scope, sq, j0, iq, d_level)
+    return _baseline_basic_result(
+        target,
+        bank,
+        scope,
+        sq,
+        assembled_weights[scope],
+        raw_weights,
+        j0,
+        iq,
+        d_level,
+    )
 
 
 def _baseline_group_basic(
@@ -1080,7 +1843,17 @@ def _baseline_group_basic(
     j0 = _weighted_summary(values[j0_mask], weights[j0_mask], sign=1)
     iq = _weighted_summary(bank["raw"][sq], weights[sq], sign=1)
     d_level = _difference(j0, iq)
-    return _baseline_basic_result(target, bank, scope, sq, j0, iq, d_level)
+    return _baseline_basic_result(
+        target,
+        bank,
+        scope,
+        sq,
+        weights[scope],
+        weights[sq],
+        j0,
+        iq,
+        d_level,
+    )
 
 
 def _baseline_basic_result(
@@ -1088,10 +1861,16 @@ def _baseline_basic_result(
     bank: dict[str, Any],
     scope: np.ndarray,
     sq: np.ndarray,
+    scope_weights: np.ndarray,
+    sq_weights: np.ndarray,
     j0: dict[str, Any],
     iq: dict[str, Any],
     d_level: dict[str, Any],
 ) -> dict[str, Any]:
+    phi = float(
+        np.asarray(sq_weights, dtype=np.float64).sum(dtype=np.float64)
+        / np.asarray(scope_weights, dtype=np.float64).sum(dtype=np.float64)
+    )
     return {
         "status": "PARTIAL_DECLARED_CROSS_RUNG_PRIORITY",
         "target": target,
@@ -1099,7 +1878,7 @@ def _baseline_basic_result(
         "P0": {
             "scope_rows": int(scope.sum()),
             "S_q_rows": int(sq.sum()),
-            "phi": float(sq.sum() / scope.sum()),
+            "phi": phi,
             "scope_mask": mask_identity(scope),
             "S_q_mask": mask_identity(sq),
         },
@@ -1159,22 +1938,38 @@ def _run_baseline(d0: dict[str, Any]) -> dict[str, Any]:
 
 def run(
     d0_path: Path,
-    adopted_path: Path,
+    c0b_path: Path,
+    step0_path: Path,
     *,
     include_baseline: bool,
 ) -> dict[str, Any]:
     started = time.time()
     d0 = json.loads(d0_path.read_text())
-    adopted = json.loads(adopted_path.read_text())
-    if sha256_file(d0_path) != c4.EXPECTED_AUTHORITY_DIGESTS[str(D0_JSON)]:
-        raise ValueError("D0 digest mismatch")
-    lookup = _c0b_lookup(adopted)
+    c0b_evidence = json.loads(c0b_path.read_text())
+    operator_table, step0_verification = _load_operator_table(step0_path)
+    input_verification = _verify_inputs(
+        d0,
+        d0_path,
+        c0b_path,
+        include_baseline=include_baseline,
+    )
+    lookup = _c0b_lookup(c0b_evidence)
     data = c4.load_analysis_data(d0)
     aux = _load_candidate_aux(data)
     targets: dict[str, Any] = {}
     for target in TARGETS:
         target_started = time.time()
-        targets[target] = _run_candidate_target(data, aux, adopted, lookup, target)
+        try:
+            targets[target] = _run_candidate_target(
+                data, aux, operator_table, lookup, target
+            )
+        except SurfaceUnavailableError as error:
+            targets[target] = {
+                "status": "FAIL_CLOSED_SURFACE_UNAVAILABLE",
+                "target": target,
+                "stage": error.stage,
+                "evidence": error.evidence,
+            }
         targets[target]["elapsed_seconds"] = time.time() - target_started
     baseline = (
         _run_baseline(d0)
@@ -1184,25 +1979,37 @@ def run(
             for target in CROSS_RUNG_TARGETS
         }
     )
+    unavailable = [
+        target
+        for target, result in targets.items()
+        if result["status"] == "FAIL_CLOSED_SURFACE_UNAVAILABLE"
+    ]
     output = {
         "artifact_kind": "qrf_drift_phase0_p0_p1_p6_p7",
         "schema_version": 1,
-        "status": "COMPLETE" if include_baseline else "COMPLETE_CANDIDATE_ONLY",
+        "status": (
+            "PARTIAL_SURFACE_UNAVAILABLE"
+            if unavailable
+            else ("COMPLETE" if include_baseline else "COMPLETE_CANDIDATE_ONLY")
+        ),
+        "unavailable_targets": unavailable,
         "authority": {
             "D0": {"path": str(d0_path), "sha256": sha256_file(d0_path)},
             "design": {
-                "path": str(c4.DESIGN_MD),
-                "sha256": sha256_file(c4.DESIGN_MD),
+                "path": str(DESIGN_MD),
+                "sha256": sha256_file(DESIGN_MD),
             },
             "A16_binding": {
-                "path": str(c4.A16_BINDING),
-                "sha256": sha256_file(c4.A16_BINDING),
+                "path": str(A16_BINDING),
+                "sha256": sha256_file(A16_BINDING),
             },
-            "adopted_C0b_report": {
-                "path": str(adopted_path),
-                "C0b_full_evidence_sha256": c4.EXPECTED_C0B_SHA256,
+            "direct_C0b_evidence": {
+                "path": str(c0b_path),
+                "sha256": sha256_file(c0b_path),
                 "patterns": len(lookup),
             },
+            "sealed_step0_operator_source": step0_verification,
+            "input_verification": input_verification,
         },
         "candidate-25": {"targets": targets},
         "baseline1pct": {"targets": baseline},
@@ -1224,7 +2031,8 @@ def run(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--d0", type=Path, default=D0_JSON)
-    parser.add_argument("--adopted-report", type=Path, default=ADOPTED_REPORT)
+    parser.add_argument("--c0b-json", type=Path, default=DEFAULT_C0B)
+    parser.add_argument("--step0-json", type=Path, default=DEFAULT_STEP0)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument(
         "--skip-baseline",
@@ -1238,7 +2046,8 @@ def main() -> None:
     args = parse_args()
     result = run(
         args.d0.resolve(),
-        args.adopted_report.resolve(),
+        args.c0b_json.resolve(),
+        args.step0_json.resolve(),
         include_baseline=not args.skip_baseline,
     )
     args.out.write_text(
