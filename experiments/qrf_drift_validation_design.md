@@ -921,3 +921,30 @@ difference fails.
 A16-15(ii) (lineage/alignment digest re-verification) is unchanged. The
 K/z* recomputation the run performed (K = 122, z* = 3.52697 per A14.6's
 rule, roster digest 348386d9…) is ratified as the operative roster.
+
+## Amendment v2.7 / A18 (2026-08-26, the A16-14 UNDERPOWERED remedy for C3)
+
+Run 20260826-163955: A17 gates PASS, C4 PASS 40/40 (+20/20 exact zeros),
+C2 PASS with the estimator recovering the exact oracle to 1.4 MCSE, C3's
+estimator equal to its oracle exactly — both zero, because the frozen
+child_support_received gate has ZERO splits on the intervened G3 column.
+The declared larger-magnitude remedy is provably futile (the gate function
+is constant in that column). Mechanical resolution, no discretion:
+
+1. Enumerate from the frozen reproduced gates every (target, pattern,
+   G3 column) triple with at least one split on that column, with total
+   split gain; seal the table before anything else.
+2. If nonempty: C3 re-targets the largest-gain triple (ties by D0 stable
+   order). Intervention: zero the column on its observed fit-row carriers
+   if any exist, else the declared 1.25× transform. Rerun C3 alone (every
+   other control adopts per A14.7 on digest match); the A16-14 power
+   condition applies to the new exact oracle.
+3. If EMPTY: the gate stage provably depends on no chained prior anywhere
+   in this build. G3 gate-stage contributions are asserted identically
+   zero by mechanism for every target (exact statement, never estimated);
+   C3 is WAIVED as validating a mechanism that does not exist; the
+   register records that H4's gate-incidence channel is mechanically dead
+   (chained influence, if any, acts through amount forests, outside the
+   incidence ledger); the two C3 roster slots drop from K and z*
+   recomputes by the bound formula, recorded with the run.
+Either branch: readings and C1 then proceed in §3.6 order.
