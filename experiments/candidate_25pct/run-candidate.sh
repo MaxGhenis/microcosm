@@ -227,6 +227,7 @@ check_code_authority() {
     --checkpoint-root --out
   require_parser_flags dense "$RELEASE_TOOL" \
     --base-h5 --dense-default-dataset \
+    --allow-gate-failed-base-pool \
     --ledger-facts --ledger-facts-sha256 \
     --export-input-mass-reference-h5 \
     --asec-2023-weeks-unemployed-source \
@@ -775,9 +776,13 @@ print(f"{payload.get('status')}:{str(payload.get('simulation_ready')).lower()}")
 PY
 )" || die "cannot read existing pool manifest state path=$POOL_MANIFEST"
     if [ "$state" = "gate_failed:false" ]; then
-      [ ! -f "$POOL_MANIFEST_PIN" ] || die "gate-failed pool conflicts with an existing manifest pin path=$POOL_MANIFEST_PIN"
-      emit "STAGE RESUME stage=pool reason=prior-gate-failed-output checkpoints=$POOL_CHECKPOINTS"
-      return 1
+      # Max ruling 2026-08-26 + microcosm#786: a gate_failed pool is a COMPLETE
+      # pool whose red battery verdict travels into the release manifest via
+      # --allow-gate-failed-base-pool; the publish decision stays human.
+      emit "STAGE COMPLETE stage=pool state=gate_failed verdict-carried-by=--allow-gate-failed-base-pool"
+      validate_pool_outputs
+      record_pool_manifest_pin
+      return 0
     fi
     [ "$state" = "simulation_ready:true" ] || die "unrecognized pool manifest state without completion marker state=$state"
   fi
@@ -1201,6 +1206,7 @@ DENSE_COMMAND=(
   "$PYTHON" "$RELEASE_TOOL"
   --base-h5 "$POOL_H5"
   --dense-default-dataset
+  --allow-gate-failed-base-pool
   --ledger-facts "$LEDGER"
   --ledger-facts-sha256 "$LEDGER_SHA"
   --export-input-mass-reference-h5 "$EXPORT_REFERENCE"
@@ -1224,6 +1230,7 @@ DENSE_COMMAND=(
 SPARSE_COMMAND=(
   "$PYTHON" "$RELEASE_TOOL"
   --base-h5 "$POOL_H5"
+  --allow-gate-failed-base-pool
   --ledger-facts "$LEDGER"
   --ledger-facts-sha256 "$LEDGER_SHA"
   --export-input-mass-reference-h5 "$EXPORT_REFERENCE"
