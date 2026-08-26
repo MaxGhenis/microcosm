@@ -74,7 +74,12 @@ other three remained at R=250. Reading closures invalidate child-support
 expense pattern 02 and weeks patterns 00/02, so those aggregate attributions
 are correctly `NOT_VALIDATED_PATTERN_CLOSURE_FAILURE`; their sealed T2 ledger
 rows still stand. P2's remaining three targets are ready to resume from the
-self-verified checkpoint. P5, C1, and verdicts have not yet executed. No pool build,
+self-verified checkpoint. The exact P5 executor is now independently reviewed
+and ready. Its sealed estimate is 24 cache-distinct metric surfaces,
+479,723,507,273 recipient-donor pairs, and 5,098,887,772,670 feature-pair
+costs; the fourfold-conservative cached projection is 11.38 hours, within
+A8. Six disjoint target shards preserve every safe cache reuse while making
+the long run durable. P5, C1, and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
 
@@ -137,13 +142,23 @@ is authorized or planned.
   seals, 1,408 manifest fragments, 24/24 exact C4 endpoint reproductions, and
   a PASS static-field manifest. Closure failures remain explicit rather than
   being averaged away or treated as control failures.
+- Implemented the exact A16 P5 Gower reading with bounded-memory all-donor
+  search, fit-weighted inverse-CDF IQRs, categorical/zero-IQR semantics,
+  equal-k scoring, weighted midpoint deciles, exact T2 closure, and A16-36
+  concentration. It live-rehashes all candidate checkpoints and banks,
+  validates every P5 fragment against the adopted Step-0 roster, records all
+  source-code digests, and writes canonical JSON. Seven focused tests and
+  Ruff pass; an independent review found no numerical blocker. Cutoff-tied
+  donor identities are not materialized because their exact binary64
+  distances, and therefore every reported score, are identical; this exact
+  equivalence is disclosed in the artifact.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Finish the active severe-target P2 execution and run its remaining three
-   targets.
-2. Execute exact P5 under its mechanical A8 estimate, seal the reading
+1. Finish the active resumed P2 execution and audit the all-nine seal.
+2. Execute exact P5 in six disjoint cache-preserving shards under its
+   mechanical A8 estimate, then seal the reading
    boundary, execute C1, then compute VERDICTS from the
    sealed additive ledger and available probes.
 3. Render and validate the Markdown/JSON reports while leaving both output
