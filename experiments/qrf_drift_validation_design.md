@@ -835,3 +835,64 @@ only makes them uniquely executable.
 56. JSON is authoritative (binary64 shortest-roundtrip; "NA"/"inf"
     strings; lowercase hex digests); Markdown displays 6 significant
     digits.
+
+## Amendment v2.5 / A16 (2026-08-26): closure texts, supersessions, regress rule
+
+Input: the A15 closure verification (sol run 20260826-121300-a15-verify; 34
+items OPEN with proposed exact texts). A16 adopts the verifier's texts
+verbatim for items 3, 4, 5, 6, 12, 13, 14, 22, 23, 24, 25, 26, 27, 29, 30,
+31, 34, 35, 36, 37, 41, 42, 43, 46, 47, 49, 51, 52, 54, 56 — those
+paragraphs of `battery-lanes/a15-verify.out` (SHA-256 recorded by the lane)
+are incorporated by reference as binding text, with the file quoted in full
+as an appendix of the Phase-0 report. The remaining four are bound as
+follows, with rationale:
+
+**A16-15 (P0 masks; owner-adjudicated).** The verifier's pre-transfer
+checkpoint requirement is unsatisfiable: D0-11 proves no such checkpoint
+exists. The bank-position route is retained as primary WITH three GATED
+exact checks per target: (i) |S_q mask| equals the receipt's
+authorized_null_rows exactly; (ii) the D0-4 lineage/alignment digests
+re-verify; (iii) on baseline1pct, terminal equals raw on drawn rows (already
+proven, re-asserted). Rationale: the transfer fills only null cells and the
+banks' raw-draw NaN structure identifies drawn rows per target (D0-4);
+rows with native values are never drawn and land in S_o. Any check failing
+fails that target closed. This is an owner design adjudication made without
+sight of any reading.
+
+**A16-20 (operator table) and A16-55 (schema + ID manifest).** Both become
+SEALED STEP-0 DELIVERABLES of the execution lane: before any statistic is
+computed, the lane writes (a) the normative operator-stage table (every
+dataset, entity key, input/output column, weight, transformation order,
+NO_SURFACE status, with code anchors) and (b) the SHA-pinned JSON Schema
+plus the ordered required-ID manifest with explicit rung/target/pattern/
+leg/row/group/prior/GQ/decile/repeat/fold/variant dimensions; both are
+digest-recorded in the report before readings begin, and completeness is
+validated against them (duplicates, missing, and extras all reject).
+
+**A16-50 (adjudication table).** The D0-pinned owner-adjudication table is
+the sole bug-vs-by-design authority and STARTS EMPTY; every entry must cite
+a committed normative spec, matching receipt, and merged PR; absent or
+conflicting entries are UNRESOLVED (block C per precedence rule 4; create
+no D). Entries are added only by owner-logged amendment.
+
+**Supersession table** (each later rule expressly replaces the named
+earlier text): A15.4+A16 replace A14.1/A14.3 carried-weight Hájek wording
+and §3.2's "retain recipient artifact weights"; A16-12/13/14 replace A3's
+oracle/10 scaling and A14.6's two-statistic C2/C3 roster (now six);
+A16-23 replaces the §3.1/E9 placement of weeks clearing (semantic UC
+clearing is always T5; T6 is only the #742 margin edit; A13's pin governs
+the T5 implementation); A16-25 replaces A15.25 (residual excluded from F1);
+A16-30 replaces A14.5's closure placement (per-pattern e_D, e_R, e_T);
+A16-34/36 replace §3.3's weighted-mean neighbor phrase and concentration
+denominator; A16-37 retires F3 (A2 amended); A16-46 replaces §3.5's
+"paired uncertainty" with the independent-variance formula; A16-49/51/52
+replace §3.5's precedence prose as written there.
+
+**Regress rule (final).** From this amendment on, the execution lane does
+not stop for specification gaps in NON-GATED (descriptive/diagnostic)
+statistics: it resolves each by a deterministic default recorded in a
+sealed report appendix BEFORE computing the affected statistic, and flags
+the statistic `default_resolved`. GATED statistics (control pass/fail,
+closure gates, Holm-family members, verdict inputs) still fail closed on
+any ambiguity. This bounds the spec-iteration cycle without weakening any
+gate.
