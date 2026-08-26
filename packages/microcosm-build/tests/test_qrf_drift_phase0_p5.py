@@ -107,7 +107,7 @@ def test_weighted_midpoint_deciles_use_score_then_stable_id() -> None:
     assert sum(diagnostic["bin_weight"]) == 10.0
 
 
-def test_decile_partition_closure_uses_exact_rows_and_scaled_ulps() -> None:
+def test_decile_partition_closure_uses_exact_once_rows_and_scaled_ulps() -> None:
     # Reproduce the scale and reduction-order discrepancy that exceeded the
     # former fixed 1e-6 tolerance after all 856,626 rows were assigned.
     total_weight = 79_837_622.85984892
@@ -125,26 +125,91 @@ def test_decile_partition_closure_uses_exact_rows_and_scaled_ulps() -> None:
             7_983_762.285988029,
         ]
     )
-    rows = np.asarray([85_663] * 6 + [85_662] * 4)
+    rows = np.ones(10, dtype=np.int64)
+    expected = np.ones(10, dtype=bool)
+    assignment_counts = np.ones(10, dtype=np.uint16)
 
     closure = P5.decile_partition_closure(
         weights,
         rows,
+        assignment_counts,
+        expected,
         total_weight=total_weight,
-        expected_rows=856_626,
     )
 
     assert abs(closure["weight_residual"]) > 1e-6
     assert closure["weight_reduction_order_within_4096_ulps"] is True
-    assert closure["row_partition_exact"] is True
+    assert closure["bin_row_count_matches_expected"] is True
+    assert closure["exact_once_assignment"]["exactly_once"] is True
     assert closure["status"] == "PASS"
     rows[0] -= 1
     assert (
         P5.decile_partition_closure(
             weights,
             rows,
+            assignment_counts,
+            expected,
             total_weight=total_weight,
-            expected_rows=856_626,
+        )["status"]
+        == "FAIL"
+    )
+
+
+def test_decile_partition_closure_rejects_balanced_drop_and_duplicate() -> None:
+    weights = np.ones(10, dtype=np.float64)
+    rows = np.ones(10, dtype=np.int64)
+    expected = np.ones(10, dtype=bool)
+    # Aggregate rows and weights still close, but row 0 is absent and row 1
+    # appears twice.  Household-equal weights make the aggregate blind to it.
+    assignment_counts = np.ones(10, dtype=np.uint16)
+    assignment_counts[0] = 0
+    assignment_counts[1] = 2
+
+    closure = P5.decile_partition_closure(
+        weights,
+        rows,
+        assignment_counts,
+        expected,
+        total_weight=10.0,
+    )
+
+    assert closure["bin_row_count_matches_expected"] is True
+    assert closure["weight_residual"] == 0.0
+    certificate = closure["exact_once_assignment"]
+    assert certificate["missing_rows"] == 1
+    assert certificate["duplicated_rows"] == 1
+    assert certificate["duplicate_assignment_slots"] == 1
+    assert certificate["exactly_once"] is False
+    assert closure["status"] == "FAIL"
+
+
+def test_decile_drift_closure_allows_only_natural_scale_regrouping() -> None:
+    total_weight = 79_837_622.85984892
+    # These are valid decile masses for row drift identically one.  Their
+    # alternate grouping differs from the full-vector total by >2e-14 after
+    # normalization, reproducing the fixed-epsilon false failure.
+    masses = np.asarray(
+        [7_983_762.285984892] * 9 + [7_983_762.285988029],
+        dtype=np.float64,
+    )
+
+    closure = P5.decile_drift_closure(
+        masses,
+        total_weight=total_weight,
+        expected_conditional=1.0,
+    )
+
+    assert abs(closure["conditional_residual"]) > 2e-14
+    assert abs(closure["conditional_residual"]) <= closure["conditional_tolerance"]
+    assert closure["within_natural_scale_4096_ulps"] is True
+    assert closure["status"] == "PASS"
+
+    masses[0] += 2.0 * closure["mass_tolerance"]
+    assert (
+        P5.decile_drift_closure(
+            masses,
+            total_weight=total_weight,
+            expected_conditional=1.0,
         )["status"]
         == "FAIL"
     )

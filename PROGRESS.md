@@ -100,9 +100,15 @@ the long run durable. The first P5 attempt completed its largest
 683,997-recipient surface, then rejected the target on a fixed `1e-6`
 decile-weight closure epsilon. Direct reconstruction proved all 856,626 rows
 were assigned exactly once while valid binary64 reduction orders differ by
-`1.30e-6` to `3.14e-6`. The executor now gates loss/duplication by exact row
-census and separately bounds reduction drift at 4,096 ULPs; the first shard
-will restart from committed code. C1 and verdicts have not yet executed. No pool build,
+`1.30e-6` to `3.14e-6`. The stopped attempt produced no P5 artifact. A
+downstream audit then found that aggregate row counts alone could overstate
+their diagnostic power and that the later decile-to-T2 check still used a
+scale-blind `2e-14` floor. The executor now certifies every global S_q row
+exactly once (with missing, duplicate, and unexpected-row identities),
+separately bounds weight and drift regrouping at 4,096 binary64 ULPs on the
+natural survey-weight scale, and records both residuals. The first shard will
+restart from this committed code. C1 and verdicts have not yet executed. No
+pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
 
@@ -177,10 +183,12 @@ is authorized or planned.
   equivalence is disclosed in the artifact.
 - Diagnosed the first P5 post-distance stop as a scale-blind internal
   floating-sum check, not missing decile assignments or a numerical control
-  failure. Replaced it with an exact row-partition gate plus a recorded
-  ULP-scaled reduction-order diagnostic; a regression fixture reproduces the
-  former false rejection and rejects a one-row loss. Eight focused tests,
-  Ruff, and format checks pass.
+  failure. The final hardening certifies every S_q row exactly once, rejects a
+  balanced drop/duplicate even when equal weights make aggregate totals close,
+  and records separate 4,096-ULP natural-scale bounds for weight and decile
+  drift regrouping. Its regressions reproduce both former false rejections.
+  Ten focused P5 tests, all 88 Phase-0 tests, Ruff, formatting, and diff checks
+  pass.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,

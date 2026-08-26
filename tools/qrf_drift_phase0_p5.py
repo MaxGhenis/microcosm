@@ -358,20 +358,24 @@ def weighted_decile_bins(
 def decile_partition_closure(
     bin_weight: np.ndarray,
     bin_rows: np.ndarray,
+    assignment_counts: np.ndarray,
+    expected_mask: np.ndarray,
     *,
     total_weight: float,
-    expected_rows: int,
 ) -> dict[str, Any]:
-    """Verify an exhaustive decile partition without a scale-blind epsilon.
+    """Verify exact-once row assignment and aggregate decile closure.
 
     ``np.bincount`` reduces each bin in a different order from the original
     full-vector sum.  On the 856,626-row child-support surface that legitimate
-    roundoff exceeds 1e-6 even though every row appears exactly once.  The
-    exact integer row census is therefore the loss/duplication gate; the
-    weight check uses a bounded ULP allowance only for reduction-order drift.
+    roundoff exceeds 1e-6 even though every row appears exactly once.  Row
+    identity is therefore certified separately from the aggregate row and
+    weight checks; the weight check uses a bounded ULP allowance only for
+    reduction-order drift.
     """
     weights = np.asarray(bin_weight, dtype=np.float64)
     rows = np.asarray(bin_rows, dtype=np.int64)
+    raw_counts = np.asarray(assignment_counts)
+    raw_expected = np.asarray(expected_mask)
     require(
         weights.shape == rows.shape == (10,)
         and np.isfinite(weights).all()
@@ -379,26 +383,118 @@ def decile_partition_closure(
         and (rows >= 0).all(),
         "P5 decile closure inputs are malformed",
     )
+    require(
+        raw_counts.ndim == raw_expected.ndim == 1
+        and raw_counts.shape == raw_expected.shape
+        and raw_counts.dtype.kind in {"i", "u"},
+        "P5 decile assignment certificate inputs are malformed",
+    )
+    require(
+        raw_expected.dtype.kind == "b",
+        "P5 expected decile assignment mask is not boolean",
+    )
+    counts = np.asarray(raw_counts, dtype=np.int64)
+    expected = np.asarray(raw_expected, dtype=bool)
+    require((counts >= 0).all(), "P5 decile assignment counts are negative")
+    expected_rows = int(expected.sum())
+    missing = expected & (counts == 0)
+    duplicated = expected & (counts > 1)
+    unexpected = (~expected) & (counts > 0)
+    exact_once = np.array_equal(counts, expected.astype(np.int64))
+    assignment_slots = int(counts.sum(dtype=np.int64))
+    assignment_certificate = {
+        "status": "PASS" if exact_once else "FAIL",
+        "exactly_once": bool(exact_once),
+        "expected_rows": expected_rows,
+        "assignment_slots": assignment_slots,
+        "exactly_once_rows": int((expected & (counts == 1)).sum()),
+        "missing_rows": int(missing.sum()),
+        "duplicated_rows": int(duplicated.sum()),
+        "duplicate_assignment_slots": int(
+            np.maximum(counts[expected] - 1, 0).sum(dtype=np.int64)
+        ),
+        "unexpected_rows": int(unexpected.sum()),
+        "unexpected_assignment_slots": int(counts[~expected].sum(dtype=np.int64)),
+        "expected_mask_identity": p1.mask_identity(expected),
+        "assignment_count_identity": c4.array_identity(np.asarray(counts, dtype="<i8")),
+        "missing_mask_identity": p1.mask_identity(missing),
+        "duplicated_mask_identity": p1.mask_identity(duplicated),
+        "unexpected_mask_identity": p1.mask_identity(unexpected),
+    }
     observed_weight = math.fsum(float(value) for value in weights)
     residual = observed_weight - float(total_weight)
     scale = max(abs(observed_weight), abs(float(total_weight)), 1.0)
     tolerance = 4096.0 * float(np.spacing(scale))
     observed_rows = int(rows.sum(dtype=np.int64))
-    row_pass = observed_rows == int(expected_rows)
+    row_count_pass = observed_rows == expected_rows
+    row_assignment_link_pass = observed_rows == assignment_slots
     weight_pass = abs(residual) <= tolerance
     return {
-        "status": "PASS" if row_pass and weight_pass else "FAIL",
-        "row_count": observed_rows,
-        "expected_row_count": int(expected_rows),
-        "row_partition_exact": row_pass,
+        "status": (
+            "PASS"
+            if exact_once
+            and row_count_pass
+            and row_assignment_link_pass
+            and weight_pass
+            else "FAIL"
+        ),
+        "bin_row_count": observed_rows,
+        "expected_row_count": expected_rows,
+        "bin_row_count_matches_expected": row_count_pass,
+        "bin_row_count_matches_assignment_slots": row_assignment_link_pass,
+        "exact_once_assignment": assignment_certificate,
         "bin_weight_sum": observed_weight,
         "expected_weight_sum": float(total_weight),
         "weight_residual": residual,
         "weight_tolerance": tolerance,
         "weight_reduction_order_within_4096_ulps": weight_pass,
         "tolerance_basis": (
-            "4096 binary64 ULPs at total-weight scale; exact integer row "
-            "partition separately rejects any row loss or duplication"
+            "4096 binary64 ULPs at total-weight scale cover only alternate "
+            "summation order; exact-once global row counts separately certify "
+            "row identity"
+        ),
+    }
+
+
+def decile_drift_closure(
+    bin_drift_mass: np.ndarray,
+    *,
+    total_weight: float,
+    expected_conditional: float,
+) -> dict[str, Any]:
+    """Compare regrouped decile drift with T2 on its natural weight scale."""
+    masses = np.asarray(bin_drift_mass, dtype=np.float64)
+    require(
+        masses.shape == (10,)
+        and np.isfinite(masses).all()
+        and math.isfinite(total_weight)
+        and total_weight > 0.0
+        and math.isfinite(expected_conditional),
+        "P5 decile drift closure inputs are malformed",
+    )
+    observed_mass = math.fsum(float(value) for value in masses)
+    decile_drift = masses / total_weight
+    observed_conditional = math.fsum(float(value) for value in decile_drift)
+    residual = float(observed_conditional - expected_conditional)
+    natural_scale = max(abs(float(total_weight)), 1.0)
+    mass_tolerance = 4096.0 * float(np.spacing(natural_scale))
+    conditional_tolerance = float(mass_tolerance / total_weight)
+    within_tolerance = abs(residual) <= conditional_tolerance
+    return {
+        "status": "PASS" if within_tolerance else "FAIL",
+        "decile_drift_mass_sum": observed_mass,
+        "decile_drift_sum": observed_conditional,
+        "conditional_T2": float(expected_conditional),
+        "conditional_residual": residual,
+        "mass_equivalent_residual": float(residual * total_weight),
+        "natural_total_weight_scale": float(total_weight),
+        "mass_tolerance": mass_tolerance,
+        "conditional_tolerance": conditional_tolerance,
+        "within_natural_scale_4096_ulps": within_tolerance,
+        "tolerance_basis": (
+            "4096 binary64 ULPs at total-weight scale divided by total weight; "
+            "exact-once assignment is certified independently, so this allowance "
+            "covers only binary64 reduction-order drift"
         ),
     }
 
@@ -705,6 +801,7 @@ def run_target(
     bin_rows = np.zeros(10, dtype=np.int64)
     bin_distance_mass = np.zeros(10, dtype=np.float64)
     bin_drift_mass = {leg: np.zeros(10, dtype=np.float64) for leg in LEGS}
+    assignment_counts = np.zeros(len(sq), dtype=np.int64)
     patterns: list[dict[str, Any]] = []
     cache_counts = {"hits": 0, "misses": 0}
 
@@ -767,6 +864,14 @@ def run_target(
             cache_counts["misses"] += 1
 
         bins, bin_diagnostic = weighted_decile_bins(scores, stable_ids, weights)
+        global_positions = np.asarray(positions, dtype=np.int64)[pattern_sq]
+        require(
+            len(global_positions) == len(bins)
+            and (global_positions >= 0).all()
+            and (global_positions < len(sq)).all(),
+            f"P5 decile row identities differ for {target}/{pattern_name}",
+        )
+        np.add.at(assignment_counts, global_positions, 1)
         bin_rows += np.bincount(bins, minlength=10).astype(np.int64)
         bin_weight += np.bincount(bins, weights=weights, minlength=10)
         bin_distance_mass += np.bincount(bins, weights=weights * scores, minlength=10)
@@ -825,8 +930,9 @@ def run_target(
     partition_closure = decile_partition_closure(
         bin_weight,
         bin_rows,
+        assignment_counts,
+        sq,
         total_weight=total_weight,
-        expected_rows=int(sq.sum()),
     )
     require(
         partition_closure["status"] == "PASS",
@@ -840,14 +946,15 @@ def run_target(
         t2 = _target_t2(p1_payload, target, leg)
         drift = bin_drift_mass[leg] / total_weight
         expected_conditional = t2["value"] / t2["phi"]
+        drift_closure = decile_drift_closure(
+            bin_drift_mass[leg],
+            total_weight=total_weight,
+            expected_conditional=expected_conditional,
+        )
         require(
-            math.isclose(
-                float(drift.sum(dtype=np.float64)),
-                expected_conditional,
-                rel_tol=1e-11,
-                abs_tol=2e-14,
-            ),
-            f"P5 decile drift does not close to P1 T2 for {target}/{leg}",
+            drift_closure["status"] == "PASS",
+            f"P5 decile drift does not close to P1 T2 for {target}/{leg}: "
+            f"{json.dumps(drift_closure, sort_keys=True)}",
         )
         support = p1._support(data["d0"], target, leg)
         row_status = "OK" if support["pass"] else "INSUFFICIENT_SUPPORT_NO_VERDICT"
@@ -865,8 +972,9 @@ def run_target(
             "support": support,
             "T2": t2,
             "decile_drift": drift.tolist(),
-            "drift_sum": float(drift.sum(dtype=np.float64)),
+            "drift_sum": drift_closure["decile_drift_sum"],
             "conditional_T2": expected_conditional,
+            "drift_closure": drift_closure,
             "absolute_drift_denominator": denominator,
             "concentration": concentration,
             "concentration_defined": concentration_defined,
