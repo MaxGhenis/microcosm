@@ -2953,7 +2953,7 @@ _EXPLICIT_ORIGIN_BATTERY_METRIC_DECLARATIONS: Mapping[
             (
                 "person",
                 "source_operator_wic_claim",
-                "would_claim_wic",
+                "takes_up_wic_if_eligible",
             ),
             ("person", "take_up", "takes_up_basic_health_program_if_eligible"),
             ("person", "take_up", "takes_up_chip_if_eligible"),
@@ -2966,7 +2966,7 @@ _EXPLICIT_ORIGIN_BATTERY_METRIC_DECLARATIONS: Mapping[
                 "benefit_participation",
                 "takes_up_housing_assistance_if_eligible",
             ),
-            ("spm_unit", "model_required_boolean", "is_tanf_enrolled"),
+            ("spm_unit", "model_required_boolean", "receives_tanf"),
             ("spm_unit", "model_required_boolean", "receives_snap"),
             (
                 "spm_unit",
@@ -2976,8 +2976,23 @@ _EXPLICIT_ORIGIN_BATTERY_METRIC_DECLARATIONS: Mapping[
             ("spm_unit", "take_up", "takes_up_snap_if_eligible"),
             ("spm_unit", "take_up", "takes_up_tanf_if_eligible"),
             ("tax_unit", "take_up", "takes_up_aca_if_eligible"),
+            (
+                "tax_unit",
+                "take_up",
+                "takes_up_ca_premium_subsidy_if_eligible",
+            ),
+            (
+                "tax_unit",
+                "take_up",
+                "takes_up_co_premium_assistance_if_eligible",
+            ),
             ("tax_unit", "take_up", "takes_up_dc_ptc"),
             ("tax_unit", "take_up", "takes_up_eitc"),
+            (
+                "tax_unit",
+                "take_up",
+                "takes_up_nm_premium_assistance_if_eligible",
+            ),
         ),
         "categorical_tvd": (
             ("person", "model_required_discrete", "own_children_in_household"),
@@ -8643,8 +8658,8 @@ _canonical_full_transfer_keys = set(
     _surface_target_keys(_freeze_target_families(pool_transfer_target_families()))
 )
 if (
-    len(_canonical_surface_keys) != 131
-    or len(set(_canonical_surface_keys)) != 131
+    len(_canonical_surface_keys) != 134
+    or len(set(_canonical_surface_keys)) != 134
     or len(_canonical_early_transfer_keys) != 48
     or len(_canonical_late_transfer_keys) != 70
     or len(_canonical_late_puf_producer_keys) != 43
@@ -8678,7 +8693,7 @@ if (
     raise RuntimeError(
         "Canonical stacked authority must partition the exact 118-target "
         "transfer surface into 48 early gap-fill and 70 post-PUF targets "
-        "inside an exact 131-target terminal surface and metric registry; "
+        "inside an exact 134-target terminal surface and metric registry; "
         "the late surface must be exactly covered by 43 PUF-clone and 29 "
         "ASEC-source producer targets with their declared two-target overlap."
     )
@@ -9379,6 +9394,98 @@ def _gap_fill_absence_rule_mask(
         "status": "exact_structural_absence",
         "rows": int(mask.sum()),
         "by_origin_role": by_origin_role,
+    }
+
+
+def _gap_fill_absence_rule_mask_artifact_evidence(
+    frame: Frame,
+    *,
+    direction: GapFillDirection,
+    rule: GapFillAbsenceRule,
+) -> tuple[pd.Series, dict[str, object]]:
+    """Resolve the one structural scope from finished artifact columns only."""
+
+    if (
+        rule.rule_id != _ACS_GQ_RENT_ABSENCE_RULE_ID
+        or rule.selection != _ACS_GQ_RENT_ABSENCE_SELECTION
+        or rule.entity != "person"
+        or rule.column != "pre_subsidy_rent"
+        or direction.recipient_channel != ACS_STACKED_SUPPORT_CHANNEL
+    ):
+        raise ValueError(
+            f"Gap-fill direction {direction.name!r} declares unsupported "
+            f"recipient absence rule {rule.rule_id!r}."
+        )
+    household = frame.table("household")
+    person = frame.table("person")
+    required_household = {
+        "household_id",
+        "TYPEHUGQ",
+        "tenure_type",
+        support_channel_column("household"),
+        support_clone_index_column("household"),
+    }
+    required_person = {
+        "person_household_id",
+        support_channel_column("person"),
+        support_clone_index_column("person"),
+    }
+    missing_household = sorted(required_household - set(household))
+    missing_person = sorted(required_person - set(person))
+    if missing_household or missing_person:
+        raise ValueError(
+            f"Gap-fill absence rule {rule.rule_id!r} cannot resolve its "
+            "artifact-evidence universe; "
+            f"missing_household={missing_household}, missing_person={missing_person}."
+        )
+    household_channel = household[support_channel_column("household")].astype(str)
+    household_clone = pd.to_numeric(
+        household[support_clone_index_column("household")], errors="raise"
+    ).astype("int64")
+    native_acs = household_channel.eq(ACS_STACKED_SUPPORT_CHANNEL) & (
+        household_clone == 0
+    )
+    kind = pd.to_numeric(household["TYPEHUGQ"], errors="coerce")
+    invalid_kind = native_acs & ~kind.isin((1, 2, 3))
+    if invalid_kind.any():
+        raise ValueError(
+            f"Gap-fill absence rule {rule.rule_id!r} found "
+            f"{int(invalid_kind.sum())} native ACS household row(s) without "
+            "TYPEHUGQ 1/2/3."
+        )
+    gq_households = native_acs & kind.isin((2, 3))
+    nonnull_gq_tenure = gq_households & household["tenure_type"].notna()
+    if nonnull_gq_tenure.any():
+        raise ValueError(
+            f"Gap-fill absence rule {rule.rule_id!r} found "
+            f"{int(nonnull_gq_tenure.sum())} ACS group-quarters household "
+            "row(s) with synthesized tenure."
+        )
+    gq_household_ids = household.loc[gq_households, "household_id"]
+    person_channel = person[support_channel_column("person")].astype(str)
+    person_clone = pd.to_numeric(
+        person[support_clone_index_column("person")], errors="raise"
+    ).astype("int64")
+    mask = (
+        person_channel.eq(ACS_STACKED_SUPPORT_CHANNEL)
+        & person_clone.eq(0)
+        & person["person_household_id"].isin(gq_household_ids)
+    )
+    linked_counts = person.loc[mask, "person_household_id"].value_counts()
+    if len(linked_counts) != int(gq_households.sum()) or not linked_counts.eq(1).all():
+        raise ValueError(
+            f"Gap-fill absence rule {rule.rule_id!r} artifact evidence does "
+            "not contain exactly one native ACS person per group-quarters "
+            "household."
+        )
+    return mask, {
+        "rule_id": rule.rule_id,
+        "selection": rule.selection,
+        "reason": rule.reason,
+        "status": "observed_structural_absence_artifact_evidence",
+        "assembly_manifest_authenticated": False,
+        "rows": int(mask.sum()),
+        "by_origin_role": {f"{ACS_STACKED_SUPPORT_CHANNEL}/clone_0": int(mask.sum())},
     }
 
 
@@ -12942,7 +13049,7 @@ class OriginBatterySpec:
     """Test-seam grouping for per-column battery metrics.
 
     Production never accepts these specs from a caller: it consumes the
-    immutable 131-column canonical registry. The explicit test-authority seam
+    immutable 134-column canonical registry. The explicit test-authority seam
     groups its digested registry into specs so the comparison engine can reuse
     the same loop. ``clone_index`` scopes a fixture comparison to one clone
     role: 0 compares native rows and 1 compares a PUF arm.
@@ -12996,13 +13103,35 @@ def by_origin_battery(
     *,
     tail_manifest: Mapping[str, object] | None = None,
 ) -> GateResult:
-    """Run the canonical 131-target plus joint by-origin battery."""
+    """Run the canonical 134-target plus joint by-origin battery."""
 
     return _by_origin_battery_evaluate(
         frame,
         authority=_production_stacked_authority(),
         production=True,
         tail_manifest=tail_manifest,
+        authenticate_stacked_artifact=True,
+    )
+
+
+def by_origin_battery_artifact_evidence(frame: Frame) -> GateResult:
+    """Evaluate canonical battery formulas on finished artifact columns.
+
+    A released entity-table H5 does not preserve the assembly manifest or a
+    clone-2 tail manifest. Those receipts authenticate how a production frame
+    was built; they do not change the clone-0, positive-weight ASEC-vs-ACS
+    formulas. This evidence-only seam therefore uses the exact production
+    authority, surface, support rules, metrics, and tolerances while skipping
+    only assembly/tail authentication. Callers must not represent its result
+    as an authenticated production gate receipt.
+    """
+
+    return _by_origin_battery_evaluate(
+        frame,
+        authority=_production_stacked_authority(),
+        production=True,
+        tail_manifest=None,
+        authenticate_stacked_artifact=False,
     )
 
 
@@ -13020,6 +13149,7 @@ def _by_origin_battery_with_test_authority(
         authority=authority,
         production=False,
         tail_manifest=tail_manifest,
+        authenticate_stacked_artifact=True,
     )
 
 
@@ -13046,6 +13176,7 @@ def _by_origin_battery_evaluate(
     authority: _StackedAuthority,
     production: bool,
     tail_manifest: Mapping[str, object] | None = None,
+    authenticate_stacked_artifact: bool = True,
     _canonical_gap_fill_plan: tuple[
         GapFillDirection, ...
     ] = CANONICAL_STACKED_GAP_FILL_PLAN,
@@ -13069,10 +13200,14 @@ def _by_origin_battery_evaluate(
     both origins carry ample support.
     """
 
-    tail_support_receipt = _terminal_tail_support_gate_receipt(
-        frame,
-        tail_manifest,
-        boundary="by-origin battery",
+    tail_support_receipt = (
+        _terminal_tail_support_gate_receipt(
+            frame,
+            tail_manifest,
+            boundary="by-origin battery",
+        )
+        if authenticate_stacked_artifact
+        else None
     )
     authority_receipt = _authority_receipt(authority)
     specs = _battery_specs_from_metric_registry(authority.metric_registry)
@@ -13134,7 +13269,8 @@ def _by_origin_battery_evaluate(
                 ),
             },
         )
-    validate_stacked_spine_frame(frame, boundary="by-origin battery")
+    if authenticate_stacked_artifact:
+        validate_stacked_spine_frame(frame, boundary="by-origin battery")
 
     failures: list[str] = []
     comparisons: dict[str, object] = {}
@@ -13173,10 +13309,18 @@ def _by_origin_battery_evaluate(
             structural_rule = declared_absence_rules.get((spec.entity, column))
             if structural_rule is not None:
                 rule_direction, rule = structural_rule
-                structural_mask, structural_receipt = _gap_fill_absence_rule_mask(
-                    frame,
-                    direction=rule_direction,
-                    rule=rule,
+                structural_mask, structural_receipt = (
+                    _gap_fill_absence_rule_mask(
+                        frame,
+                        direction=rule_direction,
+                        rule=rule,
+                    )
+                    if authenticate_stacked_artifact
+                    else _gap_fill_absence_rule_mask_artifact_evidence(
+                        frame,
+                        direction=rule_direction,
+                        rule=rule,
+                    )
                 )
                 scoped_structural = structural_mask.to_numpy(dtype=bool) & scope
                 scoped_null_mask = series.isna().to_numpy(dtype=bool) & scope

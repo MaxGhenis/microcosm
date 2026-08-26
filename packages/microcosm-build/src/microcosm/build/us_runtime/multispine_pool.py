@@ -326,28 +326,28 @@ class PoolEngineInputProjectionContract:
 
 
 POOL_SSI_DEPENDENCY_CONTRACT = PoolSsiDependencyContract(
-    engine_version="1.764.6",
+    engine_version="1.819.0",
     root="ssi",
     input_leaf_count=55,
-    formula_node_count=62,
-    edge_count=186,
-    sha256="e3351cdedbe592456b637286ecd04b7079746e1c409e594fbca60a7d28666838",
+    formula_node_count=63,
+    edge_count=187,
+    sha256="e0a23d961c36526a10e56d80d51ca46760e92b4ea3653734014469da2394f702",
 )
 """Exact static graph consumed by the terminal SSI agreement simulation."""
 
 POOL_ENGINE_INPUT_PROJECTION_CONTRACT = PoolEngineInputProjectionContract(
-    engine_version="1.764.6",
-    input_count=863,
-    default_count=863,
-    sha256="67a66b018c6261a03a88852cce5c5a4cbe9f5595735d17f2f7666e19e464dfbf",
-    defaults_sha256="87f508fbb382036946aa5e225d339e1b593a464ee6cfc644d7d710540b00a9a7",
+    engine_version="1.819.0",
+    input_count=924,
+    default_count=924,
+    sha256="b4b2041d221b6322a3143dd2d54dc95eb1b20d5f33f4a60908055d735ba07930",
+    defaults_sha256="8718854d455ca536dba2e712aed3b2010becf909b8c61210f0456bcf732ec68c",
 )
 """Exact installed input registry scanned by the disposable projection."""
 
 POOL_REMAINING_STAGE_INPUT_MANIFEST_SHA256 = (
-    "8247a93e5f8f63d3ae71c1de681c29524d4bb8f07e3c6a50dcaf431b1377020f"
+    "98231086a18676778346fc3219bb9450f7eb85eb77791640598cba7a5ae66ef6"
 )
-"""Pinned content digest of all 993 post-transfer consumer/input rows."""
+"""Pinned content digest of all 1,058 post-transfer consumer/input rows."""
 
 
 @dataclass(frozen=True)
@@ -844,7 +844,38 @@ def pool_post_puf_source_producer_target_families() -> TargetFamilies:
     )
 
 
-def pool_input_surface() -> tuple[PoolInputSurfaceEntry, ...]:
+def _resolve_take_up_program_bindings(
+    bindings: tuple[tuple[str, str, str], ...] | None,
+) -> tuple[tuple[str, str, str], ...]:
+    """Return ``(variable, entity, treatment)`` rows for static manifests."""
+
+    if bindings is None:
+        from microcosm.build.spec_engine.engine_abi import (
+            active_take_up_manifest_program_bindings,
+        )
+
+        bindings = active_take_up_manifest_program_bindings()
+    if bindings is None:
+        return tuple(
+            (program.variable, program.entity, program.populace_treatment)
+            for program in load_take_up_contract().programs
+        )
+    for index, binding in enumerate(bindings):
+        if (
+            len(binding) != 3
+            or not all(isinstance(value, str) and value for value in binding)
+        ):
+            raise ValueError(
+                "Take-up manifest program binding must contain three non-empty "
+                f"strings at index {index}."
+            )
+    return bindings
+
+
+def pool_input_surface(
+    *,
+    take_up_program_bindings: tuple[tuple[str, str, str], ...] | None = None,
+) -> tuple[PoolInputSurfaceEntry, ...]:
     """Return the complete registry-derived pool input/imputation surface.
 
     The surface is deliberately limited to transfer targets, explicit deferred
@@ -929,11 +960,13 @@ def pool_input_surface() -> tuple[PoolInputSurfaceEntry, ...]:
             provenance="PRIMARY_QRF_TARGET_ORDER",
         )
 
-    for program in load_take_up_contract().programs:
+    for variable, entity, populace_treatment in _resolve_take_up_program_bindings(
+        take_up_program_bindings
+    ):
         register(
-            program.variable,
-            entity=program.entity,
-            family=f"take_up_{program.populace_treatment}",
+            variable,
+            entity=entity,
+            family=f"take_up_{populace_treatment}",
             provenance="load_take_up_contract",
         )
 
@@ -1075,11 +1108,13 @@ def pool_engine_input_projection_receipt(
 @lru_cache(maxsize=8)
 def pool_remaining_stage_input_manifest(
     metadata_index: PolicyEngineUSVariableMetadataIndex | None = None,
+    *,
+    take_up_program_bindings: tuple[tuple[str, str, str], ...] | None = None,
 ) -> tuple[PoolRemainingStageInput, ...]:
     """Enumerate and statically provision every remaining-stage data read.
 
     The manifest starts at a validated ``transferred`` checkpoint and covers
-    tail preparation, both derive kernels, all thirteen seed-program branches,
+    tail preparation, both derive kernels, all seventeen seed-program branches,
     and the terminal SSI simulation.  Simulation leaves come from the pinned
     source-index graph rather than a handwritten dependency list.
     """
@@ -1118,7 +1153,11 @@ def pool_remaining_stage_input_manifest(
                 f"{previous!r} versus {entry!r}."
             )
 
-    surface = {entry.variable: entry for entry in pool_input_surface()}
+    program_bindings = _resolve_take_up_program_bindings(take_up_program_bindings)
+    surface = {
+        entry.variable: entry
+        for entry in pool_input_surface(take_up_program_bindings=program_bindings)
+    }
 
     def surface_provision(variable: str) -> str:
         declaration = surface.get(variable)
@@ -1271,18 +1310,17 @@ def pool_remaining_stage_input_manifest(
         available_by="assembled",
     )
 
-    contract = load_take_up_contract()
     transfer_owned = {
         variable
         for families in pool_transfer_target_families().values()
         for variables in families.values()
         for variable in variables
     }
-    for program in contract.programs:
-        if program.is_seeded:
+    for variable, entity, populace_treatment in program_bindings:
+        if populace_treatment == "seed":
             provision = "administrative_seed_or_preserved_input"
             fallback = "sourced_seed_when_input_is_missing"
-        elif program.variable in transfer_owned:
+        elif variable in transfer_owned:
             provision = "transferred_or_preserved_input"
             fallback = None
         else:
@@ -1291,12 +1329,12 @@ def pool_remaining_stage_input_manifest(
         register(
             "seed",
             "seed_multispine_pool_inputs",
-            program.entity,
-            program.variable,
+            entity,
+            variable,
             execution_scope="whole_pool",
             provision=provision,
             available_by=(
-                "transferred" if program.variable in transfer_owned else "seeded"
+                "transferred" if variable in transfer_owned else "seeded"
             ),
             fallback=fallback,
         )
@@ -1376,7 +1414,7 @@ def pool_remaining_stage_input_manifest(
         else PolicyEngineUSVariableMetadataIndex()
     )
     closure = pool_ssi_dependency_closure(resolved_metadata_index)
-    take_up_variables = {program.variable for program in contract.programs}
+    take_up_variables = {variable for variable, _entity, _treatment in program_bindings}
     actual_surface_provenance = {
         "pool_transfer_target_families",
         "PRIMARY_QRF_TARGET_ORDER",
@@ -1531,14 +1569,14 @@ def pool_remaining_stage_input_manifest(
         )
 
     expected_projection_provisions = {
-        "materialized_pool_input_surface": 123,
-        "seed_stage_program_contract": 13,
+        "materialized_pool_input_surface": 122,
+        "seed_stage_program_contract": 17,
         "declared_deferred_null_input": 3,
         "assembled_native_engine_input": 5,
         "frame_structural_engine_input": 10,
         "preserved_stacked_engine_input": 4,
         "derived_schedule_d_input": 1,
-        "declared_absent_engine_input": 704,
+        "declared_absent_engine_input": 762,
     }
     if projection_provisions != expected_projection_provisions:
         raise ValueError(
@@ -1552,10 +1590,15 @@ def pool_remaining_stage_input_manifest(
 
 def pool_remaining_stage_input_manifest_receipt(
     metadata_index: PolicyEngineUSVariableMetadataIndex | None = None,
+    *,
+    take_up_program_bindings: tuple[tuple[str, str, str], ...] | None = None,
 ) -> dict[str, object]:
     """Return a content identity for the exhaustive post-transfer manifest."""
 
-    manifest = pool_remaining_stage_input_manifest(metadata_index)
+    manifest = pool_remaining_stage_input_manifest(
+        metadata_index,
+        take_up_program_bindings=take_up_program_bindings,
+    )
     rows = [
         {
             "stage": entry.stage,

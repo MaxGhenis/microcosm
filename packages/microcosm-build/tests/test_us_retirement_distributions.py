@@ -476,6 +476,7 @@ def test_gate_rejects_a_default_or_source_divergent_leaf() -> None:
 
 
 def test_all_sha_locked_asec_artifacts_carry_exact_source_signal() -> None:
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     expected = {
         "census_cps_2022.h5": (
             "7ccca976284bb47815d84460cc4f75a0a65d26d7754ab0a0f417de351b3d474e",
@@ -516,11 +517,11 @@ def test_all_sha_locked_asec_artifacts_carry_exact_source_signal() -> None:
 
 
 @requires_us
-def test_policyengine_1_764_6_contract_and_live_binding() -> None:
+def test_policyengine_1_819_0_contract_and_live_binding() -> None:
     from policyengine_core.reforms import Reform
     from policyengine_us import CountryTaxBenefitSystem, Simulation
 
-    assert version("policyengine-us") == "1.764.6"
+    assert version("policyengine-us") == "1.819.0"
     variables = CountryTaxBenefitSystem().variables
     for name in _OUTPUTS:
         variable = variables[name]

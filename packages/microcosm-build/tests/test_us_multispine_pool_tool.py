@@ -28,6 +28,7 @@ import microcosm.build.us_runtime.stacked_spine as stacked_spine_module
 from microcosm.build.gates import GateReport, GateResult
 from microcosm.build.logbook import LOGBOOK_ROW_FIELDS, load_logbook_row
 from microcosm.build.serialization_dtypes import CANONICAL_STRING_DTYPE
+from microcosm.build.spec_engine import LegacyPayloadMismatchError
 from microcosm.build.us_runtime.acs_transfer import transfer_acs_inputs
 from microcosm.build.us_runtime.acs_transfer_bank import (
     ACS_TRANSFER_TARGET_BANK_MATERIALIZER_VERSION,
@@ -57,7 +58,7 @@ from microcosm.build.us_runtime.take_up_contract import (
     load_take_up_contract,
     take_up_contract_identity,
 )
-from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
+from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights, read_frame_table
 
 _FIXTURE_SEED_PERSON_COLUMN = "takes_up_medicaid_if_eligible"
 
@@ -68,6 +69,21 @@ def pool_tool() -> ModuleType:
     path = root / "tools" / "build_us_multispine_pool.py"
     spec = importlib.util.spec_from_file_location(
         "build_us_multispine_pool_fixture",
+        path,
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="module")
+def release_tool() -> ModuleType:
+    root = Path(__file__).resolve().parents[3]
+    path = root / "tools" / "build_us_fiscal_refresh_release.py"
+    spec = importlib.util.spec_from_file_location(
+        "build_us_fiscal_refresh_release_pool_fixture",
         path,
     )
     module = importlib.util.module_from_spec(spec)
@@ -122,6 +138,8 @@ def _many_household_source_frame(
     *,
     count: int = 100,
     measured_offset: float = 0.0,
+    state_fips: str | None = None,
+    puma: str | None = None,
 ) -> Frame:
     ids = np.arange(1, count + 1, dtype=np.int64)
     person = pd.DataFrame(
@@ -147,6 +165,18 @@ def _many_household_source_frame(
     }
     if measured_offset:
         tables["household"]["TYPEHUGQ"] = 1
+    if state_fips is not None:
+        tables["household"]["state_fips"] = pd.Series(
+            state_fips,
+            index=tables["household"].index,
+            dtype="string",
+        )
+    if puma is not None:
+        tables["household"]["puma"] = pd.Series(
+            puma,
+            index=tables["household"].index,
+            dtype="string",
+        )
     return Frame(
         tables,
         US_SCHEMA,
@@ -214,6 +244,89 @@ def _with_fixture_pre_clone_strike_benefits(frame: Frame) -> Frame:
     person["strike_benefits"] = np.nan
     person.loc[channel.eq("asec"), "strike_benefits"] = 125.0
     return _replace_person(frame, person)
+
+
+def _with_fixture_household_geography(frame: Frame) -> Frame:
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    household = tables["household"]
+    household["puma"] = pd.Series("0600100", index=household.index, dtype="string")
+    household["congressional_district_geoid"] = np.full(
+        len(household), 601, dtype=np.int64
+    )
+    household["county_fips"] = pd.Series("06001", index=household.index, dtype="string")
+    tables.update({link: frame.link(link) for link in frame.links})
+    return Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+
+def _fixture_geography_assignment_receipt(
+    pool_tool: ModuleType,
+    frame: Frame,
+    *,
+    gate: GateResult | None = None,
+) -> dict[str, object]:
+    household = frame.table("household")
+    fixture_gate = gate or GateResult(
+        name="us_puma_ladder",
+        passed=True,
+        details={"fixture": True},
+    )
+    return {
+        "artifact_kind": "populace_us_stacked_household_geography_assignment",
+        "schema_version": 1,
+        "contract": pool_tool._stacked_geography_assignment_contract(),
+        "pre_assignment_household_order": pool_tool._ordered_household_id_receipt(
+            household
+        ),
+        "assigned_household_geography": (
+            pool_tool._ordered_household_geography_receipt(household)
+        ),
+        "target_universe": (
+            pool_tool._target_congressional_district_universe_receipt((601,))
+        ),
+        "output": {
+            "household_rows": len(household),
+            "positive_congressional_district_rows": len(household),
+            "unique_congressional_district_values": 1,
+        },
+        "summary": {"applied": True, "household_rows": len(household)},
+        "gate": GateReport((fixture_gate,)).to_manifest(),
+    }
+
+
+def _fixture_puma_ladder(pool_tool: ModuleType):
+    puma = np.asarray([600_100], dtype=np.int64)
+    population = np.asarray([100.0])
+    return pool_tool.UsPumaLadder(
+        puma=puma,
+        puma_population=population,
+        cd_overlap_puma=puma.copy(),
+        cd_overlap_cd=np.asarray([601], dtype=np.int64),
+        cd_overlap_population=population.copy(),
+        county_overlap_puma=puma.copy(),
+        county_overlap_county=np.asarray([6_001], dtype=np.int32),
+        county_overlap_population=population.copy(),
+        tract_overlap_puma=puma.copy(),
+        tract_overlap_tract=np.asarray([6_001_000_100], dtype=np.int64),
+        tract_overlap_population=population.copy(),
+        metadata={
+            "schema_version": 1,
+            "kind": "us_puma_ladder",
+            "puma_vintage": "2020_puma",
+            "sampling_basis": "population",
+            "layers": {
+                "congressional_district": {"vintage": "119th_congress"},
+                "county": {"vintage": "2020_census"},
+                "tract": {"vintage": "2020_census"},
+            },
+        },
+    )
 
 
 def _semantic_string_columns(table: pd.DataFrame) -> tuple[str, ...]:
@@ -487,13 +600,20 @@ def _verified_inputs_fixture(pool_tool: ModuleType, root: Path):
             "acs_rent_donor",
             "processed_puf",
             "puf_source_year",
+            "puma_ladder",
+            "congressional_district_vintage_crosswalk",
         ),
         start=1,
     ):
         path = root / f"{role}.stacked-fixture"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"stacked-input-{index}".encode())
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest = {
+            "puma_ladder": pool_tool._STACKED_PUMA_LADDER_SHA256,
+            "congressional_district_vintage_crosswalk": (
+                pool_tool._STACKED_CD_CROSSWALK_SHA256
+            ),
+        }.get(role, hashlib.sha256(path.read_bytes()).hexdigest())
         verified[role] = pool_tool._VerifiedInput(
             role=role,
             path=path,
@@ -885,6 +1005,18 @@ def _stacked_main_argv(
     ):
         arguments.extend([f"--{option}", str(tmp_path / option)])
         arguments.extend([f"--{option}-sha256", "1" * 64])
+    arguments.extend(
+        [
+            "--puma-ladder",
+            str(tmp_path / "puma-ladder"),
+            "--puma-ladder-sha256",
+            "39a2ab2abeab07a88362af7ab2940e0e1d50a297c919e4bbc6fb65bab51147d8",
+            "--congressional-district-vintage-crosswalk",
+            str(tmp_path / "congressional-district-vintage-crosswalk"),
+            "--congressional-district-vintage-crosswalk-sha256",
+            "c7cb040b1f57ca2ea2adcbfe60cc2b250ca23acbc4b640cd421e766fa54c1aec",
+        ]
+    )
     arguments.extend(
         [
             "--sample-fraction",
@@ -1505,14 +1637,21 @@ def _install_stacked_entrypoint_stubs(
     *,
     terminal: str,
     post_puf_authority: Mapping[str, object] | None = None,
+    real_geography_assignment: bool = False,
 ) -> tuple[list[str], int]:
     order: list[str] = []
     verified = _verified_inputs_fixture(pool_tool, tmp_path / "pins")
     source_manifest = pool_tool.load_acs_source_manifest()
     puf_donor = pd.DataFrame({"fixture": np.arange(7)})
     loaded = pool_tool._LoadedInputs(
-        asec=_many_household_source_frame(),
-        acs=_many_household_source_frame(measured_offset=1_000.0),
+        asec=_many_household_source_frame(
+            state_fips="06" if real_geography_assignment else None,
+        ),
+        acs=_many_household_source_frame(
+            measured_offset=1_000.0,
+            state_fips="06" if real_geography_assignment else None,
+            puma="0600100" if real_geography_assignment else None,
+        ),
         acs_rent_donor=pd.DataFrame({"fixture": [1.0]}),
         puf_donor=puf_donor,
         asec_raw_stage_checkpoint={"artifact": "fixture-raw-stage"},
@@ -1541,6 +1680,36 @@ def _install_stacked_entrypoint_stubs(
         lambda _args: (loaded.puf_donor, loaded.puf_donor_build),
     )
     monkeypatch.setattr(pool_tool, "_git_code_pin", lambda: "a" * 40)
+    crosswalk = pd.DataFrame(
+        {
+            "source_geography_id": ["5001700US0601"],
+            "target_geography_id": ["5001900US0601"],
+            "weight": [1.0],
+        }
+    )
+    monkeypatch.setattr(
+        pool_tool,
+        "load_congressional_district_vintage_crosswalk",
+        lambda _path: crosswalk,
+    )
+    fixture_ladder = (
+        _fixture_puma_ladder(pool_tool) if real_geography_assignment else object()
+    )
+    monkeypatch.setattr(
+        pool_tool,
+        "load_us_puma_ladder",
+        lambda _path: fixture_ladder,
+    )
+    fixture_puma_gate = GateResult(
+        name="us_puma_ladder",
+        passed=True,
+        details={"fixture": True},
+    )
+    monkeypatch.setattr(
+        pool_tool,
+        "us_puma_ladder_gate",
+        lambda *_args, **_kwargs: fixture_puma_gate,
+    )
 
     real_stack = pool_tool.assemble_stacked_spine
 
@@ -1549,6 +1718,26 @@ def _install_stacked_entrypoint_stubs(
         return real_stack(*args, **kwargs)
 
     monkeypatch.setattr(pool_tool, "assemble_stacked_spine", stack)
+
+    real_assign_geography = pool_tool._assign_stacked_household_geography
+
+    def assign_geography(frame: Frame, **kwargs: object):
+        order.append("geography")
+        if real_geography_assignment:
+            return real_assign_geography(frame, **kwargs)
+        assigned = _with_fixture_household_geography(frame)
+        receipt = _fixture_geography_assignment_receipt(
+            pool_tool,
+            assigned,
+            gate=fixture_puma_gate,
+        )
+        return assigned, receipt, (601,)
+
+    monkeypatch.setattr(
+        pool_tool,
+        "_assign_stacked_household_geography",
+        assign_geography,
+    )
 
     real_build_stacked_pool = pool_tool.build_stacked_pool
 
@@ -1931,7 +2120,7 @@ def test_stacked_tool_entrypoint_fixture_e2e_emits_one_logbook_row_at_every_term
     expected_code: int | None,
     disposition: str,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     """Exercise the real tool, stack assembly, orchestrator, and publication shell."""
     order, full_puf_rows = _install_stacked_entrypoint_stubs(
         pool_tool,
@@ -1957,12 +2146,20 @@ def test_stacked_tool_entrypoint_fixture_e2e_emits_one_logbook_row_at_every_term
     assert "f001-s578-asec1-acs1" in row.build_id
     assert full_puf_rows == 7
     if terminal == "error":
-        assert order == ["stack", "build_stacked_pool", "prepare", "gap", "puf"]
+        assert order == [
+            "stack",
+            "geography",
+            "build_stacked_pool",
+            "prepare",
+            "gap",
+            "puf",
+        ]
         assert row.gate_verdicts["pipeline_error"]["verdict"] == "error"
         assert row.artifact_location is None
     else:
         assert order == [
             "stack",
+            "geography",
             "build_stacked_pool",
             "prepare",
             "gap",
@@ -2050,6 +2247,7 @@ def test_stacked_tool_entrypoint_fixture_e2e_emits_one_logbook_row_at_every_term
             )
         assert manifest["operator_order"] == [
             "assemble_stacked_spine",
+            "assign_us_puma_ladder",
             "prepare_multispine_source_inputs_for_clone",
             "gap_fill_stacked_spine",
             "run_stacked_late_producer_dag",
@@ -2069,12 +2267,488 @@ def test_stacked_tool_entrypoint_fixture_e2e_emits_one_logbook_row_at_every_term
         }
 
 
+def test_stacked_pool_fixed_h5_reaches_release_cd_vintage_preflight(
+    pool_tool: ModuleType,
+    release_tool: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    h5py = pytest.importorskip("h5py", exc_type=ModuleNotFoundError)
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
+    order, _full_puf_rows = _install_stacked_entrypoint_stubs(
+        pool_tool,
+        monkeypatch,
+        tmp_path,
+        terminal="success",
+        real_geography_assignment=True,
+    )
+
+    assert pool_tool.main(_stacked_main_argv(tmp_path)) == 0
+    assert order.index("stack") < order.index("geography") < order.index("prepare")
+
+    pool_h5 = tmp_path / "stacked-pool.h5"
+    with h5py.File(pool_h5, mode="r") as h5:
+        assert (
+            release_tool._h5_attr_text(
+                h5.attrs,
+                release_tool.CONGRESSIONAL_DISTRICT_VINTAGE_CROSSWALK_SHA256_ATTR,
+            )
+            == pool_tool._STACKED_CD_CROSSWALK_SHA256
+        )
+        assert (
+            release_tool._h5_attr_text(
+                h5.attrs,
+                release_tool.CONGRESSIONAL_DISTRICT_VINTAGE_TARGET_ATTR,
+            )
+            == pool_tool.CURRENT_CONGRESSIONAL_DISTRICT_VINTAGE
+        )
+    with pd.HDFStore(pool_h5, mode="r") as store:
+        assert store.get_storer("household").format_type == "fixed"
+        household = read_frame_table(store, "household")
+    districts = pd.to_numeric(
+        household["congressional_district_geoid"],
+        errors="raise",
+    )
+    assert districts.gt(0).all()
+    assert set(districts.astype(int)) == {601}
+
+    release_tool._assert_cd_vintage_support_matches(
+        pool_h5,
+        {"sha256": pool_tool._STACKED_CD_CROSSWALK_SHA256},
+    )
+    preflight = release_tool._read_cd_vintage_support_provenance(pool_h5)
+    assert preflight["household_congressional_district_geoid"] == {
+        "exists": True,
+        "table": "household",
+        "column": "congressional_district_geoid",
+        "rows": len(household),
+        "positive_unique_count": 1,
+    }
+
+
+def test_stacked_config_authority_defaults_to_constants_without_loading_bundle(
+    pool_tool: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    args = pool_tool._parser().parse_args(_stacked_main_argv(tmp_path))
+    monkeypatch.setattr(
+        pool_tool,
+        "load_bundle",
+        lambda _country: (_ for _ in ()).throw(
+            AssertionError("the constants mode must not load a spec bundle")
+        ),
+    )
+
+    assert args.config_authority == "constants"
+    assert pool_tool._stacked_run_config(args) == {"config_authority": "constants"}
+
+
+def test_constants_adapter_equals_live_constants_and_stays_out_of_identities(
+    pool_tool: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("policyengine_us", exc_type=ModuleNotFoundError)
+    args = pool_tool._parser().parse_args(
+        [
+            *_stacked_main_argv(tmp_path),
+            "--config-authority",
+            "constants_adapter",
+        ]
+    )
+    configured_identity = pool_tool._configured_stacked_identity(args)
+    stack = pool_tool.assemble_stacked_spine(
+        _many_household_source_frame(),
+        _many_household_source_frame(measured_offset=1_000.0),
+        sample_fraction=0.01,
+        sample_seed=578,
+    )
+    base_identity = pool_tool._stacked_checkpoint_base_identity(
+        _verified_inputs_fixture(pool_tool, tmp_path / "pins"),
+        stack_receipt=stack.receipt,
+        sample_fraction=0.01,
+        sample_seed=578,
+        clone_attachment_fraction=1.0,
+        clone_attachment_seed=579,
+        policyengine_us_version="fixture-engine",
+    )
+    checkpoint_identity = pool_tool._pool_checkpoint_stage_identity(
+        base_identity,
+        "assembled",
+    )
+    equality_call: dict[str, object] = {}
+    real_assert_equal = pool_tool.assert_legacy_payload_equal
+
+    def capture_equality(expected: object, actual: object) -> None:
+        equality_call["expected"] = expected
+        equality_call["actual"] = actual
+        real_assert_equal(expected, actual)
+
+    monkeypatch.setattr(
+        pool_tool,
+        "assert_legacy_payload_equal",
+        capture_equality,
+    )
+
+    # This call performs the real bundle load, compilation, and field-complete
+    # equality assertion against the live generation-0 constructors.
+    run_config = pool_tool._stacked_run_config(args)
+    assert (
+        set(equality_call["expected"])
+        == set(equality_call["actual"])
+        == {
+            "battery_contract",
+            "gap_fill_plan",
+            "gap_fill_producer_schedule_receipt",
+            "late_producer_schedule_receipt",
+            "overlap_ownership",
+            "publication_release",
+            "source_manifest",
+            "spine_assembly",
+            "spine_sampling",
+            "stacked_authority_receipt",
+            "stacked_checkpoint_static_components",
+            "support_spine",
+            "take_up_contract",
+            "take_up_contract_identity",
+        }
+    )
+    expected_gate = equality_call["expected"]
+    assert isinstance(expected_gate, dict)
+    assert expected_gate["publication_release"] == {
+        "legacy_prefixes": ["populace-us-2024"],
+        "rungs": ["f001", "f004", "f010", "f025", "f100"],
+        "legacy_compiled_regexes": [pool_tool._STACKED_RELEASE_ID_PATTERN.pattern],
+    }
+    assert expected_gate["spine_sampling"] == {
+        "channels": ["asec", "acs"],
+        "fraction": {
+            "default": 1.0,
+            "rungs": [
+                {
+                    "fraction": fraction,
+                    "token": token,
+                    "percent_basis_points": basis_points,
+                }
+                for fraction, token, basis_points in (
+                    (0.01, "f001", 100),
+                    (0.04, "f004", 400),
+                    (0.10, "f010", 1_000),
+                    (0.25, "f025", 2_500),
+                    (1.00, "f100", 10_000),
+                )
+            ],
+        },
+        "seed": {"default": 578},
+        "exact_count_rule": "floor(fraction * eligible)",
+    }
+    assert expected_gate["spine_assembly"] == {
+        "mass_anchor_channel": "asec",
+        "household_mass_shares": {"asec": 0.5, "acs": 0.5},
+    }
+    assert run_config == {
+        "config_authority": "constants_adapter",
+        "spec_binding_status": "resolved",
+        "spec_binding": {
+            "attestation": "mirror-attested",
+            "canonicalizer_version": 1,
+            "country": "us",
+            "schema_id": "country_spec",
+            "schema_version": 1,
+            "spec_sha256": "57966f08b3d706dfba66885f120313d82b408ef81d5f33f25ef9e72f6d2a25e4",
+        },
+    }
+
+    def contains_spec_binding(value: object) -> bool:
+        if isinstance(value, Mapping):
+            return "spec_binding" in value or any(
+                contains_spec_binding(item) for item in value.values()
+            )
+        if isinstance(value, (list, tuple)):
+            return any(contains_spec_binding(item) for item in value)
+        return False
+
+    assert not contains_spec_binding(stack.frame.metadata)
+    assert not contains_spec_binding(configured_identity)
+    assert not contains_spec_binding(base_identity)
+    assert not contains_spec_binding(checkpoint_identity)
+
+
+@pytest.mark.parametrize(
+    ("mutation_path", "mutated_value", "expected_difference"),
+    [
+        (
+            ("battery_contract", "gates", 1, "thresholds", "absolute"),
+            0.5,
+            "/battery_contract/gates/1/thresholds/absolute",
+        ),
+        (
+            ("spine_assembly", "household_mass_shares", "asec"),
+            0.49,
+            "/spine_assembly/household_mass_shares/asec",
+        ),
+        (
+            ("publication_release", "legacy_compiled_regexes", 0),
+            "^mutated-release$",
+            "/publication_release/legacy_compiled_regexes/0",
+        ),
+        (
+            ("spine_sampling", "fraction", "default"),
+            0.25,
+            "/spine_sampling/fraction/default",
+        ),
+    ],
+)
+def test_constants_adapter_refuses_live_execution_surface_drift(
+    pool_tool: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mutation_path: tuple[str | int, ...],
+    mutated_value: object,
+    expected_difference: str,
+) -> None:
+    pytest.importorskip("policyengine_us", exc_type=ModuleNotFoundError)
+    args = pool_tool._parser().parse_args(
+        [
+            *_stacked_main_argv(tmp_path),
+            "--config-authority",
+            "constants_adapter",
+        ]
+    )
+    real_compile = pool_tool.compile_to_legacy_payload
+
+    def compile_with_drift(resolved: object) -> dict[str, object]:
+        payload = copy.deepcopy(real_compile(resolved))
+        target: object = payload
+        for token in mutation_path[:-1]:
+            if isinstance(token, int):
+                assert isinstance(target, list)
+                target = target[token]
+            else:
+                assert isinstance(target, dict)
+                target = target[token]
+        leaf = mutation_path[-1]
+        if isinstance(leaf, int):
+            assert isinstance(target, list)
+            target[leaf] = mutated_value
+        else:
+            assert isinstance(target, dict)
+            target[leaf] = mutated_value
+        return payload
+
+    monkeypatch.setattr(pool_tool, "compile_to_legacy_payload", compile_with_drift)
+
+    with pytest.raises(LegacyPayloadMismatchError) as failure:
+        pool_tool._stacked_run_config(args)
+    assert expected_difference in {
+        difference.path for difference in failure.value.differences
+    }
+
+
+@pytest.mark.parametrize(
+    ("failure_stage", "expected_status"),
+    [
+        ("preflight", "resolution_pending"),
+        ("resolution", "resolution_failed"),
+    ],
+)
+def test_constants_adapter_failure_receipt_preserves_requested_resolution_state(
+    pool_tool: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    failure_stage: str,
+    expected_status: str,
+) -> None:
+    _install_stacked_entrypoint_stubs(
+        pool_tool,
+        monkeypatch,
+        tmp_path,
+        terminal="success",
+    )
+    if failure_stage == "preflight":
+        monkeypatch.setattr(
+            pool_tool,
+            "_git_code_pin",
+            lambda: (_ for _ in ()).throw(RuntimeError("fixture preflight failure")),
+        )
+        expected_error = "fixture preflight failure"
+    else:
+        monkeypatch.setattr(
+            pool_tool,
+            "_stacked_run_config",
+            lambda _args: (_ for _ in ()).throw(
+                RuntimeError("fixture adapter resolution failure")
+            ),
+        )
+        expected_error = "fixture adapter resolution failure"
+
+    with pytest.raises(RuntimeError, match=expected_error):
+        pool_tool.main(
+            [
+                *_stacked_main_argv(tmp_path),
+                "--config-authority",
+                "constants_adapter",
+            ]
+        )
+
+    error_path = next((tmp_path / "logbook-receipts").glob("*/error.json"))
+    error_receipt = json.loads(error_path.read_text(encoding="utf-8"))
+    assert error_receipt["run_config"] == {
+        "config_authority": "constants_adapter",
+        "spec_binding_status": expected_status,
+    }
+    assert "spec_binding" not in error_receipt["run_config"]
+    assert "spec_sha256" not in json.dumps(error_receipt["run_config"])
+
+
+def test_constants_adapter_post_resolution_failure_receipt_retains_binding(
+    pool_tool: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
+    _install_stacked_entrypoint_stubs(
+        pool_tool,
+        monkeypatch,
+        tmp_path,
+        terminal="error",
+    )
+    binding = {
+        "attestation": "mirror-attested",
+        "canonicalizer_version": 1,
+        "country": "us",
+        "schema_id": "country_spec",
+        "schema_version": 1,
+        "spec_sha256": "f" * 64,
+    }
+    resolved_config = {
+        "config_authority": "constants_adapter",
+        "spec_binding_status": "resolved",
+        "spec_binding": binding,
+    }
+    monkeypatch.setattr(
+        pool_tool,
+        "_stacked_run_config",
+        lambda _args: resolved_config,
+    )
+
+    with pytest.raises(RuntimeError, match="fixture stacked error"):
+        pool_tool.main(
+            [
+                *_stacked_main_argv(tmp_path),
+                "--config-authority",
+                "constants_adapter",
+            ]
+        )
+
+    error_path = next((tmp_path / "logbook-receipts").glob("*/error.json"))
+    error_receipt = json.loads(error_path.read_text(encoding="utf-8"))
+    assert error_receipt["run_config"] == resolved_config
+
+
+def test_constants_adapter_fixture_checkpoints_are_byte_identical_and_only_receipt_changes(
+    pool_tool: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
+    fixed_binding = {
+        "attestation": "mirror-attested",
+        "canonicalizer_version": 1,
+        "country": "us",
+        "schema_id": "country_spec",
+        "schema_version": 1,
+        "spec_sha256": "57966f08b3d706dfba66885f120313d82b408ef81d5f33f25ef9e72f6d2a25e4",
+    }
+
+    def run_fixture(root: Path, *, config_authority: str) -> dict[str, object]:
+        root.mkdir()
+        with monkeypatch.context() as patch:
+            _install_stacked_entrypoint_stubs(
+                pool_tool,
+                patch,
+                root,
+                terminal="success",
+            )
+            patch.setattr(
+                pool_tool,
+                "_new_stacked_attempt_id",
+                lambda **_kwargs: "populace-us-2024-stacked-attempt-fixture",
+            )
+            patch.setattr(
+                pool_tool,
+                "_new_stacked_release_id",
+                lambda **_kwargs: (
+                    "populace-us-2024-stacked-f001-s578-asec1-acs1-"
+                    "20260817T000000Z-deadbeef"
+                ),
+            )
+            patch.setattr(
+                pool_tool,
+                "_new_publication_run_id",
+                lambda: "fixture-publication-run",
+            )
+            patch.setattr(
+                pool_tool,
+                "_stacked_run_config",
+                lambda args: (
+                    {"config_authority": "constants"}
+                    if args.config_authority == "constants"
+                    else {
+                        "config_authority": "constants_adapter",
+                        "spec_binding_status": "resolved",
+                        "spec_binding": fixed_binding,
+                    }
+                ),
+            )
+            argv = _stacked_main_argv(root)
+            if config_authority != "constants":
+                argv.extend(["--config-authority", config_authority])
+            assert pool_tool.main(argv) == 0
+
+        checkpoint_files = sorted(
+            (root / "stacked-pool.checkpoints").glob("stacked/*/*.checkpoint.h5")
+        )
+        assert [path.name for path in checkpoint_files] == [
+            "assembled.checkpoint.h5",
+            "simulated.checkpoint.h5",
+            "transferred.checkpoint.h5",
+        ]
+        checkpoint_sha256 = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in checkpoint_files
+        }
+        receipt_path = next((root / "logbook-receipts").glob("*/terminal-gates.json"))
+        return {
+            "checkpoint_sha256": checkpoint_sha256,
+            "receipt": json.loads(receipt_path.read_text(encoding="utf-8")),
+        }
+
+    constants = run_fixture(tmp_path / "constants", config_authority="constants")
+    adapter = run_fixture(
+        tmp_path / "constants-adapter",
+        config_authority="constants_adapter",
+    )
+
+    assert constants["checkpoint_sha256"] == adapter["checkpoint_sha256"]
+    constants_receipt = dict(constants["receipt"])
+    adapter_receipt = dict(adapter["receipt"])
+    assert constants_receipt.pop("run_config") == {"config_authority": "constants"}
+    assert adapter_receipt.pop("run_config") == {
+        "config_authority": "constants_adapter",
+        "spec_binding_status": "resolved",
+        "spec_binding": fixed_binding,
+    }
+    assert constants_receipt == adapter_receipt
+
+
 def test_stacked_entrypoint_rejects_noncanonical_post_puf_transfer_receipt(
     pool_tool: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     noncanonical = _noncanonical_post_puf_authority_receipt()
     assert noncanonical["authority_form"] == "NON-CANONICAL"
     assert noncanonical["production_manifest_permitted"] is False
@@ -2097,6 +2771,7 @@ def test_stacked_entrypoint_rejects_noncanonical_post_puf_transfer_receipt(
 
     assert order == [
         "stack",
+        "geography",
         "build_stacked_pool",
         "prepare",
         "gap",
@@ -2120,7 +2795,10 @@ def test_stacked_checkpoint_emission_propagates_and_authenticates_late_authority
         stage="transferred",
         frame=authorized,
         assembly_receipt={},
-        stage_receipts={"impute": impute},
+        stage_receipts={
+            "geography_assignment": {"fixture": True},
+            "impute": impute,
+        },
         late_producer_transition_authority_sha256=(transition_authority_sha256),
     )
 
@@ -2137,7 +2815,10 @@ def test_stacked_checkpoint_emission_propagates_and_authenticates_late_authority
             stage="transferred",
             frame=authorized,
             assembly_receipt={},
-            stage_receipts={"impute": impute},
+            stage_receipts={
+                "geography_assignment": {"fixture": True},
+                "impute": impute,
+            },
             late_producer_transition_authority_sha256="0" * 64,
         )
     assert len(captured) == 1
@@ -2459,7 +3140,7 @@ def test_publication_error_keeps_gate_receipts_and_does_not_claim_stale_h5(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("policyengine_us")
+    pytest.importorskip("policyengine_us", exc_type=ModuleNotFoundError)
     _order, _full_puf_rows = _install_stacked_entrypoint_stubs(
         pool_tool,
         monkeypatch,
@@ -2496,7 +3177,7 @@ def test_logbook_gate_receipts_are_immutable_across_later_attempts(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     _order, _full_puf_rows = _install_stacked_entrypoint_stubs(
         pool_tool,
         monkeypatch,
@@ -2551,7 +3232,7 @@ def test_stacked_checkpoint_identity_binds_both_scale_controls_and_manifest(
     pool_tool: ModuleType,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("policyengine_us")
+    pytest.importorskip("policyengine_us", exc_type=ModuleNotFoundError)
     verified = _verified_inputs_fixture(pool_tool, tmp_path / "pins")
     asec = _many_household_source_frame()
     acs = _many_household_source_frame(measured_offset=1_000.0)
@@ -2754,13 +3435,13 @@ def test_legacy_checkpoint_identity_excludes_stacked_late_producer_schedule(
     assert changed == current
 
 
-def test_stacked_checkpoint_identity_binds_v11_semantic_contracts(
+def test_stacked_checkpoint_identity_binds_v12_semantic_contracts(
     pool_tool: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    pytest.importorskip("policyengine_us")
+    pytest.importorskip("policyengine_us", exc_type=ModuleNotFoundError)
     monkeypatch.setattr(
         pool_tool,
         "_policyengine_us_version",
@@ -2787,10 +3468,20 @@ def test_stacked_checkpoint_identity_binds_v11_semantic_contracts(
 
     current = identity()
     pool_code = current["pool_code"]
-    assert current["materializer_version"] == 11
+    assert current["materializer_version"] == 12
     assert current["stacked_authority"]["version"] == 11
+    assert current["geography_assignment"] == (
+        pool_tool._stacked_geography_assignment_contract()
+    )
+    assert current["geography_assignment"]["seed"] == {
+        "site": "legacy_puma_ladder",
+        "stream": "geography_legacy",
+        "value_source": "run_request.build_model_seed",
+        "value": 0,
+    }
     assert pool_code["operator_order"] == [
         "assemble_stacked_spine",
+        "assign_us_puma_ladder",
         "prepare_multispine_source_inputs_for_clone",
         "gap_fill_stacked_spine",
         "run_stacked_late_producer_dag",
@@ -3005,7 +3696,7 @@ def test_stacked_checkpoint_identity_binds_v11_semantic_contracts(
         )
     )
 
-    assert current["materializer_version"] == stale_qrf["materializer_version"] == 11
+    assert current["materializer_version"] == stale_qrf["materializer_version"] == 12
     assert stale_qrf["pool_code"]["primary_qrf_checkpoint_schema_version"] == 5
     assert (
         pool_tool._discover_stacked_checkpoint_identity(
@@ -3059,7 +3750,7 @@ def test_pool_envelope_v7_preserves_stacked_bank_identity_but_rejects_v6(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    pytest.importorskip("policyengine_us")
+    pytest.importorskip("policyengine_us", exc_type=ModuleNotFoundError)
     verified = _verified_inputs_fixture(pool_tool, tmp_path / "pins")
     stack = pool_tool.assemble_stacked_spine(
         _many_household_source_frame(),
@@ -3116,6 +3807,70 @@ def test_pool_envelope_v7_preserves_stacked_bank_identity_but_rejects_v6(
     assert current_store.base_identity_sha256 == current_digest
     assert current_store.load_deepest() is None
     assert "unsupported binding" in capsys.readouterr().out
+
+
+def test_geography_assignment_receipt_rejects_divergent_clone_geography(
+    pool_tool: ModuleType,
+) -> None:
+    stack = pool_tool.assemble_stacked_spine(
+        _many_household_source_frame(count=2),
+        _many_household_source_frame(count=2, measured_offset=1_000.0),
+        sample_fraction=1.0,
+        sample_seed=578,
+    )
+    assigned = _with_fixture_household_geography(stack.frame)
+    household = assigned.table("household")
+    source_column = pool_tool.support_source_id_column("household")
+    household.loc[household.index[1], source_column] = household.loc[
+        household.index[0], source_column
+    ]
+    household.loc[household.index[1], "congressional_district_geoid"] = 602
+    receipt = _fixture_geography_assignment_receipt(pool_tool, assigned)
+    receipt["target_universe"] = (
+        pool_tool._target_congressional_district_universe_receipt((601, 602))
+    )
+    receipt["output"]["unique_congressional_district_values"] = 2
+
+    with pytest.raises(
+        ValueError,
+        match="cloned household support rows disagree.*congressional_district_geoid",
+    ):
+        pool_tool._validate_stacked_geography_assignment_receipt(
+            assigned,
+            receipt,
+            target_districts=(601, 602),
+            boundary="fixture clone divergence",
+            require_exact_assembled_rows=False,
+        )
+
+
+def test_geography_assignment_receipt_rejects_coherent_valid_target_rewrite(
+    pool_tool: ModuleType,
+) -> None:
+    stack = pool_tool.assemble_stacked_spine(
+        _many_household_source_frame(count=2),
+        _many_household_source_frame(count=2, measured_offset=1_000.0),
+        sample_fraction=1.0,
+        sample_seed=578,
+    )
+    assigned = _with_fixture_household_geography(stack.frame)
+    receipt = _fixture_geography_assignment_receipt(pool_tool, assigned)
+    receipt["target_universe"] = (
+        pool_tool._target_congressional_district_universe_receipt((601, 602))
+    )
+    assigned.table("household")["congressional_district_geoid"] = 602
+
+    with pytest.raises(
+        ValueError,
+        match="ordered native household geography differs",
+    ):
+        pool_tool._validate_stacked_geography_assignment_receipt(
+            assigned,
+            receipt,
+            target_districts=(601, 602),
+            boundary="fixture coherent geography rewrite",
+            require_exact_assembled_rows=False,
+        )
 
 
 @pytest.mark.parametrize(
@@ -3196,7 +3951,7 @@ def test_qbi_receipt_route_resolution_rejects_wrong_or_ambiguous_paths(
         )
 
 
-@pytest.mark.parametrize("legacy_version", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+@pytest.mark.parametrize("legacy_version", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11))
 def test_legacy_stacked_materializer_checkpoint_is_not_discovered(
     pool_tool: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
@@ -3204,7 +3959,7 @@ def test_legacy_stacked_materializer_checkpoint_is_not_discovered(
     capsys: pytest.CaptureFixture[str],
     legacy_version: int,
 ) -> None:
-    pytest.importorskip("policyengine_us")
+    pytest.importorskip("policyengine_us", exc_type=ModuleNotFoundError)
     monkeypatch.setattr(
         pool_tool,
         "_policyengine_us_version",
@@ -3250,7 +4005,7 @@ def test_legacy_stacked_materializer_checkpoint_is_not_discovered(
             )
         )
 
-    assert pool_tool._STACKED_CHECKPOINT_MATERIALIZER_VERSION == 11
+    assert pool_tool._STACKED_CHECKPOINT_MATERIALIZER_VERSION == 12
     assert (
         pool_tool._discover_stacked_checkpoint_identity(
             checkpoint_root,
@@ -3275,17 +4030,22 @@ def test_stacked_resume_rejects_noncanonical_post_puf_transfer_receipt(
         sample_fraction=0.10,
         sample_seed=578,
     )
+    assigned = _with_fixture_household_geography(stack.frame)
+    geography_receipt = _fixture_geography_assignment_receipt(pool_tool, assigned)
     noncanonical = _noncanonical_post_puf_authority_receipt()
     authorized, impute, transition_authority_sha256 = _authorized_late_impute_fixture(
         pool_tool,
-        stack.frame,
+        assigned,
         authority=noncanonical,
     )
     resume = pool_tool.MultispinePoolCheckpoint(
         stage="transferred",
         frame=authorized,
         assembly_receipt=stack.frame.metadata[pool_tool.SPINE_ASSEMBLY_MANIFEST_KEY],
-        stage_receipts={"impute": impute},
+        stage_receipts={
+            "geography_assignment": geography_receipt,
+            "impute": impute,
+        },
         late_producer_transition_authority_sha256=transition_authority_sha256,
     )
 
@@ -3297,8 +4057,10 @@ def test_stacked_resume_rejects_noncanonical_post_puf_transfer_receipt(
         ),
     ):
         pool_tool.build_stacked_pool(
-            stack.frame,
+            assigned,
             expected_stack_receipt=stack.receipt,
+            geography_assignment_receipt=None,
+            geography_target_districts=(601,),
             release_id=(
                 "populace-us-2024-stacked-f010-s578-asec4-acs1-"
                 "20260807T000000Z-deadbeef"
@@ -3319,7 +4081,7 @@ def test_stacked_entrypoint_resumes_each_checkpoint_boundary(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     order, _full_puf_rows = _install_stacked_entrypoint_stubs(
         pool_tool,
         monkeypatch,
@@ -3373,6 +4135,7 @@ def test_stacked_entrypoint_resumes_each_checkpoint_boundary(
 
     assert cold_order == [
         "stack",
+        "geography",
         "build_stacked_pool",
         "prepare",
         "gap",
@@ -3428,7 +4191,7 @@ def test_stacked_resume_error_uses_realized_stack_identity(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     _order, _full_puf_rows = _install_stacked_entrypoint_stubs(
         pool_tool,
         monkeypatch,
@@ -3646,7 +4409,7 @@ def test_legacy_entrypoint_publication_matches_origin_main_golden(
     outputs = pool_tool._output_paths(output, checkpoint_root=checkpoint_root)
     manifest = pool_tool._read_json_object(outputs.manifest)
     diagnostics = pool_tool._read_json_object(outputs.agreement_diagnostics)
-    assert pool_tool.POOL_MANIFEST_SCHEMA_VERSION == 8
+    assert pool_tool.POOL_MANIFEST_SCHEMA_VERSION == 9
     assert pool_tool.POOL_STAGE_CHECKPOINT_MATERIALIZER_VERSION == 7
     assert manifest["schema_version"] == 4
     assert diagnostics["schema_version"] == 4
@@ -3675,9 +4438,9 @@ def test_legacy_entrypoint_publication_matches_origin_main_golden(
         # checkpoint metadata).
         "pool_h5": "ced797ecdd44a638c2a3945f07ad612098a7095ca53a5f458699bca6d6e38b3e",
         "agreement": "f39f0d918bf7ee01dddb5517d8830b8adb541273c5be084307be91397caca3cb",
-        # Exact pre-#653 schema-4/materializer-3 publication bytes from
-        # preserved #652 commit 54d2dee6.
-        "manifest": "14e6b3a409dfe2108253668a65ed32c0365b246f379ad895d8441c939adde65e",
+        # The PE-US 1.819.0 compatibility edits legitimately move the pool-code
+        # checkpoint identities embedded in the otherwise legacy publication.
+        "manifest": "63c6e6973079f0b793d5435113aaae66184564b70271f8af120fecdbb5015f63",
     }
 
 
@@ -3688,7 +4451,10 @@ def test_main_dispatches_only_to_the_selected_pipeline(
     legacy: bool,
 ) -> None:
     calls: list[str] = []
-    namespace = SimpleNamespace(legacy_two_spine=legacy)
+    namespace = SimpleNamespace(
+        legacy_two_spine=legacy,
+        config_authority="constants",
+    )
     parser = SimpleNamespace(parse_args=lambda _argv: namespace)
     monkeypatch.setattr(pool_tool, "_parser", lambda: parser)
     monkeypatch.setattr(
@@ -3706,7 +4472,37 @@ def test_main_dispatches_only_to_the_selected_pipeline(
     assert calls == (["legacy"] if legacy else ["stacked"])
 
 
-def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
+def test_main_refuses_constants_adapter_with_legacy_two_spine(
+    pool_tool: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    namespace = SimpleNamespace(
+        legacy_two_spine=True,
+        config_authority="constants_adapter",
+    )
+    parser = SimpleNamespace(parse_args=lambda _argv: namespace)
+    monkeypatch.setattr(pool_tool, "_parser", lambda: parser)
+    monkeypatch.setattr(
+        pool_tool,
+        "_main_legacy",
+        lambda _args: calls.append("legacy") or 17,
+    )
+    monkeypatch.setattr(
+        pool_tool,
+        "_main_stacked",
+        lambda _args: calls.append("stacked") or 23,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="constants_adapter.*stacked pipeline",
+    ):
+        pool_tool.main(["fixture"])
+    assert calls == []
+
+
+def test_parser_exposes_eight_pinned_inputs_out_and_checkpoint_root(
     pool_tool: ModuleType,
 ) -> None:
     parser = pool_tool._parser()
@@ -3720,8 +4516,14 @@ def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
         ("acs_rent_h5", "acs_rent_h5_sha256"),
         ("puf_h5", "puf_h5_sha256"),
         ("puf_source_year_csv", "puf_source_year_csv_sha256"),
+        ("puma_ladder", "puma_ladder_sha256"),
+        (
+            "congressional_district_vintage_crosswalk",
+            "congressional_district_vintage_crosswalk_sha256",
+        ),
     )
     expected_destinations = {destination for pair in pairs for destination in pair} | {
+        "config_authority",
         "logbook_prev_row_digest",
         "clone_attachment_fraction",
         "clone_attachment_seed",
@@ -3738,9 +4540,14 @@ def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
         for destination in expected_destinations
         - {
             "checkpoint_root",
+            "config_authority",
             "logbook_prev_row_digest",
             "clone_attachment_fraction",
             "clone_attachment_seed",
+            "puma_ladder",
+            "puma_ladder_sha256",
+            "congressional_district_vintage_crosswalk",
+            "congressional_district_vintage_crosswalk_sha256",
             "legacy_two_spine",
             "sample_fraction",
             "sample_seed",
@@ -3755,6 +4562,11 @@ def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
     assert actions["clone_attachment_fraction"].default == 1.0
     assert actions["clone_attachment_seed"].default == 578
     assert actions["legacy_two_spine"].default is False
+    assert actions["config_authority"].default == "constants"
+    assert tuple(actions["config_authority"].choices) == (
+        "constants",
+        "constants_adapter",
+    )
     assert actions["logbook_prev_row_digest"].default is None
     for path_destination, sha_destination in pairs:
         assert actions[path_destination].type is Path
@@ -3770,6 +4582,71 @@ def test_parser_exposes_six_pinned_inputs_out_and_checkpoint_root(
         for option in option_names
         for forbidden in ("tolerance", "target", "per-target")
     )
+
+
+@pytest.mark.parametrize(
+    ("destination", "option"),
+    [
+        ("puma_ladder", "--puma-ladder"),
+        ("puma_ladder_sha256", "--puma-ladder-sha256"),
+        (
+            "congressional_district_vintage_crosswalk",
+            "--congressional-district-vintage-crosswalk",
+        ),
+        (
+            "congressional_district_vintage_crosswalk_sha256",
+            "--congressional-district-vintage-crosswalk-sha256",
+        ),
+    ],
+)
+def test_stacked_route_requires_each_pinned_geography_authority(
+    pool_tool: ModuleType,
+    tmp_path: Path,
+    destination: str,
+    option: str,
+) -> None:
+    args = SimpleNamespace(
+        puma_ladder=tmp_path / "puma-ladder.npz",
+        puma_ladder_sha256=pool_tool._STACKED_PUMA_LADDER_SHA256,
+        congressional_district_vintage_crosswalk=tmp_path / "crosswalk.csv",
+        congressional_district_vintage_crosswalk_sha256=(
+            pool_tool._STACKED_CD_CROSSWALK_SHA256
+        ),
+    )
+    setattr(args, destination, None)
+
+    with pytest.raises(ValueError, match=option):
+        pool_tool._require_stacked_geography_arguments(args)
+
+
+@pytest.mark.parametrize(
+    ("destination", "option"),
+    [
+        ("puma_ladder_sha256", "--puma-ladder-sha256"),
+        (
+            "congressional_district_vintage_crosswalk_sha256",
+            "--congressional-district-vintage-crosswalk-sha256",
+        ),
+    ],
+)
+def test_stacked_route_rejects_noncanonical_geography_authority_pins(
+    pool_tool: ModuleType,
+    tmp_path: Path,
+    destination: str,
+    option: str,
+) -> None:
+    args = SimpleNamespace(
+        puma_ladder=tmp_path / "puma-ladder.npz",
+        puma_ladder_sha256=pool_tool._STACKED_PUMA_LADDER_SHA256,
+        congressional_district_vintage_crosswalk=tmp_path / "crosswalk.csv",
+        congressional_district_vintage_crosswalk_sha256=(
+            pool_tool._STACKED_CD_CROSSWALK_SHA256
+        ),
+    )
+    setattr(args, destination, "f" * 64)
+
+    with pytest.raises(ValueError, match=option):
+        pool_tool._require_stacked_geography_arguments(args)
 
 
 def test_pool_tool_structurally_accepts_only_the_raw_stage_loader(
@@ -4284,6 +5161,18 @@ def test_sha_mismatch_refuses_before_loading_or_writing(
             else "0" * 64
         )
         argv.extend([f"--{option}-sha256", digest])
+    argv.extend(
+        [
+            "--puma-ladder",
+            str(tmp_path / "puma-ladder.npz"),
+            "--puma-ladder-sha256",
+            pool_tool._STACKED_PUMA_LADDER_SHA256,
+            "--congressional-district-vintage-crosswalk",
+            str(tmp_path / "congressional-district-vintage-crosswalk.csv"),
+            "--congressional-district-vintage-crosswalk-sha256",
+            pool_tool._STACKED_CD_CROSSWALK_SHA256,
+        ]
+    )
     argv.extend(["--out", str(output)])
 
     with pytest.raises(ValueError, match="ASEC raw-stage.*SHA-256 mismatch"):
@@ -4647,7 +5536,7 @@ def test_pool_checkpoint_round_trip_resumes_each_boundary_byte_identically(
     expected_order: list[str],
 ) -> None:
     pytest.importorskip("h5py")
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     checkpoint_root = tmp_path / "checkpoints"
     cold_store = _checkpoint_fixture_store(pool_tool, checkpoint_root)
     cold_store.bind_input_receipts(_checkpoint_fixture_input_receipts())
@@ -4938,7 +5827,7 @@ def test_resumed_checkpoint_provenance_is_published_in_final_manifest(
     pool_tool: ModuleType,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     _unused, outputs, verified_inputs, source_manifest, loaded = _output_context(
         pool_tool,
         tmp_path,
@@ -5861,7 +6750,7 @@ def test_red_outputs_preserve_receipts_and_exclude_simulation_output(
     pool_tool: ModuleType,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     result, outputs, verified_inputs, source_manifest, loaded = _output_context(
         pool_tool,
         tmp_path,
@@ -5918,7 +6807,7 @@ def test_ready_reader_binds_manifest_h5_and_diagnostics_to_one_run(
     pool_tool: ModuleType,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     result, outputs, verified_inputs, source_manifest, loaded = _output_context(
         pool_tool,
         tmp_path,
@@ -5950,7 +6839,7 @@ def test_ready_reader_rejects_manifest_h5_run_id_mismatch(
     pool_tool: ModuleType,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     result, outputs, verified_inputs, source_manifest, loaded = _output_context(
         pool_tool,
         tmp_path,
@@ -6027,7 +6916,7 @@ def test_diagnostics_publication_failure_keeps_pool_not_ready(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     result, outputs, verified_inputs, source_manifest, loaded = _output_context(
         pool_tool,
         tmp_path,
@@ -6081,7 +6970,7 @@ def test_final_manifest_failure_leaves_tombstone_as_readiness_authority(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    pytest.importorskip("tables")
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     result, outputs, verified_inputs, source_manifest, loaded = _output_context(
         pool_tool,
         tmp_path,

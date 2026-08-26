@@ -70,7 +70,10 @@ __all__ = [
 ]
 
 UK_CANDIDATE_DATASET_NAME = "populace_uk_2023"
-UK_REFERENCE_DATASET_NAME = "enhanced_frs_2023_24_recalibrated"
+# The label names the pinned reference artifact exactly: the 2024-25 line's
+# published enhanced_frs_2024_25.h5 (no separate "recalibrated" variant
+# exists at this vintage; the June report strings keep their own label).
+UK_REFERENCE_DATASET_NAME = "enhanced_frs_2024_25"
 UK_MAX_TARGET_ABS_RELATIVE_ERROR = 0.25
 
 
@@ -165,6 +168,7 @@ UK_ALLOWED_EXTRA_EXPORT_COLUMNS: tuple[str, ...] = (
     "household.gas_consumption",
     "household.has_fuel_consumption",
     "household.household_is_capital_gains_clone",
+    "household.household_is_cgt_band_donor",
     "household.household_is_spi_synthetic",
     "household.la_code_oa",
     "household.lsoa_code",
@@ -177,6 +181,8 @@ UK_ALLOWED_EXTRA_EXPORT_COLUMNS: tuple[str, ...] = (
     "household.region_code_oa",
     "household.stocks_and_shares_isa",
     "person.aa_category",
+    "person.a_and_e_visits",
+    "person.admitted_patient_visits",
     "person.age_started_or_accepted_current_education_or_training",
     "person.attends_private_school_random_draw",
     "person.charitable_investment_gifts",
@@ -191,6 +197,7 @@ UK_ALLOWED_EXTRA_EXPORT_COLUMNS: tuple[str, ...] = (
     "person.is_in_non_advanced_education",
     "person.is_parent",
     "person.legacy_jobseeker_proxy",
+    "person.outpatient_visits",
     "person.pension_contributions_via_salary_sacrifice",
     "person.pip_dl_category",
     "person.pip_m_category",

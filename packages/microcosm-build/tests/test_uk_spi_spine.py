@@ -26,6 +26,7 @@ from microcosm.build.uk_runtime.spi_spine import (
 from microcosm.build.uk_runtime.spi_support import (
     HOUSEHOLD_IS_SPI_SYNTHETIC_COLUMN,
     SPI_SYNTHETIC_SUPPORT_CHANNEL,
+    UKSPISupportResult,
     build_uk_spi_support_channel,
     support_channel_column,
 )
@@ -178,6 +179,28 @@ def test_spine_leaves_fail_closed_on_unknown_raw_person(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="absent from the raw spine"):
         UKFRSHMRCSpineLeavesStageTransform(tmp_path, stage=stage)(_base_frame())
+
+
+def test_spine_leaves_sampled_rung_restricts_to_surviving_people(
+    tmp_path: Path,
+) -> None:
+    # A #627 rung subsamples households after frs_spine, so raw-tab person
+    # coverage legitimately exceeds the frame; the sampled posture restricts
+    # the raw surface to the survivors while f100 keeps the strict fence.
+    stage = _leaves_stage(
+        tmp_path,
+        extra_adult_rows=({"sernum": 9, "person": 1, "inearns": 1.0},),
+    )
+
+    result = UKFRSHMRCSpineLeavesStageTransform(
+        tmp_path, stage=stage, sampled_rung=True
+    )(_base_frame())
+    person = result.table("person")
+
+    assert person["person_id"].tolist() == [2001, 1001]
+    assert person["hmrc_spi_pay"].tolist() == pytest.approx(
+        [5.0 * 365.25 / 7.0, 4.0 * 365.25 / 7.0]
+    )
 
 
 def _support_stage() -> SourceStageSpec:
@@ -369,7 +392,10 @@ def test_spi_income_zero_initializes_frs_charity_and_redraws_dividends_after_sta
 
     assert person.loc[base, "gift_aid"].tolist() == [0.0, 0.0]
     assert person.loc[base, "charitable_investment_gifts"].tolist() == [0.0, 0.0]
-    assert person.loc[base, "hmrc_spi_employment_benefits"].isna().all()
+    # Unmeasured on the FRS instrument, so the base channel carries the
+    # stage-time zero — the explicit initialization above and this fill are
+    # now the same semantics, and the artifact ships no NaN.
+    assert person.loc[base, "hmrc_spi_employment_benefits"].eq(0.0).all()
     assert person.loc[base, "dividend_income"].tolist() == [100.0, 101.0]
     assert person.loc[spi, "dividend_income"].tolist() == [100.0, 101.0]
     assert _FakeQRF.events[1][0] == "stage2"
@@ -392,9 +418,9 @@ def test_reviewed_absent_incapacity_signal_raises(tmp_path: Path) -> None:
         lambda person, spi_people, build_period: person,
     )
     support = build_uk_spi_support_channel(
-        person=_base_frame().table("person").assign(
-            incapacity_benefit_reported=[1.0, 0.0]
-        ),
+        person=_base_frame()
+        .table("person")
+        .assign(incapacity_benefit_reported=[1.0, 0.0]),
         benunit=_base_frame().table("benunit"),
         household=pd.DataFrame(
             {
@@ -438,7 +464,10 @@ def _with_mutated_operation(
 ) -> SourceStageSpec:
     operations = []
     for operation in stage.operations:
-        payload: dict[str, object] = {"kind": operation.kind, **dict(operation.parameters)}
+        payload: dict[str, object] = {
+            "kind": operation.kind,
+            **dict(operation.parameters),
+        }
         if operation.kind == kind:
             payload.update(overrides)
         operations.append(payload)
@@ -507,6 +536,31 @@ def test_support_stage_parameters_accept_the_committed_manifest() -> None:
     assert share == 0.5
     assert strata == ("region",)
     assert len(declarations) == 1
+
+
+def test_support_transform_refuses_missing_builder_weight_kind(monkeypatch) -> None:
+    frame = _base_frame()
+
+    def _stub_builder(*_args, **_kwargs) -> UKSPISupportResult:
+        return UKSPISupportResult(
+            person=frame.table("person").copy(),
+            benunit=frame.table("benunit").copy(),
+            household=frame.table("household").copy(),
+            id_multiplier=1,
+            spi_household_ids=(),
+            household_weight_kind=None,
+        )
+
+    monkeypatch.setattr(
+        "microcosm.build.uk_runtime.spi_spine.build_uk_spi_support_channel",
+        _stub_builder,
+    )
+    transform = UKSPISupportChannelStageTransform(
+        stage=_committed_stage("spi_support_channel")
+    )
+
+    with pytest.raises(ValueError, match="importance household weights"):
+        transform(frame)
 
 
 def test_support_stage_parameters_refuse_gate_declaration_drift() -> None:

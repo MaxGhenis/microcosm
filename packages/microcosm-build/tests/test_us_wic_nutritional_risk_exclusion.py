@@ -176,6 +176,7 @@ def test_exclusion_pins_all_sha_locked_hermetic_inputs() -> None:
 
 
 def test_mounted_artifacts_contain_receipt_but_no_risk_assessment() -> None:
+    pytest.importorskip("tables", exc_type=ModuleNotFoundError)
     evidence = _entry()["evidence"]
     build_summary = json.loads(
         (ROOT / "experiments/build_j_recert/base_j.summary.json").read_text()
@@ -205,10 +206,10 @@ def test_mounted_artifacts_contain_receipt_but_no_risk_assessment() -> None:
 
 
 @requires_us
-def test_policyengine_1_764_6_defaults_risk_true_and_uses_it_for_eligibility() -> None:
+def test_policyengine_1_819_0_defaults_risk_true_and_uses_it_for_eligibility() -> None:
     from policyengine_us import CountryTaxBenefitSystem
 
-    assert version("policyengine-us") == "1.764.6"
+    assert version("policyengine-us") == "1.819.0"
     system = CountryTaxBenefitSystem()
     variable = system.variables["is_wic_at_nutritional_risk"]
     assert variable.is_input_variable()

@@ -4,13 +4,16 @@
 
 ### State
 
-In progress. The clean `battery-residual-fixes` branch starts at `1dfc9edc90f7`
-with local `origin/main` at `f9d3b4838c13`. This lane will merge main without
-running a pool build, preserve both the residual weeks/UC decoupling and main's
-subsequent F0/spec-fold behavior, re-pin every moved anti-rot attestation with
-repository-owned tools, run the complete no-build PR suite after each coherent
-commit, and leave pushing to the owner. Earlier sections are historical records
-of their named checkpoints rather than current branch instructions.
+Intermediate green checkpoint. The commit containing this journal merges the
+then-current local `origin/main` at `f9d3b4838c13` into PR #768, preserves
+main's typed F0/spec folds and the branch's weeks/UC decoupling, and records a
+conflict-by-conflict justification in the merge commit body. During final
+verification the shared `origin/main` ref fast-forwarded to `bb796cb7ba57`
+(PR #743). This first merge is fully re-pinned and green, but the branch is not
+complete until that new delta is merged and reverified. No build, push,
+certification, publication, or release mutation ran. Earlier sections are
+historical records of their named checkpoints rather than current branch
+instructions.
 
 ### Done
 
@@ -38,15 +41,55 @@ of their named checkpoints rather than current branch instructions.
   commit), and its reflog records a same-session fast-forward fetch before this
   lane began. Remote equality cannot be independently re-proven in this
   sandbox, so that limitation will remain explicit in the final report.
+- Merged local `origin/main` without committing and resolved the three root
+  journal conflicts (`PROGRESS.md`, `FINAL_REPORT.md`, and `_LANE-NOTES.md`)
+  with `--ours`. Main's unrelated lane journals remain in main's history; this
+  branch's owner-designated report, current state journal, and no-build evidence
+  remain the live handoff surfaces.
+- Resolved the `specs/us_imputation_lineage.yaml` modify/delete conflict by
+  accepting main's deletion. Main's #742 typed F0 bundle supersedes that mirror,
+  and #763 subsequently moves its geography/checkpoint attestations. Ported the
+  branch's sole semantic delta (`weeks_unemployed.special_constraint: none`)
+  into `tools/us_bundle_generation/imputation.py`, regenerated the packaged
+  imputation spec, and removed the retired constraint from the closed schema.
+  The PUF-only source `zero_unless` rule remains unchanged.
+- Reconciled the merged 123-package lock offline, including
+  `policyengine-us==1.819.0` and `policyengine-core==3.31.0`, after main added
+  the typed-spec dependency surface.
+- Re-derived the anti-rot chain before changing pins. Field usage remains
+  exactly 42,120 fields (32,351 authored plus 9,769 resolved), all 49 claims,
+  usage modes/effects, pointer digest `bc4a948a...`, and documentation hash
+  `4b39450d...` are unchanged. BE and UK spec pins also remain unchanged.
+- Re-pinned only observed movers: nested policy identity `83269398...`, US spec
+  `57966f08...`, post-transfer authority component `427438c2...`, overall
+  stacked authority `bc3c6402...`, full checkpoint identity `8b284b77...`, the
+  two US fixture literals, and the generated F0 coverage report.
+- Repository generators/checkers pass: US bundle `--check`, coverage `--check`
+  at 42,120/42,120 fields and 41/41 inventory checks, and country-envelope
+  digests for US/BE/UK. The focused semantic/identity matrix passes 116 tests at
+  2.648 GiB peak RSS.
+- Ran the complete resolved-tree suite in six fresh, deterministic capped
+  processes: calibrate 203 passed (0.444 GiB peak), data 318 passed/2 skipped
+  (0.742 GiB), fit 93 passed (0.721 GiB), frame 295 passed/36 skipped (6.757
+  GiB), build half A 4,263 passed/37 skipped (10.637 GiB), and build half B
+  2,175 passed/3 skipped (13.242 GiB). Combined: 7,347 passed and 78 skipped;
+  every process stayed below 15 GiB RSS.
+- The first long build-half-B attempt emitted four failures in main-identical
+  US trade tests before its terminal output was lost with the closed session.
+  No generating change was made: all 125 tests spanning the mapped range then
+  passed, followed by the full order-preserving build-half-B rerun above. Its
+  JUnit record closed cleanly at `/tmp/pr768-build-b.xml`.
+- Re-ran repository-wide Ruff and whitespace checks plus the US bundle and F0
+  coverage `--check` commands after the final suite; all exited zero. Wrote the
+  completed conflict, pin, verification, and risk verdict to
+  `FINAL_REPORT.md` for the owner.
 
 ### Next
 
-1. Merge the recently fetched local `origin/main`, resolve journals with
-   `--ours`, and resolve executable/spec conflicts by preserving both sides'
-   behavior; stop for the owner if any requirement is genuinely contradictory.
-2. Re-pin all moved field-usage, coverage, and identity attestations with the
-   repository's tools, run the full suite after every coherent commit, update
-   this journal and `FINAL_REPORT.md`, and leave the merged branch unpushed.
+1. Commit this independently green `f9d3b483` merge checkpoint.
+2. Merge the newly fetched `origin/main` at `bb796cb7`, resolve journals
+   `--ours`, re-run every moved anti-rot surface and the memory-safe suite, then
+   replace the interim report with the final owner handoff. Leave unpushed.
 
 ## Residual FIX packages — 2026-08-22 22:45Z
 

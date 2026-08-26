@@ -26,6 +26,18 @@ from microcosm.build.serialization_dtypes import (
     canonicalize_frame_string_dtypes,
     canonicalize_table_string_dtypes,
 )
+from microcosm.build.us_runtime.congressional_district_geography import (
+    CONGRESSIONAL_DISTRICT_GEOID_COLUMN,
+)
+from microcosm.build.us_runtime.congressional_district_vintage import (
+    CONGRESSIONAL_DISTRICT_VINTAGE_CROSSWALK_SHA256_ATTR,
+    CONGRESSIONAL_DISTRICT_VINTAGE_TARGET_ATTR,
+    CURRENT_CONGRESSIONAL_DISTRICT_VINTAGE,
+)
+from microcosm.build.us_runtime.support_provenance import (
+    support_clone_index_column,
+    support_source_id_column,
+)
 from microcosm.frame import (
     Frame,
     WeightKind,
@@ -46,6 +58,7 @@ __all__ = [
     "US_MULTISPINE_POOL_MANIFEST_ARTIFACT_KIND",
     "US_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION",
     "US_STACKED_POOL_OPERATOR_ORDER",
+    "load_authenticated_us_multispine_pool_for_scoring",
     "load_legacy_calibrated_us_h5",
     "load_simulation_ready_us_multispine_pool",
     "load_simulation_ready_us_multispine_pool_manifest",
@@ -59,6 +72,8 @@ US_MULTISPINE_POOL_H5_ARTIFACT_KIND = "populace_us_multispine_input_pool"
 US_MULTISPINE_AGREEMENT_DIAGNOSTICS_ARTIFACT_KIND = (
     "populace_us_multispine_agreement_diagnostics"
 )
+# 9 binds the post-assembly household-geography assignment receipt and its
+# authenticated release-vintage authorities.
 # 8 binds the nullable-boolean-capable physical H5 materializer in both the
 # stacked manifest receipt and the H5's frozen metadata key.
 # 7 binds the complete late-producer resource semantics and removes the PUF
@@ -67,9 +82,9 @@ US_MULTISPINE_AGREEMENT_DIAGNOSTICS_ARTIFACT_KIND = (
 # authority and restores its immutable Frame-metadata anchor on H5 load.
 # Schema 5 can authenticate the DAG receipt's structure, but cannot prove that
 # the published receipt is the one authorized by the generating transition.
-US_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION = 8
-US_MULTISPINE_POOL_H5_MATERIALIZER_VERSION = 2
-"""Stacked terminal H5 materializer; version 2 handles pandas BooleanDtype."""
+US_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION = 9
+US_MULTISPINE_POOL_H5_MATERIALIZER_VERSION = 3
+"""Version 3 atomically binds release CD provenance attrs; v2 added BooleanDtype."""
 _LEGACY_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION = 4
 _METADATA_KEY = "_populace_staging_metadata"
 _TIME_PERIOD_KEY = "_time_period"
@@ -77,6 +92,7 @@ _LOWERCASE_SHA256 = re.compile(r"[0-9a-f]{64}")
 _STACKED_PIPELINE = "us-stacked-pool"
 US_STACKED_POOL_OPERATOR_ORDER = (
     "assemble_stacked_spine",
+    "assign_us_puma_ladder",
     "prepare_multispine_source_inputs_for_clone",
     "gap_fill_stacked_spine",
     "run_stacked_late_producer_dag",
@@ -108,6 +124,7 @@ _STACKED_ONLY_MANIFEST_FIELDS = frozenset(
         "release_id",
         "sampling",
         "clone_attachment",
+        "geography_assignment",
         "input_pins_digest",
         "late_producer_transition_authority_sha256",
         "stack_manifest",
@@ -118,6 +135,7 @@ _REQUIRED_STACKED_MANIFEST_FIELDS = frozenset(
     {
         "pipeline",
         "operator_order",
+        "geography_assignment",
         "stage_receipts",
     }
 )
@@ -371,8 +389,15 @@ def _load_authenticated_us_multispine_pool_manifest(
     path: str | Path,
     *,
     expected_manifest_sha256: str | None = None,
+    allow_terminal_gate_failure: bool = False,
 ) -> tuple[dict[str, object], AuthenticatedPoolH5]:
-    """Return the validated manifest and its authenticated pool-H5 identity."""
+    """Return a validated manifest and its authenticated pool-H5 identity.
+
+    By default this is the production readiness boundary. The scoring-only
+    caller may also authenticate a current stacked publication whose terminal
+    gates failed. That exception changes no digest, schema, run-ID, H5,
+    diagnostics, or gate-alias validation and never labels the artifact ready.
+    """
 
     manifest_path = Path(path)
     manifest, manifest_sha256, _ = _read_json_object_with_identity(
@@ -385,10 +410,15 @@ def _load_authenticated_us_multispine_pool_manifest(
             f"US multispine pool manifest {manifest_path} has an unsupported "
             "artifact binding."
         )
-    if (
-        manifest.get("simulation_ready") is not True
-        or manifest.get("status") != "simulation_ready"
-    ):
+    is_ready = (
+        manifest.get("simulation_ready") is True
+        and manifest.get("status") == "simulation_ready"
+    )
+    is_terminal_gate_failure = (
+        manifest.get("simulation_ready") is False
+        and manifest.get("status") == "gate_failed"
+    )
+    if not is_ready and not (allow_terminal_gate_failure and is_terminal_gate_failure):
         raise ValueError(
             f"US multispine pool manifest {manifest_path} is not simulation-ready."
         )
@@ -401,6 +431,12 @@ def _load_authenticated_us_multispine_pool_manifest(
         if envelope == "stacked"
         else _LEGACY_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION
     )
+    if is_terminal_gate_failure and envelope != "stacked":
+        raise ValueError(
+            f"US multispine pool manifest {manifest_path} may expose a failed "
+            "terminal-gate publication for scoring only under the current "
+            "stacked envelope."
+        )
     _validate_stacked_late_dag_manifest_binding(
         manifest,
         manifest_path=manifest_path,
@@ -534,12 +570,12 @@ def _load_authenticated_us_multispine_pool_manifest(
         diagnostics.get("artifact_kind")
         != US_MULTISPINE_AGREEMENT_DIAGNOSTICS_ARTIFACT_KIND
         or diagnostics.get("schema_version") != expected_schema_version
-        or diagnostics.get("simulation_ready") is not True
+        or diagnostics.get("simulation_ready") != manifest.get("simulation_ready")
         or diagnostics.get("publication_run_id") != publication_run_id
     ):
         raise ValueError(
             f"US multispine pool diagnostics {diagnostics_path} do not match "
-            "the ready manifest publication."
+            "the authenticated manifest publication."
         )
     manifest_agreement_gate = _mapping(
         manifest.get("agreement_gate"),
@@ -560,7 +596,7 @@ def _load_authenticated_us_multispine_pool_manifest(
     if diagnostics_agreement_gate != manifest_agreement_gate:
         raise ValueError(
             f"US multispine pool diagnostics {diagnostics_path} agreement-gate "
-            "verdict does not match the ready manifest."
+            "verdict does not match the authenticated manifest."
         )
     return manifest, AuthenticatedPoolH5(
         path=pool_path.resolve(),
@@ -576,7 +612,7 @@ def _validate_stacked_late_dag_manifest_binding(
     *,
     manifest_path: Path,
 ) -> None:
-    """Make schema-8 stacked consumers authenticate the published DAG proof."""
+    """Make schema-9 consumers authenticate geography and late-DAG proofs."""
 
     if manifest.get("pipeline") != "us-stacked-pool":
         return
@@ -585,6 +621,10 @@ def _validate_stacked_late_dag_manifest_binding(
             f"US stacked pool manifest {manifest_path} does not bind the "
             "canonical late-DAG operator order."
         )
+    _validate_stacked_geography_assignment_manifest_binding(
+        manifest,
+        manifest_path=manifest_path,
+    )
     stage_receipts = manifest.get("stage_receipts")
     impute = (
         stage_receipts.get("impute") if isinstance(stage_receipts, Mapping) else None
@@ -626,6 +666,531 @@ def _validate_stacked_late_dag_manifest_binding(
             f"US stacked pool manifest {manifest_path} source-completion alias "
             "differs from its late-DAG proof."
         )
+
+
+def _validate_stacked_geography_assignment_manifest_binding(
+    manifest: Mapping[str, object],
+    *,
+    manifest_path: Path,
+) -> None:
+    """Authenticate the post-assembly household-CD authority and receipt."""
+
+    assignment = manifest.get("geography_assignment")
+    if not isinstance(assignment, Mapping):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} has no geography "
+            "assignment receipt."
+        )
+    stage_receipts = manifest.get("stage_receipts")
+    stage_assignment = (
+        stage_receipts.get("geography_assignment")
+        if isinstance(stage_receipts, Mapping)
+        else None
+    )
+    if stage_assignment != assignment:
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} geography assignment "
+            "differs from its assembled-stage receipt."
+        )
+    if (
+        assignment.get("artifact_kind")
+        != ("populace_us_stacked_household_geography_assignment")
+        or assignment.get("schema_version") != 1
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} has an unsupported "
+            "geography assignment receipt."
+        )
+    contract = assignment.get("contract")
+    if not isinstance(contract, Mapping):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} geography assignment "
+            "has no contract."
+        )
+    expected_declaration = {
+        "anchor": "puma",
+        "order": "before_gap_fill",
+        "kernels": {
+            "assign": "kernel:assign_us_puma_ladder",
+            "validate": "kernel:us_puma_ladder_gate",
+        },
+        "draw": {
+            "asec": {
+                "universe": "puma_within_state",
+                "weight": "puma_population_2020",
+            },
+            "congressional_district": {
+                "universe": "congressional_district_within_puma",
+                "weight": "block_population_overlap",
+            },
+            "county": {
+                "universe": "county_within_puma",
+                "weight": "block_population_overlap",
+            },
+        },
+        "derive": ["puma", "congressional_district_geoid", "county_fips"],
+        "assertions": [
+            "observed_acs_puma_preserved",
+            "geography_state_prefix_consistent",
+        ],
+        "ladder_source": "source:us_puma_ladder_2020",
+        "congressional_district_vintage_crosswalk": {
+            "source_ref": (
+                "source:us_congressional_district_vintage_crosswalk_117_to_119"
+            ),
+            "source_vintage": "vintage:cd_117",
+            "target_vintage": "vintage:cd_119",
+        },
+        "seed": "stream:geography_legacy",
+        "default_seed": 0,
+        "assign_tract": False,
+        "layer_vintages": {
+            "congressional_district": "vintage:cd_119",
+            "county": "vintage:census_2020",
+            "puma": "vintage:puma_2020",
+            "tract": "vintage:census_2020",
+        },
+        "validation": ["puma_ladder_gate", "vintage_refusal"],
+    }
+    if contract.get("declaration") != expected_declaration:
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} geography declaration changed."
+        )
+    algorithm = contract.get("algorithm")
+    expected_algorithm = {
+        "id": "assign_us_puma_ladder.population_weighted_overlap.v1",
+        "kernel": "assign_us_puma_ladder",
+        "operator": "assign_us_puma_ladder",
+        "order": "before_gap_fill",
+        "assign_tract": False,
+    }
+    if algorithm != expected_algorithm:
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} geography assignment "
+            "algorithm changed."
+        )
+    seed = contract.get("seed")
+    expected_seed = {
+        "site": "legacy_puma_ladder",
+        "stream": "geography_legacy",
+        "value_source": "run_request.build_model_seed",
+        "value": manifest.get("random_seed"),
+    }
+    if seed != expected_seed or manifest.get("random_seed") != 0:
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} geography assignment "
+            "seed changed."
+        )
+    authorities = contract.get("authorities")
+    expected_roles = {
+        "puma_ladder",
+        "congressional_district_vintage_crosswalk",
+    }
+    if not isinstance(authorities, Mapping) or set(authorities) != expected_roles:
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} geography authorities changed."
+        )
+    provenance_pins = manifest.get("provenance_pins")
+    if not isinstance(provenance_pins, Mapping):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} has no provenance pins."
+        )
+    for role in sorted(expected_roles):
+        authority = authorities.get(role)
+        pin = provenance_pins.get(role)
+        if (
+            not isinstance(authority, Mapping)
+            or authority.get("input_role") != role
+            or not isinstance(pin, Mapping)
+            or authority.get("sha256") != pin.get("actual_sha256")
+            or pin.get("expected_sha256") != pin.get("actual_sha256")
+        ):
+            raise ValueError(
+                f"US stacked pool manifest {manifest_path} geography authority "
+                f"{role!r} differs from its authenticated input pin."
+            )
+    puma = authorities["puma_ladder"]
+    if not isinstance(puma, Mapping) or puma.get("source_ref") != (
+        "source:us_puma_ladder_2020"
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} PUMA-ladder source "
+            "authority changed."
+        )
+    crosswalk = authorities["congressional_district_vintage_crosswalk"]
+    if (
+        not isinstance(crosswalk, Mapping)
+        or crosswalk.get("source_ref")
+        != "source:us_congressional_district_vintage_crosswalk_117_to_119"
+        or crosswalk.get("source_vintage_ref") != "vintage:cd_117"
+        or crosswalk.get("source_vintage") != "117th_congress"
+        or crosswalk.get("target_vintage_ref") != "vintage:cd_119"
+        or crosswalk.get("target_vintage") != "119th_congress"
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} congressional-district "
+            "vintage authority changed."
+        )
+    output = assignment.get("output")
+    if not isinstance(output, Mapping):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} geography output is missing."
+        )
+    rows = output.get("household_rows")
+    positive_rows = output.get("positive_congressional_district_rows")
+    unique_values = output.get("unique_congressional_district_values")
+    if (
+        isinstance(rows, bool)
+        or not isinstance(rows, int)
+        or rows < 1
+        or positive_rows != rows
+        or isinstance(unique_values, bool)
+        or not isinstance(unique_values, int)
+        or unique_values < 1
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} does not prove positive "
+            "household congressional-district support."
+        )
+    order = assignment.get("pre_assignment_household_order")
+    if (
+        not isinstance(order, Mapping)
+        or order.get("column") != "household_id"
+        or order.get("codec") != "int64_little_endian.v1"
+        or order.get("row_count") != rows
+        or not isinstance(order.get("sha256"), str)
+        or _LOWERCASE_SHA256.fullmatch(str(order["sha256"])) is None
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} has an invalid seeded "
+            "household-order receipt."
+        )
+    assigned_geography = assignment.get("assigned_household_geography")
+    if (
+        not isinstance(assigned_geography, Mapping)
+        or assigned_geography.get("columns")
+        != [
+            "household_id",
+            "puma",
+            "congressional_district_geoid",
+            "county_fips",
+        ]
+        or assigned_geography.get("codec") != "column_major_int64_little_endian.v1"
+        or assigned_geography.get("row_count") != rows
+        or not isinstance(assigned_geography.get("sha256"), str)
+        or _LOWERCASE_SHA256.fullmatch(str(assigned_geography["sha256"])) is None
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} has an invalid ordered "
+            "household-geography output receipt."
+        )
+    summary = assignment.get("summary")
+    if (
+        not isinstance(summary, Mapping)
+        or summary.get("applied") is not True
+        or summary.get("household_rows") != rows
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} has an invalid geography "
+            "assignment summary."
+        )
+    gate = assignment.get("gate")
+    gates = gate.get("gates") if isinstance(gate, Mapping) else None
+    puma_gate = gates.get("us_puma_ladder") if isinstance(gates, Mapping) else None
+    if (
+        not isinstance(gate, Mapping)
+        or gate.get("passed") is not True
+        or not isinstance(puma_gate, Mapping)
+        or puma_gate.get("passed") is not True
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} does not carry a passed "
+            "PUMA-ladder gate."
+        )
+    universe = assignment.get("target_universe")
+    if (
+        not isinstance(universe, Mapping)
+        or isinstance(universe.get("district_count"), bool)
+        or not isinstance(universe.get("district_count"), int)
+        or universe["district_count"] < 1
+        or not isinstance(universe.get("geoids_sha256"), str)
+        or _LOWERCASE_SHA256.fullmatch(str(universe["geoids_sha256"])) is None
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} has an invalid "
+            "congressional-district target-universe receipt."
+        )
+
+
+def _ordered_household_id_receipt(
+    household: pd.DataFrame,
+    *,
+    boundary: str,
+) -> dict[str, object]:
+    """Recompute the assignment receipt's ordered native-household identity."""
+
+    column = "household_id"
+    if column not in household:
+        raise ValueError(f"{boundary} has no {column!r} column.")
+    numeric = pd.to_numeric(household[column], errors="coerce").to_numpy(
+        dtype=np.float64,
+        na_value=np.nan,
+    )
+    valid = np.isfinite(numeric) & (numeric == np.floor(numeric))
+    if not valid.all():
+        raise ValueError(f"{boundary} {column} values must be integral.")
+    ordered = numeric.astype("<i8", copy=False)
+    digest = hashlib.sha256()
+    digest.update(b"populace-ordered-household-id-int64-le-v1\0")
+    digest.update(len(ordered).to_bytes(8, byteorder="little", signed=False))
+    digest.update(ordered.tobytes(order="C"))
+    return {
+        "column": column,
+        "codec": "int64_little_endian.v1",
+        "row_count": len(ordered),
+        "sha256": digest.hexdigest(),
+    }
+
+
+def _positive_integral_district_values(
+    household: pd.DataFrame,
+    *,
+    boundary: str,
+) -> np.ndarray:
+    if CONGRESSIONAL_DISTRICT_GEOID_COLUMN not in household:
+        raise ValueError(
+            f"{boundary} has no {CONGRESSIONAL_DISTRICT_GEOID_COLUMN!r} column."
+        )
+    numeric = pd.to_numeric(
+        household[CONGRESSIONAL_DISTRICT_GEOID_COLUMN],
+        errors="coerce",
+    ).to_numpy(dtype=np.float64, na_value=np.nan)
+    valid = np.isfinite(numeric) & (numeric > 0) & (numeric == np.floor(numeric))
+    if not valid.all():
+        raise ValueError(
+            f"{boundary} requires a positive integral "
+            f"{CONGRESSIONAL_DISTRICT_GEOID_COLUMN} on every household."
+        )
+    return numeric.astype(np.int64)
+
+
+def _ordered_household_geography_receipt(
+    household: pd.DataFrame,
+    *,
+    boundary: str,
+) -> dict[str, object]:
+    """Recompute the producer's ordered native-household geography digest."""
+
+    columns = (
+        "household_id",
+        "puma",
+        CONGRESSIONAL_DISTRICT_GEOID_COLUMN,
+        "county_fips",
+    )
+    missing = [column for column in columns if column not in household]
+    if missing:
+        raise ValueError(f"{boundary} is missing geography column(s): {missing}.")
+
+    household_ids = pd.to_numeric(
+        household["household_id"],
+        errors="coerce",
+    ).to_numpy(dtype=np.float64, na_value=np.nan)
+    valid_ids = np.isfinite(household_ids) & (household_ids == np.floor(household_ids))
+    if not valid_ids.all():
+        raise ValueError(f"{boundary} household_id values must be integral.")
+
+    def fixed_width_values(column: str, width: int) -> np.ndarray:
+        text = household[column].astype(str)
+        if not text.str.fullmatch(rf"[0-9]{{{width}}}").all():
+            raise ValueError(
+                f"{boundary} {column!r} must contain exactly {width}-digit codes."
+            )
+        return text.astype(np.int64).to_numpy(dtype="<i8", copy=False)
+
+    arrays = (
+        household_ids.astype("<i8", copy=False),
+        fixed_width_values("puma", 7),
+        _positive_integral_district_values(
+            household,
+            boundary=boundary,
+        ).astype("<i8", copy=False),
+        fixed_width_values("county_fips", 5),
+    )
+    digest = hashlib.sha256()
+    digest.update(b"populace-ordered-household-geography-column-major-int64-le-v1\0")
+    digest.update(len(household).to_bytes(8, byteorder="little", signed=False))
+    for values in arrays:
+        digest.update(values.tobytes(order="C"))
+    return {
+        "columns": list(columns),
+        "codec": "column_major_int64_little_endian.v1",
+        "row_count": len(household),
+        "sha256": digest.hexdigest(),
+    }
+
+
+def _validate_stacked_geography_h5_binding(
+    manifest: Mapping[str, object],
+    household: pd.DataFrame,
+    root_attributes: Mapping[str, str | None],
+    *,
+    manifest_path: Path,
+    pool_path: Path,
+) -> None:
+    """Bind schema-9 manifest geography claims to the authenticated H5."""
+
+    if manifest.get("pipeline") != _STACKED_PIPELINE:
+        return
+    assignment = _mapping(
+        manifest.get("geography_assignment"),
+        label=f"US stacked pool manifest {manifest_path}.geography_assignment",
+    )
+    contract = _mapping(
+        assignment.get("contract"),
+        label=(
+            f"US stacked pool manifest {manifest_path}.geography_assignment.contract"
+        ),
+    )
+    authorities = _mapping(
+        contract.get("authorities"),
+        label=(
+            "US stacked pool manifest "
+            f"{manifest_path}.geography_assignment.contract.authorities"
+        ),
+    )
+    crosswalk = _mapping(
+        authorities.get("congressional_district_vintage_crosswalk"),
+        label=(
+            "US stacked pool manifest "
+            f"{manifest_path}.geography_assignment crosswalk authority"
+        ),
+    )
+    expected_attributes = {
+        CONGRESSIONAL_DISTRICT_VINTAGE_CROSSWALK_SHA256_ATTR: crosswalk.get("sha256"),
+        CONGRESSIONAL_DISTRICT_VINTAGE_TARGET_ATTR: crosswalk.get("target_vintage"),
+    }
+    if (
+        expected_attributes[CONGRESSIONAL_DISTRICT_VINTAGE_TARGET_ATTR]
+        != CURRENT_CONGRESSIONAL_DISTRICT_VINTAGE
+    ):
+        raise ValueError(
+            f"US stacked pool manifest {manifest_path} does not name the current "
+            "congressional-district target vintage."
+        )
+    mismatched_attributes = {
+        key: {"expected": expected, "actual": root_attributes.get(key)}
+        for key, expected in expected_attributes.items()
+        if root_attributes.get(key) != expected
+    }
+    if mismatched_attributes:
+        raise ValueError(
+            f"US stacked pool H5 {pool_path} congressional-district root "
+            f"attributes do not match its manifest: {mismatched_attributes}."
+        )
+
+    boundary = f"US stacked pool H5 {pool_path}"
+    clone_column = support_clone_index_column("household")
+    source_column = support_source_id_column("household")
+    missing_lineage = [
+        column for column in (source_column, clone_column) if column not in household
+    ]
+    if missing_lineage:
+        raise ValueError(
+            f"{boundary} is missing household clone-lineage column(s): "
+            f"{missing_lineage}."
+        )
+    clone_index = pd.to_numeric(household[clone_column], errors="coerce")
+    clone_numeric = clone_index.to_numpy(dtype=np.float64, na_value=np.nan)
+    valid_clone_index = (
+        np.isfinite(clone_numeric)
+        & (clone_numeric >= 0)
+        & (clone_numeric == np.floor(clone_numeric))
+    )
+    if not valid_clone_index.all():
+        raise ValueError(f"{boundary} has invalid {clone_column!r} values.")
+    source_ids = pd.to_numeric(household[source_column], errors="coerce")
+    source_numeric = source_ids.to_numpy(dtype=np.float64, na_value=np.nan)
+    valid_source_ids = np.isfinite(source_numeric) & (
+        source_numeric == np.floor(source_numeric)
+    )
+    if not valid_source_ids.all():
+        raise ValueError(f"{boundary} has invalid {source_column!r} values.")
+    lineage = pd.DataFrame(
+        {
+            "source_id": source_numeric.astype(np.int64),
+            "clone_index": clone_numeric.astype(np.int64),
+        },
+        index=household.index,
+    )
+    if lineage.duplicated(["source_id", "clone_index"]).any():
+        raise ValueError(f"{boundary} has duplicate household clone-lineage roles.")
+    native_counts = lineage["clone_index"].eq(0).groupby(lineage["source_id"]).sum()
+    if not native_counts.eq(1).all():
+        raise ValueError(
+            f"{boundary} requires exactly one native household for every clone lineage."
+        )
+    native_mask = lineage["clone_index"].eq(0)
+    native_household = household.loc[native_mask]
+    native_ids = pd.to_numeric(
+        native_household["household_id"], errors="coerce"
+    ).to_numpy(dtype=np.float64, na_value=np.nan)
+    native_source_ids = lineage.loc[native_mask, "source_id"].to_numpy(dtype=np.float64)
+    if not np.array_equal(native_ids, native_source_ids):
+        raise ValueError(
+            f"{boundary} native household IDs differ from their clone-lineage "
+            "source IDs."
+        )
+
+    expected_order = assignment.get("pre_assignment_household_order")
+    actual_order = _ordered_household_id_receipt(
+        native_household,
+        boundary=boundary,
+    )
+    if actual_order != expected_order:
+        raise ValueError(
+            f"{boundary} native household order differs from its manifest "
+            "geography assignment receipt."
+        )
+    expected_geography = assignment.get("assigned_household_geography")
+    actual_geography = _ordered_household_geography_receipt(
+        native_household,
+        boundary=boundary,
+    )
+    if actual_geography != expected_geography:
+        raise ValueError(
+            f"{boundary} native household geography differs from its manifest "
+            "assignment output receipt."
+        )
+
+    native_districts = _positive_integral_district_values(
+        native_household,
+        boundary=boundary,
+    )
+    _positive_integral_district_values(household, boundary=boundary)
+    actual_output = {
+        "household_rows": len(native_household),
+        "positive_congressional_district_rows": len(native_districts),
+        "unique_congressional_district_values": int(len(np.unique(native_districts))),
+    }
+    if assignment.get("output") != actual_output:
+        raise ValueError(
+            f"{boundary} household geography counts differ from its manifest "
+            "assignment output receipt."
+        )
+
+    geography_columns = (
+        "puma",
+        CONGRESSIONAL_DISTRICT_GEOID_COLUMN,
+        "county_fips",
+    )
+    grouped = household.groupby(source_column, sort=False, dropna=False)
+    for column in geography_columns:
+        incoherent = grouped[column].nunique(dropna=False) > 1
+        if bool(incoherent.any()):
+            raise ValueError(
+                f"{boundary} cloned household rows disagree on assigned "
+                f"geography column {column!r}."
+            )
 
 
 def _stacked_late_transition_binding(
@@ -690,16 +1255,55 @@ def load_simulation_ready_us_multispine_pool(
         immutable identity object for every downstream H5 consumer.
     """
 
+    return _load_us_multispine_pool(
+        path,
+        expected_manifest_sha256=expected_manifest_sha256,
+        require_simulation_ready=True,
+    )
+
+
+def load_authenticated_us_multispine_pool_for_scoring(
+    path: str | Path,
+    *,
+    expected_manifest_sha256: str | None = None,
+) -> tuple[Frame, dict[str, object], AuthenticatedPoolH5]:
+    """Load authenticated pool evidence without promoting failed gates.
+
+    A current stacked publication with ``status=gate_failed`` and
+    ``simulation_ready=false`` remains useful as head-to-head evidence. This
+    loader accepts that exact status pair, authenticates the same manifest,
+    diagnostics, H5 bytes, run ID, terminal-gate aliases, and row counts as the
+    production loader, and preserves the failed receipt. It is deliberately
+    separate from :func:`load_simulation_ready_us_multispine_pool`, whose
+    readiness contract is unchanged.
+    """
+
+    return _load_us_multispine_pool(
+        path,
+        expected_manifest_sha256=expected_manifest_sha256,
+        require_simulation_ready=False,
+    )
+
+
+def _load_us_multispine_pool(
+    path: str | Path,
+    *,
+    expected_manifest_sha256: str | None,
+    require_simulation_ready: bool,
+) -> tuple[Frame, dict[str, object], AuthenticatedPoolH5]:
+    """Shared authenticated H5 reconstruction for readiness and scoring."""
+
     manifest_path = Path(path)
     manifest, authenticated_pool_h5 = _load_authenticated_us_multispine_pool_manifest(
         manifest_path,
         expected_manifest_sha256=expected_manifest_sha256,
+        allow_terminal_gate_failure=not require_simulation_ready,
     )
     agreement_gate = _mapping(
         manifest.get("agreement_gate"),
         label=f"US multispine pool manifest {manifest_path}.agreement_gate",
     )
-    if agreement_gate.get("passed") is not True:
+    if require_simulation_ready and agreement_gate.get("passed") is not True:
         raise ValueError(
             f"US multispine pool manifest {manifest_path} has no passing "
             "agreement-gate verdict."
@@ -731,6 +1335,14 @@ def load_simulation_ready_us_multispine_pool(
             for entity in US_SCHEMA.entities
         }
         period = store[_TIME_PERIOD_KEY]
+        root_attribute_set = store.get_node("/")._v_attrs
+        geography_root_attributes = {
+            key: _hdf_root_attribute_text(root_attribute_set, key)
+            for key in (
+                CONGRESSIONAL_DISTRICT_VINTAGE_CROSSWALK_SHA256_ATTR,
+                CONGRESSIONAL_DISTRICT_VINTAGE_TARGET_ATTR,
+            )
+        }
 
     if len(period) != 1 or period.tolist() != [manifest.get("period")]:
         raise ValueError(
@@ -743,6 +1355,13 @@ def load_simulation_ready_us_multispine_pool(
             f"US multispine pool H5 {pool_path} household table has no "
             "household_weight column."
         )
+    _validate_stacked_geography_h5_binding(
+        manifest,
+        household,
+        geography_root_attributes,
+        manifest_path=manifest_path,
+        pool_path=pool_path,
+    )
     household_weights = household.pop("household_weight").to_numpy(dtype=np.float64)
     tables["household"] = household
     late_transition = _stacked_late_transition_binding(
@@ -849,13 +1468,15 @@ def write_nullable_us_h5(
     artifact_kind: str,
     publication_run_id: str | None = None,
     materializer_version: int | None = None,
+    root_attributes: Mapping[str, str] | None = None,
 ) -> None:
     """Atomically write and verify a nullable US single-year H5.
 
     The destination is replaced only after a temporary sibling has round-trip
     verified every nonempty entity table, household weights, period metadata,
-    fixed-format storage, and the caller-declared ``artifact_kind``.  A failed
-    write or verification leaves any existing destination bytes untouched.
+    fixed-format storage, caller-declared root attributes, and the
+    ``artifact_kind``.  A failed write or verification leaves any existing
+    destination bytes untouched.
     """
 
     if not isinstance(frame, Frame):
@@ -870,6 +1491,7 @@ def write_nullable_us_h5(
         type(materializer_version) is not int or materializer_version <= 0
     ):
         raise ValueError("materializer_version must be a positive integer when set.")
+    normalized_root_attributes = _validated_root_attributes(root_attributes)
 
     for entity in US_SCHEMA.entities:
         canonicalize_table_string_dtypes(
@@ -890,6 +1512,7 @@ def write_nullable_us_h5(
             artifact_kind=artifact_kind,
             publication_run_id=publication_run_id,
             materializer_version=materializer_version,
+            root_attributes=normalized_root_attributes,
         )
         _verify_nullable_us_h5(
             frame,
@@ -898,6 +1521,7 @@ def write_nullable_us_h5(
             artifact_kind=artifact_kind,
             publication_run_id=publication_run_id,
             materializer_version=materializer_version,
+            root_attributes=normalized_root_attributes,
         )
         os.replace(temporary, output)
     except BaseException:
@@ -913,6 +1537,7 @@ def _write_nullable_us_h5_file(
     artifact_kind: str,
     publication_run_id: str | None,
     materializer_version: int | None,
+    root_attributes: tuple[tuple[str, str], ...],
 ) -> None:
     with pd.HDFStore(path, mode="w") as store:
         for entity in frame.entities:
@@ -947,6 +1572,9 @@ def _write_nullable_us_h5_file(
             ),
             format="table",
         )
+        root_node_attributes = store.get_node("/")._v_attrs
+        for key, value in root_attributes:
+            root_node_attributes[key] = value
 
 
 def _verify_nullable_us_h5(
@@ -957,6 +1585,7 @@ def _verify_nullable_us_h5(
     artifact_kind: str,
     publication_run_id: str | None,
     materializer_version: int | None,
+    root_attributes: tuple[tuple[str, str], ...],
 ) -> None:
     with pd.HDFStore(path, mode="r") as store:
         for entity in frame.entities:
@@ -1017,6 +1646,65 @@ def _verify_nullable_us_h5(
                 "Nullable US H5 round trip changed artifact metadata: "
                 f"expected {expected_metadata}, got {stored_metadata}."
             )
+        stored_root_attributes = store.get_node("/")._v_attrs
+        for key, expected_value in root_attributes:
+            try:
+                stored_value = stored_root_attributes[key]
+            except KeyError as exc:
+                raise RuntimeError(
+                    f"Nullable US H5 round trip omitted root attribute {key!r}."
+                ) from exc
+            actual_value = _h5_root_attribute_text(stored_value)
+            if actual_value != expected_value:
+                raise RuntimeError(
+                    "Nullable US H5 round trip changed root attribute "
+                    f"{key!r}: expected {expected_value!r}, got {actual_value!r}."
+                )
+
+
+def _validated_root_attributes(
+    root_attributes: Mapping[str, str] | None,
+) -> tuple[tuple[str, str], ...]:
+    if root_attributes is None:
+        return ()
+    if not isinstance(root_attributes, Mapping):
+        raise TypeError("root_attributes must be a mapping of string names to strings.")
+
+    pytables_owned_names = frozenset(
+        {"CLASS", "PYTABLES_FORMAT_VERSION", "TITLE", "VERSION"}
+    )
+    normalized: list[tuple[str, str]] = []
+    for key, value in root_attributes.items():
+        if not isinstance(key, str):
+            raise TypeError("root attribute names must be strings.")
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+            raise ValueError(
+                f"root attribute names must be non-empty HDF identifiers; got {key!r}."
+            )
+        if key in pytables_owned_names:
+            raise ValueError(
+                f"root attribute {key!r} is owned by the HDF materializer."
+            )
+        if not isinstance(value, str):
+            raise TypeError(f"root attribute {key!r} must have a string value.")
+        if not value:
+            raise ValueError(f"root attribute {key!r} must not be empty.")
+        normalized.append((key, value))
+    return tuple(sorted(normalized))
+
+
+def _h5_root_attribute_text(value: object) -> str:
+    if isinstance(value, bytes):
+        return value.decode()
+    return str(value)
+
+
+def _hdf_root_attribute_text(attributes: object, key: str) -> str | None:
+    try:
+        value = attributes[key]  # type: ignore[index]
+    except KeyError:
+        return None
+    return _h5_root_attribute_text(value)
 
 
 def _export_table(frame: Frame, entity: str) -> pd.DataFrame:

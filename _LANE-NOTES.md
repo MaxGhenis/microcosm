@@ -1,5 +1,14 @@
 # Battery residual-fixes lane notes
 
+## Historical-status note — 2026-08-25
+
+The residual lane recorded below completed before the PR #768 `origin/main`
+merge. Its starting revisions, future-tense host handoff, and then-current
+ownership statements are retained as dated evidence, not as instructions for
+the merged branch. Current merge state is recorded in `PROGRESS.md`, and the
+merged verification verdict belongs in `FINAL_REPORT.md`. The merge lane has
+not run a pool build, certification, publication, release mutation, or push.
+
 ## Residual lane boundary — 2026-08-22 15:50Z
 
 - Starting tracked revision: `bb94f789` on `battery-residual-fixes`, stacked

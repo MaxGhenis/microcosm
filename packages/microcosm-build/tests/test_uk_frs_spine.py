@@ -26,6 +26,7 @@ from microcosm.build.uk_runtime.frs_spine import (
     WEEKS_IN_YEAR,
     UKFRSSpineStageTransform,
     build_uk_frs_spine_frame,
+    scottish_water_and_sewerage_weekly,
     uk_frs_spine_seed_frame,
 )
 from microcosm.build.uk_runtime.national_build import load_uk_national_frame
@@ -66,8 +67,13 @@ def _fixture_tables() -> dict[str, list[dict[str, object]]]:
         "CTBAND": 4,
         "CTREBAMT": 2.0,
         "ADULTH": 1,
-        "CSEWAMT": 0.0,
+        # CWATAMT/CSEWAMT are retired in FRS 2024-25: the headers survive but
+        # carry no data at all, so the fixture leaves them blank exactly as the
+        # real tab does. CWATAMT1/CSEWAMT1 are their Scotland-only successors.
+        "CSEWAMT": "",
         "CWATAMTD": 0.0,
+        "CWATAMT1": "",
+        "CSEWAMT1": "",
         "WATSEWRT": 3.0,
         "NIRATLIA": 4.0,
         "RT2REBAM": 0.0,
@@ -89,8 +95,10 @@ def _fixture_tables() -> dict[str, list[dict[str, object]]]:
         "CTANNUAL": -1.0,
         "CTBAND": 2,
         "CTREBAMT": 1.0,
-        "CSEWAMT": 2.0,
+        "CSEWAMT": "",
         "CWATAMTD": 3.0,
+        "CWATAMT1": 4.0,
+        "CSEWAMT1": 5.0,
         "WATSEWRT": 99.0,
         "NIRATLIA": -1.0,
         "RT2REBAM": 5.0,
@@ -146,6 +154,8 @@ def _fixture_tables() -> dict[str, list[dict[str, object]]]:
         "ACCSSAMT": 1.0,
         "GRTDIR1": 2.0,
         "GRTDIR2": 3.0,
+        # heartval is on the adult tape too; the three school columns are not.
+        "HEARTVAL": 5.0,
     }
     adult_2 = {**adult_1, "SERNUM": 2, "PERSON": 1, "SEX": 2, "HRPID": 1}
     child_1 = {
@@ -165,6 +175,10 @@ def _fixture_tables() -> dict[str, list[dict[str, object]]]:
         "TRAIN": 9,
         "EMAAMT": 0.0,
         "CHEMAAMT": 1.0,
+        "FSMVAL": 3.0,
+        "FSFVVAL": 1.0,
+        "FSBVAL": 2.0,
+        "HEARTVAL": 4.0,
     }
     return {
         "adult": [adult_2, adult_1],
@@ -323,7 +337,7 @@ def _write_fixture(
                 "table": table,
                 "kind": "licensed_microdata",
                 "format": "tab",
-                "vintage": "2023_24",
+                "vintage": "2024_25",
                 "locator": path.name,
                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                 "size_bytes": path.stat().st_size,
@@ -653,9 +667,7 @@ def _synthetic_spec(stage: SourceStageSpec) -> SimpleNamespace:
                             "declarations": [
                                 {
                                     "name": "e7_spi_synthetic_preclone",
-                                    "selector": {
-                                        "household_is_spi_synthetic": True
-                                    },
+                                    "selector": {"household_is_spi_synthetic": True},
                                     "maximum_zero_weight_rows": 10000,
                                     "reason": "synthetic driver fixture",
                                 }
@@ -763,13 +775,26 @@ def test_manifest_stage_and_runtime_agree_on_artifacts_and_operations() -> None:
     assert set(stage.outputs) == set(UKFRSSpineStageTransform.output_columns())
 
 
+def test_full_roster_artifact_pins_are_coherent() -> None:
+    # Regression armor for the #723 licensed-run finding: the WAS round-8 tab
+    # was declared by two stages (was_wealth, lcfs_consumption) with different
+    # locator strings, so `_artifact_pins()` refused the full-roster driver
+    # run — a break only a licensed build could see. Collecting pins over the
+    # complete manifest keeps the same-artifact-same-pin invariant CI-visible.
+    tool = _load_tool()
+    spec = load_country_spec("uk")
+    stages = list(spec.sources.stage_map().values())
+    pins = tool._artifact_pins(stages)
+    assert pins, "full-roster pin collection must not be empty"
+
+
 def test_builds_structural_frame_from_pinned_tabs(tmp_path: Path) -> None:
     stage = _write_fixture(tmp_path)
 
     frame = build_uk_frs_spine_frame(tmp_path, stage=stage)
 
     validate_uk_national_frame(frame)
-    assert uk_time_period(frame) == "2023"
+    assert uk_time_period(frame) == "2024"
     assert frame.weights_for("household").kind is WeightKind.DESIGN
     np.testing.assert_array_equal(
         frame.weights_for("household").values,
@@ -875,8 +900,11 @@ def test_household_and_benunit_mapping_values_are_ported(tmp_path: Path) -> None
     assert household.loc[1, "council_tax_band"] == "B"
     assert household.loc[1, "council_tax_rebate"] == pytest.approx(WEEKS_IN_YEAR)
     assert household.loc[1, "council_tax_single_adult_raw"] == 1
+    # Scotland: CWATAMTD 3 (after discount) + CSEWAMT1 5 (gross) discounted at
+    # this household's own observed factor CWATAMTD/CWATAMT1 = 3/4, so
+    # 3 + 5 * 0.75 = 6.75. WATSEWRT is not asked in Scotland and is ignored.
     assert household.loc[1, "water_and_sewerage_charges"] == pytest.approx(
-        5 * WEEKS_IN_YEAR
+        6.75 * WEEKS_IN_YEAR
     )
     assert household.loc[1, "domestic_rates"] == pytest.approx(5 * WEEKS_IN_YEAR)
     assert household.loc[1, "rent"] == pytest.approx(6 * WEEKS_IN_YEAR)
@@ -1060,7 +1088,7 @@ def _fake_value(column: str, rows: int):
     if column.endswith("_support_channel"):
         return ["frs"] * rows
     if column == "source_household_key":
-        return [f"2023:{index + 1}" for index in range(rows)]
+        return [f"2024:{index + 1}" for index in range(rows)]
     if column == "household_is_spi_synthetic":
         return [False] * rows
     return np.arange(1, rows + 1, dtype=float)
@@ -1100,14 +1128,14 @@ def test_driver_writes_spine_h5_sidecars_and_logbook(
             [
                 "--frs-raw-dir",
                 str(raw_dir),
-                    "--spine-h5",
-                    str(output),
-                    "--spi-tab",
-                    str(spi_tab),
-                    "--hmrc-ods",
-                    str(hmrc_ods),
-                    "--emit-nonzero-shares",
-                    str(shares),
+                "--spine-h5",
+                str(output),
+                "--spi-tab",
+                str(spi_tab),
+                "--hmrc-ods",
+                str(hmrc_ods),
+                "--emit-nonzero-shares",
+                str(shares),
             ]
         )
         == 0
@@ -1165,6 +1193,8 @@ def test_driver_writes_spine_h5_sidecars_and_logbook(
         "stage1": 42,
         "stage2": 43,
     }
+    assert sidecar["source_vintages"] == {"frs": "2024_25"}
+    assert sidecar["sampling"] is None
     replay_bytes = output.with_suffix(".hmrc_replay.json").read_bytes()
     assert json.loads(replay_bytes) == {"report_kind": "fake_spine_replay"}
     # The synthetic spec declares no non-table pinned artifacts, so the pin
@@ -1354,7 +1384,7 @@ def test_driver_refuses_misnamed_hmrc_ods(tmp_path: Path) -> None:
         tool._validate_args(args)
 
 
-def test_driver_has_no_sample_fraction_path(tmp_path: Path) -> None:
+def test_driver_rejects_non_rung_sample_fraction(tmp_path: Path) -> None:
     tool = _load_tool()
 
     with pytest.raises(SystemExit):
@@ -1372,6 +1402,144 @@ def test_driver_has_no_sample_fraction_path(tmp_path: Path) -> None:
                 "0.5",
             ]
         )
+
+
+def test_driver_derives_rung_tokens_from_sample_fraction() -> None:
+    tool = _load_tool()
+
+    assert tool.UK_SAMPLE_RUNG_TOKENS[tool._rung_sample_fraction("0.01")] == "f001"
+    assert tool.UK_SAMPLE_RUNG_TOKENS[tool._rung_sample_fraction("0.10")] == "f010"
+    assert tool.UK_SAMPLE_RUNG_TOKENS[tool._rung_sample_fraction("1.0")] == "f100"
+
+
+def test_driver_refuses_checkpoint_dir_on_sampled_rung(tmp_path: Path) -> None:
+    tool = _load_tool()
+
+    with pytest.raises(SystemExit):
+        tool._parse_args(
+            [
+                "--frs-raw-dir",
+                str(tmp_path),
+                "--spine-h5",
+                str(tmp_path / "spine.h5"),
+                "--spi-tab",
+                str(tmp_path / "put2223uk.tab"),
+                "--hmrc-ods",
+                str(tmp_path / "hmrc.ods"),
+                "--sample-fraction",
+                "0.10",
+                "--checkpoint-dir",
+                str(tmp_path / "checkpoints"),
+            ]
+        )
+
+
+def test_driver_records_sampled_spine_sidecar(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("tables")
+    raw_dir = tmp_path / "raw"
+    stage = _write_fixture(raw_dir)
+    output = tmp_path / "spine.h5"
+    tool = _load_tool()
+    monkeypatch.setattr(
+        tool, "load_country_spec", lambda country: _synthetic_spec(stage)
+    )
+    monkeypatch.setattr(tool, "_rules_engine", lambda: _FakeUKEngine())
+    _stub_policy_readers(monkeypatch)
+    spi_tab, hmrc_ods = _patch_spi_spine_driver_runtime(tool, monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        tool,
+        "sample_frame_households",
+        lambda frame, **kwargs: (
+            frame,
+            {"eligible_households": len(frame.table("household"))},
+        ),
+    )
+    monkeypatch.setattr(
+        tool,
+        "normalize_sampled_household_mass",
+        lambda frame, **kwargs: (frame, 1.0),
+    )
+
+    assert (
+        tool.main(
+            [
+                "--frs-raw-dir",
+                str(raw_dir),
+                "--spine-h5",
+                str(output),
+                "--spi-tab",
+                str(spi_tab),
+                "--hmrc-ods",
+                str(hmrc_ods),
+                "--sample-fraction",
+                "0.10",
+                "--sample-seed",
+                "999",
+            ]
+        )
+        == 0
+    )
+
+    sidecar = json.loads(output.with_suffix(".build.json").read_text())
+    assert sidecar["sampling"] == {
+        "fraction": 0.1,
+        "seed": 999,
+        "rung_token": "f010",
+        "pre_household_count": 2,
+        "post_household_count": 2,
+        "normalization_factor": 1.0,
+        "receipt": {"eligible_households": 2},
+    }
+    rows = load_spool_rows(tmp_path / "logbook-spool")
+    assert rows[0].rung == "f010"
+
+
+def test_driver_sampled_named_edge_aborts_with_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raw_dir = tmp_path / "raw"
+    stage = _write_fixture(raw_dir)
+    output = tmp_path / "spine.h5"
+    tool = _load_tool()
+    monkeypatch.setattr(
+        tool, "load_country_spec", lambda country: _synthetic_spec(stage)
+    )
+    monkeypatch.setattr(tool, "_rules_engine", lambda: _FakeUKEngine())
+    _stub_policy_readers(monkeypatch)
+    spi_tab, hmrc_ods = _patch_spi_spine_driver_runtime(tool, monkeypatch, tmp_path)
+
+    def _raise_named_edge(*args, **kwargs):
+        raise ValueError(tool._RUNG_NAMED_EDGE_SIGNATURE)
+
+    monkeypatch.setattr(tool, "sample_frame_households", _raise_named_edge)
+
+    assert (
+        tool.main(
+            [
+                "--frs-raw-dir",
+                str(raw_dir),
+                "--spine-h5",
+                str(output),
+                "--spi-tab",
+                str(spi_tab),
+                "--hmrc-ods",
+                str(hmrc_ods),
+                "--sample-fraction",
+                "0.10",
+            ]
+        )
+        == tool._RUNG_ABORT_EXIT_CODE
+    )
+
+    receipt = json.loads(output.with_suffix(".rung_abort.json").read_text())
+    assert receipt["named_edge"] == "spine_split_singleton_class"
+    assert receipt["sampling"]["rung_token"] == "f010"
+    assert not output.exists()
+    rows = load_spool_rows(tmp_path / "logbook-spool")
+    assert rows[0].disposition == "discarded"
+    assert rows[0].rung == "f010"
 
 
 def test_refuses_missing_tab(tmp_path: Path) -> None:
@@ -1425,15 +1593,152 @@ def test_input_artifact_pins_bind_spi_donor_and_ods() -> None:
 
     pins = tool._input_artifact_pins(stages)
 
-    assert set(pins) == {"qrf_donor", "was_qrf_donor", "published_fact_surface"}
+    assert set(pins) == {
+        "cgt_published_fact_surface",
+        "etb_household_tab",
+        "lcfs_household_tab",
+        "lcfs_person_tab",
+        "published_fact_surface",
+        "qrf_donor",
+        "was_bridge_donor",
+        "was_qrf_donor",
+    }
     for pin in pins.values():
         assert len(str(pin["sha256"])) == 64
         assert int(pin["size_bytes"]) > 0
         assert str(pin["filename"])
     declared = {
         str(artifact["role"]): str(artifact["sha256"])
-        for stage_name in ("hmrc_spi_income_spine", "was_wealth")
+        for stage_name in (
+            "was_wealth",
+            "lcfs_consumption",
+            "etb_vat",
+            "etb_services",
+            "hmrc_spi_income_spine",
+            "hmrc_cgt_gains_spine",
+        )
         for artifact in stage_map[stage_name].artifacts
-        if "table" not in artifact and "resource" not in artifact
+        if "table" not in artifact
+        and "resource" not in artifact
+        and "sha256" in artifact
     }
     assert {role: pin["sha256"] for role, pin in pins.items()} == declared
+
+
+def test_e8_manifest_seeds_all_reach_the_build_sidecar_harvester() -> None:
+    tool = _load_tool()
+    spec = load_country_spec("uk")
+    assert spec.sources is not None
+    stages = spec.sources.stage_map()
+
+    declared = tool._declared_seeds([stages[name] for name in tool._STAGE_NAMES])
+
+    assert declared["cgt_incidence_clone"] == {"cgt_prior_amount": 0}
+    assert declared["cgt_band_donors"] == {"stack_band_donor_households": 1}
+    assert declared["hmrc_cgt_gains_spine"] == {"within_band_draws": 552}
+    assert declared["salary_sacrifice"] == {
+        "salary_sacrifice": 42,
+        "salary_sacrifice_conversion": 2024,
+    }
+    assert declared["student_loans"] == {
+        "student_loan_plan_5": 42,
+        "student_loan_plan_2": 42,
+    }
+
+
+class TestScottishWaterAndSewerage:
+    """The FRS 2024-25 cell retirement, at the three shapes the tab presents.
+
+    CWATAMT/CSEWAMT survive as headers in this vintage but carry no data, so a
+    fixture that supplies them (as the pre-#686 one did) never exercises what
+    the real tab does. Each case below is a real domain on the 2024-25 tab.
+    """
+
+    @staticmethod
+    def _frame(**columns: object) -> pd.DataFrame:
+        return pd.DataFrame({name: [value] for name, value in columns.items()})
+
+    def test_discount_factor_carries_to_the_gross_sewerage_cell(self) -> None:
+        # 1,641 of 1,684 Scottish households: a positive gross water bill, so
+        # the household's own discount factor is observable and applies to the
+        # sewerage side of the same bill.
+        frame = self._frame(CSEWAMT="", CWATAMTD=3.0, CWATAMT1=4.0, CSEWAMT1=5.0)
+        frame.columns = [c.lower() for c in frame.columns]
+        assert scottish_water_and_sewerage_weekly(frame).iloc[0] == pytest.approx(6.75)
+
+    def test_undiscounted_household_keeps_the_gross_sewerage_charge(self) -> None:
+        frame = self._frame(CWATAMTD=4.0, CWATAMT1=4.0, CSEWAMT1=5.0)
+        frame.columns = [c.lower() for c in frame.columns]
+        assert scottish_water_and_sewerage_weekly(frame).iloc[0] == pytest.approx(9.0)
+
+    def test_recorded_water_without_a_gross_bill_cell_is_not_scaled(self) -> None:
+        # 22 Scottish households carry a recorded CWATAMTD with CWATAMT1 == 0;
+        # their CSEWAMT1 is zero too, so the fallback factor cannot move them.
+        frame = self._frame(CWATAMTD=3.0, CWATAMT1=0.0, CSEWAMT1=0.0)
+        frame.columns = [c.lower() for c in frame.columns]
+        assert scottish_water_and_sewerage_weekly(frame).iloc[0] == pytest.approx(3.0)
+
+    def test_sewerage_without_an_observable_discount_is_refused(self) -> None:
+        # The domain claim in the docstring — that a household with no gross
+        # water bill also carries no gross sewerage — is what makes the 1.0
+        # fallback safe. A vintage refresh that breaks it must refuse at build
+        # time rather than silently pay sewerage at gross, which would flow
+        # into council_tax through the netting.
+        frame = self._frame(CWATAMTD=3.0, CWATAMT1=0.0, CSEWAMT1=5.0)
+        frame.columns = [c.lower() for c in frame.columns]
+        with pytest.raises(ValueError, match="no discount factor is observable"):
+            scottish_water_and_sewerage_weekly(frame)
+
+    def test_household_without_council_tax_cells_is_zero(self) -> None:
+        # 21 Scottish households carry no council-tax cells at all.
+        frame = self._frame(CWATAMTD="", CWATAMT1="", CSEWAMT1="")
+        frame.columns = [c.lower() for c in frame.columns]
+        assert scottish_water_and_sewerage_weekly(frame).iloc[0] == pytest.approx(0.0)
+
+    def test_retired_cells_cannot_reintroduce_the_incumbent_zeroing(self) -> None:
+        # The incumbent adds CSEWAMT before filling, so an all-blank CSEWAMT
+        # propagates NaN and zeroes every Scottish household. The successor
+        # cells must decide the answer on their own.
+        blank = self._frame(CSEWAMT="", CWATAMTD=3.0, CWATAMT1=4.0, CSEWAMT1=5.0)
+        blank.columns = [c.lower() for c in blank.columns]
+        absent = self._frame(CWATAMTD=3.0, CWATAMT1=4.0, CSEWAMT1=5.0)
+        absent.columns = [c.lower() for c in absent.columns]
+        result = scottish_water_and_sewerage_weekly(blank).iloc[0]
+        assert result == pytest.approx(
+            scottish_water_and_sewerage_weekly(absent).iloc[0]
+        )
+        assert result > 0
+
+
+def test_in_kind_benefits_map_from_the_raw_person_tapes(tmp_path: Path) -> None:
+    """The four in-kind benefit columns, ported at #686.
+
+    They were absent from the spine while the incumbent mapped them straight
+    off the person tapes, so the parity screen reported them as columns the
+    candidate did not produce. Each is a plain weeklyised amount.
+    """
+
+    stage = _write_fixture(tmp_path)
+
+    frame = build_uk_frs_spine_frame(tmp_path, stage=stage)
+    person = frame.table("person").set_index("person_id")
+
+    children = person.loc[person["age"] < 16]
+    assert len(children) == 1
+    child = children.iloc[0]
+    assert child["free_school_meals"] == pytest.approx(3.0 * WEEKS_IN_YEAR)
+    assert child["free_school_fruit_veg"] == pytest.approx(1.0 * WEEKS_IN_YEAR)
+    assert child["free_school_breakfasts"] == pytest.approx(2.0 * WEEKS_IN_YEAR)
+    assert child["healthy_start_vouchers"] == pytest.approx(4.0 * WEEKS_IN_YEAR)
+
+    # heartval is on the adult tape as well; the school columns are child-only
+    # and must read as zero for adults rather than propagating NaN.
+    adults = person.loc[person["age"] > 16]
+    assert (adults["healthy_start_vouchers"] > 0).all()
+    for column in (
+        "free_school_meals",
+        "free_school_fruit_veg",
+        "free_school_breakfasts",
+    ):
+        assert (adults[column] == 0).all()
+        assert person[column].notna().all()
