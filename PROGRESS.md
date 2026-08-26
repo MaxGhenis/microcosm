@@ -2,11 +2,11 @@
 
 ## State
 
-Audit complete and implementation in progress as of 2026-08-26 on
-`parsimony-qrf-only`. This lane will restore only the late-recipient
+Implementation complete and verification in progress as of 2026-08-26 on
+`parsimony-qrf-only`. This lane restores only the late-recipient
 positive-unemployment-compensation weeks rule and the canonical
 `max_targets_per_fit` validation guard required by design v2 §4.1. The #742
-margin-calibration removal remains out of scope for restoration.
+margin-calibration removal remains absent.
 
 The prebuilt `.venv` is present. No dependency sync, network operation, push,
 pool/release build, publication, or promotion is in scope.
@@ -28,14 +28,23 @@ pool/release build, publication, or promotion is in scope.
 - Inventoried all other deletions into bookkeeping, consequential repins,
   calibration policy/schema/authority/generator, runtime/receipt/evidence,
   tests, and diagnostic-tool categories for reviewer-only reclassification.
+- Restored the canonical `gap_fill_stacked_spine` width guard verbatim and its
+  original focused regression test.
+- Re-anchored the weeks rule directly after late QRF transfer: the original ACS
+  clone-0 mutable mask and positive-UC allowed mask now clear only disallowed
+  positive draws to exact `0.0`, followed by the original terminal error check.
+  No margin matching, calibration spec, receipt, schema, authority, or regime
+  evidence was restored.
+- Added focused evaluator and terminal-mutation coverage for the weeks rule.
+- Passed touched-file Ruff and the three focused D0-10 regressions (3 passed).
 
 ## Next
 
-1. Restore the exact gap-fill guard hunk and re-anchor the weeks mutable clamp
-   plus terminal live-frame check directly in the late-transfer owner.
-2. Restore/add focused guard, weeks reconciliation, and terminal mutation tests.
-3. Run Ruff, focused weeks/transfer-guard tests, and the full suite; then write
-   the final evidence to `out.md` and commit the completed journal/report.
+1. Run the complete weeks-specific and stacked-transfer test files.
+2. Run repository-wide Ruff and the full test suite, sharded only if memory
+   requires it.
+3. Write the final evidence to `out.md`, complete this journal, and commit the
+   verification report.
 
 ## Historical prior lane
 

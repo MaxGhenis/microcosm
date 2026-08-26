@@ -1684,6 +1684,17 @@ def test_production_entrypoints_take_no_authority_parameters() -> None:
         )
 
 
+def test_canonical_gap_fill_rejects_nondefault_target_fit_width() -> None:
+    with pytest.raises(
+        ValueError,
+        match="Canonical stacked gap fill requires max_targets_per_fit=8",
+    ):
+        gap_fill_stacked_spine(
+            _stacked_gap_fixture(),
+            max_targets_per_fit=1,
+        )
+
+
 def test_canonical_authority_objects_are_deeply_immutable() -> None:
     plan = stacked_spine_module.CANONICAL_STACKED_GAP_FILL_PLAN
     post_puf_surface = stacked_spine_module.CANONICAL_STACKED_POST_PUF_TRANSFER_SURFACE
@@ -3119,6 +3130,146 @@ def _post_puf_transfer_fixture() -> Frame:
         mass_log=attached.mass_log,
         metadata=attached.metadata,
     )
+
+
+def test_late_recipient_weeks_clear_disallowed_positive_draws(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frame = _post_puf_transfer_fixture()
+    person = frame.table("person").copy(deep=True)
+    channel = person[support_channel_column("person")].astype(str)
+    clone_index = pd.to_numeric(
+        person[support_clone_index_column("person")],
+        errors="raise",
+    )
+    producer_rows = channel.eq("asec")
+    recipient_rows = channel.eq("acs") & clone_index.eq(0)
+    recipient_index = person.index[recipient_rows]
+    assert len(recipient_index) >= 2
+    disallowed_row, allowed_row = recipient_index[:2]
+
+    person["weeks_unemployed"] = np.nan
+    person.loc[producer_rows, "weeks_unemployed"] = np.arange(
+        1,
+        int(producer_rows.sum()) + 1,
+        dtype=np.float64,
+    )
+    person.loc[recipient_rows, "unemployment_compensation"] = 100.0
+    person.loc[disallowed_row, "unemployment_compensation"] = 0.0
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    tables["person"] = person
+    prepared = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    producer_before = prepared.table("person").loc[
+        producer_rows,
+        "weeks_unemployed",
+    ].copy(deep=True)
+
+    def transfer(
+        transfer_frame: Frame,
+        _donor: Frame,
+        **_kwargs: object,
+    ) -> AcsTransferResult:
+        transferred_person = transfer_frame.table("person").copy(deep=True)
+        transferred_person.loc[~producer_rows, "weeks_unemployed"] = 12.0
+        transferred_tables = {
+            entity: transfer_frame.table(entity) for entity in transfer_frame.entities
+        }
+        transferred_tables["person"] = transferred_person
+        transferred = Frame(
+            transferred_tables,
+            transfer_frame.schema,
+            {
+                entity: transfer_frame.weights_for(entity)
+                for entity in transfer_frame.weighted_entities
+            },
+            transfer_frame.strata,
+            mass_log=transfer_frame.mass_log,
+            metadata=transfer_frame.metadata,
+        )
+        record = AcsImputedInput(
+            column="weeks_unemployed",
+            entity="person",
+            family="source_operator_weeks_unemployed",
+            donor_spine="fixture",
+            donor_channel="asec",
+            predictors=(),
+            seed=0,
+            weight_kind="design",
+            imputed_recipient_rows=int((~producer_rows).sum()),
+        )
+        return AcsTransferResult(
+            frame=transferred,
+            imputed_inputs=(record,),
+            fit_records=(),
+            deferred_inputs=(),
+            resolved_donor_channel="asec",
+        )
+
+    monkeypatch.setattr(stacked_spine_module, "transfer_acs_inputs", transfer)
+    surface = {
+        "person": {
+            "source_operator_weeks_unemployed": ("weeks_unemployed",),
+        }
+    }
+    authority = stacked_spine_module._make_test_stacked_authority(
+        declared_surface=surface,
+        gap_fill_plan=(),
+        post_puf_transfer_surface=surface,
+    )
+
+    result = stacked_spine_module._transfer_stacked_post_puf_inputs_with_test_authority(
+        prepared,
+        authority=authority,
+    )
+
+    output = result.frame.table("person")
+    assert output.loc[disallowed_row, "weeks_unemployed"] == 0.0
+    assert output.loc[allowed_row, "weeks_unemployed"] == 12.0
+    pd.testing.assert_series_equal(
+        output.loc[producer_rows, "weeks_unemployed"],
+        producer_before,
+    )
+
+
+def test_late_recipient_weeks_terminal_validation_rejects_nonpositive_uc() -> None:
+    frame = _post_puf_transfer_fixture()
+    person = frame.table("person").copy(deep=True)
+    channel = person[support_channel_column("person")].astype(str)
+    clone_index = pd.to_numeric(
+        person[support_clone_index_column("person")],
+        errors="raise",
+    )
+    recipient_rows = channel.eq("acs") & clone_index.eq(0)
+    carrier = person.index[recipient_rows][0]
+    person["weeks_unemployed"] = 1.0
+    person["unemployment_compensation"] = 1.0
+    person.loc[carrier, "unemployment_compensation"] = 0.0
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    tables["person"] = person
+    corrupted = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="live positive weeks-unemployed carriers lack positive unemployment",
+    ):
+        stacked_spine_module._validate_late_recipient_weeks_unemployed(
+            corrupted,
+            boundary="late-recipient weeks terminal regression",
+        )
 
 
 def test_bounded_transfer_group_remaps_canonical_producer_roles() -> None:

@@ -44,7 +44,7 @@ import struct
 import sys
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from importlib.resources import files
 from pathlib import Path
 from types import MappingProxyType
@@ -3752,6 +3752,41 @@ def _validate_acs_transfer_row_counts(
     return typed_counts
 
 
+def _validate_late_recipient_weeks_unemployed(
+    frame: Frame,
+    *,
+    boundary: str,
+) -> None:
+    """Require positive late-recipient weeks to have positive UC."""
+
+    person = frame.table("person")
+    channel = person[support_channel_column("person")].astype(str)
+    clone_index = pd.to_numeric(
+        person[support_clone_index_column("person")],
+        errors="raise",
+    )
+    recipient_rows = (
+        channel.eq(ACS_STACKED_SUPPORT_CHANNEL) & clone_index.eq(0)
+    ).to_numpy(dtype=bool)
+    positive_weeks = recipient_rows & pd.to_numeric(
+        person["weeks_unemployed"],
+        errors="raise",
+    ).gt(0.0).to_numpy(dtype=bool)
+    positive_unemployment = (
+        pd.to_numeric(
+            person["unemployment_compensation"],
+            errors="raise",
+        )
+        .gt(0.0)
+        .to_numpy(dtype=bool)
+    )
+    if (positive_weeks & ~positive_unemployment).any():
+        raise ValueError(
+            f"{boundary}: live positive weeks-unemployed carriers lack "
+            "positive unemployment compensation."
+        )
+
+
 def validate_stacked_gap_fill_receipt(
     receipt: Mapping[str, object],
     *,
@@ -3944,8 +3979,6 @@ def validate_stacked_post_puf_transfer_receipt(
             f"{boundary}: stacked post-PUF transfer completion receipt is not "
             "canonical; production manifest emission is forbidden."
         )
-
-
 _LATE_TABLE_DIGEST_CODEC = "canonical_scalar_v1"
 _LATE_PRIMARY_QRF_INPUT_BINDING_ARTIFACT_KIND = (
     "populace_us_stacked_late_primary_qrf_input_binding"
@@ -7709,6 +7742,13 @@ def gap_fill_stacked_spine(
 ) -> GapFillResult:
     """Run the canonical stacked gap-fill plan with no caller authority."""
 
+    if max_targets_per_fit != DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT:
+        raise ValueError(
+            "Canonical stacked gap fill requires "
+            f"max_targets_per_fit={DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT}; "
+            f"got {max_targets_per_fit}."
+        )
+
     return _gap_fill_stacked_spine_evaluate(
         frame,
         authority=_production_stacked_authority(),
@@ -8482,6 +8522,78 @@ class StackedLateProducerResult:
     transition_authority_sha256: str
 
 
+def _reconcile_late_recipient_weeks_unemployed(
+    before: Frame,
+    after: Frame,
+    *,
+    target_families: TargetFamilies,
+) -> Frame:
+    """Clear forbidden positive weeks draws without margin calibration."""
+
+    weeks_targets = target_families.get("person", {}).get(
+        "source_operator_weeks_unemployed",
+        (),
+    )
+    if "weeks_unemployed" not in weeks_targets:
+        return after
+
+    before_person = before.table("person")
+    person = after.table("person").copy(deep=True)
+    if not person.index.equals(before_person.index):
+        raise ValueError(
+            "Late-recipient weeks structure requires byte-aligned before/after "
+            "person indexes."
+        )
+    channel = person[support_channel_column("person")].astype(str)
+    clone_index = pd.to_numeric(
+        person[support_clone_index_column("person")],
+        errors="raise",
+    )
+    recipient_rows = channel.eq(ACS_STACKED_SUPPORT_CHANNEL) & clone_index.eq(0)
+    mutable_rows = (
+        recipient_rows
+        & before_person["weeks_unemployed"].isna()
+        & person["weeks_unemployed"].notna()
+    )
+    unemployment = pd.to_numeric(
+        person["unemployment_compensation"],
+        errors="raise",
+    )
+    allowed_rows = mutable_rows & unemployment.gt(0.0)
+    positive_weeks = pd.to_numeric(
+        person["weeks_unemployed"],
+        errors="raise",
+    ).gt(0.0)
+    disallowed = mutable_rows & positive_weeks & ~allowed_rows
+    if not disallowed.any():
+        _validate_late_recipient_weeks_unemployed(
+            after,
+            boundary="stacked post-PUF transfer output",
+        )
+        return after
+
+    person.loc[disallowed, "weeks_unemployed"] = 0.0
+    tables = {entity: after.table(entity) for entity in after.entities}
+    tables.update({link: after.link(link) for link in after.links})
+    tables["person"] = person
+    reconciled = Frame(
+        tables,
+        after.schema,
+        {
+            entity: after.weights_for(entity)
+            for entity in after.weighted_entities
+        },
+        after.strata,
+        mass_log=after.mass_log,
+        metadata=after.metadata,
+    )
+    _validate_late_recipient_weeks_unemployed(
+        reconciled,
+        boundary="stacked post-PUF transfer output",
+    )
+    return reconciled
+
+
 def _producer_role_surface_for_group(
     group_surface: TargetFamilies,
     producer_surface: TargetFamilies,
@@ -8693,6 +8805,14 @@ def _transfer_stacked_post_puf_inputs_evaluate(
         target_bank=target_bank,
         derive_schedule_d=derive_schedule_d,
         execution_contract=execution_contract,
+    )
+    transfer = replace(
+        transfer,
+        frame=_reconcile_late_recipient_weeks_unemployed(
+            frame,
+            transfer.frame,
+            target_families=surface,
+        ),
     )
     target_receipts = _verify_post_puf_transfer_outcome(
         transfer.frame,
