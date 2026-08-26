@@ -205,7 +205,11 @@ is authorized or planned.
   `support["pass"]` access with a fail-closed interpreter of P1's registered
   `status` values, added a regression that rejects the old shape, and stopped
   the still-live shared shard before changing its source. Eleven focused P5
-  tests, all 92 Phase-0 tests, Ruff, formatting, and diff checks pass.
+  tests, all 92 Phase-0 tests, Ruff, formatting, and diff checks pass. A
+  non-authoritative real-input smoke replaced only the expensive distance
+  kernel with deterministic zero scores and exercised the complete remaining
+  assembly path: target status complete, 62/62 manifest rows, exact-once
+  partition, and both leg drift closures all pass. It wrote no artifact.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,
