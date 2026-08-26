@@ -5,8 +5,11 @@
 Phase-0 execution is in progress on the one permitted rerun after the
 2026-08-26 specification-only `CONTROLS_FAILED` stop. The frozen authority is
 `experiments/qrf_drift_validation_design.md` at amendment v2.2 (`51866036`).
-No control reading from this rerun exists yet. Fail-closed order is C0a,
-C0b/E2, C4, C5, then C2/C3, readings, C1, and mechanical verdicts.
+C0a is validly reused and PASSED after every recorded input digest matched.
+The deterministic E4 half of C0b is also validly reused (36/36 gates,
+12,909,037 sign rows, zero mismatches) after its complete recorded input set
+matched. A9's newly seeded E2 half and C4/C5 are running. Fail-closed order is
+C0a, C0b/E2, C4, C5, then C2/C3, readings, C1, and mechanical verdicts.
 
 The opening standing orders require this committed journal and coherent-step
 commits. They conflict with the embedded headless instruction to write only
@@ -23,14 +26,18 @@ There will be no push, pool build, publication, promotion, or logbook write.
   run's two Phase-0 outputs untracked.
 - Bound the terminal rule: any numerical C0a/C0b/C4/C5 failure on this rerun
   stops the instrument permanently; C2/C3 failures invalidate P2 only.
+- Rehashed both C0a pool/gates pairs, the candidate assembled/transferred
+  checkpoints, all nine target banks, and A12's three predecessor banks. Every
+  digest matches D0/A12 and the stopped-run evidence, so v2.2 permits reuse of
+  seedless C0a and E4. The operative design digest is
+  `91472a8e0042d819430c533ec1aa0cb112b73e98f94f380964aa33f4e22e8292`.
 
 ## Next
 
-1. Audit the stopped-run outputs and locate or reconstruct the Phase-0 runner.
-2. Verify pinned input digests; reuse only seedless C0a/E4 results whose
-   recorded digests still match.
+1. Complete A9 C0b/E2, A10 C4, and A11 C5 and audit their scratch evidence.
+2. If all instrument controls pass, run C2/C3 and freeze P2's disposition.
 3. Execute and commit each coherent control/output milestone in frozen order.
-4. If controls pass, compute readings in the declared priority order, then C1
+4. Compute readings in the declared priority order, then C1
    and verdicts; otherwise stop with control diagnostics only.
 
 ## Historical prior lane
