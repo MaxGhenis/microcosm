@@ -2,13 +2,13 @@
 
 ## State
 
-Ready to commit the final catch-up merge of provisioned `origin/main`
-`bb796cb7ba577e59d400b84334433c2724d755ce` into
-`battery-rare-signed-tails` as of 2026-08-26. The first merge commit
-`91ba6058` integrated `f9d3b483`; main then advanced locally through PR #743,
-so this second merge incorporates that exact tip. Its only conflict is
-resolved, the complete no-build suite is green under the required isolated
-memory regime, and no genuine semantic contradiction was found.
+Complete locally on `battery-rare-signed-tails` as of 2026-08-26. Merge commit
+`91ba6058` integrated `f9d3b483`; after the local main ref advanced through PR
+#743, merge commit `962e92e5` incorporated the provisioned `origin/main` tip
+`bb796cb7ba577e59d400b84334433c2724d755ce`. Both sides' semantics survive,
+all conflicts are justified in their merge bodies, every required no-build
+gate is green under the authoritative isolated memory regime, and no push was
+performed.
 
 ## Done
 
@@ -40,21 +40,29 @@ memory regime, and no genuine semantic contradiction was found.
   `microcosm-frame` 295 passed and 36 skipped; `microcosm-data` 318 passed and
   2 skipped; and all 272 `microcosm-build` test files accounted for with two
   documented conditional-empty integration modules. The compliant
-  file-isolated build run peaked at 8,384,086,016 bytes RSS.
+  file-isolated `microcosm-build` test run peaked at 8,384,086,016 bytes RSS.
+- Discarded a preliminary monolithic `microcosm-build` test run as gate
+  evidence after its long-lived process accumulated 19,242,991,616 bytes RSS
+  despite all tests passing. The complete isolated rerun supersedes it. That
+  final run also passed the trade IMDB bulk subprocess cases unchanged and
+  without the temporary child import preload needed during an earlier
+  busy-host timeout.
 - Confirmed Ruff, generated US bundle, live BE/UK/US envelope digests, coverage
   42,121/42,121 with 41/41 inventory checks, frozen realized-regime evidence,
   staged whitespace, conflict-marker absence, and zero unresolved paths.
 - Retried `git fetch origin main`; DNS remains unavailable. The provisioned
-  `origin/main` and `MERGE_HEAD` both resolve to `bb796cb7`. No build,
+  `origin/main` and the second parent of `962e92e5` both resolve to
+  `bb796cb7`.
+- Wrote `FINAL_REPORT.md` with the complete conflict list, moved pins,
+  verification receipts, memory caveat, and remaining owner risk. No build,
   certification, publication, or push was performed.
 
 ## Next
 
-- Create the second merge commit with the conflict resolution justified in its
-  body.
-- Write `FINAL_REPORT.md`, mark this journal complete, commit that coherent
-  documentation step, and verify the branch is clean and contains the recorded
-  `origin/main` tip. Do not push; the owner pushes.
+- Owner: refresh `origin/main` when GitHub DNS is available and confirm it has
+  not advanced beyond `bb796cb7`, then push the branch and observe PR CI.
+- Owner-scheduled build/certification workflows remain outside this no-build
+  merge task.
 
 ---
 
