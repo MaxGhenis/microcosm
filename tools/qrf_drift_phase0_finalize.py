@@ -420,7 +420,12 @@ def exact(value: Any) -> str:
     if isinstance(value, bool):
         return "PASS" if value else "FAIL"
     if isinstance(value, float):
-        return repr(value)
+        if value == 0:
+            return "0"
+        # Python's binary64 formatting uses round-half-even.  The alternate
+        # general form retains trailing zeroes that are significant at the
+        # binding's six-digit Markdown precision.
+        return format(value, "#.6g")
     if value is None:
         return "NA"
     return str(value)
@@ -566,6 +571,10 @@ def render_markdown(result: dict[str, Any], evidence: dict[str, Any]) -> str:
         f"{exact(item['value'])} | {exact(item['mcse'])} | {item['status']} |"
         for item in c4["statistics"]
     ]
+    c4_exact_checks = c4["deterministic_empty_G3_checks"]
+    c4_exact_passed = sum(
+        item["pass"] is True and item["value"] == 0 for item in c4_exact_checks
+    )
     c5_lines = [
         f"| {item['pattern']} | {item['quantity']} | {'PASS' if item['exact_match'] else 'FAIL'} |"
         for item in c5["exact_match_booleans"]
@@ -700,6 +709,8 @@ For `pre_subsidy_care_expenses`, A17-15(iii) matched all {adult_care_rows['count
 ### C4 — {result['controls']['C4']['status']}
 
 All 40 no-change Shapley-null totals come from `{evidence['paths']['c4']}`, SHA-256 `{digests['c4']}`, `/statistics`; canonical payload SHA-256 `{c4['canonical_sha256']}`.
+
+The separate deterministic empty-G3 fixture passed {c4_exact_passed}/{len(c4_exact_checks)} checks at exact zero. Source: `{evidence['paths']['c4']}`, SHA-256 `{digests['c4']}`, `/deterministic_empty_G3_checks`.
 
 | Target | Pattern | Leg | Contribution | MCSE | Status |
 | --- | --- | --- | ---: | ---: | --- |
@@ -869,6 +880,16 @@ def main() -> None:
         for item in c4_rows
     ):
         raise ValueError("C4 row status/pass contradiction")
+    c4_exact_checks = c4.get("deterministic_empty_G3_checks", [])
+    if (
+        len(c4_exact_checks) != 20
+        or c4.get("summary", {}).get("deterministic_empty_G3_checks_run") != 20
+        or any(
+            item.get("pass") is not True or item.get("value") != 0
+            for item in c4_exact_checks
+        )
+    ):
+        raise ValueError("C4 artifact does not carry 20 passing empty-G3 exact zeros")
     c4_pass = (
         setup_pass
         and c4.get("status") == "PASS"
@@ -1277,7 +1298,16 @@ def main() -> None:
                 "C0a": {"status": "PASS_ADOPTED_A14_7" if c0a_payload_pass else "FAIL", "comparisons": c0a.get("comparisons"), "cells": c0a.get("cells"), "mismatches": c0a.get("mismatched_comparisons"), "source": c0a_source},
                 "C0b": {"status": "PASS_ADOPTED_A14_7_AT_A17_THRESHOLD" if c0b_payload_pass else "FAIL", "summary": copy.deepcopy(c0b.get("summary")), "A17_sidak_z": EXPECTED_Z, "source": c0b_source},
                 "P0_A17_setup": {"status": "PASS" if setup_pass else "FAIL", "gates": copy.deepcopy(setup["setup_gates"]), "gate_summary": copy.deepcopy(gate_summary), "source": setup_source},
-                "C4": {"status": "PASS" if c4_pass else "FAIL" if setup_pass else "NOT_RUN_CONTROLS_FAILED", "summary": copy.deepcopy(c4.get("summary")), "source": c4_source},
+                "C4": {
+                    "status": "PASS"
+                    if c4_pass
+                    else "FAIL"
+                    if setup_pass
+                    else "NOT_RUN_CONTROLS_FAILED",
+                    "summary": copy.deepcopy(c4.get("summary")),
+                    "deterministic_empty_G3_checks": copy.deepcopy(c4_exact_checks),
+                    "source": c4_source,
+                },
                 "C5": {"status": "PASS_ADOPTED_A14_7" if c5_payload_pass else "FAIL", "checks": c5.get("checks_total"), "checks_passed": c5.get("checks_passed"), "source": c5_source},
                 "C2": {**compact_control(c23_controls["C2"]), "source": c23_source} if c4_pass else {"status": "NOT_RUN_CONTROLS_FAILED", "source": fallback_source},
                 "C3": {**compact_control(c23_controls["C3"]), "source": c23_source} if c4_pass else {"status": "NOT_RUN_CONTROLS_FAILED", "source": fallback_source},
