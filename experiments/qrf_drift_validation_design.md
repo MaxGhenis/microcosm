@@ -674,3 +674,164 @@ per-group and per-prior quantities are nonzero under exchangeability
 7. Adoption: run-2's C0a, C0b, and C5 PASSes are adopted as official on
    input-digest re-verification; only C4 (and the not-yet-run C2/C3,
    readings, C1) execute fresh.
+
+## Amendment v2.4 / A15 (2026-08-26): complete operational bindings
+
+Input: the whole-path unique-executability audit (sol run
+20260826-114554-spec-audit, 56 findings, none numerical). Each finding is
+bound below by its audit number. Where a finding exposed a defect, the fix
+is named. No reading exists; nothing here was chosen with sight of any
+result. The §3.6 fail-closed rule and every §3.5 verdict rule stand; A15
+only makes them uniquely executable.
+
+1. P0 mask recovery is instrument SETUP: masks/φ are computed first (they
+   are deterministic and seedless), feed C4 allocation, and the ledger
+   LEVELS stay sealed until controls pass. The P0 report emits in reading
+   order.
+2. GQ strata = {H, 2, 3, U(nprojectable)} via the entity's parent
+   household TYPEHUGQ; SPM units project via their household.
+3. Stratum order = (D0 pattern order, then H,2,3,U); largest-remainder ties
+   break by that order; zero allocations to positive-mass strata are
+   allowed; float accumulation in that fixed order.
+4. DEFECT FIX (double-weighting): within-stratum sampling is
+   weight-proportional WITH replacement and analysis uses UNIT weights
+   within the drawn sample (Hansen–Hurwitz self-weighting); stratum
+   estimates combine by exact stratum weighted shares. Applies to reading
+   subsamples, C4's R0, and C2/C3 evaluation alike. This restores the C4
+   null-total zero-expectation premise.
+5. Seeds: first 8 bytes of the SHA-256 digest, BIG-ENDIAN uint64, into
+   numpy PCG64; per-stratum child streams: label + "|" + stratum key;
+   sampling via Generator.choice(replace=True, p=…) over rows in D0-2
+   stable fit-row order (donor) / stable entity-id ascending (recipient);
+   the shared d(j) aligns by drawn-row sequence position.
+6. K counts one C4 null-total per target × pattern × class present in that
+   pattern's D0-2 fitted regime (no support-floor exclusion).
+7. C4 escalation triggers ONLY on C4's own gated statistics; reading (P2)
+   escalation happens in the reading phase on its own statistics.
+8. Escalation is per TARGET: any triggering pattern escalates every
+   pattern of that target to 1,000 replicates.
+9. MCSE = SD(ddof=1)/√R (paired versions use per-replicate differences);
+   pass = |value| ≤ z*·MCSE; deterministic exact checks fail on any
+   nonzero; MCSE = 0 with value 0 → no trigger, value ≠ 0 → fail.
+10. C2 transforms the chosen pattern's exact fit rows, evaluated through
+    the FROZEN gate (no refit); cap = that pattern's fit-row observed max.
+11. C3's carrier mask = fit rows with OBSERVED child_support_expense > 0
+    (the audit is right that fit rows carry observed priors).
+12. C2/C3 validate the FULL A14 attribution route: synthetic recipient =
+    the (transformed) fit rows; run null-referenced Shapley; pass =
+    target-group contribution within 3×MCSE of the exact oracle (the
+    fit-weighted mean per-row frozen-gate probability difference, signed)
+    AND every other group within 3×MCSE of zero.
+13. C2/C3 use the A14 stream scheme with `qrf-drift-v2.3|C2/C3|…` labels;
+    R = 250 with the #8 escalation rule; A3's oracle/10 replicate-scaling
+    clause is superseded by this design.
+14. Power: |oracle| must exceed 5 × (z* × the cell's median contribution
+    MCSE); otherwise UNDERPOWERED → larger declared magnitude via logged
+    amendment. The two K-rostered recovery statistics are the two
+    target-group recoveries.
+15. P0 primary route = bank raw-draw non-NaN positions per target
+    (position-aligned per D0-4) ∩ battery scope, cross-checked against
+    D0-3 receipts and D0-4 digests; any disagreement fails that target
+    closed. No assembled-checkpoint replay is required for P0.
+16. Decode success = finite codec output; structural survival belongs to
+    T5, not S_q; path census assigns first-failure in order
+    authorized → null-before → drawn → finite-decode.
+17. Empty S_o: I_o/SE = NA, L0 = 0, schema flag empty_set = true.
+18. B1 = J0 − J1 as ONE additive bridge row; J0 and J1 each on native
+    rows/weights (J1 = the stage's donor projection).
+19. The producer ladder (P6) is DIAGNOSTIC: per-stage native weighted
+    incidences with named populations; only aggregate B1 is additive.
+20. Operator-specific stage dictionaries are documented from code at
+    execution; template stages an operator lacks are omitted.
+21. No full-pipeline replay: ladder stages read persisted surfaces only;
+    stages with none are NO_SURFACE.
+22. B2 = sequential telescope in the fixed order role/channel → family
+    complete-case → pattern predictor complete-case → weight basis →
+    pattern standardization; order-dependence disclosed.
+23. Decoded surface recomputed from banked raw draws via the production
+    codec; T5 recomputed via the production structural functions (weeks:
+    the parity-restored recipient rule, pin 95f48a08; the incumbent
+    embeds it in the calibration kernel = T6 there); recomputation
+    disagreeing with the D0-4-proven baseline terminal fails that target
+    closed.
+24. P1 SEs: independent Kish-binomial per level; differences treat levels
+    as independent (conservative), except T3 which uses the exact E2
+    conditional variance.
+25. F1 = top-level rows {L0, B1, B2, T1–T5} plus the residual row.
+26. Producer intermediates use exact-zero classification; boundary mass
+    found there adds the declared bridge row.
+27. Residual computed at full precision; |residual| ≤ 1e-9·max(|D|,1e-12)
+    else the run fails closed; residual is excluded from shares and Holm.
+28. P2 official rows = target × leg G1/G2/G3; GQ strata combine by exact
+    stratum shares, patterns by exact α_k.
+29. Closure gates (reading family): v_real(all) vs P_D AND v_real(∅) vs
+    P_R within 3×MCSE each; Shapley-sum-vs-total is an exact float check
+    (≤1e-9 rel). Failure → that pattern's attribution NOT_VALIDATED
+    (T2 itself stands via P_D − P_R).
+30. F2 = G1/G2/G3 rows + the two closure statistics per target × leg;
+    per-prior and interaction/dependence rows are descriptive.
+31. Marginal audit is descriptive (not Holm): weighted means/proportions,
+    standardized differences, Kish SEs, full-row scope; donor-support
+    violations (substituted value outside donor observed range) > 1% of
+    rows → attribution NOT_VALIDATED for that cell.
+32. P5 uses effective gate columns (base + present priors) with
+    state/tenure/boolean categorical semantics.
+33. P5 numeric distance: fit-weighted inverse-CDF quartiles, |x−y|/IQR
+    capped at 1; zero-IQR features cost 0 if equal else 1.
+34. P5 k=25 nearest by distance, ties by donor stable source-row id;
+    score = arithmetic mean of the 25 distances; pools under 25 rows use
+    all rows and flag.
+35. P5 deciles: within-pattern artifact-weighted deciles pooled by rank;
+    bottom support = highest mean distance.
+36. Concentration = |worst-decile sum of w·(p̄_D,pattern − p_R,i)| /
+    Σ_deciles |decile sums|; inapplicable when |T2| < 2×SE.
+37. The 50% concentration predicate is deterministic, outside Holm; H5
+    additionally requires T2 loaded in the ledger.
+38. P7 outcome surface = post-structural pre-calibration values (I_q's
+    basis).
+39. F4 = the two GQ-adjustment terms per target × leg, independent
+    Kish-binomial delta SEs; empty strata inapplicable.
+40. C1 clusters on the original support household id, one global
+    partition per repeat shared across targets.
+41. C1 splitter: households sorted by stable id, shuffled by PCG64
+    (`qrf-drift-v2.3|C1|repeat-<r>`), dealt round-robin into 5 folds.
+42. C1 fold gates seeded `qrf-drift-v2.3|C1|<target>|<pattern>|<repeat>|<fold>`;
+    production regimes bind (no redetection); class-lost or failed fits →
+    UNSUPPORTED cells, never zero.
+43. C1 estimand = Hájek fit-weight mean of held-out class-ℓ proba minus
+    observed leg incidence, pooled within repeat, α_k across patterns,
+    averaged over 4 repeats.
+44. C1 SE = between-repeat SD(ddof=1)/2; family F5 (one statistic per
+    target × leg), 3×SE + Holm loading; descriptive for H2.
+45. Verdict share universe = F1's top-level rows minus the residual.
+46. Var(D) = Var(J0) + Var(I_acs), independent Kish-binomial
+    (conservative, declared).
+47. "Loaded" = |value| ≥ 3×SE AND two-sided Holm-significant at family
+    α = 0.05; Holm ties by |z| then row name.
+48. A named defect classifies its PARENT additive row's share for gating;
+    diagnostics name the mechanism; no proration.
+49. The root-cause label must be an additive parent row; probes only
+    select among hypotheses consistent with it (order: P2 → P5 →
+    marginal audit → C1); inconsistent probe signals are reported
+    anomalies, never verdicts.
+50. Bug-vs-by-design requires a pinned committed spec/receipt/PR
+    reference; absent one, material defect-candidates are UNRESOLVED
+    (block C for that target, create no D until owner adjudication by
+    logged amendment).
+51. |D| ≤ 2×SE(D) → "no material gap", no verdict, no gating; otherwise
+    shares over Σ|c|.
+52. Precedence: (1) no-material-gap; (2) qualifying defect rows create D
+    and block C even without dominance; (3) dominance labeling;
+    (4) material-but-UNRESOLVED blocks C without creating D.
+53. Cross-rung matrix: baseline1pct, positive legs of
+    self_employment_income_last_year and spm_unit_energy_subsidy;
+    content = D, top-level rows, dominant label.
+54. Cross-rung disagreement is diagnostic ("cross-rung tension" flag),
+    never blocking.
+55. The JSON is a flat statistics array keyed by stable ids
+    (`<target>|<leg>|<row>`) with {value, se, mcse, family, gated,
+    status} plus masks/digests/enumerations; Markdown derives from it;
+    completeness = every enumerated id present.
+56. JSON is authoritative (binary64 shortest-roundtrip; "NA"/"inf"
+    strings; lowercase hex digests); Markdown displays 6 significant
+    digits.
