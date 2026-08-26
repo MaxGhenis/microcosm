@@ -1,5 +1,14 @@
 """UK build helpers for Microcosm-owned local-geography artifacts."""
 
+from microcosm.build.uk_runtime.age_tail import (
+    UK_AGE_TAIL_BAND_POPULATIONS_RESOURCE,
+    UK_AGE_TAIL_BANDS,
+    UK_AGE_TAIL_DECLARED_SEEDS,
+    UK_AGE_TOP_CODE,
+    UKAgeTailStageTransform,
+    disaggregate_uk_age_top_code,
+    load_uk_age_tail_band_populations,
+)
 from microcosm.build.uk_runtime.battery_bindings import (
     UK_GATE_REGISTRY,
     UKGateBinding,
@@ -306,6 +315,20 @@ from microcosm.build.uk_runtime.national_build import (
     load_uk_national_frame,
     write_uk_national_frame,
 )
+from microcosm.build.uk_runtime.national_doctrine import (
+    UK_NATIONAL_L0_LAMBDA,
+    UK_NATIONAL_LEARNING_RATE,
+    UK_NATIONAL_MASS_RULE,
+    UK_NATIONAL_MAX_WEIGHT_RATIO,
+    UK_NATIONAL_SEED,
+    UK_NATIONAL_SOLVE_DOCTRINE,
+    UK_NATIONAL_SOLVE_EPOCHS,
+    UK_NATIONAL_TARGET_LOSS_CAP,
+    UK_NATIONAL_TARGET_WEIGHT_RULE,
+    UKNationalSolveDoctrine,
+    uk_doctrine_with_overrides,
+    uk_national_target_loss_weights,
+)
 from microcosm.build.uk_runtime.national_frame import (
     UK_NATIONAL_SCHEMA,
     UKStagingProvenance,
@@ -473,6 +496,13 @@ from microcosm.build.uk_runtime.weighted_integrity import (
 )
 
 __all__ = [
+    "UK_AGE_TAIL_BANDS",
+    "UK_AGE_TAIL_BAND_POPULATIONS_RESOURCE",
+    "UK_AGE_TAIL_DECLARED_SEEDS",
+    "UK_AGE_TOP_CODE",
+    "UKAgeTailStageTransform",
+    "disaggregate_uk_age_top_code",
+    "load_uk_age_tail_band_populations",
     "ARTIFACT_CLONE_INDEX_COLUMN",
     "UKGateBinding",
     "UKRowwiseDoctrineSolve",
@@ -641,8 +671,20 @@ __all__ = [
     "UKHMRCIncomeStageTransform",
     "UKHMRCTargetMaterialization",
     "UKNationalBuildResult",
+    "UKNationalSolveDoctrine",
     "UKStagingProvenance",
+    "UK_NATIONAL_L0_LAMBDA",
+    "UK_NATIONAL_LEARNING_RATE",
+    "UK_NATIONAL_MASS_RULE",
+    "UK_NATIONAL_MAX_WEIGHT_RATIO",
     "UK_NATIONAL_SCHEMA",
+    "UK_NATIONAL_SEED",
+    "UK_NATIONAL_SOLVE_DOCTRINE",
+    "UK_NATIONAL_SOLVE_EPOCHS",
+    "UK_NATIONAL_TARGET_LOSS_CAP",
+    "UK_NATIONAL_TARGET_WEIGHT_RULE",
+    "uk_doctrine_with_overrides",
+    "uk_national_target_loss_weights",
     "UKNationalStage",
     "UKRowwiseDatasetResult",
     "UKReleaseInputColumn",
