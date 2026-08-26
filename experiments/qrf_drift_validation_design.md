@@ -616,3 +616,61 @@ recipient rule and the max_targets_per_fit guard on `parsimony-qrf-only`
 7,334 passed / 78 skipped; #742 margin-calibration removal retained). Arm B's
 code input of record is now **95f48a08**; the §4.1 build-time receipt check
 binds against it.
+
+## Amendment v2.3 (2026-08-26, after second fail-closed stop; no reading exists)
+
+Run 20260826-105336: C0a PASS, C0b PASS (36/36 gates; 76/76 repeated-draw
+checks — E2 numerically verified), C5 PASS 8/8 (diagnostic, adopted below).
+C4 stopped on a REAL mathematical defect in A10 plus missing operational
+bindings, both correctly refused. The lane also disclosed one
+non-authoritative benchmark (child_support_expense/pattern_00, replicate
+indices 0–999, unregistered size-478 convention; its three rows passed);
+its streams are burned by the relabeling below, and every convention bound
+here is a generic default chosen without reference to its values.
+
+**A14 — C4 respecified (REPLACES A10 in full); estimator completions.**
+A10's "every stochastic contribution has expectation zero" is FALSE for
+partial coalitions: hot-deck hybrids decouple cross-group joints, so
+per-group and per-prior quantities are nonzero under exchangeability
+(counterexample recorded in the run-2 report). The corrected design:
+
+1. Subsampling (completes A8). Per target, per replicate r: the S_q
+   evaluation subsample of size min(100,000, |S_q|) is allocated across
+   recipient strata (pattern × GQ class) proportional to stratum weighted
+   share, integerized by largest remainder; within stratum, rows are drawn
+   WITH replacement with probability proportional to artifact weight; every
+   mean is a Hájek (self-normalized) weighted mean over the drawn rows.
+2. Streams (PCG64; seed = first 64 bits of SHA-256 of the label):
+   reading rows `qrf-drift-v2|P2|rows|<target>|<r>`; reading donor draw
+   `qrf-drift-v2|P2|donor|<target>|<pattern>|<r>`; C4 synthetic-recipient
+   rows `qrf-drift-v2.3|C4|r0|<target>|<pattern>|<r>`. The C4 null run
+   consumes the READING donor-draw stream values (same d(j) per replicate —
+   deliberate pairing for variance reduction; declared here).
+3. C4 null run: identical machinery with the recipient rows replaced by
+   R0 = a fit-weight-proportional with-replacement sample of the same
+   per-pattern size from that pattern's donor fit rows, each drawn row
+   carrying its donor fit weight (donor side has no GQ strata; allocation
+   is per pattern only), Hájek means throughout.
+4. GATED C4 statistics (Šidák family members): per target × pattern ×
+   applicable leg, ONLY the null total effect v_null(all) − v_null(∅) —
+   zero-expectation by construction (both ends are Hájek means over iid
+   weighted donor draws) — plus the 20 deterministic empty-G3 exact zeros.
+   All other C4 outputs (per-group Shapley, per-prior marginals under the
+   null) are measured NULL BASELINES, never pass/fail.
+5. Readings become null-referenced: every reported §3.2 contribution
+   (per group; per prior) = raw real-run value − paired C4 null value,
+   with MC SEs from the paired replicate differences. The closure check
+   remains in the reading family: v_real(all) must estimate P_D within
+   3 MC SE per target × pattern. A1's per-prior marginals are retained as
+   DESCRIPTIVE null-referenced quantities only; the §3.4 G3 evidence is
+   the null-referenced G3 Shapley row, never the marginals.
+6. K and z*: the gated stochastic family = 76 C0b + 2 C2/C3 + the C4
+   null-total cells counted mechanically from the D0-7 applicability
+   matrix. Hand-counted K values are void; the run computes K by this
+   rule, records the enumeration, and derives z* by the bound Šidák
+   formula. Escalation (A8) triggers on the gated statistics of the
+   target-pattern plus its null-referenced reading contributions,
+   evaluated once at replicate 250 (any |value|/MC-SE in [2,4] → 1,000).
+7. Adoption: run-2's C0a, C0b, and C5 PASSes are adopted as official on
+   input-digest re-verification; only C4 (and the not-yet-run C2/C3,
+   readings, C1) execute fresh.
