@@ -13,11 +13,13 @@ Execution has cleared the deterministic A17 setup boundary. The sealed Step-0
 deliverables and adopted C0a/C0b/C5 evidence re-verified; the mechanical
 control roster is K=122 with z*=3.526967430023352 and ordered-ID digest
 `348386d9675172b65550ef7cb157fb1387e1d45331f61253aefe40dbe8f2bbc9`.
-A17-15(i), A16-15(ii), and A17-15(iii) all pass 9/9. Fresh C4 has also passed
-all 40 stochastic null-total cells and all 20 deterministic empty-G3 checks.
-The next gated action is C2/C3. A numerical failure of any gated control will
-stop the run; non-gated gaps use the A16 recorded-default rule and do not stop
-execution.
+A17-15(i), A16-15(ii), and A17-15(iii) all pass 9/9. Fresh C4 passed all 40
+stochastic null-total cells and all 20 deterministic empty-G3 checks. The
+corrected authoritative C2/C3 run then passed all six oracle-error recovery
+cells and C2 power, but C3 is numerically UNDERPOWERED: its exact target-group
+oracle and MCSE are both zero, so the strict required comparison is `0 > 0`
+and fails. The FINAL RUN NOTICE requires a stop and return to Max on any
+numerical control failure. No reading has been opened or computed.
 
 No pool build, refit-with-changes, network access, publication, promotion, or
 logbook write is authorized or planned. Bounded gate refits and deterministic
@@ -69,15 +71,32 @@ replay are allowed by the design.
   readings. It passed static and synthetic helper validation. It has not been
   executed because §3.6 requires C2/C3 to finish first; no readings artifact
   exists.
+- Added the C2/C3 executor, then rejected its first artifact after independent
+  audit found that the six rostered rows used an independent-R0 baseline and
+  flattened stratum pieces. Corrected and committed the executor so official
+  errors, MCSEs, escalation, and power use A16-12's identical-i,j pairing;
+  real/paired paths combine unit means with exact GQ weight shares, while the
+  descriptive independent-R0 path uses the required flat donor-side mean.
+  Focused regression tests pass 2/2 and independent re-audit found no remaining
+  issue.
+- Ran corrected authoritative C2/C3 at R=250. All six recovery cells pass with
+  maximum |error|/MCSE 1.4260746053761308 and no escalation. C2's exact
+  G1/G2/G3 oracles are 0.00015910033578738115,
+  0.0008930130267351436, and 0; its power gate passes. C3's three exact
+  oracles and MCSEs are zero; its strict power gate fails as UNDERPOWERED.
+  Evidence: `/private/tmp/qrf_phase0_a17_c2c3.json`, SHA-256
+  `78a20b894457395add4253fd1772c3fa66194bda8b4aba69a40f10e1bfc2fa2a`.
+- Added and committed the A17 report finalizer. It preserves every sealed
+  Step-0 object, validates the 6,155-ID manifest and schema, and hard-rejects
+  the superseded intervention estimator semantics.
 
 ## Next
 
-1. Run C2/C3 against the six exact group-specific oracles and apply their
-   recovery and power gates. Stop on any gated numerical failure.
-2. If controls permit, compute P0/P1 for all targets, prioritized P2 and the
-   remaining readings, then C1 and mechanical verdicts.
-3. Render and validate the authoritative JSON and Markdown mirror, leaving
-   both output files uncommitted.
+1. Render the authoritative JSON and Markdown mirror with C3 UNDERPOWERED as
+   the terminal numerical control failure and every unreached reading marked
+   `NOT_RUN_CONTROLS_FAILED`.
+2. Validate canonical SHA, JSON Schema, all Step-0 seals, all 6,155 required
+   IDs, Markdown/JSON mirroring, and Git state; leave both outputs uncommitted.
 
 ## Historical prior runs
 
