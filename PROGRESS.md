@@ -1,86 +1,52 @@
-# Progress: QRF drift decomposition Phase 0 v2.2 rerun
+# Progress: QRF drift decomposition Phase 0 v2.6/A17
 
 ## State
 
-Phase-0 is complete as a terminal fail-closed report on the one permitted
-rerun. C0a PASSED after all recorded reuse digests matched. C0b PASSED: E4
-reproduced 36/36 gates and 12,909,037 sign rows with zero mismatches; A9
-passed all 76 fit-row repeated-
-draw cells and all 76 recipient production-realization checks. C5 recovered
-all 8/8 fixture predicates exactly.
+The Max-approved A17 restart is active from design commit `1c315579`.
+The governing v2 design, every amendment through v2.6/A17, both D0 bindings,
+and `CLAUDE.md` have been read in the required order. The worktree began with
+only the two requested Phase-0 output files modified by the prior A16
+fail-closed attempt; they remain uncommitted and are treated as reusable
+diagnostic evidence, not as final A17 results.
 
-C4 cannot be run uniquely or interpreted as the registered zero null. A8 and
-A10 leave the target-level pattern-by-GQ allocation, sampling estimator,
-synthetic-recipient weights, GQ treatment, RNG stream mapping, and adaptive
-details unbound. Independently, A10's statement that every stochastic output
-has expectation zero is false for A1's 36 one-at-a-time prior marginals when
-the substituted prior is correlated with retained predictors. This is a
-specification/null-validity failure, not an observed numerical C4 failure.
-Section 3.6 therefore blocks C2/C3, all readings, C1, and verdicts. No second
-refreeze is authorized.
+Execution is at setup. The next gated action is to verify the sealed step-0
+deliverables and their digests, then re-evaluate A16-15(i)/(iii) under A17's
+full-bank and registered-183-row populations. Adopted C0a, C0b, and C5 results
+will be reused only after their input and evidence digests re-verify. A
+numerical failure of any gated control will stop the run; non-gated gaps use
+the A16 recorded-default rule and do not stop execution.
 
-The opening standing orders require this committed journal and coherent-step
-commits. They conflict with the embedded headless instruction to write only
-the two Phase-0 outputs and make no commits. The opening standing orders are
-being followed; the discrepancy is recorded in the final outputs.
-There will be no push, pool build, publication, promotion, or logbook write.
+No pool build, refit-with-changes, network access, publication, promotion, or
+logbook write is authorized or planned. Bounded gate refits and deterministic
+replay are allowed by the design.
 
 ## Done
 
-- Read `experiments/qrf_drift_validation_design.md`, including v2.1/A8 and
-  v2.2 amendments A9--A12, then both D0 bindings, then `CLAUDE.md`, in the
-  required order.
-- Began from the v2.2 amendment commit `51866036` and found the stopped run's
-  two Phase-0 outputs untracked. During final review, HEAD advanced externally
-  to A13 `849d8270`; its exact delta only updates the Mission-2 arm-B code pin.
-  The report binds both the execution design (`91472a8e...`) and current A13
-  design (`937939b2...`); no Phase-0 rule or disposition changed.
-- Bound the terminal rule: any numerical C0a/C0b/C4/C5 failure on this rerun
-  stops the instrument permanently; C2/C3 failures invalidate P2 only.
-- Rehashed both C0a pool/gates pairs, the candidate assembled/transferred
-  checkpoints, all nine target banks, and A12's three predecessor banks. Every
-  digest matches D0/A12 and the stopped-run evidence, so v2.2 permits reuse of
-  seedless C0a and E4. The execution-time design digest is
-  `91472a8e0042d819430c533ec1aa0cb112b73e98f94f380964aa33f4e22e8292`.
-- Ran A9 exactly on fit rows with 1,000 PCG64 categorical draws per pattern,
-  seeded from the first 64 SHA-256 bits of the v2.2 prefix. The repeated-draw
-  maximum absolute z was 3.2334829878814775 and the frozen production maximum
-  was 1.9263536173814484, both below 3.673063850314496. The frozen evidence is
-  `/tmp/qrf_phase0_v22_c0b.json` SHA-256
-  `1c7bfd65660b14068c4bc96fae4b8d270cb447ea8fbbe42c8ef982c5f1dbf542`.
-- Constructed and independently read A11's fixture. C5 PASSED 8/8; evidence
-  `/tmp/qrf_phase0_v22_c5.json` SHA-256
-  `7f00827190276615806e26d5c76eda7c413c49640fb843988770f58056dc584c`.
-- Audited C4 twice without running a full control. The implementation audit is
-  `/tmp/qrf_phase0_v22_c4_spec_audit.json` SHA-256
-  `78f005d1655941a07c8ff933644b63f2e575ab54a2fcb8a6661874e14f91fdd6`;
-  the independent specification/null-validity audit is
-  `/tmp/qrf_phase0_v22_c4_concept_audit.json` SHA-256
-  `98960e2ab9827176d0d18ce21cfa5364097c6607aa40389a8638a8e42e4186b5`.
-- Disclosed a non-authoritative C4 benchmark that ran before the A8 ambiguity
-  was caught. It consumed indices 0--999 for one child-support-expense pattern
-  under a plausible but unregistered per-pattern convention; it cannot be
-  treated as a control result or silently reused. No other C4 cells and no
-  downstream reading seeds were consumed.
-- Rendered `experiments/qrf_drift_validation_phase0.md` SHA-256
-  `5ecdb4501577413dd48e4801b2b1f9e04694ab8188c36d48b89f185b52d5c7d4`
-  and its machine mirror `experiments/qrf_drift_validation_phase0.json`
-  SHA-256
-  `e6c07946b6fb74e707076677e8f6a04d59e60fbffb7b4a8b251330317fdfa9a0`.
-- Validated JSON syntax and MD/JSON status parity; all 20 source digests; the
-  historical git blob and current design; 9 target sections; 18 target-leg
-  rows; all stopped ledger/attribution/probe/verdict placeholders; C0a,
-  C0b, C5, and A12 counts; table column consistency; and no trailing
-  whitespace. Two independent read-only reviews found no remaining blocker.
+- Read `experiments/qrf_drift_validation_design.md` in full through A17.
+- Read `experiments/qrf_drift_validation_d0.md` and parsed the complete D0
+  JSON structure, pins, counts, regime, receipt, integrity, predictor,
+  applicability, control-roster, support, and checkpoint bindings.
+- Read `CLAUDE.md` and confirmed the PR-CI/certification boundary and root
+  journal convention.
+- Inspected Git state and confirmed that only
+  `experiments/qrf_drift_validation_phase0.md` and `.json` were dirty at
+  start, matching the requested uncommitted outputs.
+- Began read-only audits of prior-run evidence, A16 binding texts and sealed
+  deliverables, and the existing execution implementation.
 
 ## Next
 
-No execution or repository work remains. Hand off `CONTROLS_FAILED`. Do not
-run C2/C3, readings, C1, another refreeze, a pool build, or any further C4
-seed.
+1. Verify the A16 incorporated binding-text digest and locate/re-hash the
+   sealed operator table, JSON Schema, ordered ID manifest, K=122 roster, and
+   adult-care 183-row registered set.
+2. Re-run the A17 setup gates and adopt C0a/C0b/C5 only on digest match.
+3. Run C4, then C2/C3. Stop only on a gated numerical failure.
+4. If controls permit, compute P0/P1 for all targets, prioritized P2 and the
+   remaining readings, then C1 and mechanical verdicts.
+5. Render and validate the authoritative JSON and Markdown mirror, leaving
+   both output files uncommitted.
 
-## Historical prior lane
+## Historical prior runs
 
-The stacked-pool CD-vintage provenance journal previously at this path is
-historical as of 2026-08-26. Its final text remains available in commit
-`51866036` and does not describe the current task.
+Earlier journal states and terminal reports remain available in Git history.
+They describe v2.2/A14/A16 stops and are not current authority after A17.
