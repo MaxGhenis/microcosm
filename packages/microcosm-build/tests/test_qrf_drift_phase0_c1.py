@@ -126,6 +126,33 @@ def test_repeat_se_is_sample_sd_divided_by_two() -> None:
     assert result["se_formula"] == "SD(ddof=1)/2"
 
 
+def test_holm_excludes_supported_estimator_below_support_floor() -> None:
+    supported = {
+        "id": "supported",
+        "status": "SUPPORTED",
+        "estimator_status": "SUPPORTED",
+        "value": 1.0,
+        "se": 1.0,
+    }
+    no_verdict = {
+        "id": "insufficient",
+        "status": "INSUFFICIENT_SUPPORT_NO_VERDICT",
+        "estimator_status": "SUPPORTED",
+        "support": {"status": "INSUFFICIENT_SUPPORT_NO_VERDICT"},
+        "value": 100.0,
+        "se": 1.0,
+    }
+
+    result = C1.holm_f5([supported, no_verdict], full_family=True)
+
+    assert result["family_size"] == 1
+    assert [item["id"] for item in result["order"]] == ["supported"]
+    assert supported["holm_threshold"] == 0.05
+    assert no_verdict["holm_status"] == ("EXCLUDED_INSUFFICIENT_SUPPORT_NO_VERDICT")
+    assert no_verdict["holm_reject"] == "NA"
+    assert no_verdict["loaded"] is False
+
+
 def test_sealed_d0_roster_has_800_fold_cells_and_10_summaries() -> None:
     d0 = json.loads((ROOT / "experiments/qrf_drift_validation_d0.json").read_text())
     targets = list(d0["D0-2"]["targets"])
@@ -135,6 +162,29 @@ def test_sealed_d0_roster_has_800_fold_cells_and_10_summaries() -> None:
 
     assert len(fold_ids) == len(set(fold_ids)) == 800
     assert len(target_ids) == len(set(target_ids)) == 10
+
+    summaries = []
+    for target in targets:
+        target_spec = d0["D0-2"]["targets"][target]
+        for leg in C1.target_legs(target_spec):
+            support = C1.support_for_leg(d0, target, leg)
+            summaries.append(
+                {
+                    "id": f"{target}:{leg}",
+                    "status": support["status"],
+                    "estimator_status": "SUPPORTED",
+                    "value": 0.0,
+                    "se": 1.0,
+                }
+            )
+
+    holm = C1.holm_f5(summaries, full_family=True)
+    assert holm["family_size"] == 9
+    assert [
+        item["id"]
+        for item in summaries
+        if item["holm_status"] == "EXCLUDED_INSUFFICIENT_SUPPORT_NO_VERDICT"
+    ] == ["self_employment_income_last_year:negative"]
 
 
 def test_readings_barrier_is_explicit_and_fail_closed(tmp_path: Path) -> None:

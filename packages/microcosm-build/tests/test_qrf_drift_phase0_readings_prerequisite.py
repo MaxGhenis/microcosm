@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import sys
@@ -113,6 +114,54 @@ def test_p2_joint_domain_unavailability_must_be_exact() -> None:
     disposition["predicates"] = ["invented"]
     with pytest.raises(ValueError, match="joint hybrid-domain disposition changed"):
         BARRIER._verify_joint_unavailable(disposition, "fixture")
+
+
+def test_p2_descriptive_defaults_receipt_is_exact(tmp_path: Path) -> None:
+    path = tmp_path / "p2_defaults.json"
+    BARRIER.p2.p2_defaults.write_payload(path)
+    _payload, receipt = BARRIER.p2.verify_reading_defaults(path)
+
+    assert BARRIER.verify_p2_descriptive_defaults_receipt(receipt) == receipt
+
+    mutations = [
+        lambda value: value.update(sha256="0" * 64),
+        lambda value: value.update(canonical_sha256="0" * 64),
+        lambda value: value.update(status="COMPLETE"),
+        lambda value: value["implementation"].update(sha256="0" * 64),
+        lambda value: value["source_files"][0].update(sha256="0" * 64),
+        lambda value: value["scope"].update(scientific_estimator_changed=True),
+    ]
+    for mutate in mutations:
+        changed = copy.deepcopy(receipt)
+        mutate(changed)
+        with pytest.raises(ValueError, match="not current/exact"):
+            BARRIER.verify_p2_descriptive_defaults_receipt(changed)
+
+    with pytest.raises(ValueError, match="lacks.*descriptive-default receipt"):
+        BARRIER.verify_p2_descriptive_defaults_receipt(None)
+
+
+def test_p5_a16_binding_must_match_the_live_bound_file() -> None:
+    payload = {
+        "authority": {
+            "A16_binding": {
+                "path": str(BARRIER.A16_BINDING),
+                "sha256": BARRIER._expected_digest(BARRIER.A16_BINDING),
+            }
+        }
+    }
+
+    BARRIER.verify_a16_binding_authority(payload, "fixture")
+
+    payload["authority"]["A16_binding"]["sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="A16 binding authority changed"):
+        BARRIER.verify_a16_binding_authority(payload, "fixture")
+    payload["authority"]["A16_binding"]["sha256"] = BARRIER._expected_digest(
+        BARRIER.A16_BINDING
+    )
+    payload["authority"]["A16_binding"]["path"] = str(BARRIER.DESIGN)
+    with pytest.raises(ValueError, match="A16 binding path changed"):
+        BARRIER.verify_a16_binding_authority(payload, "fixture")
 
 
 def test_baseline_scientific_seal_excludes_only_execution(

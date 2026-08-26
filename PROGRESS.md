@@ -214,10 +214,14 @@ is authorized or planned.
 - Implemented the fail-closed readings-before-C1 barrier. It verifies and
   directly binds the adopted controls, fresh C3, complete P0/P1/P6/P7,
   complete-but-`NOT_VALIDATED` P2, both baseline cross-rung readings, and
-  exactly six disjoint P5 shards whose union is all nine targets. C1 now
-  recognizes the exact terminal P2/P6 dispositions without treating them as
-  validated science. Thirteen focused barrier/C1 tests, Ruff, and format
-  checks pass. The authoritative barrier awaits completion of all P5 shards.
+  exactly six disjoint P5 shards whose union is all nine targets. The barrier
+  now also rebuilds and exactly reconciles the sealed P2 descriptive-default
+  receipt and rehashes each P5 shard's A16 binding. C1 recognizes the exact
+  terminal P2/P6 dispositions without treating them as validated science and
+  excludes the support-floor SEILY negative leg from F5 Holm even when its
+  estimator fits are numerically supported. Sixteen focused barrier/C1 tests,
+  Ruff, formatting, and diff checks pass. The authoritative barrier awaits
+  completion of all P5 shards.
 - Implemented and independently reviewed the A18 final report assembler. It
   preserves all 6,155 Step-0 IDs; binds the exact enumeration/adoption/C3 and
   readings/C1 sequence; embeds the full 31-row G3 enumeration in the JSON

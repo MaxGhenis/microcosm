@@ -651,8 +651,14 @@ def holm_f5(statistics: list[dict[str, Any]], full_family: bool) -> dict[str, An
 
     finite: list[dict[str, Any]] = []
     for item in statistics:
-        if item.get("estimator_status") != "SUPPORTED":
-            item["holm_status"] = "EXCLUDED_UNSUPPORTED"
+        estimator_supported = item.get("estimator_status") == "SUPPORTED"
+        support_status = item.get("status")
+        if not estimator_supported or support_status != "SUPPORTED":
+            item["holm_status"] = (
+                "EXCLUDED_INSUFFICIENT_SUPPORT_NO_VERDICT"
+                if support_status == "INSUFFICIENT_SUPPORT_NO_VERDICT"
+                else "EXCLUDED_UNSUPPORTED"
+            )
             item["holm_reject"] = "NA"
             item["loaded"] = False
             continue

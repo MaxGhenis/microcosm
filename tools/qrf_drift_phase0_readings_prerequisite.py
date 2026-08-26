@@ -17,6 +17,7 @@ from typing import Any
 
 import qrf_drift_phase0_c1 as c1
 import qrf_drift_phase0_c4 as c4
+import qrf_drift_phase0_p2 as p2
 
 ROOT = Path(__file__).resolve().parents[1]
 DESIGN = ROOT / "experiments/qrf_drift_validation_design.md"
@@ -104,6 +105,47 @@ def verify_artifact_authority(payload: dict[str, Any], label: str) -> None:
         d0.get("sha256") == _expected_digest(D0_JSON),
         f"{label} D0 authority changed",
     )
+
+
+def verify_a16_binding_authority(payload: dict[str, Any], label: str) -> None:
+    """Require an artifact to bind the exact live A16 closure text."""
+    binding = _authority_file(payload, "A16_binding")
+    bound_path = binding.get("path")
+    require(
+        isinstance(bound_path, str)
+        and Path(bound_path).resolve() == A16_BINDING.resolve(),
+        f"{label} A16 binding path changed",
+    )
+    actual = c4.sha256_file(A16_BINDING)
+    require(
+        actual == _expected_digest(A16_BINDING),
+        "operative A16 binding authority changed",
+    )
+    require(
+        binding.get("sha256") == actual,
+        f"{label} A16 binding authority changed",
+    )
+
+
+def verify_p2_descriptive_defaults_receipt(
+    receipt: Any,
+) -> dict[str, Any]:
+    """Rebuild and exactly reconcile the pre-P2 descriptive-default receipt."""
+    require(
+        isinstance(receipt, dict),
+        "P2 lacks its sealed descriptive-default receipt",
+    )
+    recorded_path = receipt.get("path")
+    require(
+        isinstance(recorded_path, str) and Path(recorded_path).is_file(),
+        "P2 descriptive-default receipt does not name a live file",
+    )
+    _payload, expected = p2.verify_reading_defaults(Path(recorded_path))
+    require(
+        receipt == expected,
+        "P2 descriptive-default receipt is not current/exact",
+    )
+    return expected
 
 
 def source_record(payload: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
@@ -398,6 +440,7 @@ def verify_p2(
     _verify_input_checks(payload.get("input_verification", {}), "P2")
     prerequisites = payload.get("prerequisites", {})
     require(prerequisites.get("status") == "PASS", "P2 prerequisites did not pass")
+    verify_p2_descriptive_defaults_receipt(prerequisites.get("P2_descriptive_defaults"))
     require(
         prerequisites.get("adoption", {}).get("sha256") == adoption_source["sha256"],
         "P2 does not bind the adopted controls input",
@@ -564,6 +607,7 @@ def verify_p5_shards(
             f"wrong P5 shard kind: {path}",
         )
         verify_artifact_authority(payload, f"P5 shard {path}")
+        verify_a16_binding_authority(payload, f"P5 shard {path}")
         scope_targets = payload.get("scope", {}).get("targets")
         require(
             isinstance(scope_targets, list) and scope_targets,
