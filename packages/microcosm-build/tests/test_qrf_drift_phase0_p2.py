@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 TOOLS = ROOT / "tools"
@@ -213,6 +215,51 @@ def test_pattern_closure_failure_invalidates_target_aggregate() -> None:
     positive_stats = [item for item in statistics if item["leg"] == "positive"]
     assert len(positive_stats) == 3
     assert all(item["status"] == positive["status"] for item in positive_stats)
+    # Static manifest fields remain sealed even when status excludes the row
+    # from the applicable finite Holm family.
     assert all(
-        item["family"] is None and item["gated"] is False for item in positive_stats
+        item["family"] == "F2" and item["gated"] is True for item in positive_stats
     )
+
+
+def test_manifest_validation_rejects_static_family_or_gate_drift(
+    tmp_path: Path,
+) -> None:
+    statistic = P2.statistic_fragment(
+        target="fixture",
+        pattern="pattern_00_fixture",
+        leg="positive",
+        row="P2_group_pattern",
+        group="G1",
+        variant="null_referenced",
+        value=0.1,
+        mcse=0.01,
+        family="F2",
+        gated=True,
+        status="VALIDATED",
+        source_pointer="/fixture",
+    )
+    manifest = {
+        "step0": {
+            "required_id_manifest": [
+                {
+                    "id": statistic["id"],
+                    "dimensions": {
+                        "target": "fixture",
+                        "row": "P2_group_pattern",
+                    },
+                    "family": "F2",
+                    "gated": True,
+                }
+            ]
+        }
+    }
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(manifest))
+
+    result = P2.validate_manifest_fragments([statistic], path, {"fixture"})
+
+    assert result["static_fields_pass"] is True
+    statistic["gated"] = False
+    with pytest.raises(ValueError, match="static-field mismatch"):
+        P2.validate_manifest_fragments([statistic], path, {"fixture"})

@@ -1185,8 +1185,8 @@ def _serialize_pattern(
                         variant=variant,
                         value=float(summary["value"]),
                         mcse=float(summary["mcse"]),
-                        family=None,
-                        gated=False,
+                        family="F2" if variant == "null_referenced" else None,
+                        gated=variant == "null_referenced",
                         status=(
                             attribution_status
                             if variant == "null_referenced"
@@ -1208,8 +1208,8 @@ def _serialize_pattern(
                     row=name,
                     value=float(summary["value"]),
                     mcse=float(summary["mcse"]),
-                    family="F2" if supported else None,
-                    gated=supported,
+                    family="F2",
+                    gated=True,
                     status=summary["status"] if supported else attribution_status,
                     source_pointer=(
                         f"/targets/{target}/patterns/{pattern}/legs/{leg}/"
@@ -1511,8 +1511,8 @@ def _aggregate_groups(
                         row="P2_group_aggregate",
                         group=group,
                         value="NA",
-                        family=None,
-                        gated=False,
+                        family="F2",
+                        gated=True,
                         status="NOT_APPLICABLE_CLASS_ABSENT",
                         source_pointer=f"/targets/{target}/aggregates/{leg}/{group}",
                     )
@@ -1564,8 +1564,8 @@ def _aggregate_groups(
                     group=group,
                     value=float(summary["value"]),
                     mcse=float(summary["mcse"]),
-                    family="F2" if attribution["validated"] else None,
-                    gated=attribution["validated"],
+                    family="F2",
+                    gated=True,
                     status=attribution["status"],
                     source_pointer=f"/targets/{target}/aggregates/{leg}/{group}",
                 )
@@ -1768,16 +1768,19 @@ def run_target(
     return payload, stats
 
 
-def _manifest_ids_for_targets(
+def _manifest_rows_for_targets(
     path: Path,
     targets: set[str],
-) -> set[str]:
+) -> dict[str, dict[str, Any]]:
     """Read only the P2-compatible portion of the sealed Step-0 manifest."""
     payload = json.loads(path.read_text())
     manifest = payload.get("step0", {}).get("required_id_manifest")
     require(isinstance(manifest, list), "manifest JSON lacks Step-0 ID list")
     result = {
-        item["id"]
+        item["id"]: {
+            "family": item.get("family"),
+            "gated": item.get("gated"),
+        }
         for item in manifest
         if item.get("dimensions", {}).get("target") in targets
         and item.get("dimensions", {}).get("row") in P2_ROWS
@@ -1800,7 +1803,8 @@ def validate_manifest_fragments(
             "fragment_count": len(ids),
             "ordered_ids_sha256": canonical_sha256(sorted(ids)),
         }
-    expected = _manifest_ids_for_targets(manifest_path, targets)
+    expected_rows = _manifest_rows_for_targets(manifest_path, targets)
+    expected = set(expected_rows)
     actual = set(ids)
     require(
         actual == expected,
@@ -1808,12 +1812,33 @@ def validate_manifest_fragments(
         f"missing={sorted(expected - actual)[:10]}, "
         f"extra={sorted(actual - expected)[:10]}",
     )
+    by_id = {item["id"]: item for item in statistics if item["target"] in targets}
+    static_mismatches = [
+        {
+            "id": statistic_id_value,
+            "expected": expected_rows[statistic_id_value],
+            "actual": {
+                "family": by_id[statistic_id_value].get("family"),
+                "gated": by_id[statistic_id_value].get("gated"),
+            },
+        }
+        for statistic_id_value in sorted(expected)
+        if by_id[statistic_id_value].get("family")
+        != expected_rows[statistic_id_value]["family"]
+        or by_id[statistic_id_value].get("gated")
+        != expected_rows[statistic_id_value]["gated"]
+    ]
+    require(
+        not static_mismatches,
+        f"P2 manifest static-field mismatch: {static_mismatches[:5]}",
+    )
     return {
         "status": "PASS",
         "manifest_path": str(manifest_path.resolve()),
         "manifest_sha256": c4.sha256_file(manifest_path),
         "fragment_count": len(ids),
         "ordered_ids_sha256": canonical_sha256(sorted(ids)),
+        "static_fields_pass": True,
     }
 
 
