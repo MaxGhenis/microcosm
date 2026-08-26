@@ -1,6 +1,53 @@
-# Progress: QRF drift decomposition Phase 0 v2.6/A17
+# Progress: QRF drift decomposition Phase 0 v2.7/A18
 
 ## State
+
+The fifth Phase-0 execution attempt is active under design commit `8d553796`
+(v2.7/A18). The governing design through A18, both D0 binding files, and
+`CLAUDE.md` have been read in the required order. The worktree started this
+attempt with only the two requested Phase-0 output files modified by the prior
+A17 terminal run; they remain deliberately uncommitted.
+
+A18 supersedes the prior C3 terminal disposition. Before any new statistic is
+computed, this attempt must enumerate and seal every frozen-gate
+`(target, pattern, G3 column)` triple with at least one split and its total
+split gain. On a nonempty enumeration C3 re-targets mechanically to the
+largest-gain triple; on an empty enumeration C3 is waived, the G3 gate-stage
+contributions are exact mechanism zeros, and the two C3 roster slots are
+dropped before `K` and `z*` are recomputed. Every A17 PASS and Step-0 seal is
+eligible for adoption only after its bound input digests re-verify.
+
+No reading, C1 fit, or verdict has yet been opened in this A18 attempt. No pool
+build, refit-with-changes, network access, publication, promotion, or logbook
+write is authorized or planned.
+
+## Done
+
+- Read `experiments/qrf_drift_validation_design.md` in full through A18.
+- Read `experiments/qrf_drift_validation_d0.md` and parsed the D0 JSON pins,
+  counts, regimes, receipts, integrity evidence, predictor/applicability
+  matrices, control enumeration, support bindings, and checkpoint census.
+- Read `CLAUDE.md`; confirmed the PR-CI/certification boundary and root-journal
+  convention.
+- Confirmed the branch is at A18 commit `8d553796` and only
+  `experiments/qrf_drift_validation_phase0.md` and `.json` were dirty at the
+  start of this attempt.
+- Preserved the complete A17 terminal journal below as historical evidence.
+
+## Next
+
+1. Audit the prior A17 output/evidence and existing executors; re-verify all
+   adoption digests and sealed Step-0 deliverables.
+2. Implement or run the A18 frozen-gate G3 split enumeration and commit its
+   sealed table/digest before any downstream computation.
+3. Follow A18 branch 2 or 3 mechanically, then execute READINGS, C1, and
+   VERDICTS in order, committing each coherent progress step.
+4. Render and validate the Markdown/JSON reports while leaving both output
+   files uncommitted, then commit the final journal state separately.
+
+## Historical A17 terminal snapshot
+
+### State
 
 The Max-approved A17 restart is terminal from design commit `1c315579`.
 The governing v2 design, every amendment through v2.6/A17, both D0 bindings,
@@ -33,7 +80,7 @@ No pool build, refit-with-changes, network access, publication, promotion, or
 logbook write is authorized or planned. Bounded gate refits and deterministic
 replay are allowed by the design.
 
-## Done
+### Done
 
 - Read `experiments/qrf_drift_validation_design.md` in full through A17.
 - Read `experiments/qrf_drift_validation_d0.md` and parsed the complete D0
@@ -113,14 +160,14 @@ replay are allowed by the design.
   legs, 162 ledger rows, and 18 cross-target rows mirror JSON; Appendix A is
   byte-exact; and every Markdown float token follows the bound precision.
 
-## Next
+### Next
 
 1. Return the terminal C3 power result to Max. Do not open readings or C1
    without a new owner-logged amendment/restart authority.
 2. Leave `experiments/qrf_drift_validation_phase0.md` and `.json` uncommitted
    as required; there is no remaining in-scope execution step.
 
-## Historical prior runs
+### Historical prior runs
 
 Earlier journal states and terminal reports remain available in Git history.
 They describe v2.2/A14/A16 stops and are not current authority after A17.
