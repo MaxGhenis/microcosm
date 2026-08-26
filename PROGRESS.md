@@ -2,11 +2,10 @@
 
 ## State
 
-Implementation complete and verification in progress as of 2026-08-26 on
-`parsimony-qrf-only`. This lane restores only the late-recipient
-positive-unemployment-compensation weeks rule and the canonical
+Complete as of 2026-08-26 on `parsimony-qrf-only`. This lane restored only the
+late-recipient positive-unemployment-compensation weeks rule and the canonical
 `max_targets_per_fit` validation guard required by design v2 §4.1. The #742
-margin-calibration removal remains absent.
+margin-calibration removal remains absent. Final evidence is in `out.md`.
 
 The prebuilt `.venv` is present. No dependency sync, network operation, push,
 pool/release build, publication, or promotion is in scope.
@@ -41,13 +40,19 @@ pool/release build, publication, or promotion is in scope.
 - Passed the complete focused files `test_us_weeks_unemployed.py`,
   `test_us_stacked_spine.py`, and `test_us_multispine_pool_tool.py`: 436 passed,
   1 skipped.
+- Passed the full suite in five memory-safe package shards: build 6,425 passed
+  and 40 skipped; calibrate 203 passed; data 318 passed and 2 skipped; fit 93
+  passed; frame 295 passed and 36 skipped. Total: 7,334 passed, 78 skipped.
+- Confirmed the removed calibration module remains absent and the only runtime
+  and test changes relative to `2d973984` are `stacked_spine.py` and
+  `test_us_stacked_spine.py`.
+- Wrote the final status, hunks, test evidence, re-anchor deviation, and
+  reviewer-only reclassification inventory to `out.md`.
 
 ## Next
 
-1. Run the full test suite in the five documented package shards to avoid the
-   repository's known single-process memory ceiling.
-2. Write the final evidence to `out.md`, complete this journal, and commit the
-   verification report.
+1. Hand the committed branch and `out.md` to the reviewer. No push, pool or
+   release build, publication, or promotion was performed.
 
 ## Historical prior lane
 
