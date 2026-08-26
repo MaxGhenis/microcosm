@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Run the A16 paired C2/C3 attribution controls.
 
-The six rostered recoveries are the full A14 route: Shapley on transformed
-synthetic-recipient fit rows minus Shapley on the independent R0 null, with the
-same donor substitutions.  A separate same-i,j paired-delta route audits the
-A16-12 oracle semantics but does not add control-family cells.
+The six rostered recoveries use A16-12's identical-i,j pairing: Shapley on
+transformed synthetic-recipient fit rows minus Shapley on the corresponding
+untransformed rows, with the same donor substitutions.  The full A14 route
+against the independently sampled R0 null is retained as a descriptive audit.
 """
 
 from __future__ import annotations
@@ -40,9 +40,7 @@ EXPECTED_C3_CARRIERS = 397
 
 
 def rows_label(control: str, replicate: int, gq: str) -> str:
-    return (
-        f"qrf-drift-v2.3|{control}|rows|{TARGET}|{replicate}|{PATTERN}|{gq}"
-    )
+    return f"qrf-drift-v2.3|{control}|rows|{TARGET}|{replicate}|{PATTERN}|{gq}"
 
 
 def donor_label(control: str, replicate: int) -> str:
@@ -66,8 +64,7 @@ def used_feature_indexes(gate: Any) -> tuple[int, ...]:
         for predictor in iteration:
             nodes = predictor.nodes
             used.update(
-                int(value)
-                for value in nodes["feature_idx"][nodes["is_leaf"] == 0]
+                int(value) for value in nodes["feature_idx"][nodes["is_leaf"] == 0]
             )
     return tuple(sorted(used))
 
@@ -159,13 +156,9 @@ def shapley_from_coalitions(coalitions: np.ndarray) -> np.ndarray:
         for subset in range(8):
             if subset & bit or subset & ~sum(other_bits):
                 continue
-            size = int(bool(subset & other_bits[0])) + int(
-                bool(subset & other_bits[1])
-            )
+            size = int(bool(subset & other_bits[0])) + int(bool(subset & other_bits[1]))
             weight = 1.0 / 3.0 if size in {0, 2} else 1.0 / 6.0
-            result[group_position] += weight * (
-                values[subset | bit] - values[subset]
-            )
+            result[group_position] += weight * (values[subset | bit] - values[subset])
     return result
 
 
@@ -206,7 +199,9 @@ def exact_c2_g1_delta(
     if g3:
         raise ValueError(f"G3 unexpectedly used by the frozen gate: {g3}")
     intervention_index = context["columns"].index(C2_COLUMN)
-    changed = base_bins[:, intervention_index] != transformed_bins[:, intervention_index]
+    changed = (
+        base_bins[:, intervention_index] != transformed_bins[:, intervention_index]
+    )
     if not changed.any():
         return 0.0, {
             "changed_bin_rows": 0,
@@ -299,13 +294,10 @@ def compute_exact_oracles(
             for index, count in sorted(split_counts.items())
         },
         "gate_split_count_G3": sum(
-            split_counts.get(int(index), 0)
-            for index in context["group_indexes"]["G3"]
+            split_counts.get(int(index), 0) for index in context["group_indexes"]["G3"]
         ),
         "base_bins_identity": c4.array_identity(base_bins),
-        "private_binned_prediction_identity": c4.array_identity(
-            private_probabilities
-        ),
+        "private_binned_prediction_identity": c4.array_identity(private_probabilities),
         "private_prediction_bit_identical_to_adopted_C0b": True,
         "controls": {},
     }
@@ -316,7 +308,9 @@ def compute_exact_oracles(
         tx = transformed[control]
         tx_bins = np.ascontiguousarray(gate._bin_mapper.transform(tx))
         tx_probabilities = predict_proba_binned(context, tx_bins)
-        direct_difference = tx_probabilities[:, positive] - private_probabilities[:, positive]
+        direct_difference = (
+            tx_probabilities[:, positive] - private_probabilities[:, positive]
+        )
         a_value = float(np.dot(weights, direct_difference) / weight_sum)
         if control == "C2":
             b_value, product_audit = exact_c2_g1_delta(
@@ -358,9 +352,7 @@ def compute_exact_oracles(
             "oracle_identity": c4.array_identity(oracle),
             "target_group": TARGET_GROUP[control],
             "target_group_oracle": float(oracle[GROUPS.index(TARGET_GROUP[control])]),
-            "direct_difference_nonzero_rows": int(
-                np.count_nonzero(direct_difference)
-            ),
+            "direct_difference_nonzero_rows": int(np.count_nonzero(direct_difference)),
             "direct_difference_identity": c4.array_identity(direct_difference),
             "transformed_bins_identity": c4.array_identity(tx_bins),
             "derivation": proof,
@@ -390,6 +382,63 @@ def sample_rows(
     return np.concatenate(pieces)
 
 
+def stratum_aggregation_slices(
+    plan: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Bind concatenated draw positions to exact normalized GQ shares."""
+    if not plan:
+        raise ValueError("C2/C3 stratum plan is empty")
+    total_weight = math.fsum(float(item["weight_sum"]) for item in plan)
+    if not total_weight > 0.0:
+        raise ValueError("C2/C3 stratum plan has no positive weight")
+    slices: list[dict[str, Any]] = []
+    cursor = 0
+    for item in plan:
+        allocation = int(item["allocation"])
+        weight_sum = float(item["weight_sum"])
+        if allocation < 1 or not weight_sum > 0.0:
+            raise ValueError("every positive-mass C2/C3 GQ stratum must receive a draw")
+        slices.append(
+            {
+                "gq": item["gq"],
+                "start": cursor,
+                "stop": cursor + allocation,
+                "allocation": allocation,
+                "weight_sum": weight_sum,
+                "exact_weight_share": weight_sum / total_weight,
+            }
+        )
+        cursor += allocation
+    return slices
+
+
+def exact_stratum_weighted_mean(
+    values: np.ndarray,
+    slices: list[dict[str, Any]],
+) -> float:
+    """Compute sum_h (W_h/W) mean_h in registered GQ order."""
+    vector = np.asarray(values, dtype=np.float64)
+    if vector.ndim != 1:
+        raise ValueError("stratum aggregation expects a one-dimensional vector")
+    if not slices or int(slices[-1]["stop"]) != len(vector):
+        raise ValueError("stratum slices do not cover the prediction vector")
+    result = 0.0
+    for item in slices:
+        start = int(item["start"])
+        stop = int(item["stop"])
+        unit_mean = float(vector[start:stop].sum(dtype=np.float64) / (stop - start))
+        result += float(item["exact_weight_share"]) * unit_mean
+    return result
+
+
+def flat_unit_mean(values: np.ndarray) -> float:
+    """Compute the A14 donor-side unit mean, which has no GQ strata."""
+    vector = np.asarray(values, dtype=np.float64)
+    if vector.ndim != 1 or not len(vector):
+        raise ValueError("flat aggregation expects a nonempty 1D vector")
+    return float(vector.sum(dtype=np.float64) / len(vector))
+
+
 def _hybrid_block(
     context: dict[str, Any],
     base: np.ndarray,
@@ -411,6 +460,7 @@ def evaluate_replicate(
     row_index: np.ndarray,
     donor_index: np.ndarray,
     r0_index: np.ndarray,
+    aggregation_slices: list[dict[str, Any]],
 ) -> dict[str, np.ndarray]:
     """Evaluate full-route and same-i,j paired Shapley for one replicate."""
     base = context["donor_x"]
@@ -422,14 +472,24 @@ def evaluate_replicate(
     }
     positive = positive_position(context)
     known_empty = {
-        "null": float(context["donor_probabilities"][r0_index, positive].mean()),
-        "paired_base": float(
-            context["donor_probabilities"][row_index, positive].mean()
+        "null": flat_unit_mean(context["donor_probabilities"][r0_index, positive]),
+        "paired_base": exact_stratum_weighted_mean(
+            context["donor_probabilities"][row_index, positive],
+            aggregation_slices,
         ),
     }
-    known_all = float(
-        context["donor_probabilities"][donor_index, positive].mean()
-    )
+    donor_endpoint = context["donor_probabilities"][donor_index, positive]
+    known_all = {
+        "real": exact_stratum_weighted_mean(
+            donor_endpoint,
+            aggregation_slices,
+        ),
+        "paired_base": exact_stratum_weighted_mean(
+            donor_endpoint,
+            aggregation_slices,
+        ),
+        "null": flat_unit_mean(donor_endpoint),
+    }
 
     # The frozen gate has no G3 splits.  Evaluate masks 0..3 and duplicate the
     # G3 variants exactly; real empty is transformed and therefore predicted.
@@ -443,25 +503,30 @@ def evaluate_replicate(
         ("paired_base", 2),
     ]
     blocks = [
-        _hybrid_block(context, path_bases[path], donor, mask)
-        for path, mask in specs
+        _hybrid_block(context, path_bases[path], donor, mask) for path, mask in specs
     ]
-    probabilities = context["gate"].predict_proba(np.concatenate(blocks))[
-        :, positive
-    ].reshape(len(specs), len(row_index))
-    predicted_means = {
-        spec: float(probabilities[position].mean())
-        for position, spec in enumerate(specs)
-    }
+    probabilities = (
+        context["gate"]
+        .predict_proba(np.concatenate(blocks))[:, positive]
+        .reshape(len(specs), len(row_index))
+    )
+    predicted_means = {}
+    for position, spec in enumerate(specs):
+        path, _mask = spec
+        if path == "null":
+            predicted_means[spec] = flat_unit_mean(probabilities[position])
+        else:
+            predicted_means[spec] = exact_stratum_weighted_mean(
+                probabilities[position],
+                aggregation_slices,
+            )
     coalitions: dict[str, np.ndarray] = {}
     for path in path_bases:
         values = np.empty(8, dtype=np.float64)
-        values[0] = (
-            predicted_means[(path, 0)] if path == "real" else known_empty[path]
-        )
+        values[0] = predicted_means[(path, 0)] if path == "real" else known_empty[path]
         values[1] = predicted_means[(path, 1)]
         values[2] = predicted_means[(path, 2)]
-        values[3] = known_all
+        values[3] = known_all[path]
         for mask in range(4, 8):
             values[mask] = values[mask & 3]
         coalitions[path] = values
@@ -511,6 +576,7 @@ def run_replicate_range(
     )
     probabilities = context["donor_choice_probabilities"]
     sample_size = sum(item["allocation"] for item in plan)
+    aggregation_slices = stratum_aggregation_slices(plan)
     first_indexes: dict[str, Any] | None = None
     last_indexes: dict[str, Any] | None = None
     for offset, replicate in enumerate(range(start, stop)):
@@ -525,7 +591,14 @@ def run_replicate_range(
             probabilities,
             sample_size,
         )
-        values = evaluate_replicate(context, transformed, rows, donor, r0)
+        values = evaluate_replicate(
+            context,
+            transformed,
+            rows,
+            donor,
+            r0,
+            aggregation_slices,
+        )
         for name, array in arrays.items():
             array[offset] = values[name]
         identities = {
@@ -613,7 +686,7 @@ def control_statistics(
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for position, group in enumerate(GROUPS):
-        vector = arrays["recovered"][:, position]
+        vector = arrays["paired_delta"][:, position]
         summary = error_summary(vector, float(oracle[position]))
         rows.append(
             {
@@ -625,21 +698,21 @@ def control_statistics(
                 "target_group": group == TARGET_GROUP[control],
                 "family": "C2_C3_group_errors",
                 "gated": True,
+                "estimator_array": "paired_delta",
+                "pairing": "same_i_j",
                 "status": "PASS" if summary["pass"] else "FAIL",
                 **summary,
                 "replicate_values": [float(value) for value in vector],
                 "replicate_values_identity": c4.array_identity(vector),
                 "source": {
                     "design": str(c4.DESIGN_MD),
-                    "design_sha256": c4.EXPECTED_AUTHORITY_DIGESTS[
-                        str(c4.DESIGN_MD)
-                    ],
+                    "design_sha256": c4.EXPECTED_AUTHORITY_DIGESTS[str(c4.DESIGN_MD)],
                     "d0_sha256": c4.EXPECTED_AUTHORITY_DIGESTS[str(c4.D0_JSON)],
                     "adopted_c0b_sha256": c4.EXPECTED_C0B_SHA256,
                     "binding": "A16 findings 12-14",
+                    "official_recovery_array": "paired_delta",
                     "exact_oracle_pointer": (
-                        f"/exact_oracles/controls/{control}/"
-                        "oracle_group_order_G1_G2_G3"
+                        f"/exact_oracles/controls/{control}/oracle_group_order_G1_G2_G3"
                     ),
                 },
             }
@@ -654,7 +727,7 @@ def array_payload(values: np.ndarray) -> dict[str, Any]:
     }
 
 
-def paired_audit_rows(
+def independent_r0_audit_rows(
     arrays: dict[str, Any],
     oracle: np.ndarray,
 ) -> list[dict[str, Any]]:
@@ -662,9 +735,9 @@ def paired_audit_rows(
         {
             "group": group,
             "rostered": False,
-            **error_summary(arrays["paired_delta"][:, position], float(oracle[position])),
+            **error_summary(arrays["recovered"][:, position], float(oracle[position])),
             "replicate_values_identity": c4.array_identity(
-                arrays["paired_delta"][:, position]
+                arrays["recovered"][:, position]
             ),
         }
         for position, group in enumerate(GROUPS)
@@ -750,6 +823,7 @@ def _base_result(
             "largest_share_pattern": True,
             "pattern_sample_size": sum(item["allocation"] for item in plan),
             "pattern_allocation": plan,
+            "pattern_stratum_aggregation": stratum_aggregation_slices(plan),
             "target_allocation": allocation,
             "positive_class": "positive",
             "gate_classes": [int(value) for value in context["gate_classes"]],
@@ -760,20 +834,34 @@ def _base_result(
             "sidak_z": c4.Z_STAR,
             "overall_ordered_ids_sha256": c4.OVERALL_ROSTER_SHA256,
             "ids": [
-                statistic_id(control, group)
-                for control in CONTROLS
-                for group in GROUPS
+                statistic_id(control, group) for control in CONTROLS for group in GROUPS
             ],
         },
         "estimator": {
+            "official_recovery_array": "paired_delta",
+            "official_pairing": "same_i_j",
             "official_recovery": (
-                "Shapley(T(rows), donor) - Shapley(r0, donor); the donor "
-                "sequence is position-paired across paths"
-            ),
-            "semantic_audit": (
                 "Shapley(T(rows), donor) - Shapley(rows, donor), using "
-                "identical i,j draws; descriptive, not an extra K cell"
+                "identical i,j draws"
             ),
+            "independent_r0_array": "recovered",
+            "independent_r0_role": "descriptive_full_A14_route_not_rostered",
+            "independent_r0_audit": (
+                "Shapley(T(rows), donor) - Shapley(r0, donor); r0 is "
+                "consumed as required by A16-13 but is not a K cell"
+            ),
+            "coalition_aggregation": {
+                "method": "exact_stratum_weight_share_weighted_unit_means",
+                "formula": "sum_h((W_h/W)*mean_h)",
+                "allocation_role": "slice_boundaries_only",
+                "order": "registered_GQ_order",
+                "paths": ["real", "paired_base"],
+                "includes_aligned_all_endpoints": True,
+                "independent_r0_null_path": {
+                    "method": "flat_unit_mean",
+                    "reason": "A14 donor side has no GQ strata",
+                },
+            },
             "sampling": (
                 "fresh PCG64 per complete literal label; fit-weight PPS with "
                 "replacement; unit analysis weights"
@@ -797,14 +885,10 @@ def _base_result(
             "state_before_sha256": context["state_before_sha256"],
             "state_before_source": context["state_before_source"],
             "columns": list(context["columns"]),
-            "groups": {
-                group: list(context["groups"][group]) for group in GROUPS
-            },
+            "groups": {group: list(context["groups"][group]) for group in GROUPS},
             "donor_x_identity": c4.array_identity(context["donor_x"]),
             "donor_y_identity": c4.array_identity(context["donor_y"]),
-            "donor_weight_identity": replay.weight_identity(
-                context["donor_weights"]
-            ),
+            "donor_weight_identity": replay.weight_identity(context["donor_weights"]),
             "donor_probability_identity": c4.array_identity(
                 context["donor_probabilities"]
             ),
@@ -851,7 +935,7 @@ def control_payload(
         status = "UNDERPOWERED"
     else:
         status = "PASS"
-    replicate_count = len(arrays["recovered"])
+    replicate_count = len(arrays["paired_delta"])
     payload = {
         "control": control,
         "target": TARGET,
@@ -867,11 +951,17 @@ def control_payload(
                 {
                     "gq": item["gq"],
                     "allocation": item["allocation"],
+                    "exact_weight_share": slice_item["exact_weight_share"],
+                    "slice_start": slice_item["start"],
+                    "slice_stop": slice_item["stop"],
                     "first": rows_label(control, 0, item["gq"]),
                     "last": rows_label(control, replicate_count - 1, item["gq"]),
                 }
-                for item in plan
-                if item["allocation"] > 0
+                for item, slice_item in zip(
+                    plan,
+                    stratum_aggregation_slices(plan),
+                    strict=True,
+                )
             ],
             "donor_first": donor_label(control, 0),
             "donor_last": donor_label(control, replicate_count - 1),
@@ -881,8 +971,7 @@ def control_payload(
             "index_identities": arrays["index_identities"],
         },
         "oracle_by_group": {
-            group: float(oracle[position])
-            for position, group in enumerate(GROUPS)
+            group: float(oracle[position]) for position, group in enumerate(GROUPS)
         },
         "replicate_arrays": {
             name: array_payload(arrays[name])
@@ -897,7 +986,15 @@ def control_payload(
                 "paired_base_coalitions",
             )
         },
-        "paired_same_i_j_semantic_audit": paired_audit_rows(arrays, oracle),
+        "official_recovery": {
+            "array": "paired_delta",
+            "pairing": "same_i_j",
+            "rostered": True,
+        },
+        "independent_r0_full_route_descriptive_audit": independent_r0_audit_rows(
+            arrays,
+            oracle,
+        ),
         "power": {
             "target_group": TARGET_GROUP[control],
             "effect": float(oracle[target_position]),
@@ -931,9 +1028,7 @@ def main() -> None:
         and c0b["summary"]["e2_repeated_draw_control_pass"]
     ):
         raise ValueError("adopted C0b artifact is not a clean pass")
-    c0b_lookup = {
-        (item["target"], item["pattern"]): item for item in c0b["patterns"]
-    }
+    c0b_lookup = {(item["target"], item["pattern"]): item for item in c0b["patterns"]}
 
     if args.skip_c4_prerequisite:
         c4_prerequisite = {
@@ -1071,9 +1166,7 @@ def main() -> None:
         all_statistics.extend(statistics)
     result["statistics"] = all_statistics
     expected_ids = sorted(
-        statistic_id(control, group)
-        for control in CONTROLS
-        for group in GROUPS
+        statistic_id(control, group) for control in CONTROLS for group in GROUPS
     )
     actual_ids = sorted(item["id"] for item in all_statistics)
     if actual_ids != expected_ids or len(actual_ids) != 6:
