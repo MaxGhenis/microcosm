@@ -557,3 +557,54 @@ escalation rule: 250 first; any target-pattern where a contribution's
 question is incidence generalization; no forests, no amount draws) and runs
 after the ledger readings, consistent with §3.6's "C1 never gates the
 instrument".
+
+## Amendment v2.2 (2026-08-26, logged after CONTROLS_FAILED, before any reading)
+
+Trigger: Phase-0 run 20260826-100441 stopped fail-closed
+(`experiments/qrf_drift_validation_phase0.{md,json}`): C0a PASSED 72/72 and
+the E4 gate replay PASSED (36/36 gates, 12,909,037 signs, 0 mismatches), but
+C0b's E2 check, C4's null, and C5's fixture were not uniquely specified and
+the lane correctly refused to choose. No reading was computed. Per §3.6 this
+is the one permitted refreeze: ALL control seed prefixes bump to
+`qrf-drift-v2.2|…` (reading seeds unchanged — none were consumed). If any
+control fails NUMERICALLY on the rerun, the instrument is invalid-terminal
+and the failure table goes to Max.
+
+**A9 — C0b/E2 repeated-draw protocol.** Per pattern × sign class: R = 1,000
+replicate categorical draws from the reproduced gate's probabilities, PCG64
+seeded from the first 64 bits of SHA-256 of
+`qrf-drift-v2.2|C0b|<target>|<pattern>|<replicate>`. Pass iff
+|mean replicate weighted drawn share − expected E2 share| ≤ z*·SD_exact/√R
+with z* = 3.673063850314496 (these 76 cells are the ones already counted in
+K = 214), AND the frozen production draw's own single-realization |z| ≤ z*.
+Zero-exact-variance cells (every row's p ∈ {0,1}) are exact checks outside
+the z family: drawn share must equal expected exactly.
+
+**A10 — C4 null construction.** The no-change null is a donor
+self-substitution exchangeability null: run the full §3.2 machinery with the
+recipient rows replaced by an independent seeded fit-weight-proportional
+donor-row sample of the A8 subsample size, so source and target coincide by
+construction and every stochastic contribution has expectation zero. Seeds:
+`qrf-drift-v2.2|C4|<target>|<pattern>|<replicate>`. Pass per statistic iff
+|contribution| ≤ z*·(its MC SE); the 20 deterministic empty-G3 outputs are
+exact zero checks outside the z family.
+
+**A11 — C5 fixture instance (unique by construction).** Rows i = 0…59;
+household h(i) = ⌊i/3⌋ (20 households of 3); pattern p(i) = i mod 2; weights
+w(i) = 1 + (i mod 7). Provenance by index: i ∈ [0,39] QRF-drawn (in scope,
+authorized, null-before, finite raw draw = 100+i, decode succeeds);
+i ∈ [40,49] native non-null (value 200+i; not null-before); i ∈ [50,55]
+outside-authorized (null-before, no draw); i ∈ [56,59] undecoded
+(authorized, null-before, finite raw draw = 300+i, decode fails). Expected
+S_q = {i ≤ 39}, split by pattern; S_o = scope \ S_q; expected φ_p and the
+path census follow arithmetically from the construction. One writer
+serializes the fixture (mini bank + terminal frame) from this paragraph;
+the production-path P0 reader recovers masks independently; the 8 A4
+booleans compare them. Writer and reader must share no mask code.
+
+**A12 — D0-0 supplement (accepted).** Three later-chain predecessor
+checkpoints used by the E4 replay were hashed at first use and are hereby
+pinned: adult-care predecessor bb2d1b15…, prior-year-income predecessor
+724e1236…, model-required-numeric predecessor 0aa26da0… (full digests in the
+Phase-0 report). The D0-0 "design sha" row records the pre-A8 file by
+chronology; the operative design is always the current committed file.
