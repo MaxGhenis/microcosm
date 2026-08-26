@@ -225,7 +225,10 @@ is authorized or planned.
   hashes are recorded above; all 62 Step-0 rows and all live authority/source
   bindings pass; 382,903 rows are assigned exactly once with no missing,
   duplicate, or unexpected row; and both decile-to-T2 closures are inside the
-  recorded natural-scale bounds.
+  recorded natural-scale bounds. An independent 510-assertion audit rehashed
+  all authority, source, and 18 live input bindings (including both multi-GB
+  checkpoints), recomputed the canonical bytes, manifest slice, assignment
+  masks/counts, P1 T2/support equality, and drift residuals with zero failure.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,
