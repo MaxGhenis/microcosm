@@ -37,13 +37,16 @@ pool/release build, publication, or promotion is in scope.
   evidence was restored.
 - Added focused evaluator and terminal-mutation coverage for the weeks rule.
 - Passed touched-file Ruff and the three focused D0-10 regressions (3 passed).
+- Passed repository-wide Ruff.
+- Passed the complete focused files `test_us_weeks_unemployed.py`,
+  `test_us_stacked_spine.py`, and `test_us_multispine_pool_tool.py`: 436 passed,
+  1 skipped.
 
 ## Next
 
-1. Run the complete weeks-specific and stacked-transfer test files.
-2. Run repository-wide Ruff and the full test suite, sharded only if memory
-   requires it.
-3. Write the final evidence to `out.md`, complete this journal, and commit the
+1. Run the full test suite in the five documented package shards to avoid the
+   repository's known single-process memory ceiling.
+2. Write the final evidence to `out.md`, complete this journal, and commit the
    verification report.
 
 ## Historical prior lane
