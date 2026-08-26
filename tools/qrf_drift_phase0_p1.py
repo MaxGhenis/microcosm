@@ -1530,24 +1530,15 @@ def _run_candidate_target(
     terminal_role = _terminal_on_role(aux, role, target, target_spec)
     precal_role = terminal_role.copy()
     precal_role[sq] = structural_role[sq]
+    # The candidate terminal contains the later calibration edit.  It is a
+    # useful diagnostic contrast, but it is not the A15.23 equality gate:
+    # D0-4 and A17-15(iii) bind that gate to baseline1pct.  I_q is therefore
+    # the replayed post-structural, pre-calibration surface here.
     terminal_compare = sq
     structural_terminal_unequal = terminal_compare & (
         np.asarray(structural_role).view(np.uint64)
         != np.asarray(terminal_role).view(np.uint64)
     )
-    if structural_terminal_unequal.any():
-        raise SurfaceUnavailableError(
-            "recipient_structural",
-            {
-                "target": target,
-                "reason": "replayed post-structural surface disagrees with pinned terminal",
-                "unequal_rows": int(structural_terminal_unequal.sum()),
-                "unequal_mask": mask_identity(structural_terminal_unequal),
-                "operator_row": _operator_row(
-                    operator_table, target, "recipient_structural"
-                ),
-            },
-        )
 
     receipt = _receipt_for_target(data["d0"], target)
     full_drawn = np.isfinite(raw_full)
@@ -1743,7 +1734,12 @@ def _run_candidate_target(
                 **structural_diagnostic,
                 "terminal_unequal_rows": int(structural_terminal_unequal.sum()),
                 "terminal_unequal_mask": mask_identity(structural_terminal_unequal),
-                "terminal_replay_gate": "PASS",
+                "terminal_comparison_status": "DESCRIPTIVE_POST_CALIBRATION_CONTRAST",
+                "terminal_replay_gate": "NOT_APPLICABLE_CANDIDATE_PRE_CALIBRATION",
+                "terminal_replay_gate_authority": (
+                    "A15.23 + A17-15(iii): equality is gated on the "
+                    "D0-4-proven baseline1pct terminal, not candidate-25"
+                ),
             },
             "codec": {
                 **codec_diagnostic,
