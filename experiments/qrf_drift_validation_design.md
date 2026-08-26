@@ -545,3 +545,15 @@ and the canonical max_targets_per_fit guard — both restored before any B
 build per §4.1's parity doctrine. SEILY's negative leg has 48 unique donor
 carriers at 25% (floor 50): that leg is reported with SEs but formally
 DEFERred by the frozen §3.7 rule, at both rungs.
+
+**A8 — §3.2 compute rule (pre-registered, not improvised).** At the 25% rung
+each Shapley replicate evaluates on a seeded weighted-stratified subsample of
+min(100,000, |S_q|) recipient rows (strata: pattern × GQ status; unbiased for
+the weighted mean; the replicate spread's MC SE then covers donor-draw and
+row-subsample randomness together). Replicates are adaptive with a fixed
+escalation rule: 250 first; any target-pattern where a contribution's
+|value|/MC-SE falls in [2, 4] escalates to the full 1,000; seeds unchanged
+(`qrf-drift-v2|target|pattern|replicate`). C1 is scoped to gates (the H2
+question is incidence generalization; no forests, no amount draws) and runs
+after the ledger readings, consistent with §3.6's "C1 never gates the
+instrument".
