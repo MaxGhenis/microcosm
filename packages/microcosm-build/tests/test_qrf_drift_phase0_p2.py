@@ -164,3 +164,55 @@ def test_categorical_marginal_has_kish_level_detail_and_support_evidence() -> No
     )
     assert audit["donor_copied_substitution_outside_donor_support_share"] == 0.0
     assert audit["categories"][2]["difference_se"] > 0.0
+
+
+def test_pattern_closure_failure_invalidates_target_aggregate() -> None:
+    pattern_payloads = [
+        {
+            "pattern": "p0",
+            "legs": [{"leg": "positive", "attribution_status": "VALIDATED"}],
+        },
+        {
+            "pattern": "p1",
+            "legs": [
+                {
+                    "leg": "positive",
+                    "attribution_status": "NOT_VALIDATED_CLOSURE_FAILURE",
+                }
+            ],
+        },
+    ]
+    pattern_data = [
+        {"context": {"pattern": pattern, "gate_classes": np.asarray([1])}}
+        for pattern in ("p0", "p1")
+    ]
+    pattern_arrays = {
+        pattern: {
+            "null_referenced_shapley": np.full((4, 1, 3), value, dtype=np.float64)
+        }
+        for pattern, value in (("p0", 1.0), ("p1", 2.0))
+    }
+    support = {
+        "positive": {"pass": True, "status": "SUPPORTED"},
+        "negative": {"pass": False, "status": "INSUFFICIENT_SUPPORT_NO_VERDICT"},
+    }
+
+    aggregates, statistics = P2._aggregate_groups(
+        "fixture",
+        pattern_data,
+        pattern_payloads,
+        pattern_arrays,
+        {"p0": 0.5, "p1": 0.5},
+        support,
+    )
+
+    positive = next(item for item in aggregates if item["leg"] == "positive")
+    assert positive["status"] == "NOT_VALIDATED_PATTERN_CLOSURE_FAILURE"
+    assert positive["attribution_validated"] is False
+    assert positive["invalid_patterns"] == ["p1"]
+    positive_stats = [item for item in statistics if item["leg"] == "positive"]
+    assert len(positive_stats) == 3
+    assert all(item["status"] == positive["status"] for item in positive_stats)
+    assert all(
+        item["family"] is None and item["gated"] is False for item in positive_stats
+    )

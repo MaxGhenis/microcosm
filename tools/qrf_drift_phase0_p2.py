@@ -1133,45 +1133,9 @@ def _serialize_pattern(
             continue
         leg = replay.label_name(int(class_code))
         supported = supports[leg]["pass"]
-        status = "PASS" if supported else "INSUFFICIENT_SUPPORT_NO_VERDICT"
         raw_shapley = arrays["real_shapley"][:, class_position]
         null_shapley = arrays["null_shapley"][:, class_position]
         nr_shapley = arrays["null_referenced_shapley"][:, class_position]
-        group_rows: list[dict[str, Any]] = []
-        for group_position, group in enumerate(GROUPS):
-            variants = {
-                "raw": raw_shapley[:, group_position],
-                "null": null_shapley[:, group_position],
-                "null_referenced": nr_shapley[:, group_position],
-            }
-            variant_payload = {
-                name: {**mc_summary(vector), "array": _array_payload(vector)}
-                for name, vector in variants.items()
-            }
-            group_rows.append({"group": group, "variants": variant_payload})
-            for variant, summary in variant_payload.items():
-                stats.append(
-                    statistic_fragment(
-                        target=target,
-                        pattern=pattern,
-                        leg=leg,
-                        row="P2_group_pattern",
-                        group=group,
-                        variant=variant,
-                        value=float(summary["value"]),
-                        mcse=float(summary["mcse"]),
-                        family=None,
-                        gated=False,
-                        status=status
-                        if variant == "null_referenced"
-                        else "DESCRIPTIVE",
-                        source_pointer=(
-                            f"/targets/{target}/patterns/{pattern}/legs/{leg}/"
-                            f"groups/{group}/{variant}"
-                        ),
-                    )
-                )
-
         closure_arrays = closure_vectors(arrays, endpoints, class_position)
         closures = {
             name: {
@@ -1192,6 +1156,49 @@ def _serialize_pattern(
             if closure_pass and exact_closure["pass"]
             else "NOT_VALIDATED_CLOSURE_FAILURE"
         )
+        group_rows: list[dict[str, Any]] = []
+        for group_position, group in enumerate(GROUPS):
+            variants = {
+                "raw": raw_shapley[:, group_position],
+                "null": null_shapley[:, group_position],
+                "null_referenced": nr_shapley[:, group_position],
+            }
+            variant_payload = {
+                name: {**mc_summary(vector), "array": _array_payload(vector)}
+                for name, vector in variants.items()
+            }
+            group_rows.append(
+                {
+                    "group": group,
+                    "variants": variant_payload,
+                    "attribution_status": attribution_status,
+                }
+            )
+            for variant, summary in variant_payload.items():
+                stats.append(
+                    statistic_fragment(
+                        target=target,
+                        pattern=pattern,
+                        leg=leg,
+                        row="P2_group_pattern",
+                        group=group,
+                        variant=variant,
+                        value=float(summary["value"]),
+                        mcse=float(summary["mcse"]),
+                        family=None,
+                        gated=False,
+                        status=(
+                            attribution_status
+                            if variant == "null_referenced"
+                            else "DESCRIPTIVE"
+                        ),
+                        source_pointer=(
+                            f"/targets/{target}/patterns/{pattern}/legs/{leg}/"
+                            f"groups/{group}/{variant}"
+                        ),
+                    )
+                )
+
         for name, summary in closures.items():
             stats.append(
                 statistic_fragment(
@@ -1241,9 +1248,11 @@ def _serialize_pattern(
                         family=None,
                         gated=False,
                         status=(
-                            "DESCRIPTIVE"
-                            if supported
-                            else "INSUFFICIENT_SUPPORT_NO_VERDICT"
+                            "INSUFFICIENT_SUPPORT_NO_VERDICT"
+                            if not supported
+                            else "DESCRIPTIVE_VALIDATED_PATTERN"
+                            if attribution_status == "VALIDATED"
+                            else "DESCRIPTIVE_NOT_VALIDATED_CLOSURE_FAILURE"
                         ),
                         source_pointer=(
                             f"/targets/{target}/patterns/{pattern}/legs/{leg}/"
@@ -1257,6 +1266,7 @@ def _serialize_pattern(
             "array": _array_payload(interaction),
             "definition": "G3 null-referenced Shapley minus sum of A1 marginals",
             "descriptive_only": True,
+            "attribution_status": attribution_status,
         }
 
         initial = initial_decisions[leg]
@@ -1443,9 +1453,41 @@ def _marginal_fragments(
     return rows
 
 
+def aggregate_attribution_status(
+    pattern_payloads: list[dict[str, Any]],
+    leg: str,
+    *,
+    supported: bool,
+) -> dict[str, Any]:
+    """Propagate any required pattern closure failure to the target aggregate."""
+    if not supported:
+        return {
+            "status": "INSUFFICIENT_SUPPORT_NO_VERDICT",
+            "validated": False,
+            "invalid_patterns": [],
+        }
+    rows: list[tuple[str, str]] = []
+    for pattern in pattern_payloads:
+        matches = [item for item in pattern["legs"] if item["leg"] == leg]
+        require(
+            len(matches) == 1,
+            f"aggregate attribution needs one {leg} row for {pattern['pattern']}",
+        )
+        rows.append((pattern["pattern"], matches[0]["attribution_status"]))
+    invalid = [pattern for pattern, status in rows if status != "VALIDATED"]
+    return {
+        "status": (
+            "VALIDATED" if not invalid else "NOT_VALIDATED_PATTERN_CLOSURE_FAILURE"
+        ),
+        "validated": not invalid,
+        "invalid_patterns": invalid,
+    }
+
+
 def _aggregate_groups(
     target: str,
     pattern_data: list[dict[str, Any]],
+    pattern_payloads: list[dict[str, Any]],
     pattern_arrays: dict[str, dict[str, Any]],
     alpha: dict[str, float],
     supports: dict[str, Any],
@@ -1481,6 +1523,11 @@ def _aggregate_groups(
             continue
         group_rows: list[dict[str, Any]] = []
         supported = supports[leg]["pass"]
+        attribution = aggregate_attribution_status(
+            pattern_payloads,
+            leg,
+            supported=supported,
+        )
         for group_position, group in enumerate(GROUPS):
             vector: np.ndarray | None = None
             summation_order: list[dict[str, Any]] = []
@@ -1506,6 +1553,7 @@ def _aggregate_groups(
                     "group": group,
                     **summary,
                     "alpha_summation_order": summation_order,
+                    "attribution_status": attribution["status"],
                 }
             )
             stats.append(
@@ -1516,18 +1564,18 @@ def _aggregate_groups(
                     group=group,
                     value=float(summary["value"]),
                     mcse=float(summary["mcse"]),
-                    family="F2" if supported else None,
-                    gated=supported,
-                    status=("PASS" if supported else "INSUFFICIENT_SUPPORT_NO_VERDICT"),
+                    family="F2" if attribution["validated"] else None,
+                    gated=attribution["validated"],
+                    status=attribution["status"],
                     source_pointer=f"/targets/{target}/aggregates/{leg}/{group}",
                 )
             )
         aggregates.append(
             {
                 "leg": leg,
-                "status": (
-                    "SUPPORTED" if supported else "INSUFFICIENT_SUPPORT_NO_VERDICT"
-                ),
+                "status": attribution["status"],
+                "attribution_validated": attribution["validated"],
+                "invalid_patterns": attribution["invalid_patterns"],
                 "support": supports[leg],
                 "groups": group_rows,
             }
@@ -1693,7 +1741,7 @@ def run_target(
         )
 
     aggregates, aggregate_stats = _aggregate_groups(
-        target, pattern_runtime, arrays, alpha, supports
+        target, pattern_runtime, pattern_payloads, arrays, alpha, supports
     )
     stats.extend(aggregate_stats)
     payload: dict[str, Any] = {
