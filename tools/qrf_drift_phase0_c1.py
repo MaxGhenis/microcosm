@@ -70,6 +70,14 @@ READING_COMPLETE_STATUSES = {
     "COMPLETE",
     "COMPLETE_WITH_DECLARED_PRIORITY_OMISSIONS",
 }
+READING_RECORDED_DISPOSITIONS = {
+    "COMPLETE",
+    "PASS",
+    "NOT_RUN_PRIORITY_RULE",
+    "DISPOSITION_RECORDED",
+    "NOT_VALIDATED",
+    "COMPLETE_WITH_NO_SURFACE",
+}
 
 
 def require(condition: bool, message: str) -> None:
@@ -290,13 +298,7 @@ def _completed_probe_names(payload: dict[str, Any]) -> set[str]:
                 str(name)
                 for name, status in value.items()
                 if status is True
-                or str(status).upper()
-                in {
-                    "COMPLETE",
-                    "PASS",
-                    "NOT_RUN_PRIORITY_RULE",
-                    "DISPOSITION_RECORDED",
-                }
+                or str(status).upper() in READING_RECORDED_DISPOSITIONS
             }
     return set()
 

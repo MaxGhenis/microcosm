@@ -181,6 +181,13 @@ is authorized or planned.
   `is_incapable_of_self_care` and `previous_year_income_available` use
   registered Boolean category order 0/1, and added the imported A18 verifier
   to the executor's recorded `source_files`. Focused tests and Ruff pass.
+- Implemented the fail-closed readings-before-C1 barrier. It verifies and
+  directly binds the adopted controls, fresh C3, complete P0/P1/P6/P7,
+  complete-but-`NOT_VALIDATED` P2, both baseline cross-rung readings, and
+  exactly six disjoint P5 shards whose union is all nine targets. C1 now
+  recognizes the exact terminal P2/P6 dispositions without treating them as
+  validated science. Thirteen focused barrier/C1 tests, Ruff, and format
+  checks pass. The authoritative barrier awaits completion of all P5 shards.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
