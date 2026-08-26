@@ -648,7 +648,9 @@ validate_pool_outputs() {
     acs_person "$ACS_PERSON" "$ACS_PERSON_SHA" \
     acs_rent_donor "$ACS_RENT" "$ACS_RENT_SHA" \
     processed_puf "$PUF_H5" "$PUF_H5_SHA" \
-    puf_source_year "$PUF_SOURCE" "$PUF_SOURCE_SHA" <<'PY'
+    puf_source_year "$PUF_SOURCE" "$PUF_SOURCE_SHA" \
+    puma_ladder "$PUMA_LADDER" "$PUMA_LADDER_SHA" \
+    congressional_district_vintage_crosswalk "$CD_CROSSWALK" "$CD_CROSSWALK_SHA" <<'PY'
 import hashlib
 import json
 import sys
