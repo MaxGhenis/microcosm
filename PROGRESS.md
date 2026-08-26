@@ -2,59 +2,59 @@
 
 ## State
 
-Ready to merge the provisioned `origin/main` ref
-`f9d3b4838c137e113e87452ccdeaa734b11733d2` into
-`battery-rare-signed-tails` as of 2026-08-25. The semantic dry merge found no
-genuine contradiction. No merge has been started and no product source has
-changed.
+Ready to commit the final catch-up merge of provisioned `origin/main`
+`bb796cb7ba577e59d400b84334433c2724d755ce` into
+`battery-rare-signed-tails` as of 2026-08-26. The first merge commit
+`91ba6058` integrated `f9d3b483`; main then advanced locally through PR #743,
+so this second merge incorporates that exact tip. Its only conflict is
+resolved, the complete no-build suite is green under the required isolated
+memory regime, and no genuine semantic contradiction was found.
 
 ## Done
 
-- Read the repository agent guide and confirmed the PR-CI/certification,
-  no-publication, sharded-test, and root-journal rules.
-- Confirmed the checked-out branch and clean starting tree.
-- Completed the required US-extra workspace sync with uv's cache redirected to
-  writable temporary storage because the sandbox cannot mutate the default
-  cache.
-- Historicized the prior lane-completion record below before merging main, so
-  its currency claims cannot be mistaken for the state of this merge task.
-- Attempted to refresh `origin/main`; GitHub DNS is unavailable in the sandbox.
-  The provisioned ref is from 2026-08-25 and contains the cited #742/#763
-  history, so this task will merge that exact recorded SHA and report the
-  network limitation.
-- Ran `git merge-tree` against the exact two heads. The current ref has 21
-  textual conflicts: three root journals, the generated F0 coverage report,
-  four implementation/tool files, two anti-rot ledgers, and eleven tests.
-- Read the #742 F0 port precedent (`e66074ad`, `e0947020`, `1fc9055e`, with
-  follow-up `87e638bd`). Its controlling pattern is to recompute all union-tree
-  measurements, preserve both serializer paths, and use complete shard tests
-  to catch semantic omissions.
-- Established the receipt union: keep complete fitted `regimes` and selected
-  policy `target_regimes` as separate fields; carry both branch
-  group/aggregate `realized_regimes` and main's calibrated-target
-  `qrf_pattern_evidence`/owner receipts; cross-check selected persisted bank
-  regimes on both fresh and resumed paths.
-- Identified an identity collision not expressible by choosing either parent:
-  both independently advanced the stacked checkpoint materializer from 11 to
-  12. The union must advance to 13 in runtime, authored spec, schema, and stale
-  checkpoint tests. Main's manifest/H5/CD-provenance versions and this branch's
-  pool-stage/legacy-checkpoint versions otherwise compose without collision.
-- Recorded the repository-native re-pin sequence: bundle generator/check,
-  claim expansion inventory, field ledger totals, inventory observations,
-  spec-envelope digests, receipt projection identities, coverage writer/check,
-  focused union tests, then the file-isolated full no-build suite and Ruff.
+- Completed the required `uv sync --all-packages --extra us` before merging,
+  using the writable lane cache and offline resolution after GitHub DNS proved
+  unavailable.
+- Committed the pre-merge journal and semantic-union design before touching the
+  merge, then committed `91ba6058` with a per-file justification for all 21
+  conflicts against `f9d3b483`.
+- Preserved complete fitted `regimes` and selected policy `target_regimes` as
+  separate ACS receipt fields. Group and aggregate receipts retain complete
+  realized regimes alongside main's calibration ownership, policy evidence,
+  QRF evidence, live-output validation, and CD provenance.
+- Advanced the independently colliding stacked materializer identities to 13
+  and retained the distinct pool-stage, legacy-checkpoint, H5, manifest, and
+  late-receipt advances from both parents.
+- Regenerated the first merge's entire anti-rot chain with repository tools:
+  42,121 total fields (32,351 authored plus 9,770 resolved), 49 claims, 41
+  inventory checks, all moved identity projections, country envelopes, the US
+  bundle, and the coverage report.
+- Detected that the shared local `origin/main` ref advanced to `bb796cb7` while
+  the first merge suite ran, and started a second merge rather than leaving the
+  branch stale. Forty incoming files match main byte-for-byte; the sole
+  conflict in `test_spec_engine_country_bundles.py` was resolved by retaining
+  PR #769's BE digest and deriving UK `c105a4f0...` from the semantic union of
+  its shared seed protocol and #743's normative UK package descriptor.
+- Re-ran the complete no-build package suite for the pending tree:
+  `microcosm-calibrate` 203 passed; `microcosm-fit` 93 passed;
+  `microcosm-frame` 295 passed and 36 skipped; `microcosm-data` 318 passed and
+  2 skipped; and all 272 `microcosm-build` test files accounted for with two
+  documented conditional-empty integration modules. The compliant
+  file-isolated build run peaked at 8,384,086,016 bytes RSS.
+- Confirmed Ruff, generated US bundle, live BE/UK/US envelope digests, coverage
+  42,121/42,121 with 41/41 inventory checks, frozen realized-regime evidence,
+  staged whitespace, conflict-marker absence, and zero unresolved paths.
+- Retried `git fetch origin main`; DNS remains unavailable. The provisioned
+  `origin/main` and `MERGE_HEAD` both resolve to `bb796cb7`. No build,
+  certification, publication, or push was performed.
 
 ## Next
 
-- Commit this completed pre-merge analysis as the last standalone coherent
-  step.
-- Merge `origin/main` with `--no-commit`, resolve journals with `--ours`, and
-  form the semantic union including materializer version 13.
-- Recompute every moved anti-rot measurement from the union tree, run focused
-  guards and the complete no-build suite below 15 GiB RSS, then create one
-  fully justified merge commit.
-- Update this journal and `FINAL_REPORT.md`, verify the committed result, and
-  make the final documentation commit. Do not push.
+- Create the second merge commit with the conflict resolution justified in its
+  body.
+- Write `FINAL_REPORT.md`, mark this journal complete, commit that coherent
+  documentation step, and verify the branch is clean and contains the recorded
+  `origin/main` tip. Do not push; the owner pushes.
 
 ---
 
