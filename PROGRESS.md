@@ -23,7 +23,16 @@ gain `190276014528.88873` (binary64
 The adoption audit has also rehashed the complete prior evidence/input bundle.
 Every A17 PASS and Step-0 seal matches; only the expected design authority hash
 changed at A18. C0a, C0b, C4, C5, C2, and the setup seals are therefore
-eligible for adoption. C3 alone must execute fresh on the selected triple.
+adopted. The twice-byte-identical formal receipt is
+`/private/tmp/qrf_phase0_a18_adoption.json`, SHA-256
+`3141b65caa148ca0de1d2eb227c42e3ea7a59b2de25f59ccaf3a59c543c386c1`,
+canonical SHA-256
+`8d7f50828c5e901eb98ef03644e6c7b67c4da84cc52e41b23970a83b9922a552`.
+It rehashes 56 unique recorded inputs, reproduces all six Step-0 seals and all
+6,155 IDs, preserves the three stable C3 roster slots without mutation, and
+explicitly excludes the old C3. K remains 122, z* remains
+`3.526967430023352`, and the ordered roster digest remains `348386d967…`.
+C3 alone must execute fresh on the selected triple.
 
 No reading, C1 fit, or verdict has yet been opened in this A18 attempt. No pool
 build, refit-with-changes, network access, publication, promotion, or logbook
@@ -48,6 +57,16 @@ write is authorized or planned.
   integration artifact byte for byte.
 - Rehashed the A17 setup, C0a, C0b, C4, C5, and C2 evidence and their bound
   data/code inputs without mismatch. The prior C3 result remains excluded.
+- Added and committed the A18 adoption verifier in commit `534b7d10`. Its
+  five focused tests and Ruff pass; two full verification runs are
+  byte-identical and seal the branch-2 adoption receipt above.
+- Preserved the prior A17 terminal JSON in
+  `/private/tmp/qrf_phase0_a17_terminal_report.json` before the requested
+  output path is reused, with its original SHA-256 `e65378071b…`.
+- Added and committed the retargeted C3-only executor in commit `95db4e1e`.
+  Nine focused and neighboring tests pass. A two-replicate, explicitly
+  non-authoritative smoke zeroed 1,835 observed carriers and recovered a
+  nonzero exact G3 oracle, so it does not decide the control.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
