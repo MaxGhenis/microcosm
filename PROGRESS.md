@@ -32,7 +32,20 @@ It rehashes 56 unique recorded inputs, reproduces all six Step-0 seals and all
 6,155 IDs, preserves the three stable C3 roster slots without mutation, and
 explicitly excludes the old C3. K remains 122, z* remains
 `3.526967430023352`, and the ordered roster digest remains `348386d967…`.
-C3 alone must execute fresh on the selected triple.
+C3 has now executed fresh on the selected triple and PASSED. The authoritative
+artifact is `/private/tmp/qrf_phase0_a18_c3.json`, SHA-256
+`7c0f5632075dc1b095fd186c1d5fb73e74ed3a4490008a500bb9c027cabd074f`,
+canonical SHA-256
+`71160b99a83e9269e69ff647797b7ee519e31e2667dc3d5a1f4470d2309f0449`.
+It zeroed 1,835 observed fit-row carriers. The exact G1/G2/G3 oracles are
+`-0.000022805925420829536`, `-0.0003167611543923057`, and
+`0.0014874884953640108`. All three paired recovery cells pass at R=250 with a
+maximum absolute error of 0.790215 MCSE and no escalation. The G3 power
+threshold is `0.00009107088687955122`, so the strict
+`0.0014874884953640108 > 0.00009107088687955122` condition passes. A second
+full run reproduces the exact oracle, every replicate array, every statistic,
+and every non-runtime payload bit for bit. Controls are complete and readings
+are now authorized.
 
 No reading, C1 fit, or verdict has yet been opened in this A18 attempt. No pool
 build, refit-with-changes, network access, publication, promotion, or logbook
@@ -67,16 +80,20 @@ write is authorized or planned.
   Nine focused and neighboring tests pass. A two-replicate, explicitly
   non-authoritative smoke zeroed 1,835 observed carriers and recovered a
   nonzero exact G3 oracle, so it does not decide the control.
+- Ran the authoritative retargeted C3 at R=250. All three recovery cells and
+  the A16-14 power test pass; no target-wide escalation was triggered. An
+  independent complete rerun reproduces every scientific value and replicate
+  array exactly.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Make C3 mechanically target the sealed adult-care triple, keeping every
-   A16/A17 estimator, pairing, recovery, and power rule unchanged; test and
-   run C3 alone.
-2. If C3 passes, execute READINGS, C1, and VERDICTS in the required order,
-   committing each coherent progress step. If it fails numerically, stop and
-   report control diagnostics only.
+1. Execute READINGS in the A8 priority order: all-target P0/P1/P6/P7, then P2
+   for the six severe-drift targets before remaining reading work. Record
+   anything predicted to exceed the bound runtime as `NOT_RUN_PRIORITY` with
+   the mechanical estimate.
+2. Execute C1 only after the reading boundary, then compute VERDICTS from the
+   sealed additive ledger and available probes.
 3. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
 
