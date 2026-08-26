@@ -73,8 +73,16 @@ workers compensation followed the target-wide R=1,000 escalation rule; the
 other three remained at R=250. Reading closures invalidate child-support
 expense pattern 02 and weeks patterns 00/02, so those aggregate attributions
 are correctly `NOT_VALIDATED_PATTERN_CLOSURE_FAILURE`; their sealed T2 ledger
-rows still stand. P2's remaining three targets are ready to resume from the
-self-verified checkpoint. The exact P5 executor is now independently reviewed
+rows still stand. The all-nine P2 artifact is now complete at
+`/private/tmp/qrf_phase0_a18_p2.json`, file SHA-256
+`7a4bcc66207806c22d1c232a05f260873a20bdd73eae0a96b4615b2b9386d792`,
+canonical SHA-256
+`aec79da54daa8cf030d0b97b9cf6ad7610c12c123d3c285f9559329800faf754`.
+It contains exactly 2,322 Step-0 fragments with all static fields passing and
+36/36 C4 endpoint reproductions. Six targets escalated to R=1,000. In
+addition to the severe-tranche failures above, UC patterns 00/02 fail reading
+closure; all other supported aggregate P2 attributions validate. The exact
+P5 executor is independently reviewed
 and ready. Its sealed estimate is 24 cache-distinct metric surfaces,
 479,723,507,273 recipient-donor pairs, and 5,098,887,772,670 feature-pair
 costs; the fourfold-conservative cached projection is 11.38 hours, within
@@ -152,16 +160,22 @@ is authorized or planned.
   donor identities are not materialized because their exact binary64
   distances, and therefore every reported score, are identical; this exact
   equivalence is disclosed in the artifact.
+- Completed P2 for all nine targets. Its resume path reverified the whole
+  severe-six artifact and every nested target seal before appending care,
+  SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,
+  or extra IDs, all 36 adopted-C4 prefixes reproduce exactly, and every
+  pattern's exact Shapley identity passes. Aggregate attributions are marked
+  `NOT_VALIDATED_PATTERN_CLOSURE_FAILURE` for child-support expense, weeks,
+  and UC; the ledger T2 rows remain valid independently.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Finish the active resumed P2 execution and audit the all-nine seal.
-2. Execute exact P5 in six disjoint cache-preserving shards under its
+1. Execute exact P5 in six disjoint cache-preserving shards under its
    mechanical A8 estimate, then seal the reading
    boundary, execute C1, then compute VERDICTS from the
    sealed additive ledger and available probes.
-3. Render and validate the Markdown/JSON reports while leaving both output
+2. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
 
 ## Historical A17 terminal snapshot
