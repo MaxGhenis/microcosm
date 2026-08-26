@@ -476,3 +476,72 @@ charters.
   25%   finalists only, post-candidate-chain, head-to-head
         (`tools/score_us_release_head_to_head.py`, #748) with the live
         incumbent column; multi-column scorecard to Max.
+
+---
+
+## Amendment v2.1 (2026-08-26, logged pre-Phase-0)
+
+Trigger: the D0 binding lane (sol run 20260826-081114-d0-binding; outputs
+`experiments/qrf_drift_validation_d0.{md,json}`) correctly refused to invent
+four constants §3.6/§3.7 left unspecified, and bound facts that scope two
+rules. No Phase-0 reading exists; these resolutions are specification, not
+tuning. Nothing in §3.1–§3.5's identities, estimators, register, or §4.4's
+rules changes.
+
+**A1 — C4 control family and per-prior sub-attributions.** The 36 per-leg G3
+per-prior sub-attributions ARE C4 control statistics: K = 214, per-statistic
+two-sided Šidák z = 3.673063850314496 (family-wise 5%), as computed in D0-8.
+The per-prior estimator, frozen: one-at-a-time paired substitution of each
+prior column alone from the same drawn donor row (all else at recipient
+values), reported as marginal per-prior contributions; they do NOT sum to
+G3's Shapley total, and the gap is reported as "G3 within-group interaction",
+never allocated.
+
+**A2 — Holm probe families.** F1: the §3.1 ledger rows, one family per
+target × leg. F2: the §3.2 Shapley contributions plus A1's per-prior
+sub-attributions, one family per target × leg. F3: the P5 concentration
+tests, one family across targets. F4: the P7 GQ rows, one family. Loading
+threshold k = 3 SEs, Holm within each family as enumerated here.
+
+**A3 — C2/C3 must-detect (power) conditions.** The oracle is exact (E2), so
+power is a Monte Carlo question: replicates scale until the MC SE of the
+recovered effect is ≤ oracle/10, capped at 10,000 replicates; if the cap
+binds, the control is UNDERPOWERED and fails closed (re-specified with a
+larger declared magnitude via logged amendment). Detection requires the
+recovered effect within 3 MC SEs of the exact oracle AND the oracle effect
+exceeding 5× that statistic's C4 null threshold.
+
+**A4 — C5 mini-frame.** Deterministic synthetic frame: 60 person rows in 20
+households across 2 availability patterns; per-row provenance fixed by
+construction — 40 QRF-drawn (null-before), 10 native nonnull, 6
+outside-authorized, 4 undecoded; values seeded from SHA-256 of
+`qrf-drift-v2|C5|row-<i>`. Exact-match booleans (8): per pattern, S_q mask
+equality, S_o mask equality, φ equality, path-census count equality. These
+are exact checks outside the Šidák family (consistent with D0-8's
+enumeration).
+
+**A5 — M-2(iii) scope.** D0-9's deterministic census: only
+spm_unit_energy_subsidy and unemployment_compensation carry ONE-surface
+targets. Clause (iii) is evaluated only for those two, and only at a rung
+where the arm's release stage compiled its coefficient row; otherwise the
+clause is excluded from the conjunction and the row is marked
+NOT-EVALUABLE(iii). The cap is bound: max_weight_ratio = 5.0 (D0-6).
+
+**A6 — accepted absences.** baseline1pct and pkg3 recorded no build commit;
+their identity is the D0-0 content digests plus the D0-1 gate cross-check
+(72/72 exact) and, for baseline1pct, the D0-4 raw-draw/terminal equality.
+This is accepted; no further commit archaeology.
+
+**A7 — D0 facts that close or open register rows at receipt level** (Phase-0
+mask-level confirmation still runs): φ = 1 for all nine targets
+(authorized == imputed, zero unmodeled/residual — H0 dies at receipts);
+pattern collapse census 0/36 (the E8 collapse sub-row of H7 is empty on this
+build); T5 is REAL and quantified pre-Phase-0 — pre_subsidy_care_expenses
+has 183 rows drawn positive and zero in the terminal artifact (adult-care
+reconciliation; D0-4 FINDING) — while all eight other targets are bitwise
+raw == terminal on baseline1pct; arm B parity violations CONFIRMED (D0-10):
+the parsimony branch removed the weeks-requires-positive-UC recipient rule
+and the canonical max_targets_per_fit guard — both restored before any B
+build per §4.1's parity doctrine. SEILY's negative leg has 48 unique donor
+carriers at 25% (floor 50): that leg is reported with SEs but formally
+DEFERred by the frozen §3.7 rule, at both rungs.
