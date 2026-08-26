@@ -896,3 +896,28 @@ the statistic `default_resolved`. GATED statistics (control pass/fail,
 closure gates, Holm-family members, verdict inputs) still fail closed on
 any ambiguity. This bounds the spec-iteration cycle without weakening any
 gate.
+
+## Amendment v2.6 / A17 (2026-08-26, Max-approved restart after terminal stop)
+
+The 20260826-142953 run stopped on gated A16-15(i)/(iii) numerical FAILs.
+The run's own evidence proves both were mis-written check definitions, not
+instrument or data defects: the full-bank diagnostic passed 9/9 exactly, and
+the (iii) unequal set is exactly the A7/D0-4-registered 183-row adult-care
+clearing. Max approved the restart. The gates are redefined to test what
+D0 proved, with no loosening:
+
+**A17-15(i).** The gated equality is |full-bank drawn raw-draw positions|
+== the receipt's authorized_null_rows, per target (both are whole-frame
+quantities). The clone-0 ledger population S_q = those positions ∩ battery
+scope; its gated cross-check is internal: |S_q| must equal the same mask's
+clone-0 projection count exactly.
+
+**A17-15(iii).** raw == terminal bitwise on drawn rows is gated for the
+eight targets D0-4 proved equal. For pre_subsidy_care_expenses the gate is:
+the unequal row set must equal the D0-4-registered 183-row set exactly
+(row-set digest), each with positive raw and terminal zero; any other
+difference fails.
+
+A16-15(ii) (lineage/alignment digest re-verification) is unchanged. The
+K/z* recomputation the run performed (K = 122, z* = 3.52697 per A14.6's
+rule, roster digest 348386d9…) is ratified as the operative roster.
