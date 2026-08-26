@@ -4,16 +4,15 @@
 
 ### State
 
-Intermediate green checkpoint. The commit containing this journal merges the
-then-current local `origin/main` at `f9d3b4838c13` into PR #768, preserves
-main's typed F0/spec folds and the branch's weeks/UC decoupling, and records a
-conflict-by-conflict justification in the merge commit body. During final
-verification the shared `origin/main` ref fast-forwarded to `bb796cb7ba57`
-(PR #743). This first merge is fully re-pinned and green, but the branch is not
-complete until that new delta is merged and reverified. No build, push,
-certification, publication, or release mutation ran. Earlier sections are
-historical records of their named checkpoints rather than current branch
-instructions.
+Complete. PR #768 now contains local `origin/main` at `bb796cb7ba57`. The
+first merge commit `4e16e9c7` resolves and justifies all four conflicts while
+preserving main's typed F0/spec folds and the branch's weeks/UC decoupling. A
+same-session fetch then advanced main with PR #743; its path-disjoint UK/shared
+delta merged automatically and is green on the final tree. Repository tools
+confirm every combined attestation, and all six capped no-build suite processes
+stay below 15 GiB RSS. No build, push, certification, publication, or release
+mutation ran. Earlier sections are historical records of their named
+checkpoints rather than current branch instructions.
 
 ### Done
 
@@ -80,16 +79,38 @@ instructions.
   passed, followed by the full order-preserving build-half-B rerun above. Its
   JUnit record closed cleanly at `/tmp/pr768-build-b.xml`.
 - Re-ran repository-wide Ruff and whitespace checks plus the US bundle and F0
-  coverage `--check` commands after the final suite; all exited zero. Wrote the
-  completed conflict, pin, verification, and risk verdict to
+  coverage `--check` commands after the first merge suite; all exited zero.
+- Committed the independently green first merge as `4e16e9c7`, with separate
+  merge-body justifications for `FINAL_REPORT.md`, `PROGRESS.md`,
+  `_LANE-NOTES.md`, and `specs/us_imputation_lineage.yaml`.
+- Observed the shared `origin/main` ref fast-forward from `f9d3b483` to
+  `bb796cb7` with PR #743 during final verification. Audited the delta before
+  merging: it has no changed-path intersection with `4e16e9c7`, no US
+  runtime/spec/tool/test change, and no semantic overlap with US unemployment
+  compensation. The follow-on merge completed automatically with no conflict.
+- Re-derived the combined attestation surface. US remains `57966f08...`, BE
+  remains `86143c1c...`, and UK arrives at main's reviewed `0c85845b...` spec
+  identity. UK gate policy remains `623f340d...`; main's gate manifest
+  `4f66eea7...` and spec fingerprint `26fdbccc...` match independent runtime
+  projection. US field usage, claims, coverage, authority, and checkpoint pins
+  remain unchanged, so no follow-on local re-pin was justified.
+- Ran the combined focused matrix over all 16 PR #743 test files plus the key
+  PR #768 US identity/behavior regressions: 627 passed/1 skipped at 2.373 GiB
+  peak RSS.
+- Ran the complete final tree in six new deterministic capped processes:
+  calibrate 203 passed (0.444 GiB peak), data 318 passed/2 skipped (0.750
+  GiB), fit 93 passed (0.808 GiB), frame 295 passed/36 skipped (6.781 GiB),
+  build half A 4,335 passed/37 skipped (11.478 GiB), and build half B 2,175
+  passed/3 skipped (13.217 GiB). Combined: 7,419 passed and 78 skipped.
+- Wrote the final conflict, pin, verification, and remaining-risk verdict to
   `FINAL_REPORT.md` for the owner.
 
 ### Next
 
-1. Commit this independently green `f9d3b483` merge checkpoint.
-2. Merge the newly fetched `origin/main` at `bb796cb7`, resolve journals
-   `--ours`, re-run every moved anti-rot surface and the memory-safe suite, then
-   replace the interim report with the final owner handoff. Leave unpushed.
+1. The owner reviews and pushes `battery-residual-fixes`; this lane deliberately
+   leaves the branch unpushed.
+2. Hosted CI exercises its wheel/platform gates after the push. Any pool build,
+   certification, publication, or release action remains outside this merge.
 
 ## Residual FIX packages — 2026-08-22 22:45Z
 
