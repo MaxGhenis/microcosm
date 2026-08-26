@@ -60,6 +60,11 @@ replay are allowed by the design.
   remained at 250. The evidence is
   `/private/tmp/qrf_phase0_a17_c4.json`, SHA-256
   `8cd95aafcdb896b8f6bedc86dcb030c912b277a6b28ba87d69bac0d79a5c06c5`.
+- Added and committed the deterministic P0/P1/P6/P7 executor, including the
+  candidate pre-calibration ledger and the two authorized baseline cross-rung
+  readings. It passed static and synthetic helper validation. It has not been
+  executed because §3.6 requires C2/C3 to finish first; no readings artifact
+  exists.
 
 ## Next
 
