@@ -126,8 +126,16 @@ All 382,903 S_q rows are certified exactly once; its weight residual is
 and negative T2 regrouping residuals are `1.1210650463500116e-16` and zero.
 The 62-row manifest passes with ordered-ID SHA-256
 `b8061efc89120409d0bb4276e50489c85f0e37f126a20ded3486aecae5742e57`.
-The shared four-target replay and child-support-received singleton are active
-from the same source SHA-256 `b0467fae3a1020915c5cabfd5b37616229bc5c3297f59c7c56ad90db70fbdee6`.
+The shared four-target shard is now sealed at
+`/private/tmp/qrf_phase0_a18_p5_late_base.json`, file SHA-256
+`f58014e2bed9b2bcfe94f3ec558b88edfda251af40c8d4a6bd043942d3ed0e92`,
+canonical SHA-256
+`85ac408e7653e12d9e690c1a380fe4ad2c7ad343b5262537330a429f5bcff588`.
+Its 248-row manifest passes with the expected ordered-ID SHA-256
+`cf5cb3e32381b1e17b4a6e758ed6ced0e476b8a791911a9879d0848bc5eb7804`.
+An independent 1,754-assertion audit has no failures. Child-support-received
+and adult care are active from the same source SHA-256
+`b0467fae3a1020915c5cabfd5b37616229bc5c3297f59c7c56ad90db70fbdee6`.
 C1 and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
@@ -229,6 +237,17 @@ is authorized or planned.
   all authority, source, and 18 live input bindings (including both multi-GB
   checkpoints), recomputed the canonical bytes, manifest slice, assignment
   masks/counts, P1 T2/support equality, and drift residuals with zero failure.
+- Sealed the authoritative shared four-target P5 shard from the same executor.
+  Child-support expense, weeks unemployed, workers compensation, and
+  disability benefits are all complete; the first target computed four exact
+  all-donor metric surfaces and the other three used the twelve mechanically
+  valid cache hits. All 248 Step-0 rows pass. An independent 1,754-assertion
+  audit rehashed every authority/source/live-input binding, reproduced the
+  canonical bytes and exact manifest slice, and certified 856,626 expected
+  rows exactly once for every target. Each target's weight residual is
+  `1.6540288925170898e-6` within `6.103515625e-5`; all eight leg closures,
+  P1 T2/phi/support equalities, pattern rosters, Gower metrics, pooled mirrors,
+  and concentration calculations pass.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,
