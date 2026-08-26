@@ -1,381 +1,478 @@
-# Pre-registered evaluation design: QRF drift diagnosis + imputation-approach validation
+# Pre-registered evaluation design: QRF drift diagnosis + imputation-approach validation (v2)
 
-Status: DESIGN FROZEN BEFORE ANY NEW COMPUTATION. Written 2026-08-25 on
-`qrf-drift-validation` (off origin/main bb796cb7). Charter:
-`~/PolicyEngine/_buildo-runtime/scripts/charter_qrf_drift_validation.md`.
-Every mechanism claim below is code-read this session at the cited anchor.
-Every data-derived number is either quoted from an existing artifact (cited)
-or left as a **[D0]** constant to be bound from existing artifacts before any
-new computation runs. Nothing in this design may be revised after Phase-0
-results exist, except by an explicitly logged amendment stating what was
-learned and why the change cannot be outcome-motivated.
+Status: v2, REPLACES v1 (git 4bee683d) IN FULL, before any Phase-0 computation.
+v1 was adversarially reviewed by two independent processes before any data work
+ran: a 39-agent three-lens fable panel (35 confirmed findings, 13 critical;
+findings JSON archived in the session scratchpad) and a gpt-5.6-sol lane
+(`_buildo-runtime/out/battery-lanes/design-review.out`, verdict REDESIGN, 16
+findings, 9 critical). Every operative section below is rewritten to their
+merged, code-verified fixes. No Phase-0 results existed when this revision was
+written, so it cannot be outcome-motivated; from here, changes require a logged
+amendment, and control seeds are burned on any post-failure refreeze (§3.6).
 
-The test this document sets for itself: *when the numbers arrive, the verdict
-should follow mechanically from rules written here — no post-hoc judgment
-calls.* Wherever a judgment could occur, this document makes it now.
+Charter: `~/PolicyEngine/_buildo-runtime/scripts/charter_qrf_drift_validation.md`.
+Branch: `qrf-drift-validation` off origin/main bb796cb7.
+
+The bar is unchanged from v1: when the numbers arrive, the verdict must follow
+mechanically from rules written here. v1 failed that bar in review; v2's rules
+were themselves reviewed against the failure modes found.
 
 ---
 
-## 1. The evidence being explained (corrected)
+## 1. The evidence being explained (corrected provenance)
 
-From the pkg3 1% verify build (`experiments/battery_burndown_pkg3_evidence.md`,
-sample fraction 0.01, seed 578), positive-leg weighted incidence, ASEC-origin
-vs ACS-origin rows within the stacked artifact, **before** the #742
-calibration layer:
+The headline numbers are the **baseline1pct** build's by-origin battery failure
+lines (surfaced as the "greened by pkg3" diff in
+`experiments/battery_burndown_pkg3_evidence.md`; baseline1pct = plain QRF, no
+#742 calibration layer, sample fraction 0.01, seed 578). v1 misattributed them
+to "the pkg3 build" — pkg3 is the 1% build WITH the two-part #742 layer.
+Positive-leg weighted incidence, ASEC-origin vs ACS-origin, one artifact:
 
-| target | asec incidence | acs drawn incidence | ratio acs/asec |
+| target | asec + leg | acs + leg | ratio acs/asec |
 |---|---|---|---|
-| child_support_expense | 0.005237 | 0.000897 | **0.171** |
-| child_support_received | 0.009283 | 0.002255 | **0.243** |
-| weeks_unemployed | 0.034170 | 0.000867 | **0.025** |
-| workers_compensation | 0.003265 | 0.000155 | **0.048** |
-| spm_unit_energy_subsidy | 0.033554 | 0.008069 | **0.240** |
+| child_support_expense | 0.005237 | 0.000897 | 0.171 |
+| child_support_received | 0.009283 | 0.002255 | 0.243 |
+| weeks_unemployed | 0.034170 | 0.000867 | 0.025 |
+| workers_compensation | 0.003265 | 0.000155 | 0.048 |
+| spm_unit_energy_subsidy | 0.033554 | 0.008069 | 0.240 |
 | pre_subsidy_care_expenses | 0.000768 | 0.000431 | 0.561 |
-| self_employment_income_last_year | 0.024919 | 0.034308 | 1.377 (over) |
-| ssi (simulated_output) | 0.020373 | 0.027330 | 1.341 (over) |
+| self_employment_income_last_year | 0.024919 | 0.034308 | 1.377 |
+| ssi (simulated_output — NOT a QRF target, §3.0) | 0.020373 | 0.027330 | 1.341 |
 
-Correction to the charter's shorthand: "0.17 vs 0.24" are **ratios** for the
-two child-support targets, not incidences. The real severity is 4–40×
-underdraw of rare positive carriers, in the same direction for five unrelated
-transfer variables, with two mild *over*draws elsewhere. Any explanation must
-account for the *magnitude and the shared direction*, not just nonzero drift.
-A smooth covariate-shift story (recipient demographics slightly different)
-predicts drifts of tens of percent, not 40×. A mechanical story (rows that
-never receive a draw; a feature the gate reads that is wildly different or
-missing on one side) predicts exactly this signature. The design below is
-built to separate those cleanly.
+Caveats bound in now: these 1% ratios rest on thin positive-row counts (tens of
+rows for the worst targets — exact per-target counts bound at D0 with the
+clone-deduplication convention of §3.7); the 25% candidate-25 gates confirm the
+phenomenon at scale for the un-calibrated families and show two further facts:
+weeks_unemployed stays out of band even WITH the #742 layer (ratio 0.31 — its
+carrier additions are capped by the UC-positivity constraint), and
+self_employment_income_last_year's NEGATIVE leg overdraws 6.7× (the layer is
+positive-leg-only, so that is raw QRF + producer behavior). Direction is mixed
+across targets (mostly severe underdraw, some overdraw), so the explanation
+must be per-target and per-leg, not one story.
 
-## 2. Estimands and verified mechanics (code anchors)
+## 2. Verified mechanics (code anchors; both reviews re-verified these)
 
-These are the facts the accounting rests on. Each was read this session;
-re-verify anchors before the lane runs (files move).
+**E1 — battery estimand.** Per-leg weighted incidence (share of values > 0,
+resp. < 0, exact comparison — no atol) among **clone-0** origin scope rows with
+positive resolved artifact weights, ASEC-over-ACS ratio bounds [0.8, 1.25]
+(`stacked_spine.py:13331–13442, 13695–13741`). All nine §1 targets are
+`monetary_sign_separated`. Scope includes structural-absence refinements
+(:13393–13397). Every drift number in this experiment means THIS estimand.
 
-**E1 — battery incidence.** `_weighted_nonzero_incidence(values[rows],
-weights[rows])` per origin, over the battery's scope rows within the one
-stacked artifact; comparison is ACS-over-ASEC ratio with bounds [0.8, 1.25]
-(`stacked_spine.py` `_battery_incidence_comparison`, ~13635; bounds in
-`_by_origin_battery_evaluate` docstring, ~13245). Positive/negative legs are
-separated for monetary targets (`_battery_sign_separated_comparison`). The
-denominator is **all scope rows of that origin**, not only rows the QRF drew.
-This is the estimand every drift number in this experiment refers to; scope
-definitions come from the production authority's metric registry, never
-re-derived by hand.
+**E2 — gate draw identity.** Sign classes are inverse-CDF draws from
+`predict_proba` (`qrf.py:950–962`): over rows R with weights w, the expected
+weighted drawn share of class c equals Σ_R w·p_c / Σ_R w exactly, at exact
+conditional draw variance Σ w_i²·p_c,i(1−p_c,i)/(Σ w_i)². Per-leg accounting
+uses the class-c probability, never 1−p_zero (THREE_SIGN targets exist:
+self_employment_income_last_year is contractually signed —
+`prior_year_income.py:201–205`, `qrf.py:138–139`).
 
-**E2 — gate draw identity.** Sign classes are inverse-CDF samples from
-`predict_proba`: `cumulative >= u` argmax (`qrf.py::_gate_draw_with_rng`,
-950–962). Therefore, over any row set R with weights w,
-E[weighted drawn nonzero incidence on R] = Σ_R w·(1 − p_zero) / Σ_R w
-exactly, with binomial-scale noise. No thresholding, no tuning, no clipping.
+**E3 — gate fit.** `HistGradientBoostingClassifier(random_state=s)`, default
+hyperparameters, direct `sample_weight` (`qrf.py:1389–1442`). Its true
+in-sample calibration gap is measured (T1, §3.2), never assumed.
 
-**E3 — gate fit.** `HistGradientBoostingClassifier(random_state=s)` with
-default hyperparameters, fit with `sample_weight` = resolved design weights
-directly (`qrf.py::_fit_gate`, 1389–1442). Weighted in-sample mean predicted
-probability of a class approximately equals the weighted observed class share
-(boosting on weighted log-loss); the *exact* in-sample gap is measured, not
-assumed (term T1 below).
+**E4 — gate reproduction.** For a gated target the gate seed is the first
+integer drawn from the fit RNG (`qrf.py:1428`), before any forest bootstrap
+(:1352). Per-pattern gates reproduce bit-identically from bank pattern states +
+fit rows + weights, forest-free. `_weighted_bootstrap` touches only magnitude
+forests, never the gate (`qrf.py:188–217, 1333–1380`).
 
-**E4 — gate reproducibility without forests.** In `_fit_target` the gate
-seed is the **first** integer drawn from the fit RNG for a gated target
-(`qrf.py:1428`), before any forest bootstrap (`qrf.py:1352`). So a target's
-gate is reproduced bit-identically from: chain state before that target
-(`fit_rng_state_json`, `QRFChainState`, qrf.py:648–880) + donor table +
-weights + config. No forest fits needed. Analysis-time gate reproduction is
-cheap and receipted by the state's weight/index SHA-256 digests.
+**E5 — chain asymmetry.** Fit conditions on donor observed prior targets; draw
+conditions on recipient raw drawn priors (`qrf.py:1151–1231`).
 
-**E5 — chain asymmetry.** Fit features for target t = predictors + donor
-**observed** completed targets; draw features = predictors + recipient **raw
-drawn** priors (`qrf.py::fit_draw_next`, 1151–1231). Chained drift can
-propagate; conditioning on drawn (noisier, possibly shifted) priors is
-mechanically different from conditioning on observed ones.
+**E6 — the production late-transfer donor is NOT plain ASEC.** The late
+transfer trains on the **clone-1 owner projection** of ASEC-origin rows — the
+PUF tax-detail clone, whose income features carry PUF-sourced detail and whose
+weights are the halved clone-channel weights (`stacked_spine.py:10140–10249`;
+`_post_puf_role_mask` selects channel asec AND clone == PUF_TAX_DETAIL_CLONE_INDEX
+= 1, `support_provenance.py:37`; receipt: `owner_projection_of_asec_origin_clone_1`).
+The clone-2 capital-gains tail split precedes the late transfer, so tail rows
+are in the clone-0 battery basis but not the donor. The EARLY transfer
+(unemployment_compensation, self_employment_income_last_year) trains on the
+pre-clone whole ASEC channel (`stacked_spine.py:9266–9292`). v1's claim that
+shared features are "natively observed on both sides" is FALSE for the late
+stage; the identity carries explicit donor-basis bridges (§3.2).
 
-**E6 — transfer predictors.** Required: `age`, `is_female`, state FIPS
-(broadcast). Optional (availability-pattern) features:
-employment/self-employment/social-security/retirement/investment income,
-household-head, tenure — recipient side built from ACS-native reports, donor
-side from summed ASEC components (`acs_transfer.py:95–190`,
-`_DONOR_COMBINED_COMPONENTS`). All are natively observed on both sides;
-chained-imputed features enter only as prior targets within the same fitted
-family (≤8 targets per fit, `DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT`).
-Recipient rows are partitioned by availability pattern; **one separately
-seeded QRF per pattern**, fit on donor rows complete for that predictor set
-and the family targets (`acs_transfer.py:926`, `:1489–1515`). "The gate" for
-a target is a set of per-pattern gates.
+**E7 — producer first hop caps training at 5,000 rows.** Five ASEC-side source
+operators subsample their QRF training input to 5,000 rows without sign
+stratification or weight-proportional sampling (`child_support.py:323–329`,
+`workers_compensation.py:302–308`, `energy_subsidy.py:325–331`,
+`disability_benefits.py:342–348`, `prior_year_income.py:449–455`), so a rare
+class or much of its weighted mass can thin before `detect_regime`/`_fit_gate`
+ever run; the clone-1 producer values the late transfer learns from inherit
+this. weeks_unemployed is additionally forced to zero post-draw when
+unemployment compensation is nonpositive (`weeks_unemployed.py:900–909,
+966–983`).
 
-**E7 — coverage rule.** The transfer fills **only null recipient cells**;
-rows failing row-level complete-case masks for a pattern's predictors are
-kept out of the QRF (`acs_transfer.py` module docstring, `:98`). What value a
-never-drawn row carries at battery time is a pipeline question
-(`CANONICAL_STACKED_GAP_FILL_PLAN`, `stacked_spine.py`), deliberately left as
-Phase-0 probe P0 rather than asserted here.
+**E8 — availability patterns.** Recipient rows partition by observed optional
+predictors; each pattern gets a separately seeded QRF fit on donor rows
+complete for that predictor set AND every family target (≤8 targets per fit;
+`acs_transfer.py:1441–1600, 1648–1760, 2039–2058`). Donor training sets
+OVERLAP across patterns (no donor-side pattern partition exists). A pattern
+whose complete-case donor pool has zero positive carriers silently becomes
+DEGENERATE_ZERO and draws all zeros for its rows (only `donor_rows==0` raises;
+`acs_transfer.py:1513–1523`, `qrf.py:132–150, 982–983`).
 
-**E8 — universe mismatch.** The ACS spine retains group-quarters persons,
-institutional and noninstitutional, PWGTP-weighted (`acs_pums.py:130–147,
-307–308, 398–408`). CPS-ASEC's universe is civilian noninstitutional. The
-recipient contains people the donor structurally cannot represent.
+**E9 — post-draw deterministic transforms.** Between raw draw and artifact
+value sit: target codec decode, structural reconciliation (adult-care
+one-per-tax-unit — `acs_transfer.py:687–739`; weeks-requires-UC), and (arm A
+only) the #742 calibration edit (`post_transfer_calibration.py:193–263,
+823–900`: positive-leg carrier prefix selection toward the weighted reference
+margin + five-quantile amount mapping; negatives byte-exact; spec roster as in
+v1 §2-E9). These are deterministic and must never be charged to draw noise.
 
-**E9 — arm A mechanism.** The #742 layer is a deterministic two-part edit of
-mutable draws: carrier-prevalence prefix selection toward the weighted
-**donor** margin + five-quantile mapping of mutable positive amounts onto
-reference support; positive leg only; negatives byte-exact
-(`post_transfer_calibration.py` docstring + `_QUANTILES`). Spec roster
-(`POST_TRANSFER_CALIBRATION_SPECS`, :193–263): late_transfer =
-pre_subsidy_care_expenses, child_support_expense, child_support_received,
-disability_benefits (preserve_recipient), weeks_unemployed,
-workers_compensation, spm_unit_energy_subsidy; early_gap_fill =
-unemployment_compensation (preserve_recipient),
-self_employment_income_last_year.
+**E10 — zero conventions differ.** QRF's zero class is |y| ≤ 1e-6
+(`qrf.py:87–89`); the battery and calibration use exact >0/<0/!=0. Boundary
+mass is measured at D0 and bridged explicitly if nonzero.
 
-**E10 — measurement non-equivalence of "shared" features (documented, not
-computed).** ASEC income is prior calendar year; ACS income is a rolling
-12-month reference with ADJINC adjustment; ACS bundles
-interest+dividends+net-rental in one item while the donor side sums distinct
-ASEC series. "Shared features should be pretty similar" is a hypothesis
-(H3), not a premise, and the feature audit (P3) tests it per feature.
+**E11 — group-entity targets.** spm_unit_energy_subsidy's gate features are the
+group roster (person count, age sum, female count, state, group optional sums —
+`acs_transfer.py:168–186`), not the person roster. Feature groups are defined
+per target from the actual `AcsTransferPattern.predictors` matrix, frozen at D0.
+
+**E12 — GQ.** The ACS spine retains institutional (TYPEHUGQ 2) and
+noninstitutional (TYPEHUGQ 3) group-quarters persons with positive
+PWGTP-derived weights (`acs_pums.py:128–148, 394–414, 590–616`); CPS-ASEC is
+civilian noninstitutional.
+
+**E13 — ssi is not a QRF transfer target.** Family `simulated_output`,
+materialized by the rules-engine formula for all rows of both origins
+(`multispine_pool.py:700–715`); it has no gate, patterns, or bank checkpoint.
 
 ## 3. Mission 1 — drift decomposition
 
-### 3.1 The accounting identity (exhaustive, additive)
+### 3.0 Applicability matrix
 
-For one target t and the battery's ACS scope S with artifact weights w. Let
-D = I_asec − I_acs (the battery gap). Partition S by **value provenance**
-(P0): rows drawn by the QRF (S_q, weighted share φ), rows carrying values
-from any other path (S_o): native, gap-filled, defaulted, untouched-null →
-whatever the artifact stores. Then, exactly:
+Probes P0–P6 and the identity run on the QRF transfer targets only. ssi is a
+non-arbitrating downstream contrast with its own short dependency note (which
+imputed inputs feed the ssi formula; no root-cause share, no controls, no arm-C
+eligibility). Per-target × per-probe applicability, with each target's
+per-pattern regime matrix (read from the pinned build's bank states/manifest),
+is frozen at D0 before dispatch.
 
-    I_acs = φ·I_q + (1−φ)·I_o                                   (L0)
+### 3.1 The accounting identity (per target, per leg ℓ ∈ {+, −}, exact)
 
-and within S_q, using E2:
+Rung: the pinned 25% pre-calibration checkpoints (§3.7). Scope S, artifact
+weights, per E1. Provenance partition (P0): S_q = scope ∩ owner-authorized ∩
+target-null-before ∩ finite raw draw ∩ successfully decoded fill; S_o = S \ S_q;
+φ = weighted share of S_q. Then
 
-    I_asec − I_q = (I_asec − P̄_donor)      T1  in-sample calibration gap
-                 + (P̄_donor − P̄_acs)       T2  covariate/spine shift
-                 + (P̄_acs − I_q)           T3  draw noise (E[T3]=0)
+    D_ℓ = J0_ℓ − I_acs,ℓ
+        = (1−φ)·(J0_ℓ − I_o,ℓ)                            L0  coverage
+        + φ·[ (J0_ℓ − J1_ℓ)                               B1  producer hop
+            + (J1_ℓ − J2_ℓ)                               B2  fit-row selection
+            + (J2_ℓ − P_D,ℓ)                              T1  gate calibration
+            + (P_D,ℓ − P_R,ℓ)                             T2  covariate shift
+            + (P_R,ℓ − I_raw,ℓ)                           T3  draw noise
+            + (I_raw,ℓ − I_dec,ℓ)                         T4  codec
+            + (I_dec,ℓ − I_q,ℓ) ]                         T5  structural
 
-where P̄ is the weighted mean of (1 − p_zero) from the reproduced per-pattern
-gates (E4), P̄_donor over the pattern's donor training rows with fit weights,
-P̄_acs over S_q with artifact weights, both aggregated over patterns by their
-weighted shares (pattern-level terms retained in the output — the pattern
-mixture is itself a named component, T2m). Every term is computed and the
-table must sum to D exactly, with T3 compared against its pre-computed
-binomial SE (§3.6). **Nothing is allowed to hide in a residual: the residual
-IS a row of the table.**
+where J0 = battery clone-0 ASEC leg incidence (artifact weights); J1 = leg
+incidence on the actual donor projection rows for the stage (late: clone-1
+projection with its weights; early: pre-clone ASEC channel, so J1 ≡ J0 basis up
+to the declared weight bridge); J2 = Σ_k α_k·m_k with m_k the observed leg
+incidence on pattern k's exact fit rows with fit weights and α_k pattern k's
+artifact-weight share of S_q; P_D = Σ_k α_k·(weighted mean class-ℓ proba on
+pattern k's fit rows, fit weights); P_R = Σ_k α_k·(weighted mean class-ℓ proba
+on pattern k's S_q rows, artifact weights); I_raw/I_dec/I_q = raw drawn /
+decoded / post-structural leg incidence on S_q. On the arm-A build a further
+T6 (calibration edit) term closes to the artifact value; on the pinned
+pre-calibration basis T6 ≡ 0 by construction and is asserted so.
 
-### 3.2 Attribution of T2 (feature groups)
+Sub-ledgers, frozen: **B1** carries the producer first-hop ledger P6 (full ASEC
+source → 5k-row sample → detected regime/gate fit → first draw → codec →
+producer constraints → clone-1 value; at each transition: row-mask digest,
+unweighted sign counts, weighted sign mass, leg incidence, seed) plus the
+clone-2 tail exclusion and the clone-weight bridge, each a named row. **B2**
+carries role/channel selection, family complete-case, pattern predictor
+complete-case, weight-basis change, pattern standardization, and the
+per-pattern collapse census (patterns with zero positive carriers / collapsed
+regimes, with their recipient weighted shares). φ=0 targets take the L0-only
+branch with no conditional terms. All rows are computed; the ledger sums to
+D_ℓ exactly; the residual is a row, and every row carries its analytic SE
+(§3.7).
 
-Substitution estimator, pre-declared: for feature group g, re-evaluate the
-gate on S_q with group g's columns replaced by values quantile-mapped to the
-pattern's donor training marginal (weighted, per pattern; joint within the
-group; seeded map). Contribution(g) = P̄_acs(substituted g) − P̄_acs. Groups,
-fixed now:
+Fallback: if S_q masks cannot be recovered (bank raw_draw positions cover
+family rows, not target-null rows; `imputed_inputs` is aggregate-only —
+`acs_transfer.py:425–446, 1100–1133`), P0 requires the pinned pre-transfer
+stage checkpoint or deterministic replay; if neither is available Phase 0
+reports P0 = UNAVAILABLE and fails closed for that target. First check, run
+before anything else: candidate-25 receipts report authorized == imputed and
+zero unmodeled/residual rows for this roster — if the target-specific masks
+confirm that, φ = 1 and L0 = 0 (H0 dies cheaply).
 
-  G1 demographics (age, is_female, state)
-  G2 native income/tenure optional features (the E6 seven)
-  G3 chained prior draws (within-family completed targets)
-  G4 availability-pattern mixture (recomposition to donor pattern shares)
-  G5 GQ membership (computed as a subgroup deletion, not substitution:
-     recompute D excluding GQ rows; contribution = D − D_noGQ)
+### 3.2 Attribution of T2 (Shapley over joint donor-row hot deck)
 
-Single-group substitutions plus the all-groups substitution; the gap between
-Σ contributions and the all-groups effect is the **interaction term**,
-reported, never allocated. Direction check: the all-groups substitution
-should recover P̄_donor to within tolerance — if it does not, the estimator
-is broken and no attribution is reported (fail closed).
+Feature groups per target from the frozen predictor matrix: G1 demographics
+(person targets: age, is_female, state; group targets: their real group
+roster), G2 optional income/tenure features (or group sums), G3 chained prior
+draws. No G4 (pattern standardization lives in B2); GQ is not a feature group
+(§3.4). Estimator, frozen: for each target, pattern, and coalition
+c ⊆ {G1,G2,G3} (2³ coalitions), draw one donor fit row per recipient S_q row
+with probability proportional to fit weight; copy ALL columns of the coalition
+groups from that same donor row (joint within and across substituted groups —
+handles categorical columns exactly); retain recipient artifact weights;
+common donor draws across coalitions; 1,000 replicates; seed per replicate =
+first 64 bits of SHA-256 of `qrf-drift-v2|target|pattern|replicate`; Shapley
+contributions from the coalition means; the all-groups coalition's gap from
+P_D is the named ledger row "cross-group dependence residual" (zeroed only if
+within its threshold, §3.7). Declared limits: substitution estimates
+association, partial coalitions create off-manifold hybrids; attribution is
+reported not-validated if C2/C3 fail (§3.6) or domain constraints are violated.
+Chained-prior (G3) sub-attributions per prior column replace v1's cross-target
+chain-depth trend (P4) as the chaining evidence.
 
-### 3.3 Negative controls (the decomposition is not trusted without them)
+### 3.3 Probes
 
-  C1 **donor-half self-transfer.** Split donor rows in half by seeded draw;
-     fit the family QRF on half A (same config/seeds discipline as
-     production), draw onto half B's observed features; run the same
-     three-term identity. Expectation if the machinery and estimator are
-     sound and the drift is genuinely recipient-side: T1 ≈ 0, T2 ≈ 0,
-     ratio ≈ 1 within noise. A material within-survey gap reclassifies that
-     much of the "spine shift" as estimator pathology, not survey
-     difference.
-  C2 **synthetic covariate tilt.** Construct recipient′ = donor half B
-     resampled with a known tilt on one G2 feature (declared tilt, seeded).
-     The machinery must attribute the induced drift to that feature's group
-     within tolerance and report ≈ 0 elsewhere.
-  C3 **synthetic chained corruption.** Same, but corrupt one chained prior
-     column by a declared shift; the machinery must charge G3.
-  The tolerances for C1–C3 are set by the same SE formulas of §3.6.
-  **If any control fails, the instrument is fixed before any real reading is
-  reported; real readings from a failed instrument are discarded unseen**
-  (computed last, controls first, enforced by lane script order).
+  P0 provenance/coverage: φ, I_q, I_o, path census with code anchor per path;
+     mask digests reconciled against authorized/imputed/unmodeled receipts.
+  P1 full per-leg ledger table (§3.1) per target.
+  P2 T2 Shapley attribution (§3.2) + per-feature weighted marginal audit
+     (donor fit rows vs recipient S_q, per pattern, two-sample SEs;
+     engineered features compared at construction level with both
+     constructing code paths cited).
+  P3 producer ledger (B1 sub-ledger; the 5k-cap and constraint transitions).
+  P5 extrapolation, metric frozen NOW: per recipient S_q row, weighted mean
+     Gower distance to the k=25 nearest donor fit rows of its pattern
+     (features = that pattern's gate predictors; numeric scaled by donor
+     weighted IQR; categorical/state exact-mismatch cost 1; ties by stable
+     entity id); deciles over S_q; report per-decile leg drift; "concentrated"
+     iff the bottom support decile carries ≥ 50% of |T2|.
+  P6 = B1 ledger (listed for numbering continuity with §3.1).
+  P7 GQ population identity (§3.4).
+  P8 ssi dependency note (§3.0).
 
-### 3.4 Hypothesis register (fixed before data; discriminating signatures)
+### 3.4 GQ (population identity, outside the additive ledger)
 
-| id | mechanism | pre-data plausibility given §1 | signature that confirms | signature that refutes |
-|---|---|---|---|---|
-| H0 coverage/provenance | never-drawn rows dilute I_acs (E7) | HIGH — only story that naturally yields uniform 4–40× | L0: φ low or I_o ≈ 0 with large (1−φ) | φ ≈ 1 |
-| H1 in-sample miscalibration | gate mean proba ≠ donor incidence | LOW (E3) | T1 dominant | T1 ≈ 0 |
-| H2 estimator generalization | within-survey holdout gap | LOW–MED | C1 gap material | C1 clean |
-| H3a genuine composition shift (incl. GQ) | recipient really differs on native features | MED for mild drift; LOW for 40× | T2 dominant, G1/G2/G5 loaded, feature marginals genuinely differ (P3) | G1/G2 ≈ 0 |
-| H3b feature-construction mismatch | same-named feature built differently (E10) | MED | T2 via G2 with marginal gaps concentrated in specific engineered features; unit-level forensics confirm | G2 ≈ 0 |
-| H4 chained propagation | prior targets' drift compounds (E5) | MED | G3 loaded; drift trends with chain position (P4) | G3 ≈ 0, no trend |
-| H5 extrapolation | recipient rows in donor-thin regions | LOW–MED | drift concentrates in thin-support rows (P5) | uniform across support |
-| H6 draw mechanics | identity E2 broken in production path | VERY LOW (code-read) | T3 beyond noise | T3 within noise |
+With H = housing-unit, 2/3 = TYPEHUGQ institutional/noninstitutional, ω the
+weighted shares of the ACS scope: I_ACS = ω_H·I_H + ω_2·I_2 + ω_3·I_3, hence
+D = (J0 − I_H) + ω_2(I_H − I_2) + ω_3(I_H − I_3), reported separately per leg.
+GQ never enters §3.2 and is never added to the §3.1 ledger.
 
-The register's job at verdict time: the observed pattern across
-(L0, T1–T3, G1–G5, C1, P3–P5) must match exactly one row — or the verdict is
-explicitly "mixture", with shares. **Pre-declared verdict rule:** a single
-component ≥ 60% of |D| (after instrument validation) names the root cause; a
-named root cause that is a *defect* (H0 coverage bug, H3b construction bug,
-H4 chain-order defect) creates arm D; H3a ("the surveys genuinely differ")
-is **not** a defect — under H3a the plain QRF is doing its job and the
-drift-vs-donor-margin is a modeling convention question that the ONE target
-surface arbitrates, not the battery (§4.5).
+### 3.5 Hypothesis register (per target per leg; signatures on the v2 ledger)
 
-### 3.5 Probes (deliverables per target)
+| id | mechanism | confirming signature | class |
+|---|---|---|---|
+| H0 | coverage (never-drawn rows) | L0 dominant | bug-vs-by-design per P0 census criterion (a path with a spec'd, receipted, PR-adjudicated intent is by-design; an emergent/undocumented path is defect-candidate) |
+| H1 | gate miscalibration | T1 dominant | estimator property |
+| H2 | out-of-sample generalization | C1 cross-fitted gap material | estimator property |
+| H3a | genuine composition shift | T2 dominant, loaded on G1/G2 jointly, marginals genuinely differ, P7 may load | not a defect (§4.6) |
+| H3b | feature-construction mismatch | T2 via G2 with construction-level forensics | defect |
+| H4 | chained propagation | T2 via G3 sub-attributions | defect iff a chain-order/constructive bug is named |
+| H5 | extrapolation | P5 concentrated | estimator property |
+| H6a | stochastic draw mechanics | T3 beyond its exact-variance band | defect (code) |
+| H6b | post-draw transforms | T4/T5 dominant (weeks-requires-UC, adult-care reconciliation land here) | bug-vs-by-design per the same criterion as H0 |
+| H7 | donor-basis & selection | B1/B2 dominant; sub-rows name clone hop, 5k cap, complete-case, weight basis, pattern collapse | defect-candidate per sub-row (5k unstratified cap and silent pattern collapse are defect-candidates; clone architecture itself is by-design) |
 
-  P0 provenance/coverage table (L0), per target: φ, I_q, I_o, path census
-     with code anchors for each path.
-  P1 three-term identity table (T1/T2/T3 + pattern mixture detail).
-  P2 attribution table (G1–G5 + interaction).
-  P3 feature-marginal audit: weighted donor-vs-recipient marginals per gate
-     feature, per pattern, with two-sample SEs; engineered features compared
-     at the *construction* level (units, reference period, bundling) with
-     the constructing code cited on each side.
-  P4 chain-depth curve: per-target |drift| vs within-family chain position,
-     with incidence level as covariate (position correlates with rarity;
-     the partial trend is the evidence, not the raw one).
-  P5 extrapolation probe: per-row donor support (gate leaf population /
-     nearest-donor distance on the pattern feature set, definitions fixed in
-     the lane charter before running); drift concentration ratio in the
-     bottom support decile.
+Verdict mechanics, frozen: shares are |c_j| / Σ_h |c_h| over the additive
+ledger rows; report the cancellation index Σ|c_h| / |D|; "dominant" = a row (or
+a register row's named row-set, jointly) ≥ 60% of Σ|c| with each named row ≥
+its §3.7 threshold; "no dominant cause" whenever the net gap is within its
+paired uncertainty. Verdicts are PER TARGET (per leg). Defect-classified rows
+that are ≥ 25% of Σ|c| AND ≥ threshold create arm D for that target and block
+arm C and B-validation for that target until rebased on the D-fixed base; the
+same condition set is used for both the C-block and the D-create (no orphan
+zone); material-but-unresolved rows route to "unresolved — no C, no
+decomposition-derived D" (code-level forensics may still establish an
+H3b/H4/H6-class defect for such targets). Bug-vs-by-design classification for
+H0/H6b/H7 rows is adjudicated against the written criterion above and logged
+before any D spec exists.
 
-Target order: the §1 table, worst ratio first; all seven late_transfer specs
-plus the two early_gap_fill ones; SSI's *over*draw (simulated_output) is kept
-as a contrast case — a correct mechanism story should explain sign reversals,
-not just underdraws.
+### 3.6 Controls (run first; readings computed only after the family passes)
 
-### 3.6 Measurability, bound at D0 (before any new computation)
+  C0a basis reproduction: recompute J0 and I_acs from the pinned artifact and
+      match the build's published battery lines digit-for-digit.
+  C0b gate replay: reproduce every needed per-pattern gate bit-identically
+      (state digests) and verify E2 numerically on fit rows via repeated
+      categorical draws against the exact conditional variance.
+  C1  RECLASSIFIED as H2's scientific probe (not an instrument gate): 5-fold
+      household-clustered cross-fitting, 4 repeat partitions (20 folds),
+      production complete-case and availability masks reapplied per fold;
+      report fold/refit variance; unsupported cells marked, never zero-expected.
+  C2  fixed-row paired intervention, frozen: target child_support_received,
+      its largest-share pattern, column = the employment-income feature
+      (person roster) — donor fit rows transformed x → 1.25·x (clipped at the
+      donor observed max); oracle = exact paired per-row gate-probability
+      difference; no downstream rerun; seed family `qrf-drift-v2|C2|replicate`.
+  C3  same, chained column: child_support_expense set to 0 on its drawn
+      carriers among the same rows; oracle likewise exact and paired.
+  C4  no-change control: the full §3.2 machinery on untransformed data must
+      report every contribution within threshold of zero.
+  C5  P0 mask-recovery fixture: a synthetic mini-frame with known masks must
+      be recovered exactly.
+  Pass rule: thresholds derived at D0 from a 5% family-wise false-failure
+  target (Šidák across the enumerated control statistics) against analytic
+  SEs; C2/C3 additionally carry a separate must-detect (power) condition on
+  their known induced effect. A C0/C4/C5 failure invalidates the instrument:
+  fix the documented code defect, log the amendment, refreeze with FRESH
+  control seeds, one rerun. A C2/C3 failure invalidates the attribution layer
+  (P2) only; L0 and the T-ledger stand if C0 passed. C1 never gates the
+  instrument (it is evidence, not calibration).
 
-SE(I) ≈ sqrt(deff · p(1−p)/n) per origin/leg; SE(ratio) by delta method.
-**[D0-1]** n and deff per target scope/origin from the pkg3 artifact.
-**[D0-2]** replicate SDs of battery incidence per target from the existing
-repeat 1% builds (pkg1 r2/r3/r4, pkg3 r2/r3/r4 under
-`_buildo-runtime/out/battery-verify/`) — the empirical noise floor that all
-"material" claims are measured against. **[D0-3]** minimum-support rule: a
-target/leg with expected positive rows < 50 on either origin at 1% is
-reported "insufficient support at 1%; defer to 25%" — never a confident
-verdict. The D0 constants are appended to this file in one commit before the
-Phase-0 lane is dispatched; they are inputs, not results.
+### 3.7 Rungs, support, noise (bound at D0)
+
+Primary decomposition rung: the candidate-25 **pre-calibration** transfer
+checkpoints (they exist and are retained; the 25% pool completed and failed
+only terminal gates). 1% baseline1pct is the cross-rung consistency check for
+the targets readable there. Support floor: 50 clone-deduplicated unique
+positive source rows per origin per leg (physical mirror-clone counts roughly
+double; the unique convention is the binding one); legs under the floor at the
+primary rung report "insufficient support", full stop. Noise: decomposition
+rows carry delta-method analytic SEs built from binomial/Kish-deff components
+and E2's exact draw variance; loading/dominance thresholds use k = 3 SEs with
+Holm within each probe family (the multiplier and the family enumeration are
+D0 constants). Replicate SDs for arm metrics come from §4.3 (the v1 "pkg1/pkg3
+r2/r3/r4 repeat builds" DO NOT EXIST; nothing may cite them).
+
+**D0 (one commit, before dispatch):** pin by path + SHA-256 + JSON pointer:
+baseline1pct pool.h5 and its bank checkpoints; candidate-25 checkpoint root
+(config 3847d30e…) and per-target checkpoint digests; pkg3 (diff context
+only); the per-target per-pattern regime matrix; the target-specific
+authorized/imputed receipts (calibration-receipt kinds matched specifically,
+not bare "post_transfer"); per-target unique and physical positive-row counts
+per origin/leg at both rungs; Kish deff; the E10 boundary-mass table; the
+weight-calibration ratio cap read from the calibrate config; the frozen
+predictor matrix and applicability matrix; the declared control-statistic
+enumeration and derived thresholds; arm B's code pin and A/B/C/D receipt-check
+fields (§4.2); and the integrity assertion that baseline1pct terminal values
+equal checkpoint raw draws on drawn rows (no other edit path).
 
 ## 4. Mission 2 — arm validation
 
-### 4.1 Arms (inputs of record)
+### 4.1 Arms
 
-  A calibrated incumbent: candidate-25 artifacts
-    (`_buildo-runtime/out/candidate-25/`, launcher `run-candidate.sh` is the
-    seed/input record; build running as of 2026-08-25, never rebuilt here).
-  B parsimony: plain QRF + weight calibration
-    (worktree `_worktrees/microcosm-parsimony`, sol lane
-    `20260825-231707-parsimony`; consume `battery-lanes/parsimony.out`).
-  C two-step beta (Max's proposal), closed-form, spec-declared, receipted:
-    - gate stage: per-target logit offset δ_t applied to p_nonzero, solved by
-      monotone 1-D bisection so the recipient weighted mean corrected
-      probability equals the weighted donor margin; tolerance 1e-6 in
-      incidence; solved once per target per pattern from donor references
-      only; never iterated against any scorecard.
-    - amount stage: per-leg skewed quantile draw, u ~ Beta(a,1) replacing
-      Uniform in E2's amount path; a solved by monotone 1-D bisection so the
-      drawn weighted positive-leg **mean** matches the donor weighted
-      positive-leg mean. Declared statistic = mean, decided now: the ONE
-      target surface is sums, and mean×carriers is the quantity weight
-      calibration downstream actually consumes; the median shift is reported
-      as a side effect, not targeted. Known cost: skewed u shrinks draw
-      variance; the battery's five conditional quantiles are mandatory
-      output so the cost is visible.
-    - C is only coherent if Phase 0 shows the gap is NOT H0/H3b/H4-defect:
-      correcting a coverage bug with a sampler skew would be tuning over a
-      defect. **Gate: arm C is built only under H1/H3a/H5/mixture verdicts.**
-  D root-cause fix: only if Phase 0 names a defect; plain QRF + the fix, no
-    adjustment layer.
+  A calibrated incumbent. 25% column: candidate-25 (gate-red is a recorded
+    fact, not a disqualifier for comparison; never rebuilt here) and/or the
+    live release via the head-to-head tool. **A has no valid scoreable 1%
+    artifact** (both existing 1% incumbent pools failed gates pre-release), so
+    A is absent from the 1% rung and every A clause activates only at 25%.
+  B parsimony: plain QRF + weight calibration. Code input of record: branch
+    `parsimony-qrf-only` at 2d973984 (worktree `_worktrees/microcosm-parsimony`).
+    Doctrine, frozen: non-negotiable semantic constraints (weeks-requires-UC,
+    adult-care reconciliation, codec/structural rules) are part of variable
+    semantics and stay in EVERY arm; only the margin-calibration treatment
+    varies. D0 verifies what the branch actually removed; if it stripped
+    semantic constraints, the branch is corrected to parity BEFORE building
+    (code parity, not tuning) and the correction is logged.
+  C two-step closed-form corrections, spec frozen here:
+    - Roster: late_transfer match_reference targets only; preserve_recipient
+      targets (disability_benefits; unemployment_compensation) get no gate
+      correction, mirroring arm A's own carrier policy.
+    - Gate stage: ONE δ per target per correction-leg, applied globally
+      across patterns (preserves cross-pattern heterogeneity in logit space),
+      solved by monotone bisection so the recipient scope's weighted mean
+      corrected class probability equals the same clone-0 reference share the
+      #742 receipts use (`carrier.reference_positive_share`). Regimes:
+      ZERO_INFLATED_POSITIVE/NEGATIVE — binary-class logit offset;
+      THREE_SIGN — joint (δ+, δ−) softmax reweight q_c ∝ p_c·exp(δ_c), δ0=0,
+      solved against both leg margins; SIGN_ONLY — single positive-vs-negative
+      logit (nonzero total not adjustable); POSITIVE_ONLY/NEGATIVE_ONLY/
+      DEGENERATE_ZERO — no-op (a class absent from training is never created).
+      Constraint clamping precedes the solve (e.g. p+ := 0 where UC ≤ 0);
+      infeasible targets emit INFEASIBLE with capacity semantics receipted.
+    - Amount stage: transform the SAME uniform vector u the production draw
+      consumes as u^(1/a) (RNG stream, gate uniforms, and chain state
+      untouched — same-seed pairing survives), per leg, a ∈ [0.05, 20], solved
+      by bisection so the drawn weighted leg mean matches the clone-0
+      reference leg mean (declared statistic: mean, because the ONE surface is
+      sums), relative tolerance 1e-4; solve against decoded pre-structural
+      values, then measure the post-structural residual — beyond tolerance
+      emits INFEASIBLE_STRUCTURAL and the target is C-ineligible. Receipts:
+      source-uniform digest, transformed digest, RNG state, bracket, solution,
+      residual. Five conditional quantiles mandatory so the variance cost is
+      visible.
+    - Eligibility per target per §3.5 (no defect-classified material row).
+  D root-cause fix(es): the union of named per-target defect fixes as one
+    branch; plain QRF + the fixes, no adjustment layer. Pre-registered
+    counterfactual candidates from P3, if implicated: full-source and
+    sign-stratified producer sampling (the 5k cap), pattern-collapse repair.
+    No D+C hybrids.
 
-All arms: same seeds/epochs/inputs as the candidate chain (read from
-`run-candidate.sh`); same pool inputs; 1% first (1%-rung doctrine), 25% only
-for arms that clear their 1% gates and only after the running candidate
-chain releases the host (serial-queue discipline, `.max-go`, AC power).
+Every arm built here (B, C, D — and any A instance) gets a mechanical receipt
+check: the build manifest's sample fraction/seeds, clone-attachment seed,
+epochs, and provenance-pin SHAs diffed against `run-candidate.sh`'s record; a
+mismatch voids that arm's column.
 
-### 4.2 Primary metrics (the charter's four; roles fixed now)
+### 4.2 Metrics and endpoints
 
-  M-1 post-weight-calibration loss and %-within-10 on the ONE target
-      surface — the product arbiter.
-  M-2 rare-transfer counts/incidence at fixed weights — the degeneracy
-      guard (calibration can hide a dead variable by upweighting carriers;
-      an arm that zeroes a variable cannot win regardless of M-1).
-  M-3 by-origin battery (incidence + five conditional quantiles) —
-      donor-fidelity diagnostic and variance-cost report; NOT the arbiter
-      (§4.5).
-  M-4 wall-time per stage — cost axis (the ~2.5→10 min/target regression is
-      itself evidence; per-arm timings recorded from build logs).
+  Primary endpoint: post-weight-calibration **loss on the ONE target surface**.
+  Noninferiority guard: %-within-10, margin 1.0 point (product constant,
+  frozen; not an SD multiple).
+  M-2 degeneracy predicate, per §1 target/leg, evaluated for EVERY arm
+  including B, at fixed pre-calibration design weights: PASS iff
+    (i) the leg meets the §3.7 support floor (else DEFER, re-tested at 25%);
+    (ii) weighted carrier incidence > 0 while the clone-0 reference leg share
+         is nonzero (zero carriers = automatic FAIL);
+    (iii) the arm's carrier mass leaves the variable's ONE-surface sum target
+         (where one exists) reachable within the D0-bound weight-ratio cap;
+    (iv) for challengers: no regression below the same-seed arm-B value minus
+         2× the §4.3 replicate SD.
+  At D0, the predicate is applied on paper to the already-known §1 numbers and
+  the resulting pass/fail/defer table per arm is published BEFORE any build —
+  the threshold's consequences are transparent, not discovered.
+  M-3 battery (incidence + five quantiles): diagnostic only, never arbitrates.
+  M-4 wall-time per stage: cost axis, from build logs.
+  S-1 conditional-structure regressions and S-2 variance-shrinkage: declared
+  secondary, non-arbitrating, reported for every arm.
 
-### 4.3 Secondary, non-arbitrating diagnostics (declared now so they cannot
-be cherry-picked later)
+### 4.3 Noise for arm metrics
 
-  S-1 conditional-structure preservation: weighted regression of drawn
-      value on (age, employment-income feature, state-mean income), donor vs
-      each arm; arm A's prefix selection and C's skew both risk breaking
-      value–covariate structure that plain QRF preserves — this makes that
-      cost visible symmetrically.
-  S-2 C's variance shrinkage: five-quantile spread ratio vs B.
+Three same-config, different-seed 1% builds of arm B, scored on the battery
+AND the ONE surface, give the replicate SDs (ddof = 1, χ-inflation h(3) = 1.6);
+25% bands scale by √(0.01/0.25). Bands and floors are stated per rung in the
+rules; comparisons are always same-rung, paired seeds, simultaneous CIs from a
+seeded household-level paired bootstrap (B = 1000, percentile).
 
-### 4.4 Decision rule (pre-registered)
+### 4.4 Decision rules (mechanical; emit one outcome label)
 
-Paired same-seed comparisons. Materiality per metric =
-max(2 × replicate SD from [D0-2], floor of 1.0 point for %-within-10).
-Rules, in order:
-  1. If D exists and is within materiality of the best arm on M-1 while
-     passing M-2: **D wins** (a removed defect dominates any added layer).
-  2. Else **B wins unless** another arm beats B on M-1 by more than
-     materiality AND passes M-2. Max's parsimony ruling is the standing
-     default being tested, so B is the null, not the underdog.
-  3. If A or C materially beats B: the scorecard goes to Max with the M-1
-     delta, the M-3 fidelity picture, and the S-1/S-2 structure costs — the
-     accuracy-for-parsimony trade is his call, quantified. This experiment
-     never flips anything.
-  4. Ties on M-1 break to: M-2, then fewer moving parts (B ≻ D ≻ C ≻ A),
-     then M-4.
-Promotion to 25%: an arm must clear its 1% gates artifact and improve or
-hold every [D0-3]-measurable target's M-2 standing vs its own 1% baseline.
+  0. All comparisons same-rung. 1% rung compares B/C/D; A joins at 25% only.
+  1. If D exists: D WINS iff noninferior on loss to the best arm (within the
+     rung's band) AND passes M-2 (a removed defect dominates an added layer at
+     equal accuracy).
+  2. Else B is VALIDATED iff noninferior on loss to every eligible arm AND
+     passes every M-2 leg. If B fails M-2, B cannot be validated regardless of
+     loss — the failure table routes to Max as a B-as-shipped degeneracy
+     finding (a product finding, not a ruling on the parsimony doctrine; the
+     flip remains Max's).
+  3. Else an arm WINS iff superior on loss beyond the band AND passes M-2 and
+     the guard; the scorecard with the loss delta, M-2/M-3 tables, and S-1/S-2
+     costs goes to Max (this experiment never flips anything).
+  4. Ties: larger M-2 passing set wins; then fewer moving parts (B ≻ D ≻ C ≻ A);
+     then M-4. Exact equality → INCONCLUSIVE.
+  5. All arms fail M-2 → NO WINNER; all failure tables to Max.
+  Outcomes: WIN_A / WIN_B / WIN_C / WIN_D / INCONCLUSIVE / NO_WINNER.
+  Promotion to 25%: an arm must clear its 1% gates artifact and hold every
+  measurable M-2 leg vs its own 1% standing.
 
-### 4.5 Which margin is "right" (doctrine, fixed now)
+### 4.5 Which margin is "right" (unchanged doctrine)
 
-Donor-margin fidelity (M-3) is a convention, not truth: ASEC's incidence is
-not admin truth for the ACS population, and under H3a a "drifted" margin may
-be the *correct* conditional answer. The admin-anchored truth Max chose
-lives in the ONE target surface; M-1 is therefore the only arbiter. No new
-truth sources enter through this experiment.
+Donor-margin fidelity is a convention, not truth; the ONE target surface is
+the only arbiter; no new truth sources enter here. Under H3a the drift is the
+QRF answering correctly and "fixing" it toward ASEC margins would be wrong —
+which is why M-2 is a degeneracy floor, never a fidelity band.
 
 ## 5. Discipline
 
-- No gate/threshold/band/fold/seed tuning toward passing, anywhere. C's
-  parameters derive from donor margins only, frozen in spec before any
-  scorecard run; the solve scripts emit receipts (inputs, tolerances,
-  solutions, digests).
-- Phase 0 runs read-only over existing checkpoints + cheap deterministic
-  gate reproductions (E4) + the C1–C3 control fits (donor-half HGB fits,
-  bounded minutes of CPU, no forest fits, no pool builds); RAM footprint
-  stays modest while the candidate build owns the host; builds only through
-  the serial queue.
-- Off-chain: `env -u POPULACE_LOGBOOK_PREV_ROW_DIGEST` + `--no-staging`.
-- Implementation → sol lanes (`subfleet run -m sol -t build`), headless,
-  no-network, pre-built venvs; lane charters carry a HEADLESS EXECUTION
-  block and this file by reference; scripts run controls before readings
-  (§3.3 fail-closed order).
-- Every number in the final report traces to a script + input digests; the
-  report leads with the L0/T/G table and the plain-language verdict, then
-  the arm scorecard; publish/promote is never a side effect; Max flips
-  latest.
+Unchanged from v1 (no tuning anywhere; C's parameters closed-form from
+declared references, frozen pre-scorecard, receipted; off-chain env; sol lanes
+headless/no-network with HEADLESS blocks; every number traces to script +
+digests; publish/promote never; Max flips latest) with three corrections:
+Phase 0's compute includes bounded model refits (per-pattern HGB gates, C1's
+fold fits) — still no pool builds, run under the RAM-reclaimable gate at low
+priority while anything owns the host; control seeds burn on refreeze (§3.6);
+and the §3.6/§3.5/§4.2 threshold constants live in the D0 commit, not in lane
+charters.
 
 ## 6. Order of work
 
-  D0  bind constants (§3.6) from existing artifacts; append here; commit.
-  P-lane  Phase-0 sol lane: controls C1–C3 first (instrument validation),
-      then P0–P5 on the §1 targets at 1%; decomposition tables + verdict
-      per §3.4.
-  Gate  arm D and/or arm C become concrete per §4.1's gates; specs written,
-      frozen, committed before any arm build.
-  1%  arms built same-seed; primary metrics; decision rule §4.4.
-  25%  finalists only, post-candidate-chain, head-to-head via
-      `tools/score_us_release_head_to_head.py` (#748) with live incumbent
-      column; multi-column scorecard to Max.
+  D0    bind §3.7's constants and pins; publish the §4.2 paper table; commit.
+  P-lane Phase-0 sol lane on the pinned 25% checkpoints: C0/C4/C5 first, then
+        C2/C3, then P0–P7 per target; per-target per-leg verdicts per §3.5.
+        (First result expected: the φ = 1 check from receipts.)
+  Gate  defect verdicts → arm D spec; eligibility → arm C spec; both frozen
+        and committed before any arm build. B parity check (§4.1) resolves.
+  1%    B ×3 replicates (§4.3) + C/D same-seed; §4.4 at the 1% rung for
+        GO/HOLD; A absent.
+  25%   finalists only, post-candidate-chain, head-to-head
+        (`tools/score_us_release_head_to_head.py`, #748) with the live
+        incumbent column; multi-column scorecard to Max.
