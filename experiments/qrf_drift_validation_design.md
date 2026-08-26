@@ -608,3 +608,11 @@ pinned: adult-care predecessor bb2d1b15…, prior-year-income predecessor
 724e1236…, model-required-numeric predecessor 0aa26da0… (full digests in the
 Phase-0 report). The D0-0 "design sha" row records the pre-A8 file by
 chronology; the operative design is always the current committed file.
+
+**A13 — arm-B code pin updated (2026-08-26).** The §4.1 parity correction is
+done: sol run 20260826-100442-bparity-fix restored the weeks-requires-UC
+recipient rule and the max_targets_per_fit guard on `parsimony-qrf-only`
+(restoration commit dbd8a657, evidence HEAD 95f48a08; ruff clean; full suite
+7,334 passed / 78 skipped; #742 margin-calibration removal retained). Arm B's
+code input of record is now **95f48a08**; the §4.1 build-time receipt check
+binds against it.
