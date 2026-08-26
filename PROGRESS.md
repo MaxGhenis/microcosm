@@ -8,14 +8,22 @@ The fifth Phase-0 execution attempt is active under design commit `8d553796`
 attempt with only the two requested Phase-0 output files modified by the prior
 A17 terminal run; they remain deliberately uncommitted.
 
-A18 supersedes the prior C3 terminal disposition. Before any new statistic is
-computed, this attempt must enumerate and seal every frozen-gate
-`(target, pattern, G3 column)` triple with at least one split and its total
-split gain. On a nonempty enumeration C3 re-targets mechanically to the
-largest-gain triple; on an empty enumeration C3 is waived, the G3 gate-stage
-contributions are exact mechanism zeros, and the two C3 roster slots are
-dropped before `K` and `z*` are recomputed. Every A17 PASS and Step-0 seal is
-eligible for adoption only after its bound input digests re-verify.
+A18 supersedes the prior C3 terminal disposition. Its required first seal is
+now complete: 32 frozen-gate `(target, pattern, G3 column)` triples were
+enumerated, 31 have at least one split, and the sealed table SHA-256 is
+`cfbc1dc7ddece6b9895306eb2e34865da79f0f882f52724a06dfc9bf412c264d`.
+The artifact is `/private/tmp/qrf_phase0_a18_g3_split_enumeration.json`,
+SHA-256 `e853cc8e41c1c2d98dde605a8ca951dfb283246062cf04e280e688291b5d1314`;
+an independent second run is byte-identical. A18 branch 2 therefore applies.
+The mechanically selected C3 triple is `pre_subsidy_care_expenses`,
+`pattern_03_76a0101a`, `is_incapable_of_self_care`: 16 splits and total split
+gain `190276014528.88873` (binary64
+`0x1.626aac8e071c2p+37`). The old child-support C3 is not adopted.
+
+The adoption audit has also rehashed the complete prior evidence/input bundle.
+Every A17 PASS and Step-0 seal matches; only the expected design authority hash
+changed at A18. C0a, C0b, C4, C5, C2, and the setup seals are therefore
+eligible for adoption. C3 alone must execute fresh on the selected triple.
 
 No reading, C1 fit, or verdict has yet been opened in this A18 attempt. No pool
 build, refit-with-changes, network access, publication, promotion, or logbook
@@ -32,17 +40,25 @@ write is authorized or planned.
 - Confirmed the branch is at A18 commit `8d553796` and only
   `experiments/qrf_drift_validation_phase0.md` and `.json` were dirty at the
   start of this attempt.
+- Added and committed the frozen-gate A18 enumerator and focused tests in
+  commit `aa29b1e5`; five focused tests, Ruff, and `git diff --check` pass.
+- Reconstructed all 36 C0b-bound gates, enumerated all 32 applicable G3
+  triples, sealed the 31-row nonzero-split table, and selected A18 branch 2 by
+  the largest-gain rule. The authoritative artifact matches the independent
+  integration artifact byte for byte.
+- Rehashed the A17 setup, C0a, C0b, C4, C5, and C2 evidence and their bound
+  data/code inputs without mismatch. The prior C3 result remains excluded.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Audit the prior A17 output/evidence and existing executors; re-verify all
-   adoption digests and sealed Step-0 deliverables.
-2. Implement or run the A18 frozen-gate G3 split enumeration and commit its
-   sealed table/digest before any downstream computation.
-3. Follow A18 branch 2 or 3 mechanically, then execute READINGS, C1, and
-   VERDICTS in order, committing each coherent progress step.
-4. Render and validate the Markdown/JSON reports while leaving both output
+1. Make C3 mechanically target the sealed adult-care triple, keeping every
+   A16/A17 estimator, pairing, recovery, and power rule unchanged; test and
+   run C3 alone.
+2. If C3 passes, execute READINGS, C1, and VERDICTS in the required order,
+   committing each coherent progress step. If it fails numerically, stop and
+   report control diagnostics only.
+3. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
 
 ## Historical A17 terminal snapshot
