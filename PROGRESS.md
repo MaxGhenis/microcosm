@@ -45,11 +45,23 @@ threshold is `0.00009107088687955122`, so the strict
 `0.0014874884953640108 > 0.00009107088687955122` condition passes. A second
 full run reproduces the exact oracle, every replicate array, every statistic,
 and every non-runtime payload bit for bit. Controls are complete and readings
-are now authorized.
+are now authorized. The primary-rung P0/P1/P6/P7 reading has subsequently
+completed for all nine targets. Its authoritative artifact is
+`/private/tmp/qrf_phase0_p1.json`, SHA-256
+`165fff994c0f5facc16b22e065fc3e2d08e210ab4c1a4539f7a440c087b39ab3`.
+All nine whole-bank P0 counts reconcile with D0-3 and the candidate D0-5
+raw-draw lineage; every clone-0 ledger has phi=1 and empty S_o. All 18
+top-level ledgers and all 18 B2 telescopes close. An independent rerun has an
+identical scientific payload after removing only elapsed-time/RSS fields;
+that normalized payload SHA-256 is
+`83249700d316f2c3125deb34b0fdbeb90735c1dc96f507287272445c9927a396`.
+Producer stages sealed `NO_SURFACE` remain explicitly unavailable rather than
+guessed. The two baseline1pct cross-rung rows currently bind D/J0/Iq/raw/T5
+but leave gate-dependent rows `NOT_RUN_PRIORITY_RULE`.
 
-No reading, C1 fit, or verdict has yet been opened in this A18 attempt. No pool
-build, refit-with-changes, network access, publication, promotion, or logbook
-write is authorized or planned.
+P2, P5, C1, and verdicts have not yet executed. No pool build,
+refit-with-changes, network access, publication, promotion, or logbook write
+is authorized or planned.
 
 ## Done
 
@@ -84,15 +96,28 @@ write is authorized or planned.
   the A16-14 power test pass; no target-wide escalation was triggered. An
   independent complete rerun reproduces every scientific value and replicate
   array exactly.
+- Repaired and committed the deterministic P0/P1/P6/P7 executor in commit
+  `6b001164`; six focused tests, Ruff, formatting, compile, and seal preflight
+  pass. Follow-up commits bind candidate I_q to the pre-calibration structural
+  surface (`47da4cd7`) and candidate P0 lineage to D0-5 rather than D0-4's
+  baseline-only terminal comparison (`7ef29548`).
+- Executed P0/P1/P6/P7 twice. All nine targets are COMPLETE; all P0 gates,
+  18 ledger closures, and 18 B2 closures pass; every non-runtime value is
+  reproduced exactly. Positive legs are supported. Negative legs are
+  explicitly insufficient support, including the frozen SEILY count of 48.
+- Quantified weeks_unemployed positive drift `0.03287028417973478`: B1 is
+  `0.026927608409477565`, T5 UC-clearing is `0.005892551588426899`, and T2 is
+  `0.00015434837856797244`. Adult-care T5 is `0.0020038161254599483` with
+  3,788 candidate pre-calibration rows cleared, extending D0-4's separately
+  sealed 183 baseline cleared draws.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Execute READINGS in the A8 priority order: all-target P0/P1/P6/P7, then P2
-   for the six severe-drift targets before remaining reading work. Record
-   anything predicted to exceed the bound runtime as `NOT_RUN_PRIORITY` with
-   the mechanical estimate.
-2. Execute C1 only after the reading boundary, then compute VERDICTS from the
+1. Execute P2 for the six severe-drift targets, then remaining reading work in
+   A8 priority order. Record anything predicted to exceed the bound runtime as
+   `NOT_RUN_PRIORITY` with the mechanical estimate.
+2. Seal the reading boundary, execute C1, then compute VERDICTS from the
    sealed additive ledger and available probes.
 3. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
