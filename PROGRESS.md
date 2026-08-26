@@ -88,8 +88,10 @@ group and per-prior P2 estimates will remain visible as descriptive numbers
 but be normalized `NOT_VALIDATED` in the final report, outside Holm and H3/H4
 decisions. The audit also found that two semantic Boolean G3 priors lacked
 category-level detail and that the directly imported A18 verifier was absent
-from `source_files`; the committed executor now fixes both, and P2 will be
-regenerated after the active P5 work. The exact P5 executor is independently reviewed
+from `source_files`. A sealed pre-P2 NON_GATED default now fixes category
+orders before recomputation, and the committed executor records that receipt
+plus the missing verifier source. P2 will be regenerated after the active P5
+work. The exact P5 executor is independently reviewed
 and ready. Its sealed estimate is 24 cache-distinct metric surfaces,
 479,723,507,273 recipient-donor pairs, and 5,098,887,772,670 feature-pair
 costs; the fourfold-conservative cached projection is 11.38 hours, within
@@ -181,6 +183,15 @@ is authorized or planned.
   `is_incapable_of_self_care` and `previous_year_income_available` use
   registered Boolean category order 0/1, and added the imported A18 verifier
   to the executor's recorded `source_files`. Focused tests and Ruff pass.
+- Sealed A16's pre-reading default for the otherwise unspecified NON_GATED P2
+  category presentation: semantic booleans use 0/1; tenure uses 0/1/2/3 then
+  ascending observed extras; FIPS uses ascending observed binary64 levels.
+  The twice-identical artifact is
+  `/private/tmp/qrf_phase0_a18_p2_defaults.json`, file SHA-256
+  `99c507e0ec4c5b39e8bb9785d3c41d4ac9a9c8e7331e429c0c27e458113346c8`,
+  canonical SHA-256
+  `854ea209b422b9dd2c1fc6848ffc135c0988d410e3c27dad50eebf52e6e25c0a`.
+  Sixteen focused P2/default tests, Ruff, and format checks pass.
 - Implemented the fail-closed readings-before-C1 barrier. It verifies and
   directly binds the adopted controls, fresh C3, complete P0/P1/P6/P7,
   complete-but-`NOT_VALIDATED` P2, both baseline cross-rung readings, and

@@ -29,6 +29,7 @@ from typing import Any
 import numpy as np
 import qrf_drift_phase0_a18_g3_splits as a18_enumeration
 import qrf_drift_phase0_c4 as c4
+import qrf_drift_phase0_p2_defaults as p2_defaults
 import qrf_drift_phase0_replay as replay
 import sklearn
 
@@ -41,6 +42,7 @@ DEFAULT_ADOPTION = Path("/private/tmp/qrf_phase0_a18_adoption.json")
 DEFAULT_C3 = Path("/private/tmp/qrf_phase0_a18_c3.json")
 DEFAULT_C0B = Path("/private/tmp/qrf_phase0_v22_c0b.json")
 DEFAULT_C4 = Path("/private/tmp/qrf_phase0_a17_c4.json")
+DEFAULT_READING_DEFAULTS = Path("/private/tmp/qrf_phase0_a18_p2_defaults.json")
 DEFAULT_OUT = Path("/private/tmp/qrf_phase0_a18_p2.json")
 
 INITIAL_REPLICATES = 250
@@ -272,6 +274,21 @@ def verify_reading_prerequisites(
     return adoption, c3_payload, c4_payload, c0b_payload
 
 
+def verify_reading_defaults(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Verify the A16 regress-rule defaults were sealed before P2."""
+    payload = json.loads(path.read_text())
+    canonical = p2_defaults.verify_artifact(payload)
+    return payload, {
+        "path": str(path.resolve()),
+        "sha256": c4.sha256_file(path),
+        "canonical_sha256": canonical,
+        "status": payload["status"],
+        "implementation": payload["implementation"],
+        "scope": payload["scope"],
+        "source_files": payload["source_files"],
+    }
+
+
 def combine_stratum_means(
     values: np.ndarray,
     slices: Iterable[dict[str, Any]],
@@ -490,16 +507,7 @@ def difference_se(
 
 def categorical_feature(name: str) -> bool:
     """Return the frozen transfer semantics used for categorical detail."""
-    return (
-        name == "is_female"
-        or name in {
-            "is_incapable_of_self_care",
-            "previous_year_income_available",
-        }
-        or name.endswith("_is_household_head")
-        or name.endswith("_state_fips")
-        or name.endswith("_tenure_code")
-    )
+    return p2_defaults.feature_semantics(name) != "numeric"
 
 
 def registered_categories(
@@ -507,32 +515,10 @@ def registered_categories(
     donor: np.ndarray,
     recipient: np.ndarray,
 ) -> tuple[list[float], str]:
-    """Return deterministic semantic levels and disclose their provenance."""
-    observed = sorted(
-        float(value) for value in np.unique(np.concatenate((donor, recipient)))
-    )
-    if (
-        name
-        in {
-            "is_female",
-            "is_incapable_of_self_care",
-            "previous_year_income_available",
-        }
-        or name.endswith("_is_household_head")
-    ):
-        base = [0.0, 1.0]
-        source = "production semantic boolean order 0,1"
-    elif name.endswith("_tenure_code"):
-        base = [0.0, 1.0, 2.0, 3.0]
-        source = "production replay.TENURE_CODES numeric order"
-    else:
-        base = observed
-        source = (
-            "ascending observed FIPS; D0 orders the feature but does not "
-            "enumerate category levels"
-        )
-    extras = [value for value in observed if value not in base]
-    return [*base, *extras], source
+    """Return levels from the sealed NON_GATED pre-P2 defaults artifact."""
+    categories, source = p2_defaults.registered_categories(name, donor, recipient)
+    require(categories is not None, f"numeric feature requested categories: {name}")
+    return categories, source
 
 
 def marginal_audit(
@@ -543,6 +529,7 @@ def marginal_audit(
     *,
     feature: str,
     categories: list[float] | None = None,
+    category_default_source: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compute the full A16-31 numeric and categorical marginal evidence."""
     donor = np.asarray(donor_values, dtype=np.float64)
@@ -612,6 +599,7 @@ def marginal_audit(
         "recipient_values_identity": c4.array_identity(recipient),
         "donor_weights_identity": replay.weight_identity(donor_weights),
         "recipient_weights_identity": replay.weight_identity(recipient_weights),
+        "category_default_source": category_default_source,
     }
 
 
@@ -1634,6 +1622,7 @@ def run_target(
     target: str,
     *,
     chunk_rows: int,
+    category_default_source: dict[str, Any],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Execute one complete, independently sealable target reading."""
     started = time.perf_counter()
@@ -1724,6 +1713,7 @@ def run_target(
                 recipients[pattern]["x"][:, position],
                 recipients[pattern]["weights"],
                 feature=feature,
+                category_default_source=category_default_source,
             )
             for position, feature in enumerate(context["columns"])
         ]
@@ -1951,6 +1941,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--c3-json", type=Path, default=DEFAULT_C3)
     parser.add_argument("--c0b-json", type=Path, default=DEFAULT_C0B)
     parser.add_argument("--c4-json", type=Path, default=DEFAULT_C4)
+    parser.add_argument(
+        "--reading-defaults",
+        type=Path,
+        default=DEFAULT_READING_DEFAULTS,
+        help="sealed A16 NON_GATED category defaults created before P2",
+    )
     parser.add_argument("--manifest-json", type=Path)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument(
@@ -1978,6 +1974,9 @@ def main() -> None:
         args.c3_json,
         args.c4_json,
         args.c0b_json,
+    )
+    _reading_defaults, reading_defaults_receipt = verify_reading_defaults(
+        args.reading_defaults
     )
     d0 = json.loads(D0_JSON.read_text())
     input_verification = a18_enumeration.verify_inputs(d0, args.c0b_json)
@@ -2021,6 +2020,7 @@ def main() -> None:
             "path": str(args.c0b_json.resolve()),
             "sha256": c4.sha256_file(args.c0b_json),
         },
+        "P2_descriptive_defaults": reading_defaults_receipt,
     }
     source_files = [
         {"path": str(path.resolve()), "sha256": c4.sha256_file(path)}
@@ -2028,6 +2028,7 @@ def main() -> None:
             Path(__file__),
             Path(a18_enumeration.__file__),
             Path(c4.__file__),
+            Path(p2_defaults.__file__),
             Path(replay.__file__),
         )
     ]
@@ -2076,6 +2077,7 @@ def main() -> None:
             c4_cells,
             target,
             chunk_rows=args.prediction_chunk_rows,
+            category_default_source=reading_defaults_receipt,
         )
         result["targets"].append(target_payload)
         result["statistics"].extend(target_statistics)
