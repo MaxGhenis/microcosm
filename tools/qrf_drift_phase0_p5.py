@@ -50,7 +50,9 @@ DEFAULT_OUT = Path("/private/tmp/qrf_phase0_a18_p5.json")
 DESIGN_SHA256 = "5c8e55293215a7d1350c93825b1a4daf04e212bb84d17408b8750ed5d9d4e754"
 D0_SHA256 = "fb57f6a0695a7a7137fb7270d4fa7bce7e6a6aa079cdc82e35bdf5bb7cf737c8"
 A16_SHA256 = "7e288bce7496e1e7f41e33f078be2043673ca54ff31182caf2ce92eab68a81c1"
-STEP0_MANIFEST_SHA256 = "e65378071bf9e9519b51eba30c63fd89ca08d982e35610bb5017fcf599e29142"
+STEP0_MANIFEST_SHA256 = (
+    "e65378071bf9e9519b51eba30c63fd89ca08d982e35610bb5017fcf599e29142"
+)
 
 TARGETS = p1.TARGETS
 LEGS = p1.LEGS
@@ -141,8 +143,7 @@ def verify_p1_artifact(path: Path, c0b_path: Path) -> dict[str, Any]:
         "P1 authority changed",
     )
     require(
-        authority.get("direct_C0b_evidence", {}).get("sha256")
-        == sha256_file(c0b_path),
+        authority.get("direct_C0b_evidence", {}).get("sha256") == sha256_file(c0b_path),
         "P1 and P5 do not share the same direct C0b evidence",
     )
     readings = payload.get("candidate-25", {}).get("targets", {})
@@ -185,7 +186,9 @@ def metric_definition(
     """Freeze categorical semantics and donor-weighted numeric IQRs."""
     matrix = np.asarray(donor_x, dtype=np.float64)
     weights = np.asarray(donor_weights, dtype=np.float64)
-    require(matrix.ndim == 2 and matrix.shape[1] == len(columns), "metric columns differ")
+    require(
+        matrix.ndim == 2 and matrix.shape[1] == len(columns), "metric columns differ"
+    )
     require(len(matrix) == len(weights), "metric donor weights differ")
     unknown = set(CATEGORICAL_COLUMNS) - {
         name
@@ -193,7 +196,9 @@ def metric_definition(
         for pattern in target["patterns"]
         for name in pattern["effective_gate_columns"]
     }
-    require(not unknown, f"categorical roster contains non-D0 columns: {sorted(unknown)}")
+    require(
+        not unknown, f"categorical roster contains non-D0 columns: {sorted(unknown)}"
+    )
     features: list[dict[str, Any]] = []
     for position, name in enumerate(columns):
         if name in CATEGORICAL_COLUMNS:
@@ -269,9 +274,7 @@ def exact_gower_knn_scores(
             elif semantics == "numeric_zero_iqr_exact_mismatch":
                 distance += block[:, position, None] != donor[None, :, position]
             else:
-                component = np.abs(
-                    block[:, position, None] - donor[None, :, position]
-                )
+                component = np.abs(block[:, position, None] - donor[None, :, position])
                 component /= float(feature["iqr"])
                 np.minimum(component, 1.0, out=component)
                 distance += component
@@ -332,7 +335,10 @@ def weighted_decile_bins(
     ids = np.asarray(stable_entity_ids)
     w = np.asarray(weights, dtype=np.float64)
     require(len(score) == len(ids) == len(w) and len(score) > 0, "decile inputs differ")
-    require(np.isfinite(score).all() and np.isfinite(w).all() and (w > 0).all(), "bad decile inputs")
+    require(
+        np.isfinite(score).all() and np.isfinite(w).all() and (w > 0).all(),
+        "bad decile inputs",
+    )
     order = np.lexsort((ids, score))
     sorted_w = w[order]
     cumulative = np.cumsum(sorted_w, dtype=np.float64)
@@ -349,6 +355,54 @@ def weighted_decile_bins(
     }
 
 
+def decile_partition_closure(
+    bin_weight: np.ndarray,
+    bin_rows: np.ndarray,
+    *,
+    total_weight: float,
+    expected_rows: int,
+) -> dict[str, Any]:
+    """Verify an exhaustive decile partition without a scale-blind epsilon.
+
+    ``np.bincount`` reduces each bin in a different order from the original
+    full-vector sum.  On the 856,626-row child-support surface that legitimate
+    roundoff exceeds 1e-6 even though every row appears exactly once.  The
+    exact integer row census is therefore the loss/duplication gate; the
+    weight check uses a bounded ULP allowance only for reduction-order drift.
+    """
+    weights = np.asarray(bin_weight, dtype=np.float64)
+    rows = np.asarray(bin_rows, dtype=np.int64)
+    require(
+        weights.shape == rows.shape == (10,)
+        and np.isfinite(weights).all()
+        and (weights >= 0.0).all()
+        and (rows >= 0).all(),
+        "P5 decile closure inputs are malformed",
+    )
+    observed_weight = math.fsum(float(value) for value in weights)
+    residual = observed_weight - float(total_weight)
+    scale = max(abs(observed_weight), abs(float(total_weight)), 1.0)
+    tolerance = 4096.0 * float(np.spacing(scale))
+    observed_rows = int(rows.sum(dtype=np.int64))
+    row_pass = observed_rows == int(expected_rows)
+    weight_pass = abs(residual) <= tolerance
+    return {
+        "status": "PASS" if row_pass and weight_pass else "FAIL",
+        "row_count": observed_rows,
+        "expected_row_count": int(expected_rows),
+        "row_partition_exact": row_pass,
+        "bin_weight_sum": observed_weight,
+        "expected_weight_sum": float(total_weight),
+        "weight_residual": residual,
+        "weight_tolerance": tolerance,
+        "weight_reduction_order_within_4096_ulps": weight_pass,
+        "tolerance_basis": (
+            "4096 binary64 ULPs at total-weight scale; exact integer row "
+            "partition separately rejects any row loss or duplication"
+        ),
+    }
+
+
 def work_estimate(
     d0: dict[str, Any],
     *,
@@ -361,8 +415,7 @@ def work_estimate(
     largest: dict[str, Any] | None = None
     for target, target_spec in d0["D0-2"]["targets"].items():
         predictor_patterns = {
-            row["name"]: row
-            for row in d0["D0-7"]["targets"][target]["patterns"]
+            row["name"]: row for row in d0["D0-7"]["targets"][target]["patterns"]
         }
         for pattern in target_spec["patterns"]:
             columns = tuple(
@@ -529,8 +582,7 @@ def validate_manifest_fragments(
         for item in manifest
         if item.get("dimensions", {}).get("rung") == "candidate-25"
         and item.get("dimensions", {}).get("target") in target_set
-        and item.get("dimensions", {}).get("row")
-        in {"P5_decile", "P5_concentration"}
+        and item.get("dimensions", {}).get("row") in {"P5_decile", "P5_concentration"}
     }
     require(
         len(expected) == 62 * len(targets),
@@ -650,12 +702,15 @@ def run_target(
     )
 
     bin_weight = np.zeros(10, dtype=np.float64)
+    bin_rows = np.zeros(10, dtype=np.int64)
     bin_distance_mass = np.zeros(10, dtype=np.float64)
     bin_drift_mass = {leg: np.zeros(10, dtype=np.float64) for leg in LEGS}
     patterns: list[dict[str, Any]] = []
     cache_counts = {"hits": 0, "misses": 0}
 
-    for d0_pattern, pattern in zip(target_spec["patterns"], role["patterns"], strict=True):
+    for d0_pattern, pattern in zip(
+        target_spec["patterns"], role["patterns"], strict=True
+    ):
         pattern_name = pattern["name"]
         require(pattern_name == d0_pattern["name"], "P5 pattern order changed")
         context = c4.fit_gate_context(data, target, pattern_name, c0b_lookup)
@@ -712,10 +767,9 @@ def run_target(
             cache_counts["misses"] += 1
 
         bins, bin_diagnostic = weighted_decile_bins(scores, stable_ids, weights)
+        bin_rows += np.bincount(bins, minlength=10).astype(np.int64)
         bin_weight += np.bincount(bins, weights=weights, minlength=10)
-        bin_distance_mass += np.bincount(
-            bins, weights=weights * scores, minlength=10
-        )
+        bin_distance_mass += np.bincount(bins, weights=weights * scores, minlength=10)
         legs: dict[str, Any] = {}
         for leg, sign in LEGS.items():
             donor_p = _leg_probability(
@@ -732,13 +786,16 @@ def run_target(
             )
             p1_pattern = next(
                 row
-                for row in p1_payload["candidate-25"]["targets"][target]["P1"]
-                ["pattern_rows"]
+                for row in p1_payload["candidate-25"]["targets"][target]["P1"][
+                    "pattern_rows"
+                ]
                 if row["pattern"] == pattern_name
             )
             expected_donor = float(p1_pattern["legs"][leg]["P_D"]["value"])
             expected_recipient = float(p1_pattern["legs"][leg]["P_R"]["value"])
-            recipient_mean = float(np.dot(weights, row_p) / weights.sum(dtype=np.float64))
+            recipient_mean = float(
+                np.dot(weights, row_p) / weights.sum(dtype=np.float64)
+            )
             require(
                 math.isclose(donor_mean, expected_donor, rel_tol=0.0, abs_tol=2e-15)
                 and math.isclose(
@@ -765,9 +822,16 @@ def run_target(
             }
         )
 
+    partition_closure = decile_partition_closure(
+        bin_weight,
+        bin_rows,
+        total_weight=total_weight,
+        expected_rows=int(sq.sum()),
+    )
     require(
-        math.isclose(float(bin_weight.sum()), total_weight, rel_tol=0.0, abs_tol=1e-6),
-        f"P5 bin weights do not close for {target}",
+        partition_closure["status"] == "PASS",
+        f"P5 decile partition does not close for {target}: "
+        f"{json.dumps(partition_closure, sort_keys=True)}",
     )
     statistics: list[dict[str, Any]] = []
     legs_output: dict[str, Any] = {}
@@ -793,7 +857,9 @@ def run_target(
             float(abs(drift[9]) / denominator) if concentration_defined else "NA"
         )
         concentration_status = (
-            row_status if concentration_defined or not support["pass"] else "NOT_APPLICABLE"
+            row_status
+            if concentration_defined or not support["pass"]
+            else "NOT_APPLICABLE"
         )
         legs_output[leg] = {
             "support": support,
@@ -868,6 +934,7 @@ def run_target(
             "S_q_weight": total_weight,
             "patterns": patterns,
             "pooled_deciles": {
+                "rows": bin_rows.tolist(),
                 "weight": bin_weight.tolist(),
                 "weight_share": (bin_weight / total_weight).tolist(),
                 "mean_distance": [
@@ -877,6 +944,7 @@ def run_target(
                     for i in range(10)
                 ],
             },
+            "decile_partition_closure": partition_closure,
             "legs": legs_output,
             "elapsed_seconds": time.monotonic() - target_started,
         },
@@ -903,7 +971,10 @@ def run(
     require(sha256_file(D0_JSON) == D0_SHA256, "D0 digest changed")
     require(sha256_file(A16_BINDING) == A16_SHA256, "A16 binding digest changed")
     require(d0_path.resolve() == D0_JSON.resolve(), "P5 requires the ratified D0 path")
-    require(len(targets) > 0 and len(set(targets)) == len(targets), "target subset is empty/duplicated")
+    require(
+        len(targets) > 0 and len(set(targets)) == len(targets),
+        "target subset is empty/duplicated",
+    )
     require(
         list(targets) == [target for target in TARGETS if target in targets],
         "P5 target subset must preserve registered order",
@@ -984,7 +1055,10 @@ def run(
             "design": {"path": str(DESIGN), "sha256": DESIGN_SHA256},
             "D0": {"path": str(D0_JSON), "sha256": D0_SHA256},
             "A16_binding": {"path": str(A16_BINDING), "sha256": A16_SHA256},
-            "adoption": {"path": str(adoption_path), "sha256": sha256_file(adoption_path)},
+            "adoption": {
+                "path": str(adoption_path),
+                "sha256": sha256_file(adoption_path),
+            },
             "C3": {"path": str(c3_path), "sha256": sha256_file(c3_path)},
             "C4": {"path": str(c4_path), "sha256": sha256_file(c4_path)},
             "C0b": {"path": str(c0b_path), "sha256": sha256_file(c0b_path)},

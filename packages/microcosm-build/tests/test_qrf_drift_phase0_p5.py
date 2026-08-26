@@ -107,6 +107,49 @@ def test_weighted_midpoint_deciles_use_score_then_stable_id() -> None:
     assert sum(diagnostic["bin_weight"]) == 10.0
 
 
+def test_decile_partition_closure_uses_exact_rows_and_scaled_ulps() -> None:
+    # Reproduce the scale and reduction-order discrepancy that exceeded the
+    # former fixed 1e-6 tolerance after all 856,626 rows were assigned.
+    total_weight = 79_837_622.85984892
+    weights = np.asarray(
+        [
+            7_983_762.285984892,
+            7_983_762.285984892,
+            7_983_762.285984892,
+            7_983_762.285984892,
+            7_983_762.285984892,
+            7_983_762.285984892,
+            7_983_762.285984892,
+            7_983_762.285984892,
+            7_983_762.285984892,
+            7_983_762.285988029,
+        ]
+    )
+    rows = np.asarray([85_663] * 6 + [85_662] * 4)
+
+    closure = P5.decile_partition_closure(
+        weights,
+        rows,
+        total_weight=total_weight,
+        expected_rows=856_626,
+    )
+
+    assert abs(closure["weight_residual"]) > 1e-6
+    assert closure["weight_reduction_order_within_4096_ulps"] is True
+    assert closure["row_partition_exact"] is True
+    assert closure["status"] == "PASS"
+    rows[0] -= 1
+    assert (
+        P5.decile_partition_closure(
+            weights,
+            rows,
+            total_weight=total_weight,
+            expected_rows=856_626,
+        )["status"]
+        == "FAIL"
+    )
+
+
 def test_bound_d0_work_and_conservative_a8_disposition() -> None:
     d0 = json.loads((ROOT / "experiments/qrf_drift_validation_d0.json").read_text())
 
@@ -121,9 +164,10 @@ def test_bound_d0_work_and_conservative_a8_disposition() -> None:
     assert estimate["cached_feature_pair_costs"] == 5_098_887_772_670
     assert estimate["conservative_cached_kernel_hours"] < 20.0
     assert estimate["conservative_literal_kernel_hours"] < 20.0
-    assert estimate["conservative_literal_kernel_hours"] > estimate[
-        "conservative_cached_kernel_hours"
-    ]
+    assert (
+        estimate["conservative_literal_kernel_hours"]
+        > estimate["conservative_cached_kernel_hours"]
+    )
     assert estimate["disposition"] == "MECHANICALLY_FEASIBLE_EXACT_UNDER_A8"
 
 

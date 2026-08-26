@@ -96,8 +96,13 @@ and ready. Its sealed estimate is 24 cache-distinct metric surfaces,
 479,723,507,273 recipient-donor pairs, and 5,098,887,772,670 feature-pair
 costs; the fourfold-conservative cached projection is 11.38 hours, within
 A8. Six disjoint target shards preserve every safe cache reuse while making
-the long run durable. The first all-donor P5 cache-building shard is active;
-C1 and verdicts have not yet executed. No pool build,
+the long run durable. The first P5 attempt completed its largest
+683,997-recipient surface, then rejected the target on a fixed `1e-6`
+decile-weight closure epsilon. Direct reconstruction proved all 856,626 rows
+were assigned exactly once while valid binary64 reduction orders differ by
+`1.30e-6` to `3.14e-6`. The executor now gates loss/duplication by exact row
+census and separately bounds reduction drift at 4,096 ULPs; the first shard
+will restart from committed code. C1 and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
 
@@ -170,6 +175,12 @@ is authorized or planned.
   donor identities are not materialized because their exact binary64
   distances, and therefore every reported score, are identical; this exact
   equivalence is disclosed in the artifact.
+- Diagnosed the first P5 post-distance stop as a scale-blind internal
+  floating-sum check, not missing decile assignments or a numerical control
+  failure. Replaced it with an exact row-partition gate plus a recorded
+  ULP-scaled reduction-order diagnostic; a regression fixture reproduces the
+  former false rejection and rejects a one-row loss. Eight focused tests,
+  Ruff, and format checks pass.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,
