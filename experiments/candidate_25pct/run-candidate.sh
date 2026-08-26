@@ -674,8 +674,15 @@ def digest(path: Path) -> str:
     return value.hexdigest()
 
 payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-if payload.get("status") != "simulation_ready" or payload.get("simulation_ready") is not True:
-    raise SystemExit("pool manifest is not simulation_ready")
+status = payload.get("status")
+ready = payload.get("simulation_ready")
+sealed_ready = status == "simulation_ready" and ready is True
+sealed_gate_failed = status == "gate_failed" and ready is False
+if not (sealed_ready or sealed_gate_failed):
+    raise SystemExit(
+        "pool manifest is neither simulation_ready nor a sealed gate_failed "
+        f"publication: status={status!r} simulation_ready={ready!r}"
+    )
 sampling = payload.get("sampling", {})
 if sampling.get("sample_fraction") != 0.25 or sampling.get("sample_seed") != 578:
     raise SystemExit(f"pool sampling receipt is wrong: {sampling}")
