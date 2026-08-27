@@ -133,8 +133,16 @@ canonical SHA-256
 `85ac408e7653e12d9e690c1a380fe4ad2c7ad343b5262537330a429f5bcff588`.
 Its 248-row manifest passes with the expected ordered-ID SHA-256
 `cf5cb3e32381b1e17b4a6e758ed6ced0e476b8a791911a9879d0848bc5eb7804`.
-An independent 1,754-assertion audit has no failures. Child-support-received
-and adult care are active from the same source SHA-256
+An independent 1,754-assertion audit has no failures. The
+child-support-received singleton is also sealed at
+`/private/tmp/qrf_phase0_a18_p5_csr.json`, file SHA-256
+`da6a2397a194ef89526885bd38659de66427b178061d27b8588fe3b2815c71cd`,
+canonical SHA-256
+`53c6a0362590a56052b475b77b18af890c22579416a0a66eddd47af4c15d04f5`;
+its expected ordered-ID SHA-256 is
+`97b3fc740d724e0cac56818c25565fc9600d7494fc0ba35613c2c63e9b317c65`.
+An independent 509-assertion audit has no artifact failures. Adult care and
+unemployment compensation are active from the same source SHA-256
 `b0467fae3a1020915c5cabfd5b37616229bc5c3297f59c7c56ad90db70fbdee6`.
 C1 and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
@@ -248,6 +256,14 @@ is authorized or planned.
   `1.6540288925170898e-6` within `6.103515625e-5`; all eight leg closures,
   P1 T2/phi/support equalities, pattern rosters, Gower metrics, pooled mirrors,
   and concentration calculations pass.
+- Sealed the authoritative child-support-received P5 singleton. All 62
+  Step-0 rows pass. Its independent 509-assertion audit rehashed every
+  authority/source/live-input binding, reproduced the canonical bytes and
+  exact manifest slice, and certified 856,626 expected rows exactly once.
+  Its weight residual is `1.6391277313232422e-6` within
+  `6.103515625e-5`; its negative drift residual is zero and positive drift
+  residual is `5.970701363877673e-16`, with all P1 equality, metric, pooled,
+  concentration, and A8 checks passing.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,
