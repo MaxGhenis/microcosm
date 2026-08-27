@@ -29,6 +29,21 @@ def _load_module():
 
 FINAL = _load_module()
 
+FIXTURE_ALLOWED_STATUSES = [
+    "PASS",
+    "FAIL",
+    "OK",
+    "NOT_APPLICABLE",
+    "NOT_VALIDATED",
+    "UNAVAILABLE",
+    "UNSUPPORTED",
+    "NOT_RUN_PRIORITY",
+    "NOT_RUN_CONTROLS_FAILED",
+    "INSUFFICIENT_SUPPORT_NO_VERDICT",
+    "NOT_RUN_NOT_ESCALATED",
+    "SEALED_NOT_COMPUTED",
+]
+
 
 def _dimensions(
     *,
@@ -82,6 +97,135 @@ def _statistic(
     }
 
 
+def _manifest_spec(
+    row: str,
+    *,
+    rung: str = "candidate-25",
+    target: str = "example",
+    leg: str = "positive",
+    family: str | None = None,
+    gated: bool = False,
+    **dimension_overrides: str,
+) -> dict[str, Any]:
+    dimensions = _dimensions(rung=rung, target=target, leg=leg, row=row)
+    dimensions.update(dimension_overrides)
+    identifier = "fixture|" + "|".join(
+        f"{name}={dimensions[name]}"
+        for name in (
+            "rung",
+            "target",
+            "pattern",
+            "leg",
+            "row",
+            "group",
+            "prior",
+            "gq",
+            "decile",
+            "repeat",
+            "fold",
+            "variant",
+        )
+    )
+    return {
+        "id": identifier,
+        "dimensions": dimensions,
+        "record_type": "scalar",
+        "family": family,
+        "gated": gated,
+        "allowed_statuses": list(FIXTURE_ALLOWED_STATUSES),
+    }
+
+
+def _fixture_manifest(specs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build a deterministic 6,155-cell manifest without a report output file."""
+    assert len({spec["id"] for spec in specs}) == len(specs)
+    manifest = list(specs)
+    for index in range(FINAL.EXPECTED_MANIFEST_COUNT - len(manifest)):
+        manifest.append(
+            _manifest_spec(
+                "fixture_filler",
+                rung="fixture",
+                target=f"fixture_{index:04d}",
+                leg="_",
+            )
+        )
+    assert len(manifest) == FINAL.EXPECTED_MANIFEST_COUNT
+    return manifest
+
+
+def _p6_manifest(target: str = "child_support_expense") -> list[dict[str, Any]]:
+    stages = (
+        "J1_donor_projection",
+        "boundary_bridge",
+        "clone2_tail_exclusion",
+        "clone_weight_bridge",
+        "first_hop_draw",
+        "fit_sample_5000",
+        "full_asec_source",
+        "producer_codec",
+        "producer_constraints",
+        "recipient_codec",
+        "recipient_raw_draw",
+        "recipient_structural",
+        "transfer_fit_rows",
+    )
+    variants = (
+        "mask_sha256",
+        "sign_count",
+        "weighted_sign_mass",
+        "incidence",
+        "seed",
+    )
+    return _fixture_manifest(
+        [
+            _manifest_spec(
+                f"P6_{stage}",
+                target=target,
+                leg=leg,
+                variant=variant,
+            )
+            for stage in stages
+            for leg in FINAL.LEGS
+            for variant in variants
+        ]
+    )
+
+
+def _baseline_manifest() -> list[dict[str, Any]]:
+    specs: list[dict[str, Any]] = []
+    for target in (
+        "self_employment_income_last_year",
+        "spm_unit_energy_subsidy",
+    ):
+        for row in ("phi", *FINAL.LEVEL_ROWS, *FINAL.TOP_LEVEL_ROWS, "residual"):
+            family = "F1" if row in FINAL.TOP_LEVEL_ROWS else None
+            specs.append(
+                _manifest_spec(
+                    row,
+                    rung="baseline1pct",
+                    target=target,
+                    family=family,
+                    gated=family is not None,
+                )
+            )
+    return _fixture_manifest(specs)
+
+
+def _p5_manifest() -> list[dict[str, Any]]:
+    targets = list(json.loads(FINAL.D0_JSON.read_text())["scope"]["targets"])
+    return _fixture_manifest(
+        [
+            _manifest_spec(
+                f"P5_fixture_{index:02d}",
+                target=target,
+                leg="_",
+            )
+            for target in targets
+            for index in range(62)
+        ]
+    )
+
+
 def _verdict_inputs(
     values: dict[str, float],
     *,
@@ -100,16 +244,34 @@ def _verdict_inputs(
 
 
 def test_step0_manifest_and_historical_c3_ids_remain_sealed() -> None:
-    base = json.loads(
-        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
+    assert FINAL.EXPECTED_MANIFEST_COUNT == 6155
+    assert FINAL.EXPECTED_STEP0_SHA == (
+        "988aa191a1eb83c35ce009cbc889f44dcf706884095d76f588a72124d05c0283"
     )
-
-    manifest, step0 = FINAL.verify_step0(base)
-    ids = {item["id"] for item in manifest}
-
-    assert len(manifest) == FINAL.EXPECTED_MANIFEST_COUNT == 6155
-    assert FINAL.digest_object(step0) == FINAL.EXPECTED_STEP0_SHA
-    assert set(FINAL.c3_stable_ids()) <= ids
+    assert FINAL.EXPECTED_STEP0_SEALS == {
+        "operator_table_sha256": (
+            "447f7c9f00220440b7ad3825223f01fec8bed28e16e6eda2a851afdda64a6e23"
+        ),
+        "json_schema_sha256": (
+            "1a951262e9f9420fa8bc4462d2b53f697ab428ddcdb8e820021be80983fe54d7"
+        ),
+        "required_id_manifest_sha256": (
+            "c2ba7add0445a91715c491d78b83677844f90767414bdd32a7511fff1d676ec9"
+        ),
+        "adjudication_table_sha256": (
+            "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        ),
+        "default_appendix_sha256": (
+            "4b58de099a1edcc11bdfbfef21ec8c06d835bca67ca9c80d55a4346beae32332"
+        ),
+        "composite_sha256": (
+            "2cabf69c9d91801e16686a46cf904bc346c0e009162ad2bb91eda996da73e9b8"
+        ),
+    }
+    assert all(
+        FINAL.valid_sha256(value) for value in FINAL.EXPECTED_STEP0_SEALS.values()
+    )
+    assert len(FINAL.c3_stable_ids()) == 3
     assert all("t=child_support_received" in item for item in FINAL.c3_stable_ids())
 
 
@@ -153,10 +315,25 @@ def test_p2_statuses_map_to_registered_schema(producer: str, registered: str) ->
 def test_p2_missing_joint_domain_preserves_values_but_not_validation(
     tmp_path: Path,
 ) -> None:
-    base = json.loads(
-        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
+    manifest = _fixture_manifest(
+        [
+            *(
+                _manifest_spec(
+                    "P2_group_pattern",
+                    target="child_support_expense",
+                    group=group,
+                    family="F2",
+                    gated=True,
+                )
+                for group in ("G1", "G2", "G3")
+            ),
+            _manifest_spec(
+                "P2_marginal_audit",
+                target="child_support_expense",
+                variant="domain_violation_share",
+            ),
+        ]
     )
-    manifest = base["step0"]["required_id_manifest"]
     manifest_by_id = {item["id"]: item for item in manifest}
     group_spec = next(
         item
@@ -462,6 +639,73 @@ def test_readings_barrier_accepts_declared_p5_priority_disposition() -> None:
     assert dispositions["P5"] == "NOT_RUN_PRIORITY_RULE"
 
 
+def test_evidenced_unavailable_completion_requires_exact_rows_and_barrier() -> None:
+    p2 = _statistic("P2_marginal_audit", 0.0, family=None)
+    p2["status"] = "UNAVAILABLE"
+    p2["dimensions"]["variant"] = "domain_violation_share"
+    p2["sources"] = [
+        {
+            "producer_status": "DESCRIPTIVE_NOT_A16_JOINT_GATE",
+            "producer_value": 0.0,
+            "producer_se": "NA",
+            "producer_mcse": "NA",
+            "assembly_disposition": FINAL.P2_JOINT_DOMAIN_DISPOSITION,
+        }
+    ]
+    p6 = _statistic("P6_full_asec_source", 0.0, family=None)
+    p6["status"] = "UNAVAILABLE"
+    p6["dimensions"]["variant"] = "incidence"
+    p6["sources"] = [
+        {
+            "p6_disposition": FINAL.P6_SEALED_DISPOSITION,
+            "stage_status": "NO_SURFACE",
+            "stage_present_in_sealed_p1": True,
+            "intentional_unavailable_kind": "SEALED_NO_SURFACE",
+            "unavailable_evidence": {
+                "evidence": "sealed surface does not exist",
+                "stage_status": "NO_SURFACE",
+            },
+        }
+    ]
+    barrier = {
+        "artifact_kind": "qrf_drift_phase0_readings_prerequisite",
+        "authority": {
+            "commit_design_blob_sha256": FINAL.EXPECTED_AUTHORITY[FINAL.DESIGN]
+        },
+        "status": "COMPLETE",
+        "readings_complete": True,
+        "completed_readings": {
+            "P0": "COMPLETE",
+            "P1": "COMPLETE",
+            "P2": FINAL.P2_NOT_VALIDATED_DISPOSITION,
+            "P5": "COMPLETE",
+            "P6": FINAL.P6_COMPLETE_NO_SURFACE,
+            "P7": "COMPLETE",
+        },
+        "next_phase": "C1",
+    }
+    artifact = (barrier, {"path": "/tmp/barrier.json", "sha256": "b" * 64})
+
+    assert FINAL.barrier_disposes_unvalidated_p2(artifact)
+    assert FINAL.barrier_completes_evidenced_p6(artifact)
+    assert FINAL.intentional_p2_unavailable(p2)
+    assert FINAL.intentional_p6_unavailable(p6)
+    assert not FINAL.incomplete_statistics(
+        [p2, p6],
+        p2_not_validated_complete=True,
+        p6_no_surface_complete=True,
+    )
+
+    changed = json.loads(json.dumps(barrier))
+    changed["completed_readings"]["P6"] = "DISPOSITION_RECORDED"
+    assert not FINAL.barrier_completes_evidenced_p6((changed, artifact[1]))
+    malformed = json.loads(json.dumps(p6))
+    malformed["sources"][0]["stage_status"] = "AVAILABLE"
+    assert FINAL.incomplete_statistics([malformed], p6_no_surface_complete=True) == {
+        ("UNAVAILABLE", "P6"): 1
+    }
+
+
 def test_support_counts_use_clone0_roster() -> None:
     d0 = json.loads(FINAL.D0_JSON.read_text())
     source = {"path": str(FINAL.D0_JSON), "sha256": "0" * 64}
@@ -486,10 +730,7 @@ def test_support_counts_use_clone0_roster() -> None:
 
 
 def test_p6_special_bridges_preserve_nested_leg_incidence() -> None:
-    base = json.loads(
-        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
-    )
-    manifest = base["step0"]["required_id_manifest"]
+    manifest = _p6_manifest()
     manifest_by_id = {item["id"]: item for item in manifest}
     statistics, by_id = FINAL.fresh_statistics(
         manifest,
@@ -556,10 +797,7 @@ def test_p6_special_bridges_preserve_nested_leg_incidence() -> None:
 def test_p6_preserves_structured_seeds_pattern_surfaces_and_unavailable_evidence() -> (
     None
 ):
-    base = json.loads(
-        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
-    )
-    manifest = base["step0"]["required_id_manifest"]
+    manifest = _p6_manifest()
     manifest_by_id = {item["id"]: item for item in manifest}
     statistics, by_id = FINAL.fresh_statistics(
         manifest,
@@ -700,26 +938,41 @@ def test_p6_preserves_structured_seeds_pattern_surfaces_and_unavailable_evidence
 
 
 @pytest.mark.skipif(
-    not Path("/private/tmp/qrf_phase0_p1.json").is_file(),
-    reason="sealed execution-only P1 fixture is unavailable",
+    not (
+        Path("/private/tmp/qrf_phase0_p1.json").is_file()
+        and Path("/private/tmp/qrf_phase0_a17_terminal_report.json").is_file()
+        and Path("/private/tmp/qrf_phase0_a18_p2.json").is_file()
+    ),
+    reason="sealed execution-only P1/P2/Step-0 fixtures are unavailable",
 )
-def test_real_sealed_p1_p6_merge_retains_available_surfaces_and_evidence() -> None:
-    base = json.loads(
-        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
-    )
-    manifest = base["step0"]["required_id_manifest"]
+def test_real_sealed_readings_completion_is_exact_and_fail_closed() -> None:
+    step0_path = Path("/private/tmp/qrf_phase0_a17_terminal_report.json")
+    base = json.loads(step0_path.read_text())
+    manifest, step0 = FINAL.verify_step0(base)
     manifest_by_id = {item["id"]: item for item in manifest}
     statistics, by_id = FINAL.fresh_statistics(
         manifest,
         "NOT_RUN_PRIORITY",
         {"path": "fallback", "sha256": "0" * 64},
     )
-    FINAL.merge_p1_artifact(
+    locked: set[str] = set()
+    p1_artifact = FINAL.merge_p1_artifact(
         Path("/private/tmp/qrf_phase0_p1.json"),
         manifest,
         manifest_by_id,
         by_id,
-        set(),
+        locked,
+        step0["operator_table"],
+        {
+            "path": str(step0_path.resolve()),
+            "sha256": FINAL.sha256_file(step0_path),
+        },
+    )
+    p2_artifact = FINAL.merge_statistics_artifact(
+        Path("/private/tmp/qrf_phase0_a18_p2.json"),
+        manifest_by_id,
+        by_id,
+        locked,
     )
     p6_rows = [row for row in statistics if row["dimensions"]["row"].startswith("P6_")]
     seed_rows = [row for row in p6_rows if row["dimensions"]["variant"] == "seed"]
@@ -730,6 +983,91 @@ def test_real_sealed_p1_p6_merge_retains_available_surfaces_and_evidence() -> No
     assert sum(row["status"] == "OK" for row in seed_rows) == 126
     assert all(row["status"] == "OK" for row in transfer_rows)
     assert all("unavailable_evidence" in row["sources"][0] for row in unavailable)
+    assert len(unavailable) == FINAL.EXPECTED_P6_EVIDENCED_UNAVAILABLE == 504
+    assert all(FINAL.intentional_p6_unavailable(row) for row in unavailable)
+    assert all(
+        any(
+            source.get("pointer") == "/merge_p6_nested"
+            and source.get("path") == str(Path(FINAL.__file__).resolve())
+            for source in row["sources"]
+        )
+        for row in p6_rows
+    )
+
+    p2_unavailable = [
+        row
+        for row in statistics
+        if row["status"] == "UNAVAILABLE"
+        and row["dimensions"]["row"] == "P2_marginal_audit"
+        and row["dimensions"]["variant"] == "domain_violation_share"
+    ]
+    assert len(p2_unavailable) == FINAL.EXPECTED_P2_EVIDENCED_UNAVAILABLE == 312
+    assert all(FINAL.intentional_p2_unavailable(row) for row in p2_unavailable)
+
+    p0_paths = [
+        row for row in statistics if row["dimensions"]["row"] == "P0_path_census"
+    ]
+    assert len(p0_paths) == 9
+    for row in p0_paths:
+        anchors = row["sources"][0]["path_code_anchors"]
+        assert set(anchors) == set(FINAL.P0_PATH_EXECUTOR_ANCHOR)
+        assert all(
+            any(
+                source["path"] == str(FINAL.P1_EXECUTOR.resolve())
+                and source["sha256"] == FINAL.EXPECTED_P1_EXECUTOR_SHA
+                for source in anchor["sources"]
+            )
+            for anchor in anchors.values()
+        )
+
+    barrier = {
+        "artifact_kind": "qrf_drift_phase0_readings_prerequisite",
+        "authority": {
+            "commit_design_blob_sha256": FINAL.EXPECTED_AUTHORITY[FINAL.DESIGN]
+        },
+        "status": "COMPLETE",
+        "readings_complete": True,
+        "completed_readings": {
+            "P0": "COMPLETE",
+            "P1": "COMPLETE",
+            "P2": FINAL.P2_NOT_VALIDATED_DISPOSITION,
+            "P5": "COMPLETE",
+            "P6": FINAL.P6_COMPLETE_NO_SURFACE,
+            "P7": "COMPLETE",
+        },
+        "next_phase": "C1",
+    }
+    barrier_artifact = (barrier, {"path": "/tmp/barrier.json", "sha256": "b" * 64})
+    assert FINAL.barrier_disposes_unvalidated_p2(barrier_artifact)
+    assert FINAL.barrier_completes_evidenced_p6(barrier_artifact)
+    relevant = [*p2_unavailable, *p6_rows]
+    incomplete = FINAL.incomplete_statistics(
+        relevant,
+        p2_not_validated_complete=True,
+        p6_no_surface_complete=True,
+    )
+    assert incomplete == {}
+    assert FINAL.phase0_run_status(True, incomplete) == "COMPLETE"
+
+    unexpected_p2 = json.loads(json.dumps(p2_unavailable[0]))
+    unexpected_p2["sources"][-1].pop("assembly_disposition")
+    unexpected_p6 = json.loads(json.dumps(unavailable[0]))
+    unexpected_p6["sources"][0].pop("intentional_unavailable_kind")
+    unexpected = FINAL.incomplete_statistics(
+        [unexpected_p2, unexpected_p6],
+        p2_not_validated_complete=True,
+        p6_no_surface_complete=True,
+    )
+    assert unexpected == {("UNAVAILABLE", "P2"): 1, ("UNAVAILABLE", "P6"): 1}
+    assert FINAL.phase0_run_status(True, unexpected) == "PARTIAL"
+
+    catalog, _lookup = FINAL.source_catalog(
+        statistics,
+        [p1_artifact[1], p2_artifact[1], FINAL.executor_source()],
+    )
+    catalog_keys = {(item["path"], item["sha256"]) for item in catalog}
+    for row in statistics:
+        FINAL.validate_nested_source_lists(row, catalog_keys, row["id"])
 
 
 def test_readings_barrier_binds_exact_supplied_artifacts() -> None:
@@ -975,10 +1313,7 @@ def test_authoritative_baseline_crossrung_fills_exact_registered_roster(
     )
     path = tmp_path / "baseline.json"
     path.write_text(json.dumps(payload, sort_keys=True))
-    base = json.loads(
-        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
-    )
-    manifest = base["step0"]["required_id_manifest"]
+    manifest = _baseline_manifest()
     manifest_by_id = {item["id"]: item for item in manifest}
     statistics, by_id = FINAL.fresh_statistics(
         manifest,
@@ -1010,10 +1345,7 @@ def test_authoritative_baseline_crossrung_fills_exact_registered_roster(
 
 
 def test_repeated_p5_shards_must_union_to_all_558_cells(tmp_path: Path) -> None:
-    base = json.loads(
-        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
-    )
-    manifest = base["step0"]["required_id_manifest"]
+    manifest = _p5_manifest()
     manifest_by_id = {item["id"]: item for item in manifest}
     p5_specs = [
         item for item in manifest if item["dimensions"]["row"].startswith("P5_")
@@ -1099,6 +1431,41 @@ def test_target_sections_provenance_shares_and_empty_c1_disposition() -> None:
     )
     positive_c1["sources"] = [producer_source]
     statistics.append(positive_c1)
+    for stage in reversed(FINAL.P6_STAGE_ORDER[:6]):
+        p6_row = _statistic(f"P6_{stage}", 0.0, family=None, leg="positive")
+        p6_row["dimensions"]["variant"] = "incidence"
+        p6_row["id"] += f"|{stage}"
+        p6_row["sources"] = [producer_source]
+        if stage == "full_asec_source":
+            p6_row["status"] = "UNAVAILABLE"
+            p6_row["sources"] = [
+                {
+                    **producer_source,
+                    "p6_disposition": FINAL.P6_SEALED_DISPOSITION,
+                    "stage_status": "NO_SURFACE",
+                    "stage_present_in_sealed_p1": True,
+                    "intentional_unavailable_kind": "SEALED_NO_SURFACE",
+                    "unavailable_evidence": {
+                        "evidence": "sealed no-surface fixture",
+                        "stage_status": "NO_SURFACE",
+                    },
+                }
+            ]
+        statistics.append(p6_row)
+    p2_row = _statistic("P2_marginal_audit", 0.0, family=None, leg="positive")
+    p2_row["dimensions"]["variant"] = "domain_violation_share"
+    p2_row["status"] = "UNAVAILABLE"
+    p2_row["sources"] = [
+        {
+            **producer_source,
+            "producer_status": "DESCRIPTIVE_NOT_A16_JOINT_GATE",
+            "producer_value": 0.0,
+            "producer_se": "NA",
+            "producer_mcse": "NA",
+            "assembly_disposition": FINAL.P2_JOINT_DOMAIN_DISPOSITION,
+        }
+    ]
+    statistics.append(p2_row)
     verdicts = [
         {
             "target": "example",
@@ -1132,12 +1499,26 @@ def test_target_sections_provenance_shares_and_empty_c1_disposition() -> None:
         },
     )
     sections = FINAL.build_target_sections(
-        statistics, ["example"], verdicts, p1_artifact
+        statistics,
+        ["example"],
+        verdicts,
+        p1_artifact,
+        p2_not_validated_complete=True,
+        p6_no_surface_complete=True,
+        completion_barrier_source={"path": "/tmp/barrier.json", "sha256": "d" * 64},
     )
 
     positive = sections["example"]["legs"]["positive"]
     negative = sections["example"]["legs"]["negative"]
     assert positive["probes"]["C1"]["status"] == "COMPLETE"
+    assert positive["probes"]["P2"]["status"] == "NOT_VALIDATED"
+    assert positive["probes"]["P6"]["status"] == "COMPLETE_WITH_NO_SURFACE"
+    assert positive["probes"]["P2"]["completion_neutral_status_counts"] == {
+        "UNAVAILABLE": 1
+    }
+    assert positive["probes"]["P6"]["completion_neutral_status_counts"] == {
+        "UNAVAILABLE": 1
+    }
     assert negative["probes"]["C1"]["status"] == "NOT_APPLICABLE"
     assert "class is absent" in negative["probes"]["C1"]["reason"]
     assert negative["probes"]["C1"]["status_counts"] == {}
@@ -1161,6 +1542,18 @@ def test_target_sections_provenance_shares_and_empty_c1_disposition() -> None:
     assert bridge_rows["P6_bridge_producer_value_bridge"]["value"] == 0.4
     assert bridge_rows["P6_bridge_clone_weight_bridge"]["value"] == 0.1
     assert bridge_rows["P6_bridge_sum_equals_B1"]["value"] == 0.5
+    assert all(
+        any(
+            source.get("pointer") == "/p6_bridge_closure_rows"
+            and source.get("path") == str(Path(FINAL.__file__).resolve())
+            for source in row["sources"]
+        )
+        for row in bridge_rows.values()
+    )
+    ordered_p6 = positive["diagnostic_rows"]["P6 producer ledger"]
+    assert [row["dimensions"]["row"][3:] for row in ordered_p6[:6]] == list(
+        FINAL.P6_STAGE_ORDER[:6]
+    )
 
 
 def test_renderers_show_all_row_shares_phi_legs_and_full_p0_census() -> None:
@@ -1221,19 +1614,141 @@ def test_renderers_show_all_row_shares_phi_legs_and_full_p0_census() -> None:
                 "passed_rows": 6,
                 "passed_mask": {"sha256": "9" * 64},
             },
+            "path_code_anchors": {
+                stage: {
+                    "predicate_anchor": f"predicate:{stage}",
+                    "production_anchor": f"production:{stage}",
+                    "sources": [source],
+                    "operator_table_source": source,
+                }
+                for stage in FINAL.P0_PATH_EXECUTOR_ANCHOR
+            },
         }
     ]
     census = FINAL.render_p0_path_census([path_row], lookup)
     assert "| authorized | 10 | 1 |" in census
     assert "| finite_decode | 7 | 1 |" in census
-    assert f"| passed_all | 6 | NA | {'9' * 64} | S1 |" in census
+    assert "predicate `predicate:authorized`" in census
+    assert f"| passed_all | 6 | NA | {'9' * 64} | S1; predicate" in census
+
+
+def test_p0_path_code_anchors_are_bound_to_executor_and_sealed_codec() -> None:
+    production_path = FINAL.P1_EXECUTOR.resolve()
+    production_sha = FINAL.sha256_file(production_path)
+    source_code = {
+        "path": str(production_path.relative_to(ROOT)),
+        "sha256": production_sha,
+        "bytes": production_path.stat().st_size,
+    }
+    source_anchor = "fixture production codec anchor"
+    transformation = "fixture production codec"
+    operator_table = [
+        {
+            "target": "example",
+            "stage": stage,
+            "source_code": source_code,
+            "source_anchor": source_anchor,
+            "transformation": transformation,
+        }
+        for stage in ("recipient_raw_draw", "recipient_codec")
+    ]
+    step0_source = {"path": "/tmp/step0.json", "sha256": "a" * 64}
+    payload = {
+        "authority": {
+            "sealed_step0_operator_source": {
+                "status": "PASS",
+                "operator_table_sha256": FINAL.EXPECTED_STEP0_SEALS[
+                    "operator_table_sha256"
+                ],
+                **step0_source,
+                "source_code": [
+                    {
+                        "path": str(production_path),
+                        "sha256_actual": production_sha,
+                        "sha256_expected": production_sha,
+                        "match": True,
+                    }
+                ],
+            }
+        },
+        "candidate-25": {
+            "targets": {
+                "example": {
+                    "P1": {
+                        "codec": {
+                            "status": "AVAILABLE_REPLAYED",
+                            "source_code": source_code,
+                            "source_anchor": source_anchor,
+                            "transformation": transformation,
+                        }
+                    }
+                }
+            }
+        },
+    }
+
+    anchors = FINAL.p0_path_code_anchors(
+        payload, "example", operator_table, step0_source
+    )
+
+    assert set(anchors) == set(FINAL.P0_PATH_EXECUTOR_ANCHOR)
+    assert all(
+        anchors[stage]["sources"][0]["sha256"] == FINAL.EXPECTED_P1_EXECUTOR_SHA
+        for stage in anchors
+    )
+    changed = json.loads(json.dumps(payload))
+    changed["authority"]["sealed_step0_operator_source"]["source_code"][0][
+        "sha256_actual"
+    ] = "f" * 64
+    with pytest.raises(ValueError, match="does not bind"):
+        FINAL.p0_path_code_anchors(changed, "example", operator_table, step0_source)
+
+
+def test_p6_markdown_recursively_rounds_numeric_leaves_without_mutating_json() -> None:
+    source = {"path": "/tmp/p1.json", "sha256": "b" * 64}
+    lookup = {(source["path"], source["sha256"]): "S1"}
+    exact = {
+        "nested": [0.123456789, {"count": 1_234_567}],
+        "seed": 18_446_744_073_709_551_615,
+    }
+    row = _statistic("P6_first_hop_draw", 0.0, family=None)
+    row["dimensions"]["variant"] = "seed"
+    row["value"] = json.dumps(exact, sort_keys=True, separators=(",", ":"))
+    row["mcse"] = "NA"
+    row["sources"] = [
+        {
+            **source,
+            "unavailable_evidence": {
+                "mass": 987654.321987,
+                "counts": [1_234_567],
+            },
+        }
+    ]
+    original = row["value"]
+
+    rendered = FINAL.render_p6_rows([row], lookup)
+
+    assert row["value"] == original
+    assert '"nested":[0.123457,{"count":1.23457e+06}]' in rendered
+    assert '"seed":1.84467e+19' in rendered
+    assert '"mass":987654' in rendered
+    assert '"counts":[1.23457e+06]' in rendered
+    assert "0.123456789" not in rendered
 
 
 def test_nested_report_sources_must_have_cataloged_lowercase_sha256() -> None:
     source = {"path": "/tmp/input.json", "sha256": "a" * 64}
     catalog = {(source["path"], source["sha256"])}
+    producer_metadata = {
+        "design_sha256": FINAL.EXPECTED_AUTHORITY[FINAL.DESIGN],
+        "d0_sha256": FINAL.EXPECTED_AUTHORITY[FINAL.D0_JSON],
+        "pointer": "/targets/example/value",
+    }
     FINAL.validate_nested_source_lists(
         {"value": 1.0, "sources": [source]}, catalog, "test"
+    )
+    FINAL.validate_nested_source_lists(
+        {"value": 1.0, "sources": [producer_metadata, source]}, catalog, "test"
     )
 
     with pytest.raises(ValueError, match="SHA-256 is invalid"):
@@ -1245,6 +1760,37 @@ def test_nested_report_sources_must_have_cataloged_lowercase_sha256() -> None:
     with pytest.raises(ValueError, match="absent from the catalog"):
         FINAL.validate_nested_source_lists(
             {"value": 1.0, "sources": [{**source, "path": "/tmp/other.json"}]},
+            catalog,
+            "test",
+        )
+    with pytest.raises(ValueError, match="no cataloged artifact/code"):
+        FINAL.validate_nested_source_lists(
+            {"value": 1.0, "sources": [producer_metadata]}, catalog, "test"
+        )
+    with pytest.raises(ValueError, match="untyped source metadata"):
+        FINAL.validate_nested_source_lists(
+            {
+                "value": 1.0,
+                "sources": [{**producer_metadata, "extra": "not sealed"}, source],
+            },
+            catalog,
+            "test",
+        )
+    with pytest.raises(ValueError, match="untyped source metadata"):
+        FINAL.validate_nested_source_lists(
+            {
+                "value": 1.0,
+                "sources": [
+                    {**producer_metadata, "design_sha256": "f" * 64},
+                    source,
+                ],
+            },
+            catalog,
+            "test",
+        )
+    with pytest.raises(ValueError, match="path/SHA-256 pair is incomplete"):
+        FINAL.validate_nested_source_lists(
+            {"value": 1.0, "sources": [{"path": "/tmp/input.json"}, source]},
             catalog,
             "test",
         )

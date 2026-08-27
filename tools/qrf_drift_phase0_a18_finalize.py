@@ -36,6 +36,7 @@ DESIGN = EXP / "qrf_drift_validation_design.md"
 D0_JSON = EXP / "qrf_drift_validation_d0.json"
 D0_MARKDOWN = EXP / "qrf_drift_validation_d0.md"
 BINDING = EXP / "qrf_drift_validation_a16_binding_texts.md"
+P1_EXECUTOR = ROOT / "tools/qrf_drift_phase0_p1.py"
 
 DEFAULT_BASE = Path("/private/tmp/qrf_phase0_a17_terminal_report.json")
 DEFAULT_ENUMERATION = Path("/private/tmp/qrf_phase0_a18_g3_split_enumeration.json")
@@ -71,6 +72,12 @@ EXPECTED_SPLIT_TABLE_SHA = (
 EXPECTED_SELECTED_SHA = (
     "0cc8cd8f220e9c2f3ae48fdef141546356d2d780fdd72607f25c0957cf08b91b"
 )
+EXPECTED_P1_EXECUTOR_SHA = (
+    "3230692e61f8fb5c98a5a7fbcde563a57c69fd9d8833ec6aba853031014b3e72"
+)
+P1_EXECUTION_COMMIT = "7ef29548844b60be4c8cd6c85b0a66339542290f"
+EXPECTED_P2_EVIDENCED_UNAVAILABLE = 312
+EXPECTED_P6_EVIDENCED_UNAVAILABLE = 504
 
 NA = "_"
 LEGS = ("positive", "negative")
@@ -95,6 +102,58 @@ P0_SETUP_ROWS = {
     "P0_S_q_mask_sha256",
 }
 INCOMPLETE_STATUSES = {"NOT_RUN_CONTROLS_FAILED", "NOT_RUN_PRIORITY", "UNAVAILABLE"}
+INCOMPLETE_STATUS_PRIORITY = (
+    "NOT_RUN_CONTROLS_FAILED",
+    "NOT_RUN_PRIORITY",
+    "UNAVAILABLE",
+)
+P6_COMPLETE_NO_SURFACE = "COMPLETE_WITH_NO_SURFACE"
+P6_SEALED_DISPOSITION = "COMPLETE_WITH_NO_SURFACE_ROWS"
+P2_NOT_VALIDATED_DISPOSITION = "NOT_VALIDATED"
+P2_JOINT_DOMAIN_DISPOSITION = "A16-31 joint hybrid predicates not enumerated at D0"
+P6_STAGE_ORDER = (
+    "full_asec_source",
+    "fit_sample_5000",
+    "first_hop_draw",
+    "producer_codec",
+    "producer_constraints",
+    "J1_donor_projection",
+    "clone2_tail_exclusion",
+    "clone_weight_bridge",
+    "bridge_producer_value_bridge",
+    "bridge_clone_weight_bridge",
+    "bridge_sum_equals_B1",
+    "boundary_bridge",
+    "transfer_fit_rows",
+    "recipient_raw_draw",
+    "recipient_codec",
+    "recipient_structural",
+)
+P6_VARIANT_ORDER = (
+    "mask_sha256",
+    "sign_count",
+    "weighted_sign_mass",
+    "incidence",
+    "seed",
+    "diagnostic_only",
+)
+P0_PATH_OPERATOR_STAGE = {
+    "authorized": "recipient_raw_draw",
+    "null_before": "recipient_raw_draw",
+    "drawn": "recipient_raw_draw",
+    "finite_decode": "recipient_codec",
+    "passed_all": "recipient_codec",
+}
+P0_PATH_EXECUTOR_ANCHOR = {
+    "authorized": "_run_candidate_target:1512-1514; _path_census:203-247",
+    "null_before": "_run_candidate_target:1512-1514; _path_census:203-247",
+    "drawn": "_run_candidate_target:1512-1515; _path_census:203-247",
+    "finite_decode": (
+        "_run_candidate_target:1512-1516; _production_codec:604-672; "
+        "_path_census:203-247"
+    ),
+    "passed_all": "_run_candidate_target:1512-1519; _path_census:203-247",
+}
 
 SSI_DIRECT_INPUTS = (
     "child_support_received",
@@ -894,9 +953,7 @@ def merge_statistics_artifact(
             value = se = mcse = "NA"
             status = "UNAVAILABLE"
         if target in p2_domain_targets and status != item.get("status"):
-            sources[-1]["assembly_disposition"] = (
-                "A16-31 joint hybrid predicates not enumerated at D0"
-            )
+            sources[-1]["assembly_disposition"] = P2_JOINT_DOMAIN_DISPOSITION
         set_row(
             by_id[identifier],
             spec,
@@ -1032,6 +1089,26 @@ def verify_readings_barrier(payload: dict[str, Any]) -> dict[str, str]:
     return dispositions
 
 
+def barrier_completes_evidenced_p6(
+    artifact: tuple[dict[str, Any], dict[str, Any]] | None,
+) -> bool:
+    """Return true only for a valid barrier's exact P6 disposition."""
+    if artifact is None:
+        return False
+    return verify_readings_barrier(artifact[0]).get("P6") == P6_COMPLETE_NO_SURFACE
+
+
+def barrier_disposes_unvalidated_p2(
+    artifact: tuple[dict[str, Any], dict[str, Any]] | None,
+) -> bool:
+    """Return true only for a valid barrier's exact P2 disposition."""
+    if artifact is None:
+        return False
+    return (
+        verify_readings_barrier(artifact[0]).get("P2") == P2_NOT_VALIDATED_DISPOSITION
+    )
+
+
 def artifact_binding_record(
     payload: dict[str, Any], source: dict[str, Any]
 ) -> dict[str, Any]:
@@ -1055,7 +1132,7 @@ def artifact_binding_record(
         or payload.get("content_sha256"),
         "artifact_kind": kind,
         "status": payload.get("status"),
-        "targets": targets,
+        "targets": sorted(str(target) for target in targets),
     }
 
 
@@ -1091,6 +1168,10 @@ def verify_barrier_artifact_bindings(
             isinstance(expected_record, dict), f"barrier lacks {barrier_name} binding"
         )
         expected_record["path"] = str(Path(expected_record["path"]).resolve())
+        if isinstance(expected_record.get("targets"), list):
+            expected_record["targets"] = sorted(
+                str(target) for target in expected_record["targets"]
+            )
         require(
             records[0] == expected_record,
             f"barrier {barrier_name} binding differs from the supplied artifact",
@@ -1106,6 +1187,8 @@ def verify_barrier_artifact_bindings(
     for record in expected_p5:
         require(isinstance(record, dict), "barrier P5 record is not an object")
         record["path"] = str(Path(record["path"]).resolve())
+        if isinstance(record.get("targets"), list):
+            record["targets"] = sorted(str(target) for target in record["targets"])
 
     def record_key(item: dict[str, Any]) -> tuple[str, str]:
         return item["path"], item["sha256"]
@@ -1120,8 +1203,8 @@ def verify_barrier_artifact_bindings(
         "barrier-bound P5 shards do not cover nine disjoint targets",
     )
     require(
-        normalize_status(dispositions.get("P2")) == "NOT_VALIDATED"
-        and str(dispositions.get("P6")) == "COMPLETE_WITH_NO_SURFACE",
+        dispositions.get("P2") == P2_NOT_VALIDATED_DISPOSITION
+        and dispositions.get("P6") == P6_COMPLETE_NO_SURFACE,
         "barrier does not preserve the sealed P2/P6 reading dispositions",
     )
 
@@ -1267,12 +1350,120 @@ def _nested_value(item: Any) -> tuple[Any, Any, str]:
     return value, se, normalize_status(status)
 
 
+def p0_path_code_anchors(
+    payload: dict[str, Any],
+    target: str,
+    operator_table: list[dict[str, Any]],
+    step0_source: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Bind each P0 predicate to the sealed target implementation source."""
+    require(
+        P1_EXECUTOR.is_file() and sha256_file(P1_EXECUTOR) == EXPECTED_P1_EXECUTOR_SHA,
+        "P1 executor differs from the execution-commit code binding",
+    )
+    sealed = payload.get("authority", {}).get("sealed_step0_operator_source", {})
+    require(
+        sealed.get("status") == "PASS"
+        and sealed.get("operator_table_sha256")
+        == EXPECTED_STEP0_SEALS["operator_table_sha256"],
+        "P1 does not bind the sealed Step-0 operator table",
+    )
+    require(
+        isinstance(sealed.get("path"), str)
+        and Path(sealed["path"]).resolve() == Path(step0_source["path"]).resolve()
+        and sealed.get("sha256") == step0_source.get("sha256"),
+        "P1 Step-0 operator source differs from the supplied A17 base",
+    )
+    checked_sources = sealed.get("source_code")
+    require(
+        isinstance(checked_sources, list) and checked_sources,
+        "P1 sealed operator binding has no source-code checks",
+    )
+    checked_by_path = {
+        str(Path(item["path"]).resolve()): item
+        for item in checked_sources
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    anchors: dict[str, dict[str, Any]] = {}
+    target_reading = payload.get("candidate-25", {}).get("targets", {}).get(target, {})
+    sealed_codec = target_reading.get("P1", {}).get("codec", {})
+    for path_stage, operator_stage in P0_PATH_OPERATOR_STAGE.items():
+        matches = [
+            (index, item)
+            for index, item in enumerate(operator_table)
+            if item.get("target") == target and item.get("stage") == operator_stage
+        ]
+        require(
+            len(matches) == 1,
+            f"sealed operator table has no unique {target}/{operator_stage} P0 anchor",
+        )
+        index, operator = matches[0]
+        code = operator.get("source_code")
+        require(
+            isinstance(code, dict)
+            and isinstance(code.get("path"), str)
+            and valid_sha256(code.get("sha256"))
+            and isinstance(operator.get("source_anchor"), str)
+            and bool(operator["source_anchor"]),
+            f"sealed operator row lacks a code anchor for {target}/{operator_stage}",
+        )
+        code_path = (ROOT / code["path"]).resolve()
+        checked = checked_by_path.get(str(code_path), {})
+        require(
+            checked.get("match") is True
+            and checked.get("sha256_actual") == code["sha256"]
+            and checked.get("sha256_expected") == code["sha256"]
+            and code_path.is_file()
+            and sha256_file(code_path) == code["sha256"],
+            f"P1 source-code check does not bind {target}/{operator_stage}",
+        )
+        production_source = source_ref(
+            code_path,
+            code["sha256"],
+            role="sealed production implementation code anchor",
+            p0_path_stage=path_stage,
+            operator_stage=operator_stage,
+            source_anchor=operator["source_anchor"],
+        )
+        if operator_stage == "recipient_codec":
+            require(
+                sealed_codec.get("status") == "AVAILABLE_REPLAYED"
+                and sealed_codec.get("source_code") == code
+                and sealed_codec.get("source_anchor") == operator["source_anchor"]
+                and sealed_codec.get("transformation")
+                == operator.get("transformation"),
+                f"sealed P1 codec binding differs for {target}",
+            )
+        executor = source_ref(
+            P1_EXECUTOR.resolve(),
+            EXPECTED_P1_EXECUTOR_SHA,
+            role="sealed P0 path-census executor code anchor",
+            execution_commit=P1_EXECUTION_COMMIT,
+            p0_path_stage=path_stage,
+            source_anchor=P0_PATH_EXECUTOR_ANCHOR[path_stage],
+        )
+        anchors[path_stage] = {
+            "operator_stage": operator_stage,
+            "predicate_anchor": P0_PATH_EXECUTOR_ANCHOR[path_stage],
+            "production_anchor": operator["source_anchor"],
+            "sources": [executor, production_source],
+            "operator_table_source": source_ref(
+                step0_source["path"],
+                step0_source["sha256"],
+                f"/step0/operator_table/{index}",
+            ),
+        }
+    return anchors
+
+
 def merge_p1_artifact(
     path: Path,
     manifest: list[dict[str, Any]],
     manifest_by_id: dict[str, dict[str, Any]],
     by_id: dict[str, dict[str, Any]],
     locked: set[str],
+    operator_table: list[dict[str, Any]] | None = None,
+    step0_source: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     payload, artifact_source = load_sealed(path, "P0/P1/P6/P7")
     require(
@@ -1284,20 +1475,34 @@ def merge_p1_artifact(
         "P1 design authority changed",
     )
 
+    require(
+        (operator_table is None) == (step0_source is None),
+        "P0 code-anchor inputs must be supplied together",
+    )
+
     def assign(
-        identifier: str, value: Any, se: Any, status: str, pointer: str, **extra: Any
+        identifier: str,
+        value: Any,
+        se: Any,
+        status: str,
+        pointer: str,
+        *,
+        additional_sources: list[dict[str, Any]] | None = None,
+        **extra: Any,
     ) -> None:
         if identifier in locked:
             return
+        sources = [
+            source_ref(path.resolve(), artifact_source["sha256"], pointer, **extra)
+        ]
+        sources.extend(copy.deepcopy(additional_sources or []))
         set_row(
             by_id[identifier],
             manifest_by_id[identifier],
             value=value,
             se=se,
             status=status,
-            sources=[
-                source_ref(path.resolve(), artifact_source["sha256"], pointer, **extra)
-            ],
+            sources=sources,
         )
         locked.add(identifier)
 
@@ -1325,6 +1530,16 @@ def merge_p1_artifact(
             continue
 
         p0 = reading["P0"]
+        path_code_anchors = (
+            p0_path_code_anchors(
+                payload,
+                target,
+                operator_table,
+                step0_source,
+            )
+            if operator_table is not None and step0_source is not None
+            else None
+        )
         p0_map = {
             "P0_S_o_count": (p0["S_o_rows"], "NA"),
             "P0_phi": (p0["phi"], "NA"),
@@ -1343,6 +1558,16 @@ def merge_p1_artifact(
                 "OK",
                 f"{prefix}/P0",
                 path_census=p0.get("path_census")
+                if row_name == "P0_path_census"
+                else None,
+                path_code_anchors=path_code_anchors
+                if row_name == "P0_path_census"
+                else None,
+                additional_sources=[
+                    source
+                    for anchor in (path_code_anchors or {}).values()
+                    for source in anchor["sources"]
+                ]
                 if row_name == "P0_path_census"
                 else None,
             )
@@ -1690,6 +1915,90 @@ def p6_unavailable_evidence(stage: dict[str, Any], variant: str) -> Any:
     return evidence
 
 
+def p6_intentional_unavailable_kind(
+    *,
+    p6_status: Any,
+    stage_name: str,
+    stage: dict[str, Any],
+    stage_present: bool,
+    variant: str,
+) -> str | None:
+    """Whitelist only unavailable fields declared by the sealed P1 contract."""
+    if p6_status != P6_SEALED_DISPOSITION:
+        return None
+    if stage.get("status") == "NO_SURFACE" and isinstance(stage.get("evidence"), str):
+        return "SEALED_NO_SURFACE"
+    if not stage_present and stage_name == "fit_sample_5000":
+        return "OPERATOR_STAGE_OMITTED"
+    if (
+        stage_name == "boundary_bridge"
+        and stage.get("status") == "AVAILABLE"
+        and variant in {"seed", "sign_count", "weighted_sign_mass"}
+    ):
+        return "SEALED_DIAGNOSTIC_FIELD_NOT_DEFINED"
+    return None
+
+
+def intentional_p2_unavailable(row: dict[str, Any]) -> bool:
+    """Recognize only the sealed A16-31 joint-domain placeholder cells."""
+    dims = row.get("dimensions", {})
+    if not (
+        row.get("status") == "UNAVAILABLE"
+        and dims.get("rung") == "candidate-25"
+        and dims.get("row") == "P2_marginal_audit"
+        and dims.get("variant") == "domain_violation_share"
+    ):
+        return False
+    return any(
+        source.get("producer_status") == "DESCRIPTIVE_NOT_A16_JOINT_GATE"
+        and source.get("assembly_disposition") == P2_JOINT_DOMAIN_DISPOSITION
+        and source.get("producer_value") != "NA"
+        and source.get("producer_se") == "NA"
+        and source.get("producer_mcse") == "NA"
+        for source in row.get("sources", [])
+    )
+
+
+def intentional_p6_unavailable(row: dict[str, Any]) -> bool:
+    if not (
+        row.get("status") == "UNAVAILABLE"
+        and row.get("dimensions", {}).get("row", "").startswith("P6_")
+    ):
+        return False
+    stage_name = row["dimensions"]["row"][3:]
+    variant = row["dimensions"].get("variant")
+    for source in row.get("sources", []):
+        if source.get("p6_disposition") != P6_SEALED_DISPOSITION:
+            continue
+        evidence = source.get("unavailable_evidence")
+        if not isinstance(evidence, dict):
+            continue
+        kind = source.get("intentional_unavailable_kind")
+        if (
+            kind == "SEALED_NO_SURFACE"
+            and source.get("stage_status") == "NO_SURFACE"
+            and source.get("stage_present_in_sealed_p1") is True
+            and isinstance(evidence.get("evidence"), str)
+        ):
+            return True
+        if (
+            kind == "OPERATOR_STAGE_OMITTED"
+            and stage_name == "fit_sample_5000"
+            and source.get("stage_status") == "UNAVAILABLE"
+            and source.get("stage_present_in_sealed_p1") is False
+        ):
+            return True
+        if (
+            kind == "SEALED_DIAGNOSTIC_FIELD_NOT_DEFINED"
+            and stage_name == "boundary_bridge"
+            and variant in {"seed", "sign_count", "weighted_sign_mass"}
+            and source.get("stage_status") == "AVAILABLE"
+            and source.get("stage_present_in_sealed_p1") is True
+        ):
+            return True
+    return False
+
+
 def merge_p6_nested(
     p6: dict[str, Any],
     target: str,
@@ -1701,6 +2010,7 @@ def merge_p6_nested(
     by_id: dict[str, dict[str, Any]],
     locked: set[str],
 ) -> None:
+    p6_status = p6.get("status")
     stages = {
         item.get("stage"): (index, item)
         for index, item in enumerate(p6.get("stages", []))
@@ -1735,12 +2045,15 @@ def merge_p6_nested(
         if stage_record is not None:
             stage_index, stage = stage_record
             pointer = f"{prefix}/P6/stages/{stage_index}"
+            stage_present = True
         elif special_record is not None:
             special_pointer, stage = special_record
             pointer = f"{prefix}/P6{special_pointer}"
+            stage_present = True
         else:
             stage = {}
             pointer = f"{prefix}/P6"
+            stage_present = False
         leg = dims["leg"]
         variant = dims["variant"]
         value: Any = "NA"
@@ -1761,6 +2074,8 @@ def merge_p6_nested(
         source_extra: dict[str, Any] = {
             "stage": stage_name,
             "stage_status": stage.get("status", "UNAVAILABLE"),
+            "p6_disposition": p6_status,
+            "stage_present_in_sealed_p1": stage_present,
         }
         for key in (
             "declared_surface_status",
@@ -1783,6 +2098,15 @@ def merge_p6_nested(
             source_extra["unavailable_evidence"] = p6_unavailable_evidence(
                 stage, variant
             )
+            intentional_kind = p6_intentional_unavailable_kind(
+                p6_status=p6_status,
+                stage_name=stage_name,
+                stage=stage,
+                stage_present=stage_present,
+                variant=variant,
+            )
+            if intentional_kind is not None:
+                source_extra["intentional_unavailable_kind"] = intentional_kind
         set_row(
             by_id[spec["id"]],
             spec,
@@ -1794,7 +2118,8 @@ def merge_p6_nested(
                     artifact_source["sha256"],
                     pointer,
                     **source_extra,
-                )
+                ),
+                executor_source("/merge_p6_nested"),
             ],
         )
         locked.add(spec["id"])
@@ -2533,6 +2858,7 @@ def p6_bridge_closure_rows(
         return []
     source = copy.deepcopy(detail["sources"][0])
     source["pointer"] += f"/clone_value_and_weight_bridge/legs/{leg}"
+    derived_source = executor_source("/p6_bridge_closure_rows")
     rows: list[dict[str, Any]] = []
     for name in ("producer_value_bridge", "clone_weight_bridge", "sum_equals_B1"):
         value = leg_values.get(name, "NA")
@@ -2562,10 +2888,22 @@ def p6_bridge_closure_rows(
                 "status": "OK" if value != "NA" else "UNAVAILABLE",
                 "default_resolved": False,
                 "diagnostic_only": True,
-                "sources": [copy.deepcopy(source)],
+                "sources": [copy.deepcopy(source), copy.deepcopy(derived_source)],
             }
         )
     return rows
+
+
+def p6_report_sort_key(row: dict[str, Any]) -> tuple[int, int, str]:
+    dims = row["dimensions"]
+    stage = dims["row"][3:] if dims["row"].startswith("P6_") else dims["row"]
+    stage_order = {name: index for index, name in enumerate(P6_STAGE_ORDER)}
+    variant_order = {name: index for index, name in enumerate(P6_VARIANT_ORDER)}
+    return (
+        stage_order.get(stage, len(stage_order)),
+        variant_order.get(dims.get("variant"), len(variant_order)),
+        row["id"],
+    )
 
 
 def build_target_sections(
@@ -2573,6 +2911,10 @@ def build_target_sections(
     targets: list[str],
     verdicts: list[dict[str, Any]],
     p1_artifact: tuple[dict[str, Any], dict[str, Any]] | None = None,
+    *,
+    p2_not_validated_complete: bool = False,
+    p6_no_surface_complete: bool = False,
+    completion_barrier_source: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     verdict_lookup = {(item["target"], item["leg"]): item for item in verdicts}
     loading = family_loading(statistics)
@@ -2638,18 +2980,19 @@ def build_target_sections(
                 for row in leg_rows
                 if is_p2_row(row["dimensions"]["row"])
             ]
+            p6_rows = [
+                report_row(row)
+                for row in leg_rows
+                if row["dimensions"]["row"].startswith("P6_")
+            ] + p6_bridge_closure_rows(target, leg, p6_detail)
+            p6_rows.sort(key=p6_report_sort_key)
             diagnostic_rows = {
                 "B2 selection telescope": [
                     report_row(row)
                     for row in leg_rows
                     if row["dimensions"]["row"].startswith("B2_")
                 ],
-                "P6 producer ledger": [
-                    report_row(row)
-                    for row in leg_rows
-                    if row["dimensions"]["row"].startswith("P6_")
-                ]
-                + p6_bridge_closure_rows(target, leg, p6_detail),
+                "P6 producer ledger": p6_rows,
                 "P5 Gower support": [
                     report_row(row)
                     for row in leg_rows
@@ -2685,6 +3028,26 @@ def build_target_sections(
             }.items():
                 rows = [row for row in leg_rows if predicate(row["dimensions"]["row"])]
                 statuses = Counter(row["status"] for row in rows)
+                completion_neutral = [
+                    row
+                    for row in rows
+                    if (
+                        probe == "P2"
+                        and p2_not_validated_complete
+                        and intentional_p2_unavailable(row)
+                    )
+                    or (
+                        probe == "P6"
+                        and p6_no_surface_complete
+                        and intentional_p6_unavailable(row)
+                    )
+                ]
+                incomplete_rows = [
+                    row
+                    for row in rows
+                    if row["status"] in INCOMPLETE_STATUSES
+                    and row not in completion_neutral
+                ]
                 reason = ""
                 if not rows:
                     status = "NOT_APPLICABLE"
@@ -2692,9 +3055,23 @@ def build_target_sections(
                         "no registered cells for this target-leg; the class is absent "
                         "from the frozen probe roster"
                     )
-                elif any(status in INCOMPLETE_STATUSES for status in statuses):
+                elif incomplete_rows:
                     status = next(
-                        status for status in INCOMPLETE_STATUSES if status in statuses
+                        candidate
+                        for candidate in INCOMPLETE_STATUS_PRIORITY
+                        if any(row["status"] == candidate for row in incomplete_rows)
+                    )
+                elif probe == "P2" and completion_neutral:
+                    status = P2_NOT_VALIDATED_DISPOSITION
+                    reason = (
+                        "the exact A16-31 joint-domain placeholders retain their "
+                        "unavailable cells under the bound NOT_VALIDATED barrier disposition"
+                    )
+                elif probe == "P6" and completion_neutral:
+                    status = P6_COMPLETE_NO_SURFACE
+                    reason = (
+                        "the exact sealed P1 no-surface disposition is complete under "
+                        "the bound readings barrier; unavailable cells retain evidence"
                     )
                 elif "NOT_VALIDATED" in statuses:
                     status = "NOT_VALIDATED"
@@ -2714,10 +3091,24 @@ def build_target_sections(
                 probe_source_map[
                     (assembly_source["path"], assembly_source["sha256"])
                 ] = copy.deepcopy(assembly_source)
+                if (
+                    probe in {"P2", "P6"}
+                    and completion_neutral
+                    and completion_barrier_source is not None
+                ):
+                    probe_source_map[
+                        (
+                            completion_barrier_source["path"],
+                            completion_barrier_source["sha256"],
+                        )
+                    ] = copy.deepcopy(completion_barrier_source)
                 probes[probe] = {
                     "status": status,
                     "reason": reason,
                     "status_counts": dict(statuses),
+                    "completion_neutral_status_counts": dict(
+                        Counter(row["status"] for row in completion_neutral)
+                    ),
                     "statistic_ids": [row["id"] for row in rows],
                     "sources": list(probe_source_map.values()),
                 }
@@ -2758,6 +3149,30 @@ def probe_bucket(row_name: str) -> str:
     if row_name.startswith("P8_"):
         return "P8"
     return "CONTROL_OR_SETUP"
+
+
+def incomplete_statistics(
+    statistics: Iterable[dict[str, Any]],
+    *,
+    p2_not_validated_complete: bool = False,
+    p6_no_surface_complete: bool = False,
+) -> Counter[tuple[str, str]]:
+    """Count incomplete cells, narrowly exempting barrier-authorized P6 evidence."""
+    return Counter(
+        (row["status"], probe_bucket(row["dimensions"]["row"]))
+        for row in statistics
+        if row["status"] in INCOMPLETE_STATUSES
+        and not (
+            (p2_not_validated_complete and intentional_p2_unavailable(row))
+            or (p6_no_surface_complete and intentional_p6_unavailable(row))
+        )
+    )
+
+
+def phase0_run_status(c3_pass: bool, incomplete: Counter[tuple[str, str]]) -> str:
+    if not c3_pass:
+        return "CONTROLS_FAILED"
+    return "PARTIAL" if incomplete else "COMPLETE"
 
 
 def support_by_target(
@@ -2939,6 +3354,47 @@ def fmt(value: Any) -> str:
     return str(value)
 
 
+def render_p6_structured_value(value: Any) -> str:
+    """Render structured P6 evidence with six-significant-digit numeric leaves."""
+
+    def structured(item: Any) -> str:
+        if item is None:
+            return "null"
+        if isinstance(item, bool):
+            return "true" if item else "false"
+        if isinstance(item, int):
+            return format(item, ".6g")
+        if isinstance(item, float):
+            return fmt(item)
+        if isinstance(item, str):
+            return json.dumps(item, ensure_ascii=False)
+        if isinstance(item, list):
+            return "[" + ",".join(structured(child) for child in item) + "]"
+        if isinstance(item, dict):
+            return (
+                "{"
+                + ",".join(
+                    json.dumps(str(key), ensure_ascii=False)
+                    + ":"
+                    + structured(item[key])
+                    for key in sorted(item)
+                )
+                + "}"
+            )
+        return json.dumps(str(item), ensure_ascii=False)
+
+    if isinstance(value, str) and value[:1] in {"{", "["}:
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError:
+            return value
+        if isinstance(decoded, (dict, list)):
+            return structured(decoded)
+    if isinstance(value, (dict, list)):
+        return structured(value)
+    return fmt(value)
+
+
 def source_catalog(
     statistics: list[dict[str, Any]], fixed: list[dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], dict[tuple[str, str], str]]:
@@ -2979,6 +3435,18 @@ def valid_sha256(value: Any) -> bool:
     )
 
 
+def valid_producer_metadata_source(source: dict[str, Any]) -> bool:
+    """Recognize the sealed P2 lineage object, which is not an artifact ref."""
+    return (
+        set(source) == {"design_sha256", "d0_sha256", "pointer"}
+        and source.get("design_sha256") == EXPECTED_AUTHORITY[DESIGN]
+        and source.get("d0_sha256") == EXPECTED_AUTHORITY[D0_JSON]
+        and isinstance(source.get("pointer"), str)
+        and source["pointer"].startswith("/")
+        and len(source["pointer"]) > 1
+    )
+
+
 def validate_nested_source_lists(
     value: Any,
     catalog_keys: set[tuple[str, str]],
@@ -2993,9 +3461,22 @@ def validate_nested_source_lists(
     sources = value.get("sources")
     if isinstance(sources, list):
         require(sources, f"empty source list at {context}")
+        cataloged = 0
         for index, source in enumerate(sources):
             require(isinstance(source, dict), f"non-object source at {context}/{index}")
-            path, digest = source.get("path"), source.get("sha256")
+            has_path = "path" in source
+            has_digest = "sha256" in source
+            if not has_path and not has_digest:
+                require(
+                    valid_producer_metadata_source(source),
+                    f"untyped source metadata at {context}/{index}",
+                )
+                continue
+            require(
+                has_path and has_digest,
+                f"source path/SHA-256 pair is incomplete at {context}/{index}",
+            )
+            path, digest = source["path"], source["sha256"]
             require(
                 isinstance(path, str) and path,
                 f"source path is absent at {context}/{index}",
@@ -3008,6 +3489,11 @@ def validate_nested_source_lists(
                 (path, digest) in catalog_keys,
                 f"source is absent from the catalog at {context}/{index}",
             )
+            cataloged += 1
+        require(
+            cataloged >= 1,
+            f"source list has no cataloged artifact/code reference at {context}",
+        )
     for key, item in value.items():
         if key != "sources":
             validate_nested_source_lists(item, catalog_keys, f"{context}/{key}")
@@ -3021,6 +3507,7 @@ def validate_report_contract(
     """Supplement the immutable permissive Step-0 schema with report checks."""
     catalog = result["source_catalog"]
     catalog_keys = {(item["path"], item["sha256"]) for item in catalog}
+    executor_binding = executor_source()
     require(len(catalog_keys) == len(catalog), "source catalog has duplicate keys")
     require(
         all(valid_sha256(item.get("sha256")) for item in catalog),
@@ -3028,6 +3515,40 @@ def validate_report_contract(
     )
     for row in result["statistics"]:
         validate_nested_source_lists(row, catalog_keys, f"statistics/{row['id']}")
+    authorizations = result["reading_completion_authorizations"]
+    p2_authorization = authorizations["P2_evidenced_unavailable"]
+    p6_authorization = authorizations["P6_evidenced_unavailable"]
+    actual_p2_evidence = sum(
+        intentional_p2_unavailable(row) for row in result["statistics"]
+    )
+    actual_p6_evidence = sum(
+        intentional_p6_unavailable(row) for row in result["statistics"]
+    )
+    require(
+        p2_authorization["evidenced_cell_count"] == actual_p2_evidence
+        and p6_authorization["evidenced_cell_count"] == actual_p6_evidence,
+        "completion-authorization evidence counts differ from flat statistics",
+    )
+    if p2_authorization["authorized"]:
+        require(
+            p2_authorization["required_barrier_disposition"]
+            == P2_NOT_VALIDATED_DISPOSITION
+            and actual_p2_evidence == EXPECTED_P2_EVIDENCED_UNAVAILABLE,
+            "P2 completion authorization lacks the exact 312-cell disposition",
+        )
+    if p6_authorization["authorized"]:
+        require(
+            p6_authorization["required_barrier_disposition"] == P6_COMPLETE_NO_SURFACE
+            and p6_authorization["required_sealed_p1_disposition"]
+            == P6_SEALED_DISPOSITION
+            and actual_p6_evidence == EXPECTED_P6_EVIDENCED_UNAVAILABLE,
+            "P6 completion authorization lacks the exact 504-cell disposition",
+        )
+    validate_nested_source_lists(
+        authorizations,
+        catalog_keys,
+        "reading_completion_authorizations",
+    )
     if result["status"] == "CONTROLS_FAILED":
         require(result["targets"] == {}, "control failure opened target sections")
         require(
@@ -3058,6 +3579,37 @@ def validate_report_contract(
                 section["P6_sealed_detail"]["sealed_payload"] == expected_p6,
                 f"sealed P6 detail changed for {target}",
             )
+            p0_path_row = next(
+                row
+                for row in section["P0"]
+                if row["dimensions"]["row"] == "P0_path_census"
+            )
+            anchors = next(
+                (
+                    source.get("path_code_anchors")
+                    for source in p0_path_row.get("sources", [])
+                    if isinstance(source.get("path_code_anchors"), dict)
+                ),
+                None,
+            )
+            require(
+                isinstance(anchors, dict)
+                and set(anchors) == set(P0_PATH_EXECUTOR_ANCHOR),
+                f"P0 path census lacks exact code anchors for {target}",
+            )
+            for path_stage, anchor in anchors.items():
+                require(
+                    anchor.get("predicate_anchor")
+                    == P0_PATH_EXECUTOR_ANCHOR[path_stage]
+                    and isinstance(anchor.get("production_anchor"), str)
+                    and len(anchor.get("sources", [])) == 2
+                    and any(
+                        source.get("path") == str(P1_EXECUTOR.resolve())
+                        and source.get("sha256") == EXPECTED_P1_EXECUTOR_SHA
+                        for source in anchor["sources"]
+                    ),
+                    f"P0 path code anchor changed for {target}/{path_stage}",
+                )
         for leg in LEGS:
             data = section["legs"][leg]
             expected_ledger = [*LEVEL_ROWS, *TOP_LEVEL_ROWS, "residual"]
@@ -3088,7 +3640,40 @@ def validate_report_contract(
                     c1_probe["status"] == "NOT_APPLICABLE",
                     f"empty C1 probe is not inapplicable for {target}/{leg}",
                 )
-            for row in data["diagnostic_rows"]["P6 producer ledger"]:
+            p2_probe = data["probes"]["P2"]
+            if p2_probe["completion_neutral_status_counts"]:
+                require(
+                    p2_authorization["authorized"]
+                    and p2_probe["status"] == P2_NOT_VALIDATED_DISPOSITION,
+                    f"P2 completion-neutral cells lack exact disposition for {target}/{leg}",
+                )
+            p6_probe = data["probes"]["P6"]
+            if p6_probe["completion_neutral_status_counts"]:
+                require(
+                    p6_authorization["authorized"]
+                    and p6_probe["status"] == P6_COMPLETE_NO_SURFACE,
+                    f"P6 completion-neutral cells lack exact disposition for {target}/{leg}",
+                )
+            p6_rows = data["diagnostic_rows"]["P6 producer ledger"]
+            require(
+                p6_rows == sorted(p6_rows, key=p6_report_sort_key),
+                f"P6 transition order changed for {target}/{leg}",
+            )
+            for row in p6_rows:
+                expected_pointer = (
+                    "/p6_bridge_closure_rows"
+                    if row.get("diagnostic_only")
+                    else "/merge_p6_nested"
+                )
+                require(
+                    any(
+                        source.get("path") == executor_binding["path"]
+                        and source.get("sha256") == executor_binding["sha256"]
+                        and source.get("pointer") == expected_pointer
+                        for source in row.get("sources", [])
+                    ),
+                    f"P6 assembler provenance is absent: {row['id']}",
+                )
                 if row.get("diagnostic_only"):
                     continue
                 if row["status"] == "UNAVAILABLE":
@@ -3142,6 +3727,19 @@ def validate_markdown_mirror(
     require(
         markdown.count("##### P0 first-failure path census") == len(targets),
         "Markdown P0 census count differs from the target roster",
+    )
+    anchored_targets = sum(
+        any(
+            isinstance(source.get("path_code_anchors"), dict)
+            for row in result["targets"][target]["P0"]
+            for source in row.get("sources", [])
+        )
+        for target in targets
+    )
+    require(
+        markdown.count("; predicate `_run_candidate_target:")
+        == anchored_targets * len(P0_PATH_EXECUTOR_ANCHOR),
+        "Markdown does not render one sealed code anchor per available P0 path",
     )
     for target in targets:
         require(
@@ -3251,14 +3849,12 @@ def render_p6_rows(
             ),
             "NA",
         )
-        rendered_evidence = (
-            json.dumps(evidence, sort_keys=True, separators=(",", ":"))
-            if isinstance(evidence, (dict, list))
-            else str(evidence)
-        )
+        rendered_evidence = render_p6_structured_value(evidence)
         output.append(
-            f"| {label} | {fmt(row['value'])} | {fmt(row['se'])} | "
-            f"{fmt(row['mcse'])} | {row['status']} | {rendered_evidence} | "
+            f"| {label} | {render_p6_structured_value(row['value'])} | "
+            f"{render_p6_structured_value(row['se'])} | "
+            f"{render_p6_structured_value(row['mcse'])} | {row['status']} | "
+            f"{rendered_evidence} | "
             f"{source_labels(row, lookup)} |"
         )
     return "\n".join(output)
@@ -3281,8 +3877,30 @@ def render_p0_path_census(
         ),
         None,
     )
+    anchors = next(
+        (
+            source.get("path_code_anchors")
+            for source in path_row.get("sources", [])
+            if isinstance(source.get("path_code_anchors"), dict)
+        ),
+        None,
+    )
     if not isinstance(census, dict):
         return f"Path census: `UNAVAILABLE`. Source: {source_labels(path_row, lookup)}."
+
+    def render_anchor(stage: str) -> str:
+        if not isinstance(anchors, dict) or not isinstance(anchors.get(stage), dict):
+            return "UNAVAILABLE"
+        anchor = anchors[stage]
+        anchor_sources = copy.deepcopy(anchor.get("sources", []))
+        if isinstance(anchor.get("operator_table_source"), dict):
+            anchor_sources.append(copy.deepcopy(anchor["operator_table_source"]))
+        labels = source_labels({"sources": anchor_sources}, lookup)
+        return (
+            f"{labels}; predicate `{anchor.get('predicate_anchor', 'NA')}`; "
+            f"production `{anchor.get('production_anchor', 'NA')}`"
+        )
+
     lines: list[str] = []
     stage_pass = census.get("stage_pass_rows", {})
     failure_rows = census.get("first_failure_rows", {})
@@ -3292,12 +3910,14 @@ def render_p0_path_census(
         lines.append(
             f"| {stage} | {fmt(stage_pass.get(stage, 'NA'))} | "
             f"{fmt(failure_rows.get(stage, 'NA'))} | "
-            f"{fmt(mask.get('sha256', 'NA'))} | {source_labels(path_row, lookup)} |"
+            f"{fmt(mask.get('sha256', 'NA'))} | {render_anchor(stage)} | "
+            f"{source_labels(path_row, lookup)} |"
         )
     passed_mask = census.get("passed_mask", {})
     lines.append(
         f"| passed_all | {fmt(census.get('passed_rows', 'NA'))} | NA | "
-        f"{fmt(passed_mask.get('sha256', 'NA'))} | {source_labels(path_row, lookup)} |"
+        f"{fmt(passed_mask.get('sha256', 'NA'))} | {render_anchor('passed_all')} | "
+        f"{source_labels(path_row, lookup)} |"
     )
     return "\n".join(lines)
 
@@ -3490,8 +4110,8 @@ Verdict: {verdict["verdict"]}. Additive shares over Σ|c|: {", ".join(f"`{name}`
 
 ##### P0 first-failure path census
 
-| Stage | Stage-pass rows | First-failure rows | First-failure mask SHA-256 | Source |
-| --- | ---: | ---: | ---: | --- |
+| Stage | Stage-pass rows | First-failure rows | First-failure mask SHA-256 | Code anchor | Source |
+| --- | ---: | ---: | ---: | --- | --- |
 {p0_path_census}
 
 """
@@ -3652,7 +4272,13 @@ def main() -> None:
     if c3_pass:
         if args.p1:
             p1_artifact = merge_p1_artifact(
-                args.p1, manifest, manifest_by_id, by_id, locked
+                args.p1,
+                manifest,
+                manifest_by_id,
+                by_id,
+                locked,
+                sealed_step0["operator_table"],
+                core_sources["base"],
             )
             reading_payloads.append(p1_artifact)
         baseline_artifact = merge_baseline_crossrung_artifact(
@@ -3761,18 +4387,20 @@ def main() -> None:
             f"invalid status for {row['id']}",
         )
 
-    incomplete = Counter(
-        (row["status"], probe_bucket(row["dimensions"]["row"]))
-        for row in statistics
-        if row["status"] in INCOMPLETE_STATUSES
+    p2_not_validated_complete = barrier_disposes_unvalidated_p2(
+        readings_barrier_artifact
+    )
+    p6_no_surface_complete = barrier_completes_evidenced_p6(readings_barrier_artifact)
+    incomplete = incomplete_statistics(
+        statistics,
+        p2_not_validated_complete=p2_not_validated_complete,
+        p6_no_surface_complete=p6_no_surface_complete,
     )
     partial_reasons = [
         f"{status}/{probe}: {count} registered cells"
         for (status, probe), count in sorted(incomplete.items())
     ]
-    final_status = (
-        "CONTROLS_FAILED" if not c3_pass else "PARTIAL" if incomplete else "COMPLETE"
-    )
+    final_status = phase0_run_status(c3_pass, incomplete)
     if final_status == "CONTROLS_FAILED":
         status_line = "STATUS: CONTROLS_FAILED — retargeted C3 failed recovery or power; readings NOT_RUN_CONTROLS_FAILED"
     elif final_status == "PARTIAL":
@@ -3807,7 +4435,19 @@ def main() -> None:
         C3=source_label(core_sources["C3"]),
     )
     target_sections = (
-        build_target_sections(statistics, targets, verdicts, p1_artifact)
+        build_target_sections(
+            statistics,
+            targets,
+            verdicts,
+            p1_artifact,
+            p2_not_validated_complete=p2_not_validated_complete,
+            p6_no_surface_complete=p6_no_surface_complete,
+            completion_barrier_source=(
+                readings_barrier_artifact[1]
+                if readings_barrier_artifact is not None
+                else None
+            ),
+        )
         if c3_pass
         else {}
     )
@@ -3827,6 +4467,14 @@ def main() -> None:
         source_ref(D0_JSON, authority[str(D0_JSON)]),
     )
     reading_dispositions = global_reading_dispositions(reading_payloads)
+    completion_authorization_sources = [
+        *(
+            [copy.deepcopy(readings_barrier_artifact[1])]
+            if readings_barrier_artifact is not None
+            else []
+        ),
+        executor_source("/incomplete_statistics"),
+    ]
 
     result = copy.deepcopy(base)
     result.update(
@@ -3892,6 +4540,25 @@ def main() -> None:
         P8_ssi=p8,
         required_highlights=highlights if c3_pass else {},
         reading_dispositions=reading_dispositions if c3_pass else {},
+        reading_completion_authorizations={
+            "P2_evidenced_unavailable": {
+                "authorized": p2_not_validated_complete,
+                "required_barrier_disposition": P2_NOT_VALIDATED_DISPOSITION,
+                "evidenced_cell_count": sum(
+                    intentional_p2_unavailable(row) for row in statistics
+                ),
+                "sources": copy.deepcopy(completion_authorization_sources),
+            },
+            "P6_evidenced_unavailable": {
+                "authorized": p6_no_surface_complete,
+                "required_barrier_disposition": P6_COMPLETE_NO_SURFACE,
+                "required_sealed_p1_disposition": P6_SEALED_DISPOSITION,
+                "evidenced_cell_count": sum(
+                    intentional_p6_unavailable(row) for row in statistics
+                ),
+                "sources": copy.deepcopy(completion_authorization_sources),
+            },
+        },
         partial_reasons=partial_reasons,
         partial_breakdown={
             status: {

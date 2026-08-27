@@ -400,6 +400,22 @@ is authorized or planned.
   the frozen schema, manual report contract, Markdown mirror, and canonical
   seal; all 98 Phase-0 tests and Ruff pass. Partial assembly without P1 now
   also renders cleanly rather than indexing absent required highlights.
+- Closed the final report's barrier-aware completeness and provenance audit.
+  The exact 312 A16-31 P2 domain placeholders and 504 sealed P6 no-surface
+  evidence cells remain `UNAVAILABLE` in the authoritative flat statistics,
+  but cease to make the run `PARTIAL` only when the exact bound barrier says
+  P2 `NOT_VALIDATED` and P6 `COMPLETE_WITH_NO_SURFACE`; mutated or unexpected
+  unavailable rows still fail closed. P6 flat/bridge derivations now cite the
+  finalizer source, render in producer-transition order, and recursively use
+  six-significant-digit Markdown while preserving exact JSON. Every P0 census
+  path now cites the hard-pinned execution-commit census implementation and
+  sealed target production code anchor. The report contract accepts only the
+  exact sealed P2 metadata lineage shape plus a cataloged artifact source.
+  Focused tests no longer read either dirty report output and instead use
+  deterministic in-memory manifests or the sealed A17 Step-0 fixture. All 33
+  focused and 101 Phase-0 tests pass; Ruff and diff checks pass. A real
+  P0/P1/P2/P5/P6/P7/barrier assembly validates completely and is partial only
+  for the not-yet-supplied 810 registered C1 cells.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
