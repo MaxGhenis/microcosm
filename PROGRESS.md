@@ -156,10 +156,26 @@ canonical SHA-256
 `a04fae1ba38c42c05f5a44a0755b5d8cecd6df7465568d7b619d822050d3f09d`;
 its expected ordered-ID SHA-256 is
 `56599d01aedbdc9a321957cec45eb79e3c66d2b1c5abd65df7c4dd94b541808e`.
-An independent 509-assertion audit has zero failures. SEILY is active from the
-same source SHA-256
-`b0467fae3a1020915c5cabfd5b37616229bc5c3297f59c7c56ad90db70fbdee6`.
-C1 and verdicts have not yet executed. No pool build,
+An independent 509-assertion audit has zero failures. The SEILY singleton is
+sealed at `/private/tmp/qrf_phase0_a18_p5_seily.json`, file SHA-256
+`55fa699104e493245163653042d4c11c16f77cb15e0da8adf9a8e375cbbe23d6`,
+canonical SHA-256
+`68b45d3b5845a6aefffb1cc53f8a6040750cb4e1432b7674ebd82e3ef78fdbac`;
+its expected ordered-ID SHA-256 is
+`64746e61c549b7b87e2aba49265da8876b9c221824066b94c54c0d0b0337b4fb`.
+An independent 509-assertion audit has zero failures. Across all six P5
+shards, 4,479 independent artifact assertions plus 179 union assertions pass;
+all nine targets occur exactly once, all 558 statistics are unique, and the
+combined ordered-ID SHA-256 is
+`18b08b8e8fc08368b078426f4239217438d573ea00307245e6b2c362d3018444`.
+The strict readings barrier is `READINGS_COMPLETE` at
+`/private/tmp/qrf_phase0_a18_readings_barrier.json`, file SHA-256
+`fb7b4ad41f5c6d08201208ab9938d5ba75fe4eddb5f1aec3553a1dceb63f2515`,
+canonical SHA-256
+`2b9ffc6838b37f7ea226f0f100bc2dedb9e2e5d6d28bafc72f40cb818bd15101`.
+It records no priority omissions and authorizes C1. C1 is active from source
+SHA-256 `6cef30aa36abef40879761d45c3a6313932d653665a13fcae53b4a8e155c6f31`.
+Verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
 is authorized or planned.
 
@@ -295,6 +311,21 @@ is authorized or planned.
   its negative drift residual is zero and positive drift residual is
   `-2.1250362580715887e-17`, with all P1 equality, exact Gower, pooled,
   concentration, and A8 checks passing.
+- Sealed the authoritative SEILY P5 singleton. All 62 Step-0 rows pass. Its
+  independent 509-assertion audit rehashed every authority/source/live input,
+  reproduced the canonical bytes and exact manifest slice, and certified
+  856,626 expected rows exactly once. Its weight residual is
+  `3.2782554626464844e-6` within `0.0001220703125`; both signed drift
+  closures pass, including the support-floor negative leg. A separate
+  179-assertion union audit verifies the exact six-shard, nine-target,
+  558-statistic P5 roster with no duplicates or omissions. All six P5 shards
+  together passed 4,479 artifact assertions with zero failures.
+- Sealed the strict post-readings prerequisite. It rehashes the adopted
+  controls, fresh C3, P0/P1/P6/P7, corrected P2 and its default receipt, all
+  six P5 shards and A16 binding, and baseline cross-rung artifact. Its
+  dispositions are P0/P1/P5/P7 `COMPLETE`, P2 `NOT_VALIDATED`, and P6
+  `COMPLETE_WITH_NO_SURFACE`; there are no A8 priority omissions and the next
+  required phase is C1.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
   SEILY, and UC. The final manifest is 2,322/2,322 with no missing, duplicate,
@@ -373,9 +404,8 @@ is authorized or planned.
 
 ## Next
 
-1. Complete exact P5 in six disjoint cache-preserving shards under its
-   mechanical A8 estimate, then seal the reading boundary, execute C1, and
-   compute VERDICTS from the sealed additive ledger and valid probes.
+1. Complete the active all-target C1 run, then compute VERDICTS from the
+   sealed additive ledger and valid probes.
 2. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
 
