@@ -324,6 +324,42 @@ def test_family_loading_excludes_other_rungs_and_diagnostic_rows() -> None:
     assert "fold" not in loading
 
 
+def test_family_loading_uses_one_global_f4_gq_adjustment_family() -> None:
+    rows = []
+    for index, (target, leg, gq, value) in enumerate(
+        (
+            ("one", "positive", "2", 4.0),
+            ("one", "positive", "3", 0.0),
+            ("two", "negative", "2", 0.0),
+            ("two", "negative", "3", 0.0),
+        )
+    ):
+        row = _statistic(
+            "P7_GQ",
+            value,
+            se=1.0,
+            family="F4",
+            target=target,
+            leg=leg,
+            identifier=f"f4-{index}",
+        )
+        row["dimensions"]["gq"] = gq
+        row["dimensions"]["variant"] = "adjustment"
+        rows.append(row)
+    nonadjustment = _statistic(
+        "P7_GQ", 100.0, se=0.01, family="F4", identifier="not-adjustment"
+    )
+    nonadjustment["dimensions"]["gq"] = "H"
+    nonadjustment["dimensions"]["variant"] = "incidence"
+
+    loading = FINAL.family_loading([*rows, nonadjustment])
+
+    assert set(loading) == {f"f4-{index}" for index in range(4)}
+    assert loading["f4-0"]["holm_significant"] is True
+    assert loading["f4-0"]["loaded"] is True
+    assert "not-adjustment" not in loading
+
+
 def test_verdict_no_material_rule_is_terminal_but_reports_shares() -> None:
     rows = _verdict_inputs(
         {"T3": 0.8, "B1": 0.2},
@@ -670,12 +706,21 @@ def test_required_highlights_report_care_extension_and_weeks_components() -> Non
     assert care["baseline1pct_D0_4_cleared_positive_draws"] == 183
     assert care["candidate_25_cleared_positive_draws"] == 3788
     assert care["additional_cleared_draws"] == 3605
-    assert care["T5"] == {"value": 0.4, "se": 0.04}
+    assert care["T5"]["value"] == 0.4
+    assert care["T5"]["se"] == 0.04
+    assert any(
+        source.get("pointer") == "/build_required_highlights"
+        for source in care["T5"]["sources"]
+    )
     assert weeks["B1"]["share_of_signed_D"] == 0.25
     assert weeks["T5"]["share_of_signed_D"] == 0.2
     assert weeks["T2"]["share_of_signed_D"] == -0.05
     assert all(
         item["sources"] for item in (care, weeks, weeks["B1"], weeks["T5"], weeks["T2"])
+    )
+    assert any(
+        source.get("pointer") == "/build_required_highlights"
+        for source in weeks["B1"]["sources"]
     )
 
 
@@ -846,6 +891,130 @@ def test_repeated_p5_shards_must_union_to_all_558_cells(tmp_path: Path) -> None:
         )
         == 558
     )
+
+
+def test_target_sections_provenance_shares_and_empty_c1_disposition() -> None:
+    producer_source = {"path": "/tmp/producer.json", "sha256": "a" * 64}
+    verdict_source = {
+        "path": str(Path(FINAL.__file__).resolve()),
+        "sha256": FINAL.sha256_file(Path(FINAL.__file__)),
+        "pointer": "/verdict_for_leg",
+    }
+    statistics: list[dict[str, Any]] = []
+    for leg in FINAL.LEGS:
+        for name in (*FINAL.LEVEL_ROWS, *FINAL.TOP_LEVEL_ROWS, "residual"):
+            row = _statistic(
+                name,
+                0.0,
+                family="F1" if name in FINAL.TOP_LEVEL_ROWS else None,
+                leg=leg,
+            )
+            row["sources"] = [producer_source]
+            statistics.append(row)
+    positive_c1 = _statistic(
+        "C1_target_gap",
+        0.0,
+        family="F5",
+        leg="positive",
+        identifier="positive-c1",
+    )
+    positive_c1["sources"] = [producer_source]
+    statistics.append(positive_c1)
+    verdicts = [
+        {
+            "target": "example",
+            "leg": leg,
+            "shares": {name: 0.125 for name in FINAL.TOP_LEVEL_ROWS},
+            "sources": [verdict_source],
+        }
+        for leg in FINAL.LEGS
+    ]
+
+    sections = FINAL.build_target_sections(statistics, ["example"], verdicts)
+
+    positive = sections["example"]["legs"]["positive"]
+    negative = sections["example"]["legs"]["negative"]
+    assert positive["probes"]["C1"]["status"] == "COMPLETE"
+    assert negative["probes"]["C1"]["status"] == "NOT_APPLICABLE"
+    assert "class is absent" in negative["probes"]["C1"]["reason"]
+    assert negative["probes"]["C1"]["status_counts"] == {}
+    assert any(
+        source.get("pointer") == "/build_target_sections"
+        for source in negative["probes"]["C1"]["sources"]
+    )
+    t1 = next(row for row in positive["ledger"] if row["dimensions"]["row"] == "T1")
+    assert t1["additive_share"]["value"] == 0.125
+    assert t1["additive_share"]["sources"] == [verdict_source]
+    assert any(
+        source.get("pointer") == "/build_target_sections"
+        for source in t1["holm_loading"]["sources"]
+    )
+
+
+def test_renderers_show_all_row_shares_phi_legs_and_full_p0_census() -> None:
+    source = {"path": "/tmp/p1.json", "sha256": "b" * 64}
+    lookup = {(source["path"], source["sha256"]): "S1"}
+    ledger = []
+    for name in FINAL.TOP_LEVEL_ROWS:
+        row = _statistic(name, 1.0)
+        row["mcse"] = "NA"
+        row["sources"] = [source]
+        row["additive_share"] = {"value": 0.125, "sources": [source]}
+        row["holm_loading"] = {"loaded": True, "sources": [source]}
+        ledger.append(row)
+    rendered_ledger = FINAL.render_ledger_rows(ledger, lookup)
+    assert rendered_ledger.count("| 0.125 |") == len(FINAL.TOP_LEVEL_ROWS)
+
+    phi_rows = []
+    for leg in FINAL.LEGS:
+        row = _statistic("phi", 1.0, family=None, leg=leg)
+        row["mcse"] = "NA"
+        row["sources"] = [source]
+        phi_rows.append(row)
+    rendered_phi = FINAL.render_stat_rows(
+        phi_rows,
+        lookup,
+        include_dimensions=True,
+        include_leg=True,
+    )
+    assert "phi/leg=positive" in rendered_phi
+    assert "phi/leg=negative" in rendered_phi
+
+    path_row = _statistic("P0_path_census", 10.0, family=None, leg="_")
+    path_row["mcse"] = "NA"
+    path_row["sources"] = [
+        {
+            **source,
+            "path_census": {
+                "stage_pass_rows": {
+                    "authorized": 10,
+                    "null_before": 9,
+                    "drawn": 8,
+                    "finite_decode": 7,
+                },
+                "first_failure_rows": {
+                    "authorized": 1,
+                    "null_before": 1,
+                    "drawn": 1,
+                    "finite_decode": 1,
+                },
+                "first_failure_masks": {
+                    name: {"sha256": character * 64}
+                    for name, character in zip(
+                        ("authorized", "null_before", "drawn", "finite_decode"),
+                        "cdef",
+                        strict=True,
+                    )
+                },
+                "passed_rows": 6,
+                "passed_mask": {"sha256": "9" * 64},
+            },
+        }
+    ]
+    census = FINAL.render_p0_path_census([path_row], lookup)
+    assert "| authorized | 10 | 1 |" in census
+    assert "| finite_decode | 7 | 1 |" in census
+    assert f"| passed_all | 6 | NA | {'9' * 64} | S1 |" in census
 
 
 def test_markdown_orders_controls_targets_summary_and_p8() -> None:

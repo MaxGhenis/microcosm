@@ -299,6 +299,12 @@ is authorized or planned.
   values; uses clone-0 support counts; and carries sourced adult-care/weeks
   highlights plus the assembler digest for derived verdicts. Twenty-four
   focused and 53 broader tests pass; a real partial replay is schema-valid.
+- Hardened the A18 assembler after a fresh output-contract audit: F4 now uses
+  the one global 36-cell TYPEHUGQ-adjustment Holm family; every additive share
+  is mirrored and rendered; Holm, probe, and required-highlight derivations
+  carry the assembler source digest; absent-class C1 legs are explicitly
+  inapplicable; and P0 prints leg-qualified phi rows plus its complete
+  first-failure census. Twenty-seven focused finalizer tests pass.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
@@ -306,7 +312,10 @@ is authorized or planned.
 1. Complete exact P5 in six disjoint cache-preserving shards under its
    mechanical A8 estimate, then seal the reading boundary, execute C1, and
    compute VERDICTS from the sealed additive ledger and valid probes.
-2. Render and validate the Markdown/JSON reports while leaving both output
+2. Complete the audited P6 final-report serialization hardening so sealed
+   seed representations, unavailable evidence, per-pattern fit surfaces, and
+   clone/value/weight bridge diagnostics survive the JSON/Markdown mirror.
+3. Render and validate the Markdown/JSON reports while leaving both output
    files uncommitted, then commit the final journal state separately.
 
 ## Historical A17 terminal snapshot

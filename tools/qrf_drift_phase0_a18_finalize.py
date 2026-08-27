@@ -1819,7 +1819,7 @@ def family_loading(statistics: list[dict[str, Any]]) -> dict[str, dict[str, Any]
     grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)
     for row in statistics:
         family = row.get("family")
-        if family not in {"F1", "F2", "F5"}:
+        if family not in {"F1", "F2", "F4", "F5"}:
             continue
         dims = row["dimensions"]
         # A16-25 supersedes A15.25: F1 contains only the eight top-level
@@ -1837,12 +1837,20 @@ def family_loading(statistics: list[dict[str, Any]]) -> dict[str, dict[str, Any]
             continue
         if family == "F5" and dims["row"] != "C1_target_gap":
             continue
+        if family == "F4" and not (
+            dims["row"] == "P7_GQ"
+            and dims["variant"] == "adjustment"
+            and dims["gq"] in {"2", "3"}
+        ):
+            continue
         if family in {"F1", "F2"}:
             # A2's target x leg family is defined within a rung.  In
             # particular, the two baseline1pct F1 families must not change
             # candidate-25 Holm denominators or loading decisions.
             key = (family, dims["rung"], dims["target"], dims["leg"])
         else:
+            # A2/A16-39 bind all 36 TYPEHUGQ 2/3 adjustment terms into
+            # one F4 family.  F5 is likewise one global C1 target-leg family.
             key = (family, "_global", "_global")
         grouped[key].append(row)
     result: dict[str, dict[str, Any]] = {}
@@ -2387,15 +2395,22 @@ def apply_cross_rung(
 
 
 def build_target_sections(
-    statistics: list[dict[str, Any]], targets: list[str], verdicts: list[dict[str, Any]]
+    statistics: list[dict[str, Any]],
+    targets: list[str],
+    verdicts: list[dict[str, Any]],
 ) -> dict[str, Any]:
     verdict_lookup = {(item["target"], item["leg"]): item for item in verdicts}
     loading = family_loading(statistics)
+    assembly_source = executor_source("/build_target_sections")
 
     def report_row(row: dict[str, Any]) -> dict[str, Any]:
         result = copy.deepcopy(row)
         if row["id"] in loading:
-            result["holm_loading"] = copy.deepcopy(loading[row["id"]])
+            result["holm_loading"] = {
+                **copy.deepcopy(loading[row["id"]]),
+                "sources": [copy.deepcopy(assembly_source)],
+            }
+            result.setdefault("sources", []).append(copy.deepcopy(assembly_source))
         return result
 
     sections: dict[str, Any] = {}
@@ -2414,6 +2429,7 @@ def build_target_sections(
         ]
         legs: dict[str, Any] = {}
         for leg in LEGS:
+            verdict = verdict_lookup[(target, leg)]
             leg_rows = [
                 row for row in target_rows if row["dimensions"]["leg"] in {leg, NA}
             ]
@@ -2430,6 +2446,17 @@ def build_target_sections(
                 )
                 for name in (*LEVEL_ROWS, *TOP_LEVEL_ROWS, "residual")
             ]
+            for row in ledger:
+                row_name = row["dimensions"]["row"]
+                if row_name not in TOP_LEVEL_ROWS:
+                    continue
+                row["additive_share"] = {
+                    "value": verdict["shares"][row_name],
+                    "sources": copy.deepcopy(verdict.get("sources", [])),
+                }
+                row.setdefault("sources", []).extend(
+                    copy.deepcopy(verdict.get("sources", []))
+                )
             attribution = [
                 report_row(row)
                 for row in leg_rows
@@ -2481,7 +2508,14 @@ def build_target_sections(
             }.items():
                 rows = [row for row in leg_rows if predicate(row["dimensions"]["row"])]
                 statuses = Counter(row["status"] for row in rows)
-                if any(status in INCOMPLETE_STATUSES for status in statuses):
+                reason = ""
+                if not rows:
+                    status = "NOT_APPLICABLE"
+                    reason = (
+                        "no registered cells for this target-leg; the class is absent "
+                        "from the frozen probe roster"
+                    )
+                elif any(status in INCOMPLETE_STATUSES for status in statuses):
                     status = next(
                         status for status in INCOMPLETE_STATUSES if status in statuses
                     )
@@ -2500,8 +2534,12 @@ def build_target_sections(
                                 "path": path,
                                 "sha256": digest,
                             }
+                probe_source_map[
+                    (assembly_source["path"], assembly_source["sha256"])
+                ] = copy.deepcopy(assembly_source)
                 probes[probe] = {
                     "status": status,
+                    "reason": reason,
                     "status_counts": dict(statuses),
                     "statistic_ids": [row["id"] for row in rows],
                     "sources": list(probe_source_map.values()),
@@ -2511,7 +2549,7 @@ def build_target_sections(
                 "attribution": attribution,
                 "diagnostic_rows": diagnostic_rows,
                 "probes": probes,
-                "verdict": verdict_lookup[(target, leg)],
+                "verdict": verdict,
             }
         sections[target] = {"P0": p0, "legs": legs}
     return sections
@@ -2587,6 +2625,7 @@ def build_required_highlights(
             "sources": [copy.deepcopy(d0_source)],
         }
     payload, artifact_source = p1_artifact
+    assembly_source = executor_source("/build_required_highlights")
     targets = payload.get("candidate-25", {}).get("targets", {})
     care = targets.get("pre_subsidy_care_expenses", {})
     weeks = targets.get("weeks_unemployed", {})
@@ -2613,6 +2652,7 @@ def build_required_highlights(
             d0_source["sha256"],
             "/D0-4/targets/5",
         ),
+        copy.deepcopy(assembly_source),
     ]
     weeks_source = source_ref(
         artifact_source["path"],
@@ -2627,7 +2667,10 @@ def build_required_highlights(
             "value": item["value"],
             "se": item["se"],
             "share_of_signed_D": item["value"] / weeks_d["value"],
-            "sources": [copy.deepcopy(weeks_source)],
+            "sources": [
+                copy.deepcopy(weeks_source),
+                copy.deepcopy(assembly_source),
+            ],
         }
 
     return {
@@ -2636,7 +2679,14 @@ def build_required_highlights(
             "baseline1pct_D0_4_cleared_positive_draws": baseline_cleared,
             "candidate_25_cleared_positive_draws": candidate_cleared,
             "additional_cleared_draws": candidate_cleared - baseline_cleared,
-            "T5": {"value": care_t5["value"], "se": care_t5["se"]},
+            "T5": {
+                "value": care_t5["value"],
+                "se": care_t5["se"],
+                "sources": [
+                    copy.deepcopy(p1_source),
+                    copy.deepcopy(assembly_source),
+                ],
+            },
             "relationship": "CONFIRMS_AND_EXTENDS_D0_4",
             "cleared_mask_sha256": care_structural["cleared_mask"]["sha256"],
             "sources": care_sources,
@@ -2645,12 +2695,18 @@ def build_required_highlights(
             "D": {
                 "value": weeks_d["value"],
                 "se": weeks_d["se"],
-                "sources": [copy.deepcopy(weeks_source)],
+                "sources": [
+                    copy.deepcopy(weeks_source),
+                    copy.deepcopy(assembly_source),
+                ],
             },
             "B1": weeks_component("B1"),
             "T5": weeks_component("T5"),
             "T2": weeks_component("T2"),
-            "sources": [copy.deepcopy(weeks_source)],
+            "sources": [
+                copy.deepcopy(weeks_source),
+                copy.deepcopy(assembly_source),
+            ],
         },
     }
 
@@ -2739,13 +2795,14 @@ def render_stat_rows(
     lookup: dict[tuple[str, str], str],
     *,
     include_dimensions: bool = False,
+    include_leg: bool = False,
 ) -> str:
     output: list[str] = []
     for row in rows:
         dims = row["dimensions"]
         label = dims["row"]
         if include_dimensions:
-            suffix = "/".join(
+            suffix_parts = [
                 value
                 for value in (
                     dims["pattern"],
@@ -2758,7 +2815,10 @@ def render_stat_rows(
                     dims["variant"],
                 )
                 if value != NA
-            )
+            ]
+            if include_leg and dims["leg"] != NA:
+                suffix_parts.insert(0, f"leg={dims['leg']}")
+            suffix = "/".join(suffix_parts)
             if suffix:
                 label += "/" + suffix
         loaded = row.get("holm_loading", {}).get("loaded", "NA")
@@ -2766,6 +2826,59 @@ def render_stat_rows(
             f"| {label} | {fmt(row['value'])} | {fmt(row['se'])} | {fmt(row['mcse'])} | {row['status']} | {fmt(loaded)} | {source_labels(row, lookup)} |"
         )
     return "\n".join(output)
+
+
+def render_ledger_rows(
+    rows: list[dict[str, Any]], lookup: dict[tuple[str, str], str]
+) -> str:
+    output: list[str] = []
+    for row in rows:
+        share = row.get("additive_share", {}).get("value", "NA")
+        loaded = row.get("holm_loading", {}).get("loaded", "NA")
+        output.append(
+            f"| {row['dimensions']['row']} | {fmt(row['value'])} | {fmt(row['se'])} | "
+            f"{fmt(row['mcse'])} | {fmt(share)} | {row['status']} | {fmt(loaded)} | "
+            f"{source_labels(row, lookup)} |"
+        )
+    return "\n".join(output)
+
+
+def render_p0_path_census(
+    rows: list[dict[str, Any]], lookup: dict[tuple[str, str], str]
+) -> str:
+    path_row = next(
+        (row for row in rows if row["dimensions"]["row"] == "P0_path_census"),
+        None,
+    )
+    if path_row is None:
+        return "Path census: `NOT_RUN_PRIORITY`."
+    census = next(
+        (
+            source.get("path_census")
+            for source in path_row.get("sources", [])
+            if isinstance(source.get("path_census"), dict)
+        ),
+        None,
+    )
+    if not isinstance(census, dict):
+        return f"Path census: `UNAVAILABLE`. Source: {source_labels(path_row, lookup)}."
+    lines: list[str] = []
+    stage_pass = census.get("stage_pass_rows", {})
+    failure_rows = census.get("first_failure_rows", {})
+    failure_masks = census.get("first_failure_masks", {})
+    for stage in ("authorized", "null_before", "drawn", "finite_decode"):
+        mask = failure_masks.get(stage, {})
+        lines.append(
+            f"| {stage} | {fmt(stage_pass.get(stage, 'NA'))} | "
+            f"{fmt(failure_rows.get(stage, 'NA'))} | "
+            f"{fmt(mask.get('sha256', 'NA'))} | {source_labels(path_row, lookup)} |"
+        )
+    passed_mask = census.get("passed_mask", {})
+    lines.append(
+        f"| passed_all | {fmt(census.get('passed_rows', 'NA'))} | NA | "
+        f"{fmt(passed_mask.get('sha256', 'NA'))} | {source_labels(path_row, lookup)} |"
+    )
+    return "\n".join(lines)
 
 
 def render_markdown(result: dict[str, Any]) -> str:
@@ -2837,7 +2950,10 @@ Execution stopped at C3 under A18's numerical-control rule. All reading cells re
             attribution = data["attribution"]
             support = data["support_counts"]
             probe_lines = [
-                f"| {name} | {item['status']} | {json.dumps(item['status_counts'], sort_keys=True)} | {source_labels(item, lookup)} |"
+                f"| {name} | {item['status']}"
+                f"{' — ' + item['reason'] if item.get('reason') else ''} | "
+                f"{json.dumps(item['status_counts'], sort_keys=True)} | "
+                f"{source_labels(item, lookup)} |"
                 for name, item in data["probes"].items()
             ]
             attribution_text = (
@@ -2850,7 +2966,9 @@ Execution stopped at C3 under A18's numerical-control rule. All reading cells re
                 body = (
                     render_stat_rows(rows, lookup, include_dimensions=True)
                     if rows
-                    else f"| {title} | NA | NA | NA | NOT_RUN_PRIORITY | NA | NA |"
+                    else f"| {title} | NA | NA | NA | "
+                    f"{data['probes']['C1']['status'] if title.startswith('C1 ') else 'NOT_RUN_PRIORITY'} | "
+                    "NA | NA |"
                 )
                 diagnostic_blocks.append(
                     f"""##### {title}
@@ -2865,9 +2983,9 @@ Execution stopped at C3 under A18's numerical-control rule. All reading cells re
 
 Support is ASEC {support["asec"]} and ACS {support["acs"]} unique rows: `{support["status"]}`. Source: {source_labels(support, lookup)}.
 
-| Ledger row | Value | SE | MCSE | Status | Loaded | Source |
-| --- | ---: | ---: | ---: | --- | --- | --- |
-{render_stat_rows(data["ledger"], lookup)}
+| Ledger row | Value | SE | MCSE | Share | Status | Loaded | Source |
+| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
+{render_ledger_rows(data["ledger"], lookup)}
 
 | Attribution row/dimensions | Value | SE | MCSE | Status | Loaded | Source |
 | --- | ---: | ---: | ---: | --- | --- | --- |
@@ -2879,7 +2997,7 @@ Support is ASEC {support["asec"]} and ACS {support["acs"]} unique rows: `{suppor
 | --- | --- | --- | --- |
 {chr(10).join(probe_lines)}
 
-Verdict: {verdict["verdict"]}. Dominant row `{verdict["dominant_row"]}`, share {fmt(verdict["dominant_share"])}, cancellation index {fmt(verdict["cancellation_index"])}, defect class `{verdict["defect_class"]}`. Arm C / D / B-validation flags: `{verdict["arm_C_flag"]}` / `{verdict["arm_D_flag"]}` / `{verdict["arm_B_validation_flag"]}`. Source: {source_labels(verdict, lookup)}; exact inputs are enumerated in JSON `input_statistic_ids`.
+Verdict: {verdict["verdict"]}. Additive shares over Σ|c|: {", ".join(f"`{name}` {fmt(verdict['shares'][name])}" for name in TOP_LEVEL_ROWS)}. Dominant row `{verdict["dominant_row"]}`, share {fmt(verdict["dominant_share"])}, cancellation index {fmt(verdict["cancellation_index"])}, defect class `{verdict["defect_class"]}`. Arm C / D / B-validation flags: `{verdict["arm_C_flag"]}` / `{verdict["arm_D_flag"]}` / `{verdict["arm_B_validation_flag"]}`. Source: {source_labels(verdict, lookup)}; exact inputs are enumerated in JSON `input_statistic_ids`.
 """
             )
         special = ""
@@ -2912,15 +3030,27 @@ Verdict: {verdict["verdict"]}. Dominant row `{verdict["dominant_row"]}`, share {
             )
         p0_rows = section["P0"]
         p0_text = (
-            render_stat_rows(p0_rows, lookup, include_dimensions=True)
+            render_stat_rows(
+                p0_rows,
+                lookup,
+                include_dimensions=True,
+                include_leg=True,
+            )
             if p0_rows
             else "| P0 | NA | NA | NA | NOT_RUN_PRIORITY | NA | NA |"
         )
+        p0_path_census = render_p0_path_census(p0_rows, lookup)
         p0_block = f"""#### P0 provenance
 
 | Row/dimensions | Value | SE | MCSE | Status | Loaded | Source |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 {p0_text}
+
+##### P0 first-failure path census
+
+| Stage | Stage-pass rows | First-failure rows | First-failure mask SHA-256 | Source |
+| --- | ---: | ---: | ---: | --- |
+{p0_path_census}
 
 """
         target_blocks.append(
