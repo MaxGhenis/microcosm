@@ -2,7 +2,7 @@
 
 ## State
 
-The fifth Phase-0 execution attempt is active under design commit `8d553796`
+The fifth Phase-0 execution attempt is complete under design commit `8d553796`
 (v2.7/A18). The governing design through A18, both D0 binding files, and
 `CLAUDE.md` have been read in the required order. The worktree started this
 attempt with only the two requested Phase-0 output files modified by the prior
@@ -192,9 +192,12 @@ Markdown SHA-256
 `7eaee219efc85a6ac21e7193ddf79ba071acd022bfb8500e6db3dc90dbf7ac39`,
 and canonical scientific SHA-256
 `5f2fc59e945d310c5c2d6c80a0399f19b0ea5faba966ec1f0a1d444f82d156b2`.
-They report `COMPLETE`, 6,155/6,155 statistics, and no partial reasons; both
-remain deliberately uncommitted pending their final independent audit. No
-pool build, refit-with-changes, network access,
+They report `COMPLETE`, 6,155/6,155 statistics, and no partial reasons. An
+independent exact-clean-archive audit passes with no report defect: exact ID
+bijection; exact P2/P6 completion-neutral cells; independent F4 Holm;
+P0/P6/C1 fidelity; every share, probe, bridge, path-census row, source, and
+Markdown mirror; and six-significant-digit presentation. Both outputs remain
+deliberately uncommitted. No pool build, refit-with-changes, network access,
 publication, promotion, or logbook write is authorized or planned.
 
 ## Done
@@ -455,12 +458,21 @@ publication, promotion, or logbook write is authorized or planned.
   sealed artifact set. Both executions report `COMPLETE`, 6,155/6,155
   statistics, no partial reasons, the same canonical seal, and byte-identical
   file hashes. The output files remain uncommitted as required.
+- Independently audited the terminal assembler and reports from an exact clean
+  archive. The audit finds no defect: 6,155 exact IDs; one 36-cell F4 family
+  with 15 independently recomputed Holm rejections; 1,170 exact P6 cells;
+  144 mirrored shares; 297 Holm mirrors; 126 probes; 54 P6 bridge rows; 18
+  leg-qualified phi rows; 45 visible P0 path rows; exact C1 lineage; all
+  cataloged and nested sources live; and zero over-precision numeric leaves in
+  Markdown. Focused tests pass 33/33 in the relocated archive, all 101
+  Phase-0 tests pass in the worktree, and two full report runs are
+  byte-identical.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Complete the independent full-report semantic/source/mirror audit, then
-   record the terminal journal state while leaving both outputs uncommitted.
+None. The requested terminal reports are complete and deliberately
+uncommitted.
 
 ## Historical A17 terminal snapshot
 
