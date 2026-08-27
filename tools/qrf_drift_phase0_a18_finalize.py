@@ -1379,11 +1379,6 @@ def p0_path_code_anchors(
         isinstance(checked_sources, list) and checked_sources,
         "P1 sealed operator binding has no source-code checks",
     )
-    checked_by_path = {
-        str(Path(item["path"]).resolve()): item
-        for item in checked_sources
-        if isinstance(item, dict) and isinstance(item.get("path"), str)
-    }
     anchors: dict[str, dict[str, Any]] = {}
     target_reading = payload.get("candidate-25", {}).get("targets", {}).get(target, {})
     sealed_codec = target_reading.get("P1", {}).get("codec", {})
@@ -1407,8 +1402,26 @@ def p0_path_code_anchors(
             and bool(operator["source_anchor"]),
             f"sealed operator row lacks a code anchor for {target}/{operator_stage}",
         )
+        relative_code_path = Path(code["path"])
+        require(
+            not relative_code_path.is_absolute()
+            and ".." not in relative_code_path.parts,
+            f"sealed operator code path is not repository-relative for {target}",
+        )
         code_path = (ROOT / code["path"]).resolve()
-        checked = checked_by_path.get(str(code_path), {})
+        checked_matches = [
+            item
+            for item in checked_sources
+            if isinstance(item, dict)
+            and isinstance(item.get("path"), str)
+            and Path(item["path"]).parts[-len(relative_code_path.parts) :]
+            == relative_code_path.parts
+        ]
+        require(
+            len(checked_matches) == 1,
+            f"P1 source-code checks do not uniquely name {target}/{operator_stage}",
+        )
+        checked = checked_matches[0]
         require(
             checked.get("match") is True
             and checked.get("sha256_actual") == code["sha256"]
