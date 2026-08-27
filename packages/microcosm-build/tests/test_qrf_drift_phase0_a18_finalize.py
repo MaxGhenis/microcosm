@@ -1229,6 +1229,27 @@ def test_renderers_show_all_row_shares_phi_legs_and_full_p0_census() -> None:
     assert f"| passed_all | 6 | NA | {'9' * 64} | S1 |" in census
 
 
+def test_nested_report_sources_must_have_cataloged_lowercase_sha256() -> None:
+    source = {"path": "/tmp/input.json", "sha256": "a" * 64}
+    catalog = {(source["path"], source["sha256"])}
+    FINAL.validate_nested_source_lists(
+        {"value": 1.0, "sources": [source]}, catalog, "test"
+    )
+
+    with pytest.raises(ValueError, match="SHA-256 is invalid"):
+        FINAL.validate_nested_source_lists(
+            {"value": 1.0, "sources": [{**source, "sha256": "A" * 64}]},
+            catalog,
+            "test",
+        )
+    with pytest.raises(ValueError, match="absent from the catalog"):
+        FINAL.validate_nested_source_lists(
+            {"value": 1.0, "sources": [{**source, "path": "/tmp/other.json"}]},
+            catalog,
+            "test",
+        )
+
+
 def test_markdown_orders_controls_targets_summary_and_p8() -> None:
     result = {
         "status": "PARTIAL",
@@ -1290,3 +1311,4 @@ def test_markdown_orders_controls_targets_summary_and_p8() -> None:
         "## P8 — SSI dependency note"
     )
     assert set(FINAL.SSI_DIRECT_INPUTS).isdisjoint(FINAL.SSI_NOT_DIRECT_INPUTS)
+    FINAL.validate_markdown_mirror(markdown, result, [])

@@ -330,6 +330,14 @@ is authorized or planned.
   ledger renders its unavailable evidence. Twenty-nine focused tests pass,
   including the real sealed fixture; an end-to-end temporary 6,155-cell
   assembly passes the frozen JSON Schema and canonical seal.
+- Added a fail-closed report-contract layer around the immutable permissive
+  Step-0 schema. It checks the exact target/leg/ledger/share/probe mirror, all
+  eligible F4 Holm results, P6 evidence, P8 and recursive report-section
+  source/catalog digests, plus Markdown target, share-vector, P0-census,
+  cross-summary, and source-catalog coverage. A real temporary assembly passes
+  the frozen schema, manual report contract, Markdown mirror, and canonical
+  seal; all 98 Phase-0 tests and Ruff pass. Partial assembly without P1 now
+  also renders cleanly rather than indexing absent required highlights.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next

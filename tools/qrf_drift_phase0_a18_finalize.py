@@ -2971,6 +2971,204 @@ def source_labels(row: dict[str, Any], lookup: dict[tuple[str, str], str]) -> st
     return ", ".join(labels) or "NA"
 
 
+def valid_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def validate_nested_source_lists(
+    value: Any,
+    catalog_keys: set[tuple[str, str]],
+    context: str,
+) -> None:
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            validate_nested_source_lists(item, catalog_keys, f"{context}/{index}")
+        return
+    if not isinstance(value, dict):
+        return
+    sources = value.get("sources")
+    if isinstance(sources, list):
+        require(sources, f"empty source list at {context}")
+        for index, source in enumerate(sources):
+            require(isinstance(source, dict), f"non-object source at {context}/{index}")
+            path, digest = source.get("path"), source.get("sha256")
+            require(
+                isinstance(path, str) and path,
+                f"source path is absent at {context}/{index}",
+            )
+            require(
+                valid_sha256(digest),
+                f"source SHA-256 is invalid at {context}/{index}",
+            )
+            require(
+                (path, digest) in catalog_keys,
+                f"source is absent from the catalog at {context}/{index}",
+            )
+    for key, item in value.items():
+        if key != "sources":
+            validate_nested_source_lists(item, catalog_keys, f"{context}/{key}")
+
+
+def validate_report_contract(
+    result: dict[str, Any],
+    targets: list[str],
+    p1_artifact: tuple[dict[str, Any], dict[str, Any]] | None,
+) -> None:
+    """Supplement the immutable permissive Step-0 schema with report checks."""
+    catalog = result["source_catalog"]
+    catalog_keys = {(item["path"], item["sha256"]) for item in catalog}
+    require(len(catalog_keys) == len(catalog), "source catalog has duplicate keys")
+    require(
+        all(valid_sha256(item.get("sha256")) for item in catalog),
+        "source catalog contains an invalid SHA-256",
+    )
+    for row in result["statistics"]:
+        validate_nested_source_lists(row, catalog_keys, f"statistics/{row['id']}")
+    if result["status"] == "CONTROLS_FAILED":
+        require(result["targets"] == {}, "control failure opened target sections")
+        require(
+            result["cross_target_summary"] == [],
+            "control failure opened cross-target verdicts",
+        )
+        return
+
+    require(
+        list(result["targets"]) == targets,
+        "target sections differ from the D0 stable roster",
+    )
+    require(
+        len(result["cross_target_summary"]) == len(targets) * len(LEGS),
+        "cross-target summary is not target by leg complete",
+    )
+    summary_lookup = {
+        (item["target"], item["leg"]): item for item in result["cross_target_summary"]
+    }
+    eligible_f4 = 0
+    loaded_f4 = 0
+    for target in targets:
+        section = result["targets"][target]
+        require(set(section["legs"]) == set(LEGS), f"leg roster changed for {target}")
+        if p1_artifact is not None:
+            expected_p6 = p1_artifact[0]["candidate-25"]["targets"][target].get("P6")
+            require(
+                section["P6_sealed_detail"]["sealed_payload"] == expected_p6,
+                f"sealed P6 detail changed for {target}",
+            )
+        for leg in LEGS:
+            data = section["legs"][leg]
+            expected_ledger = [*LEVEL_ROWS, *TOP_LEVEL_ROWS, "residual"]
+            actual_ledger = [row["dimensions"]["row"] for row in data["ledger"]]
+            require(
+                actual_ledger == expected_ledger,
+                f"ledger roster changed for {target}/{leg}",
+            )
+            verdict = data["verdict"]
+            require(
+                verdict == summary_lookup[(target, leg)],
+                f"verdict object is not mirrored for {target}/{leg}",
+            )
+            for row in data["ledger"]:
+                name = row["dimensions"]["row"]
+                if name in TOP_LEVEL_ROWS:
+                    require(
+                        row["additive_share"]["value"] == verdict["shares"][name],
+                        f"additive share differs for {target}/{leg}/{name}",
+                    )
+            require(
+                set(data["probes"]) == {"P0", "P1", "P2", "P5", "P6", "P7", "C1"},
+                f"probe roster changed for {target}/{leg}",
+            )
+            c1_probe = data["probes"]["C1"]
+            if not c1_probe["statistic_ids"]:
+                require(
+                    c1_probe["status"] == "NOT_APPLICABLE",
+                    f"empty C1 probe is not inapplicable for {target}/{leg}",
+                )
+            for row in data["diagnostic_rows"]["P6 producer ledger"]:
+                if row.get("diagnostic_only"):
+                    continue
+                if row["status"] == "UNAVAILABLE":
+                    require(
+                        any(
+                            "unavailable_evidence" in source
+                            for source in row.get("sources", [])
+                        ),
+                        f"P6 unavailable cell has no evidence: {row['id']}",
+                    )
+            for row in data["diagnostic_rows"]["P7 GQ identity"]:
+                if row["family"] != "F4":
+                    continue
+                if finite_row(row) and isinstance(row.get("se"), (int, float)):
+                    eligible_f4 += 1
+                    require(
+                        "holm_loading" in row,
+                        f"eligible F4 row has no Holm result: {row['id']}",
+                    )
+                    loaded_f4 += 1
+    require(eligible_f4 == loaded_f4, "F4 Holm mirror is incomplete")
+    for name in (
+        "targets",
+        "cross_target_summary",
+        "cross_rung_summary",
+        "required_highlights",
+        "reading_dispositions",
+    ):
+        validate_nested_source_lists(result[name], catalog_keys, name)
+    p8_source = result["P8_ssi"]["source"]
+    require(
+        (p8_source.get("path"), p8_source.get("sha256")) in catalog_keys,
+        "P8 source is absent from the catalog",
+    )
+
+
+def validate_markdown_mirror(
+    markdown: str,
+    result: dict[str, Any],
+    targets: list[str],
+) -> None:
+    if result["status"] == "CONTROLS_FAILED":
+        require(
+            "## Per-target results" not in markdown, "failed controls rendered readings"
+        )
+        return
+    require(
+        markdown.count("Additive shares over Σ|c|:") == len(targets) * len(LEGS),
+        "Markdown does not report every target-leg share vector",
+    )
+    require(
+        markdown.count("##### P0 first-failure path census") == len(targets),
+        "Markdown P0 census count differs from the target roster",
+    )
+    for target in targets:
+        require(
+            markdown.count(f"\n### {target}\n") == 1,
+            f"Markdown target section count changed for {target}",
+        )
+        for leg in LEGS:
+            verdict = next(
+                item
+                for item in result["cross_target_summary"]
+                if item["target"] == target and item["leg"] == leg
+            )
+            summary_prefix = (
+                f"| {target} | {leg} | {verdict['dominant_row']} | "
+                f"{fmt(verdict['dominant_share'])} |"
+            )
+            require(
+                summary_prefix in markdown,
+                f"Markdown cross-target row is absent for {target}/{leg}",
+            )
+    for item in result["source_catalog"]:
+        require(
+            f"`{item['sha256']}`" in markdown,
+            f"Markdown source catalog omits {item['label']}",
+        )
+
+
 def render_stat_rows(
     rows: list[dict[str, Any]],
     lookup: dict[tuple[str, str], str],
@@ -3242,7 +3440,10 @@ Verdict: {verdict["verdict"]}. Additive shares over Σ|c|: {", ".join(f"`{name}`
 """
             )
         special = ""
-        if target == "pre_subsidy_care_expenses":
+        if (
+            target == "pre_subsidy_care_expenses"
+            and target in result["required_highlights"]
+        ):
             highlight = result["required_highlights"][target]
             special = (
                 f"The candidate replay cleared {highlight['candidate_25_cleared_positive_draws']} "
@@ -3253,7 +3454,7 @@ Verdict: {verdict["verdict"]}. Additive shares over Σ|c|: {", ".join(f"`{name}`
                 f"Sources: {source_labels(highlight, lookup)}; D0 catalog anchor "
                 f"{d0_markdown_label}/D0-4.\n\n"
             )
-        elif target == "weeks_unemployed":
+        elif target == "weeks_unemployed" and target in result["required_highlights"]:
             highlight = result["required_highlights"][target]
             special = (
                 f"The positive-leg gap D is {fmt(highlight['D']['value'])} "
@@ -3739,6 +3940,9 @@ def main() -> None:
             "extra_ids": 0,
             "step0_seals_unchanged": True,
             "schema_status": "PENDING_CANONICAL_HASH",
+            "report_contract_status": "PENDING",
+            "markdown_mirror_status": "PENDING",
+            "sources": [executor_source("/validate_report_contract")],
         },
     )
     require(
@@ -3748,12 +3952,18 @@ def main() -> None:
     result["canonical_sha256"] = "0" * 64
     Draft202012Validator(result["step0"]["json_schema"]).validate(result)
     result["validation"]["schema_status"] = "PASS"
+    validate_report_contract(result, targets, p1_artifact)
+    result["validation"]["report_contract_status"] = "PASS"
+    markdown = render_markdown(result)
+    validate_markdown_mirror(markdown, result, targets)
+    result["validation"]["markdown_mirror_status"] = "PASS"
     scope = dict(result)
     scope.pop("canonical_sha256")
     result["canonical_sha256"] = digest_object(scope)
     Draft202012Validator(result["step0"]["json_schema"]).validate(result)
 
     markdown = render_markdown(result)
+    validate_markdown_mirror(markdown, result, targets)
     atomic_write(args.json_output, canonical_bytes(result) + b"\n")
     atomic_write(args.markdown_output, markdown.encode())
     print(
