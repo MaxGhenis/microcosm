@@ -148,8 +148,16 @@ canonical SHA-256
 `1129b2bba6217703d248f202fd910b39ccf8cf93a757c4dfcfe71c43579852e6`;
 its expected ordered-ID SHA-256 is
 `1450c5a6e8c9c5e00a82fdebeb7b5763197f8520560bfed279b3b3b092ec6b8b`.
-An independent 509-assertion audit has zero failures. Unemployment compensation
-and SEILY are active from the same source SHA-256
+An independent 509-assertion audit has zero failures. The unemployment-
+compensation singleton is sealed at `/private/tmp/qrf_phase0_a18_p5_uc.json`,
+file SHA-256
+`0a357c82a505f0fec1cb686361f0ad3cdd141244699dcf3c96cc5cbc0e3c430e`,
+canonical SHA-256
+`a04fae1ba38c42c05f5a44a0755b5d8cecd6df7465568d7b619d822050d3f09d`;
+its expected ordered-ID SHA-256 is
+`56599d01aedbdc9a321957cec45eb79e3c66d2b1c5abd65df7c4dd94b541808e`.
+An independent 509-assertion audit has zero failures. SEILY is active from the
+same source SHA-256
 `b0467fae3a1020915c5cabfd5b37616229bc5c3297f59c7c56ad90db70fbdee6`.
 C1 and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
@@ -278,6 +286,14 @@ is authorized or planned.
   `1.6540288925170898e-6` within `6.103515625e-5`; its negative drift
   residual is zero and positive drift residual is
   `-5.421010862427522e-17`, with all P1 equality, exact Gower, pooled,
+  concentration, and A8 checks passing.
+- Sealed the authoritative unemployment-compensation P5 singleton. All 62
+  Step-0 rows pass. Its independent 509-assertion audit rehashed every
+  authority/source/live input, reproduced the canonical bytes and exact
+  manifest slice, and certified 856,626 expected rows exactly once. Its
+  weight residual is `3.2782554626464844e-6` within `0.0001220703125`;
+  its negative drift residual is zero and positive drift residual is
+  `-2.1250362580715887e-17`, with all P1 equality, exact Gower, pooled,
   concentration, and A8 checks passing.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
