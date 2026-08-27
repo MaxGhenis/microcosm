@@ -184,8 +184,17 @@ cross-rung artifacts is `COMPLETE`: 6,155/6,155 manifest cells, no partial
 reason, report-contract PASS, and Markdown-mirror PASS. Its canonical report
 SHA-256 is
 `4ac5b2c339e63024bb5ff7e7cc2c5e838b3215445321a77834dfd9d12f9e9d74`.
-The requested output paths have not yet been rerendered by this source/test
-hardening step. No pool build, refit-with-changes, network access,
+An independent 17,521-assertion C1 audit has zero failures. The requested
+outputs have now been rendered twice byte-identically from the final committed
+assembler: JSON SHA-256
+`2e7bb857d31bee9ed8e83143b5cebb9574f24474c231706849532ede71c621eb`,
+Markdown SHA-256
+`7eaee219efc85a6ac21e7193ddf79ba071acd022bfb8500e6db3dc90dbf7ac39`,
+and canonical scientific SHA-256
+`5f2fc59e945d310c5c2d6c80a0399f19b0ea5faba966ec1f0a1d444f82d156b2`.
+They report `COMPLETE`, 6,155/6,155 statistics, and no partial reasons; both
+remain deliberately uncommitted pending their final independent audit. No
+pool build, refit-with-changes, network access,
 publication, promotion, or logbook write is authorized or planned.
 
 ## Done
@@ -433,14 +442,25 @@ publication, promotion, or logbook write is authorized or planned.
   complete 6,155-cell finalizer from sealed artifacts. The focused suite is
   33/33 and the full Phase-0 suite is 101/101; Ruff, formatting, and diff
   checks pass.
+- Sealed and independently audited the all-target C1 artifact. It contains
+  exactly 720 fit cells, 800 fold statistics, ten target-leg summaries, and
+  810 unique registered rows. The frozen fold, summary, all-ID, and global
+  partition digests reproduce exactly. Its F5 Holm family has nine tested
+  cells; SEILY negative is excluded for insufficient support, eight cells are
+  rejected, seven load, weeks is not rejected, and UC is rejected but fails
+  the three-SE loading criterion. All 17,521 independent assertions covering
+  live bindings, partitions, fit cells, estimator recombination, support,
+  p-values, Holm, and classifier-only mechanics pass.
+- Rendered the requested Markdown and JSON reports twice from the complete
+  sealed artifact set. Both executions report `COMPLETE`, 6,155/6,155
+  statistics, no partial reasons, the same canonical seal, and byte-identical
+  file hashes. The output files remain uncommitted as required.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Independently audit the exact C1 metadata union and clean-checkout
-   execution regression.
-2. Render and validate the requested Markdown/JSON reports from the complete
-   sealed artifact set while leaving both output files uncommitted.
+1. Complete the independent full-report semantic/source/mirror audit, then
+   record the terminal journal state while leaving both outputs uncommitted.
 
 ## Historical A17 terminal snapshot
 
