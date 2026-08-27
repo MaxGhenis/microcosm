@@ -1297,12 +1297,12 @@ else
     emit "STAGE SKIP stage=release-dense reason=validated-artifact-and-manifests path=$DENSE_ARTIFACT"
   else
     while :; do
-      wait_ready release-dense 85
+      wait_ready release-dense 70
       recheck_code_authority
       check_dense_inputs
       consume_pool_manifest_pin release-dense
       recheck_code_authority
-      ready_now release-dense 85 && break
+      ready_now release-dense 70 && break
     done
     if dense_is_complete; then
       emit "STAGE SKIP stage=release-dense reason=validated-output-completed-while-waiting path=$DENSE_ARTIFACT"
@@ -1319,12 +1319,12 @@ else
     emit "STAGE SKIP stage=release-sparse reason=validated-artifact-and-manifests path=$SPARSE_ARTIFACT"
   else
     while :; do
-      wait_ready release-sparse 85
+      wait_ready release-sparse 70
       recheck_code_authority
       check_sparse_inputs
       consume_pool_manifest_pin release-sparse
       recheck_code_authority
-      ready_now release-sparse 85 && break
+      ready_now release-sparse 70 && break
     done
     if sparse_is_complete; then
       emit "STAGE SKIP stage=release-sparse reason=validated-output-completed-while-waiting path=$SPARSE_ARTIFACT"
