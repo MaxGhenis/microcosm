@@ -141,8 +141,15 @@ canonical SHA-256
 `53c6a0362590a56052b475b77b18af890c22579416a0a66eddd47af4c15d04f5`;
 its expected ordered-ID SHA-256 is
 `97b3fc740d724e0cac56818c25565fc9600d7494fc0ba35613c2c63e9b317c65`.
-An independent 509-assertion audit has no artifact failures. Adult care and
-unemployment compensation are active from the same source SHA-256
+An independent 509-assertion audit has no artifact failures. The adult-care
+singleton is sealed at `/private/tmp/qrf_phase0_a18_p5_care.json`, file
+SHA-256 `0227f997bdeaf3bbb615601302d562ddd5f3d61a4a483a790951aba426a3adc6`,
+canonical SHA-256
+`1129b2bba6217703d248f202fd910b39ccf8cf93a757c4dfcfe71c43579852e6`;
+its expected ordered-ID SHA-256 is
+`1450c5a6e8c9c5e00a82fdebeb7b5763197f8520560bfed279b3b3b092ec6b8b`.
+An independent 509-assertion audit has zero failures. Unemployment compensation
+and SEILY are active from the same source SHA-256
 `b0467fae3a1020915c5cabfd5b37616229bc5c3297f59c7c56ad90db70fbdee6`.
 C1 and verdicts have not yet executed. No pool build,
 refit-with-changes, network access, publication, promotion, or logbook write
@@ -263,6 +270,14 @@ is authorized or planned.
   Its weight residual is `1.6391277313232422e-6` within
   `6.103515625e-5`; its negative drift residual is zero and positive drift
   residual is `5.970701363877673e-16`, with all P1 equality, metric, pooled,
+  concentration, and A8 checks passing.
+- Sealed the authoritative adult-care P5 singleton. All 62 Step-0 rows pass.
+  Its independent 509-assertion audit rehashed every authority/source/live
+  input, reproduced the canonical bytes and exact manifest slice, and
+  certified 856,626 expected rows exactly once. Its weight residual is
+  `1.6540288925170898e-6` within `6.103515625e-5`; its negative drift
+  residual is zero and positive drift residual is
+  `-5.421010862427522e-17`, with all P1 equality, exact Gower, pooled,
   concentration, and A8 checks passing.
 - Completed P2 for all nine targets. Its resume path reverified the whole
   severe-six artifact and every nested target seal before appending care,
