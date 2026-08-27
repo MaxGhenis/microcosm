@@ -1613,6 +1613,83 @@ def merge_baseline_crossrung_artifact(
     return payload, artifact_source
 
 
+def p6_scalar_representation(value: Any) -> Any:
+    """Keep scalar seeds exact and reversibly encode structured P6 cells."""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return value
+
+
+def p6_surface_value(surface: dict[str, Any], leg: str, variant: str) -> Any:
+    if variant == "mask_sha256":
+        identity = (
+            surface.get("native_row_identity")
+            or surface.get("boundary_mask")
+            or surface.get("source_id_identity")
+        )
+        return identity.get("sha256", "NA") if isinstance(identity, dict) else "NA"
+    if variant == "sign_count":
+        return surface.get("unweighted_sign_counts", {}).get(leg, "NA")
+    if variant == "weighted_sign_mass":
+        return surface.get("weighted_sign_mass", {}).get(leg, "NA")
+    if variant == "incidence":
+        return surface.get("incidence", {}).get(leg, "NA")
+    if variant == "seed":
+        return surface.get("seed", "NA")
+    return "NA"
+
+
+def p6_pattern_value(stage: dict[str, Any], leg: str, variant: str) -> Any:
+    patterns = stage.get("patterns")
+    if not isinstance(patterns, list) or not patterns:
+        return "NA"
+    values = {
+        str(surface["pattern"]): p6_surface_value(surface, leg, variant)
+        for surface in patterns
+        if isinstance(surface, dict) and isinstance(surface.get("pattern"), str)
+    }
+    if not values or any(value == "NA" for value in values.values()):
+        return "NA"
+    return values
+
+
+def p6_clone_bridge_value(stage: dict[str, Any], leg: str, variant: str) -> Any:
+    if variant == "incidence":
+        return stage.get("legs", {}).get(leg, {}).get("clone_weight_bridge", "NA")
+    populations = {
+        name: stage[name]
+        for name in ("J0_native", "J1_native", "J1_on_J0_rows_and_weights")
+        if isinstance(stage.get(name), dict)
+    }
+    if populations:
+        values = {
+            name: p6_surface_value(surface, leg, variant)
+            for name, surface in populations.items()
+        }
+        if variant == "seed" and "seed" in stage:
+            values["bridge"] = copy.deepcopy(stage["seed"])
+        if all(value != "NA" for value in values.values()):
+            return values
+    return p6_surface_value(stage, leg, variant)
+
+
+def p6_unavailable_evidence(stage: dict[str, Any], variant: str) -> Any:
+    evidence: dict[str, Any] = {
+        "reason": f"sealed P1 surface does not expose {variant}",
+        "stage_status": stage.get("status", "UNAVAILABLE"),
+    }
+    for key in (
+        "evidence",
+        "declared_surface_status",
+        "transformation",
+        "source_code",
+        "seed",
+    ):
+        if key in stage:
+            evidence[key] = copy.deepcopy(stage[key])
+    return evidence
+
+
 def merge_p6_nested(
     p6: dict[str, Any],
     target: str,
@@ -1624,11 +1701,24 @@ def merge_p6_nested(
     by_id: dict[str, dict[str, Any]],
     locked: set[str],
 ) -> None:
-    stages = {item.get("stage"): item for item in p6.get("stages", [])}
+    stages = {
+        item.get("stage"): (index, item)
+        for index, item in enumerate(p6.get("stages", []))
+        if isinstance(item, dict)
+    }
     specials = {
-        "boundary_bridge": p6.get("boundary_bridge", {}),
-        "clone2_tail_exclusion": p6.get("clone_2_tail_exclusion", {}),
-        "clone_weight_bridge": p6.get("clone_value_and_weight_bridge", {}),
+        "boundary_bridge": (
+            "/boundary_bridge",
+            p6.get("boundary_bridge", {}),
+        ),
+        "clone2_tail_exclusion": (
+            "/clone_2_tail_exclusion",
+            p6.get("clone_2_tail_exclusion", {}),
+        ),
+        "clone_weight_bridge": (
+            "/clone_value_and_weight_bridge",
+            p6.get("clone_value_and_weight_bridge", {}),
+        ),
     }
     for spec in manifest:
         dims = spec["dimensions"]
@@ -1640,46 +1730,59 @@ def merge_p6_nested(
         ):
             continue
         stage_name = dims["row"][3:]
-        stage = stages.get(stage_name, specials.get(stage_name, {}))
+        stage_record = stages.get(stage_name)
+        special_record = specials.get(stage_name)
+        if stage_record is not None:
+            stage_index, stage = stage_record
+            pointer = f"{prefix}/P6/stages/{stage_index}"
+        elif special_record is not None:
+            special_pointer, stage = special_record
+            pointer = f"{prefix}/P6{special_pointer}"
+        else:
+            stage = {}
+            pointer = f"{prefix}/P6"
         leg = dims["leg"]
         variant = dims["variant"]
         value: Any = "NA"
         status = "UNAVAILABLE"
         if stage.get("status") not in {"NO_SURFACE", "UNAVAILABLE", None}:
-            if variant == "mask_sha256":
-                identity = (
-                    stage.get("native_row_identity")
-                    or stage.get("boundary_mask")
-                    or stage.get("source_id_identity")
-                )
-                value = (
-                    identity.get("sha256", "NA") if isinstance(identity, dict) else "NA"
-                )
-            elif variant == "sign_count":
-                value = stage.get("unweighted_sign_counts", {}).get(leg, "NA")
-            elif variant == "weighted_sign_mass":
-                value = stage.get("weighted_sign_mass", {}).get(leg, "NA")
-            elif variant == "incidence":
-                if stage_name == "boundary_bridge":
-                    value = stage.get("legs", {}).get(leg, {}).get("value", "NA")
-                elif stage_name == "clone_weight_bridge":
-                    value = (
-                        stage.get("legs", {})
-                        .get(leg, {})
-                        .get("clone_weight_bridge", "NA")
-                    )
-                else:
-                    value = stage.get("incidence", {}).get(leg, "NA")
-            elif variant == "seed" and isinstance(stage.get("seed"), int):
-                value = stage["seed"]
+            if stage_name == "boundary_bridge" and variant == "incidence":
+                value = stage.get("legs", {}).get(leg, {}).get("value", "NA")
+            elif stage_name == "clone_weight_bridge":
+                value = p6_clone_bridge_value(stage, leg, variant)
+            elif variant == "seed" and "seed" in stage:
+                value = copy.deepcopy(stage["seed"])
+            else:
+                value = p6_pattern_value(stage, leg, variant)
+                if value == "NA":
+                    value = p6_surface_value(stage, leg, variant)
+            value = p6_scalar_representation(value)
             status = "OK" if value != "NA" else "UNAVAILABLE"
-        pointer = f"{prefix}/P6"
-        if stage_name == "boundary_bridge":
-            pointer += "/boundary_bridge"
-        elif stage_name == "clone2_tail_exclusion":
-            pointer += "/clone_2_tail_exclusion"
-        elif stage_name == "clone_weight_bridge":
-            pointer += "/clone_value_and_weight_bridge"
+        source_extra: dict[str, Any] = {
+            "stage": stage_name,
+            "stage_status": stage.get("status", "UNAVAILABLE"),
+        }
+        for key in (
+            "declared_surface_status",
+            "transformation",
+            "source_code",
+        ):
+            if key in stage:
+                source_extra[key] = copy.deepcopy(stage[key])
+        if "seed" in stage:
+            source_extra["seed_representation"] = copy.deepcopy(stage["seed"])
+        if isinstance(stage.get("patterns"), list):
+            source_extra["per_pattern_values"] = copy.deepcopy(
+                p6_pattern_value(stage, leg, variant)
+            )
+        if stage_name == "clone_weight_bridge":
+            source_extra["clone_bridge_variant_value"] = copy.deepcopy(
+                p6_clone_bridge_value(stage, leg, variant)
+            )
+        if status == "UNAVAILABLE":
+            source_extra["unavailable_evidence"] = p6_unavailable_evidence(
+                stage, variant
+            )
         set_row(
             by_id[spec["id"]],
             spec,
@@ -1690,7 +1793,7 @@ def merge_p6_nested(
                     path.resolve(),
                     artifact_source["sha256"],
                     pointer,
-                    stage=stage_name,
+                    **source_extra,
                 )
             ],
         )
@@ -2394,10 +2497,82 @@ def apply_cross_rung(
     return output
 
 
+def p6_target_detail(
+    target: str,
+    p1_artifact: tuple[dict[str, Any], dict[str, Any]] | None,
+) -> dict[str, Any] | None:
+    if p1_artifact is None:
+        return None
+    payload, artifact_source = p1_artifact
+    p6 = payload.get("candidate-25", {}).get("targets", {}).get(target, {}).get("P6")
+    if not isinstance(p6, dict):
+        return None
+    return {
+        "sealed_payload": copy.deepcopy(p6),
+        "sources": [
+            source_ref(
+                artifact_source["path"],
+                artifact_source["sha256"],
+                f"/candidate-25/targets/{target}/P6",
+                self_excluding_sha256=artifact_source.get("self_excluding_sha256"),
+            )
+        ],
+    }
+
+
+def p6_bridge_closure_rows(
+    target: str,
+    leg: str,
+    detail: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    if detail is None:
+        return []
+    bridge = detail["sealed_payload"].get("clone_value_and_weight_bridge", {})
+    leg_values = bridge.get("legs", {}).get(leg, {})
+    if not isinstance(leg_values, dict):
+        return []
+    source = copy.deepcopy(detail["sources"][0])
+    source["pointer"] += f"/clone_value_and_weight_bridge/legs/{leg}"
+    rows: list[dict[str, Any]] = []
+    for name in ("producer_value_bridge", "clone_weight_bridge", "sum_equals_B1"):
+        value = leg_values.get(name, "NA")
+        rows.append(
+            {
+                "id": f"diagnostic|{target}|{leg}|P6_bridge_{name}",
+                "dimensions": {
+                    "rung": "candidate-25",
+                    "target": target,
+                    "pattern": NA,
+                    "leg": leg,
+                    "row": f"P6_bridge_{name}",
+                    "group": NA,
+                    "prior": NA,
+                    "gq": NA,
+                    "decile": NA,
+                    "repeat": NA,
+                    "fold": NA,
+                    "variant": "diagnostic_only",
+                },
+                "record_type": "scalar",
+                "value": value,
+                "se": "NA",
+                "mcse": "NA",
+                "family": None,
+                "gated": False,
+                "status": "OK" if value != "NA" else "UNAVAILABLE",
+                "default_resolved": False,
+                "diagnostic_only": True,
+                "sources": [copy.deepcopy(source)],
+            }
+        )
+    return rows
+
+
 def build_target_sections(
     statistics: list[dict[str, Any]],
     targets: list[str],
     verdicts: list[dict[str, Any]],
+    p1_artifact: tuple[dict[str, Any], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     verdict_lookup = {(item["target"], item["leg"]): item for item in verdicts}
     loading = family_loading(statistics)
@@ -2415,6 +2590,7 @@ def build_target_sections(
 
     sections: dict[str, Any] = {}
     for target in targets:
+        p6_detail = p6_target_detail(target, p1_artifact)
         target_rows = [
             row for row in statistics if row["dimensions"]["target"] == target
         ]
@@ -2472,7 +2648,8 @@ def build_target_sections(
                     report_row(row)
                     for row in leg_rows
                     if row["dimensions"]["row"].startswith("P6_")
-                ],
+                ]
+                + p6_bridge_closure_rows(target, leg, p6_detail),
                 "P5 Gower support": [
                     report_row(row)
                     for row in leg_rows
@@ -2551,7 +2728,11 @@ def build_target_sections(
                 "probes": probes,
                 "verdict": verdict,
             }
-        sections[target] = {"P0": p0, "legs": legs}
+        sections[target] = {
+            "P0": p0,
+            "P6_sealed_detail": p6_detail,
+            "legs": legs,
+        }
     return sections
 
 
@@ -2843,6 +3024,48 @@ def render_ledger_rows(
     return "\n".join(output)
 
 
+def render_p6_rows(
+    rows: list[dict[str, Any]], lookup: dict[tuple[str, str], str]
+) -> str:
+    output: list[str] = []
+    for row in rows:
+        dims = row["dimensions"]
+        suffix = "/".join(
+            value
+            for value in (
+                dims["pattern"],
+                dims["group"],
+                dims["prior"],
+                dims["gq"],
+                dims["decile"],
+                dims["repeat"],
+                dims["fold"],
+                dims["variant"],
+            )
+            if value != NA
+        )
+        label = dims["row"] + (f"/{suffix}" if suffix else "")
+        evidence = next(
+            (
+                source["unavailable_evidence"]
+                for source in row.get("sources", [])
+                if "unavailable_evidence" in source
+            ),
+            "NA",
+        )
+        rendered_evidence = (
+            json.dumps(evidence, sort_keys=True, separators=(",", ":"))
+            if isinstance(evidence, (dict, list))
+            else str(evidence)
+        )
+        output.append(
+            f"| {label} | {fmt(row['value'])} | {fmt(row['se'])} | "
+            f"{fmt(row['mcse'])} | {row['status']} | {rendered_evidence} | "
+            f"{source_labels(row, lookup)} |"
+        )
+    return "\n".join(output)
+
+
 def render_p0_path_census(
     rows: list[dict[str, Any]], lookup: dict[tuple[str, str], str]
 ) -> str:
@@ -2963,6 +3186,24 @@ Execution stopped at C3 under A18's numerical-control rule. All reading cells re
             )
             diagnostic_blocks: list[str] = []
             for title, rows in data["diagnostic_rows"].items():
+                if title == "P6 producer ledger":
+                    body = (
+                        render_p6_rows(rows, lookup)
+                        if rows
+                        else f"| {title} | NA | NA | NA | NOT_RUN_PRIORITY | "
+                        "no P6 artifact was supplied | NA |"
+                    )
+                    diagnostic_blocks.append(
+                        f"""##### {title}
+
+The exact sealed nested P6 payload, including per-pattern fit surfaces and clone/value/weight bridge diagnostics, is mirrored once under this target's JSON `P6_sealed_detail`.
+
+| Row/dimensions | Value | SE | MCSE | Status | Unavailable evidence | Source |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+{body}
+"""
+                    )
+                    continue
                 body = (
                     render_stat_rows(rows, lookup, include_dimensions=True)
                     if rows
@@ -3365,7 +3606,9 @@ def main() -> None:
         C3=source_label(core_sources["C3"]),
     )
     target_sections = (
-        build_target_sections(statistics, targets, verdicts) if c3_pass else {}
+        build_target_sections(statistics, targets, verdicts, p1_artifact)
+        if c3_pass
+        else {}
     )
     support = support_by_target(
         d0,

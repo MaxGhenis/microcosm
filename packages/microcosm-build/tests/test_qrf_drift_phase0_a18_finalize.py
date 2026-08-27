@@ -553,6 +553,185 @@ def test_p6_special_bridges_preserve_nested_leg_incidence() -> None:
     assert len(statistics) == FINAL.EXPECTED_MANIFEST_COUNT
 
 
+def test_p6_preserves_structured_seeds_pattern_surfaces_and_unavailable_evidence() -> (
+    None
+):
+    base = json.loads(
+        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
+    )
+    manifest = base["step0"]["required_id_manifest"]
+    manifest_by_id = {item["id"]: item for item in manifest}
+    statistics, by_id = FINAL.fresh_statistics(
+        manifest,
+        "NOT_RUN_PRIORITY",
+        {"path": "fallback", "sha256": "0" * 64},
+    )
+    structured_seed = {
+        "kind": "per_pattern_model_seed",
+        "values": {"pattern_a": 11, "pattern_b": 22},
+    }
+
+    def surface(pattern: str, seed: int, character: str) -> dict[str, Any]:
+        return {
+            "pattern": pattern,
+            "status": "AVAILABLE",
+            "native_row_identity": {"sha256": character * 64},
+            "unweighted_sign_counts": {"positive": seed, "negative": 0},
+            "weighted_sign_mass": {"positive": seed / 10, "negative": 0.0},
+            "incidence": {"positive": seed / 100, "negative": 0.0},
+            "seed": seed,
+        }
+
+    clone_populations = {
+        name: {
+            "status": "AVAILABLE",
+            "native_row_identity": {"sha256": character * 64},
+            "unweighted_sign_counts": {"positive": index, "negative": 0},
+            "weighted_sign_mass": {"positive": index / 10, "negative": 0.0},
+            "incidence": {"positive": index / 100, "negative": 0.0},
+            "seed": f"seed-{name}",
+        }
+        for index, (name, character) in enumerate(
+            (
+                ("J0_native", "d"),
+                ("J1_native", "e"),
+                ("J1_on_J0_rows_and_weights", "f"),
+            ),
+            start=1,
+        )
+    }
+    p6 = {
+        "stages": [
+            {
+                "stage": "full_asec_source",
+                "status": "NO_SURFACE",
+                "evidence": "persisted surface does not exist",
+                "declared_surface_status": "NO_SURFACE",
+                "seed": {"status": "UNAVAILABLE", "reason": "no seed receipt"},
+            },
+            {
+                "stage": "recipient_raw_draw",
+                "status": "AVAILABLE",
+                "native_row_identity": {"sha256": "a" * 64},
+                "unweighted_sign_counts": {"positive": 3, "negative": 0},
+                "weighted_sign_mass": {"positive": 1.5, "negative": 0.0},
+                "incidence": {"positive": 0.25, "negative": 0.0},
+                "seed": structured_seed,
+            },
+            {
+                "stage": "transfer_fit_rows",
+                "status": "AVAILABLE_METADATA_AND_REPLAYED_FIT_SURFACES",
+                "patterns": [
+                    surface("pattern_a", 11, "b"),
+                    surface("pattern_b", 22, "c"),
+                ],
+                "seed": structured_seed,
+            },
+        ],
+        "clone_value_and_weight_bridge": {
+            "status": "AVAILABLE",
+            "seed": "DETERMINISTIC_PERSISTED_CLONE_PROJECTION",
+            **clone_populations,
+            "legs": {
+                "positive": {
+                    "producer_value_bridge": 0.4,
+                    "clone_weight_bridge": 0.1,
+                    "sum_equals_B1": 0.5,
+                },
+                "negative": {
+                    "producer_value_bridge": 0.0,
+                    "clone_weight_bridge": 0.0,
+                    "sum_equals_B1": 0.0,
+                },
+            },
+        },
+    }
+    FINAL.merge_p6_nested(
+        p6,
+        "child_support_expense",
+        "/candidate-25/targets/child_support_expense",
+        Path("p1.json"),
+        {"sha256": "9" * 64},
+        manifest,
+        manifest_by_id,
+        by_id,
+        set(),
+    )
+
+    def row(stage: str, leg: str, variant: str) -> dict[str, Any]:
+        return by_id[
+            FINAL.dimension_id(
+                manifest,
+                rung="candidate-25",
+                target="child_support_expense",
+                leg=leg,
+                row=f"P6_{stage}",
+                variant=variant,
+            )
+        ]
+
+    raw_seed = row("recipient_raw_draw", "positive", "seed")
+    assert json.loads(raw_seed["value"]) == structured_seed
+    assert raw_seed["sources"][0]["seed_representation"] == structured_seed
+    transfer_counts = row("transfer_fit_rows", "positive", "sign_count")
+    assert transfer_counts["status"] == "OK"
+    assert json.loads(transfer_counts["value"]) == {"pattern_a": 11, "pattern_b": 22}
+    assert transfer_counts["sources"][0]["per_pattern_values"] == {
+        "pattern_a": 11,
+        "pattern_b": 22,
+    }
+    unavailable = row("full_asec_source", "positive", "incidence")
+    assert unavailable["status"] == "UNAVAILABLE"
+    assert unavailable["sources"][0]["unavailable_evidence"]["evidence"] == (
+        "persisted surface does not exist"
+    )
+    clone_counts = row("clone_weight_bridge", "positive", "sign_count")
+    assert json.loads(clone_counts["value"]) == {
+        "J0_native": 1,
+        "J1_native": 2,
+        "J1_on_J0_rows_and_weights": 3,
+    }
+    assert clone_counts["sources"][0]["clone_bridge_variant_value"] == {
+        "J0_native": 1,
+        "J1_native": 2,
+        "J1_on_J0_rows_and_weights": 3,
+    }
+    assert len(statistics) == FINAL.EXPECTED_MANIFEST_COUNT
+
+
+@pytest.mark.skipif(
+    not Path("/private/tmp/qrf_phase0_p1.json").is_file(),
+    reason="sealed execution-only P1 fixture is unavailable",
+)
+def test_real_sealed_p1_p6_merge_retains_available_surfaces_and_evidence() -> None:
+    base = json.loads(
+        (ROOT / "experiments/qrf_drift_validation_phase0.json").read_text()
+    )
+    manifest = base["step0"]["required_id_manifest"]
+    manifest_by_id = {item["id"]: item for item in manifest}
+    statistics, by_id = FINAL.fresh_statistics(
+        manifest,
+        "NOT_RUN_PRIORITY",
+        {"path": "fallback", "sha256": "0" * 64},
+    )
+    FINAL.merge_p1_artifact(
+        Path("/private/tmp/qrf_phase0_p1.json"),
+        manifest,
+        manifest_by_id,
+        by_id,
+        set(),
+    )
+    p6_rows = [row for row in statistics if row["dimensions"]["row"].startswith("P6_")]
+    seed_rows = [row for row in p6_rows if row["dimensions"]["variant"] == "seed"]
+    transfer_rows = [
+        row for row in p6_rows if row["dimensions"]["row"] == "P6_transfer_fit_rows"
+    ]
+    unavailable = [row for row in p6_rows if row["status"] == "UNAVAILABLE"]
+    assert sum(row["status"] == "OK" for row in seed_rows) == 126
+    assert all(row["status"] == "OK" for row in transfer_rows)
+    assert all("unavailable_evidence" in row["sources"][0] for row in unavailable)
+
+
 def test_readings_barrier_binds_exact_supplied_artifacts() -> None:
     targets = list(json.loads(FINAL.D0_JSON.read_text())["scope"]["targets"])
 
@@ -930,7 +1109,31 @@ def test_target_sections_provenance_shares_and_empty_c1_disposition() -> None:
         for leg in FINAL.LEGS
     ]
 
-    sections = FINAL.build_target_sections(statistics, ["example"], verdicts)
+    p6_payload = {
+        "status": "COMPLETE_WITH_NO_SURFACE",
+        "clone_value_and_weight_bridge": {
+            "status": "AVAILABLE",
+            "legs": {
+                leg: {
+                    "producer_value_bridge": 0.4,
+                    "clone_weight_bridge": 0.1,
+                    "sum_equals_B1": 0.5,
+                }
+                for leg in FINAL.LEGS
+            },
+        },
+    }
+    p1_artifact = (
+        {"candidate-25": {"targets": {"example": {"P6": p6_payload}}}},
+        {
+            "path": "/tmp/p1.json",
+            "sha256": "b" * 64,
+            "self_excluding_sha256": "c" * 64,
+        },
+    )
+    sections = FINAL.build_target_sections(
+        statistics, ["example"], verdicts, p1_artifact
+    )
 
     positive = sections["example"]["legs"]["positive"]
     negative = sections["example"]["legs"]["negative"]
@@ -949,6 +1152,15 @@ def test_target_sections_provenance_shares_and_empty_c1_disposition() -> None:
         source.get("pointer") == "/build_target_sections"
         for source in t1["holm_loading"]["sources"]
     )
+    assert sections["example"]["P6_sealed_detail"]["sealed_payload"] == p6_payload
+    bridge_rows = {
+        row["dimensions"]["row"]: row
+        for row in positive["diagnostic_rows"]["P6 producer ledger"]
+        if row.get("diagnostic_only") is True
+    }
+    assert bridge_rows["P6_bridge_producer_value_bridge"]["value"] == 0.4
+    assert bridge_rows["P6_bridge_clone_weight_bridge"]["value"] == 0.1
+    assert bridge_rows["P6_bridge_sum_equals_B1"]["value"] == 0.5
 
 
 def test_renderers_show_all_row_shares_phi_legs_and_full_p0_census() -> None:
