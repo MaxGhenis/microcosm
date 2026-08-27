@@ -3448,9 +3448,105 @@ def valid_sha256(value: Any) -> bool:
     )
 
 
-def valid_producer_metadata_source(source: dict[str, Any]) -> bool:
-    """Recognize the sealed P2 lineage object, which is not an artifact ref."""
+def valid_c1_prerequisites(value: Any) -> bool:
+    if not isinstance(value, dict) or set(value) != {
+        "A18_adoption",
+        "executor",
+        "readings",
+        "retargeted_C3",
+    }:
+        return False
+
+    def selected_reference(item: Any) -> bool:
+        return (
+            isinstance(item, dict)
+            and set(item)
+            == {"path", "selected_row_sha256", "self_excluding_sha256", "sha256"}
+            and isinstance(item.get("path"), str)
+            and bool(item["path"])
+            and item.get("selected_row_sha256") == EXPECTED_SELECTED_SHA
+            and valid_sha256(item.get("self_excluding_sha256"))
+            and valid_sha256(item.get("sha256"))
+        )
+
+    readings = value["readings"]
+    executor = value["executor"]
+    files = executor.get("files") if isinstance(executor, dict) else None
     return (
+        selected_reference(value["A18_adoption"])
+        and selected_reference(value["retargeted_C3"])
+        and isinstance(readings, dict)
+        and set(readings)
+        == {"completed_readings", "path", "self_excluding_sha256", "sha256"}
+        and isinstance(readings.get("completed_readings"), list)
+        and set(readings.get("completed_readings", []))
+        == {"P0", "P1", "P2", "P5", "P6", "P7"}
+        and len(readings.get("completed_readings", [])) == 6
+        and isinstance(readings.get("path"), str)
+        and bool(readings["path"])
+        and valid_sha256(readings.get("self_excluding_sha256"))
+        and valid_sha256(readings.get("sha256"))
+        and isinstance(executor, dict)
+        and set(executor)
+        == {"files", "files_sha256", "numpy", "python", "scikit_learn"}
+        and isinstance(files, list)
+        and len(files) == 5
+        and all(
+            isinstance(item, dict)
+            and set(item) == {"path", "sha256"}
+            and isinstance(item.get("path"), str)
+            and bool(item["path"])
+            and valid_sha256(item.get("sha256"))
+            for item in files
+        )
+        and len({item["path"] for item in files}) == len(files)
+        and valid_sha256(executor.get("files_sha256"))
+        and all(
+            isinstance(executor.get(name), str) and bool(executor[name])
+            for name in ("numpy", "python", "scikit_learn")
+        )
+    )
+
+
+def valid_c1_producer_metadata_source(source: dict[str, Any]) -> bool:
+    common = {"d0_sha256", "design_sha256", "prerequisites"}
+    if not (
+        source.get("design_sha256") == EXPECTED_AUTHORITY[DESIGN]
+        and source.get("d0_sha256") == EXPECTED_AUTHORITY[D0_JSON]
+        and valid_c1_prerequisites(source.get("prerequisites"))
+    ):
+        return False
+    if set(source) == common | {"fold_fragment_ids_sha256"}:
+        return valid_sha256(source.get("fold_fragment_ids_sha256"))
+    if set(source) != common | {
+        "A16_binding_sha256",
+        "fit_cell",
+        "gate_context_sha256",
+    }:
+        return False
+    fit_cell = source.get("fit_cell")
+    valid_targets = {*SSI_DIRECT_INPUTS, *SSI_NOT_DIRECT_INPUTS}
+    return (
+        source.get("A16_binding_sha256") == EXPECTED_AUTHORITY[BINDING]
+        and valid_sha256(source.get("gate_context_sha256"))
+        and isinstance(fit_cell, dict)
+        and set(fit_cell) == {"fold", "pattern", "repeat", "sha256", "target"}
+        and isinstance(fit_cell.get("fold"), int)
+        and not isinstance(fit_cell["fold"], bool)
+        and 0 <= fit_cell["fold"] < 5
+        and isinstance(fit_cell.get("repeat"), int)
+        and not isinstance(fit_cell["repeat"], bool)
+        and 0 <= fit_cell["repeat"] < 4
+        and isinstance(fit_cell.get("pattern"), str)
+        and fit_cell["pattern"].startswith("pattern_")
+        and fit_cell.get("target") in valid_targets
+        and valid_sha256(fit_cell.get("sha256"))
+    )
+
+
+def valid_producer_metadata_source(source: dict[str, Any]) -> bool:
+    """Recognize exact sealed P2/C1 lineage objects, not artifact refs."""
+    p2_lineage = (
         set(source) == {"design_sha256", "d0_sha256", "pointer"}
         and source.get("design_sha256") == EXPECTED_AUTHORITY[DESIGN]
         and source.get("d0_sha256") == EXPECTED_AUTHORITY[D0_JSON]
@@ -3458,6 +3554,7 @@ def valid_producer_metadata_source(source: dict[str, Any]) -> bool:
         and source["pointer"].startswith("/")
         and len(source["pointer"]) > 1
     )
+    return p2_lineage or valid_c1_producer_metadata_source(source)
 
 
 def validate_nested_source_lists(

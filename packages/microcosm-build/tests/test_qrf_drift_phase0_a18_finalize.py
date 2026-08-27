@@ -942,10 +942,19 @@ def test_p6_preserves_structured_seeds_pattern_surfaces_and_unavailable_evidence
         Path("/private/tmp/qrf_phase0_p1.json").is_file()
         and Path("/private/tmp/qrf_phase0_a17_terminal_report.json").is_file()
         and Path("/private/tmp/qrf_phase0_a18_p2.json").is_file()
+        and Path("/private/tmp/qrf_phase0_a18_readings_barrier.json").is_file()
+        and Path("/private/tmp/qrf_phase0_a18_c1.json").is_file()
+        and Path("/private/tmp/qrf_phase0_baseline_crossrung.json").is_file()
+        and all(
+            Path(f"/private/tmp/qrf_phase0_a18_p5_{name}.json").is_file()
+            for name in ("care", "csr", "energy", "late_base", "seily", "uc")
+        )
     ),
-    reason="sealed execution-only P1/P2/Step-0 fixtures are unavailable",
+    reason="complete sealed execution-only reading fixtures are unavailable",
 )
-def test_real_sealed_readings_completion_is_exact_and_fail_closed() -> None:
+def test_real_sealed_readings_completion_is_exact_and_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     step0_path = Path("/private/tmp/qrf_phase0_a17_terminal_report.json")
     base = json.loads(step0_path.read_text())
     manifest, step0 = FINAL.verify_step0(base)
@@ -1020,26 +1029,24 @@ def test_real_sealed_readings_completion_is_exact_and_fail_closed() -> None:
             for anchor in anchors.values()
         )
 
-    barrier = {
-        "artifact_kind": "qrf_drift_phase0_readings_prerequisite",
-        "authority": {
-            "commit_design_blob_sha256": FINAL.EXPECTED_AUTHORITY[FINAL.DESIGN]
-        },
-        "status": "COMPLETE",
-        "readings_complete": True,
-        "completed_readings": {
-            "P0": "COMPLETE",
-            "P1": "COMPLETE",
-            "P2": FINAL.P2_NOT_VALIDATED_DISPOSITION,
-            "P5": "COMPLETE",
-            "P6": FINAL.P6_COMPLETE_NO_SURFACE,
-            "P7": "COMPLETE",
-        },
-        "next_phase": "C1",
-    }
-    barrier_artifact = (barrier, {"path": "/tmp/barrier.json", "sha256": "b" * 64})
+    barrier_artifact = FINAL.load_sealed(
+        Path("/private/tmp/qrf_phase0_a18_readings_barrier.json"),
+        "real readings barrier fixture",
+    )
     assert FINAL.barrier_disposes_unvalidated_p2(barrier_artifact)
     assert FINAL.barrier_completes_evidenced_p6(barrier_artifact)
+    c1_artifact = FINAL.merge_statistics_artifact(
+        Path("/private/tmp/qrf_phase0_a18_c1.json"),
+        manifest_by_id,
+        by_id,
+        locked,
+        barrier_artifact[1],
+    )
+    c1_rows = [row for row in statistics if row["dimensions"]["row"].startswith("C1_")]
+    assert len(c1_rows) == 810
+    assert all(
+        FINAL.valid_c1_producer_metadata_source(row["sources"][0]) for row in c1_rows
+    )
     relevant = [*p2_unavailable, *p6_rows]
     incomplete = FINAL.incomplete_statistics(
         relevant,
@@ -1063,11 +1070,64 @@ def test_real_sealed_readings_completion_is_exact_and_fail_closed() -> None:
 
     catalog, _lookup = FINAL.source_catalog(
         statistics,
-        [p1_artifact[1], p2_artifact[1], FINAL.executor_source()],
+        [
+            p1_artifact[1],
+            p2_artifact[1],
+            c1_artifact[1],
+            barrier_artifact[1],
+            FINAL.executor_source(),
+        ],
     )
     catalog_keys = {(item["path"], item["sha256"]) for item in catalog}
     for row in statistics:
         FINAL.validate_nested_source_lists(row, catalog_keys, row["id"])
+
+    json_output = tmp_path / "phase0.json"
+    markdown_output = tmp_path / "phase0.md"
+    arguments = [
+        str(FINAL.__file__),
+        "--baseline-crossrung",
+        "/private/tmp/qrf_phase0_baseline_crossrung.json",
+        "--p1",
+        "/private/tmp/qrf_phase0_p1.json",
+        "--p2",
+        "/private/tmp/qrf_phase0_a18_p2.json",
+    ]
+    for name in ("care", "csr", "energy", "late_base", "seily", "uc"):
+        arguments.extend(["--p5", f"/private/tmp/qrf_phase0_a18_p5_{name}.json"])
+    arguments.extend(
+        [
+            "--readings-barrier",
+            "/private/tmp/qrf_phase0_a18_readings_barrier.json",
+            "--c1",
+            "/private/tmp/qrf_phase0_a18_c1.json",
+            "--json-output",
+            str(json_output),
+            "--markdown-output",
+            str(markdown_output),
+        ]
+    )
+    monkeypatch.setattr(sys, "argv", arguments)
+
+    FINAL.main()
+
+    report = json.loads(json_output.read_text())
+    assert report["status"] == "COMPLETE"
+    assert report["partial_reasons"] == []
+    assert report["validation"]["report_contract_status"] == "PASS"
+    assert report["validation"]["markdown_mirror_status"] == "PASS"
+    assert (
+        report["reading_completion_authorizations"]["P2_evidenced_unavailable"][
+            "evidenced_cell_count"
+        ]
+        == 312
+    )
+    assert (
+        report["reading_completion_authorizations"]["P6_evidenced_unavailable"][
+            "evidenced_cell_count"
+        ]
+        == 504
+    )
 
 
 def test_readings_barrier_binds_exact_supplied_artifacts() -> None:
@@ -1744,11 +1804,46 @@ def test_nested_report_sources_must_have_cataloged_lowercase_sha256() -> None:
         "d0_sha256": FINAL.EXPECTED_AUTHORITY[FINAL.D0_JSON],
         "pointer": "/targets/example/value",
     }
+    selected_reference = {
+        "path": "/tmp/prerequisite.json",
+        "selected_row_sha256": FINAL.EXPECTED_SELECTED_SHA,
+        "self_excluding_sha256": "b" * 64,
+        "sha256": "c" * 64,
+    }
+    c1_prerequisites = {
+        "A18_adoption": selected_reference,
+        "executor": {
+            "files": [
+                {"path": f"/tmp/executor-{index}.py", "sha256": f"{index}" * 64}
+                for index in range(5)
+            ],
+            "files_sha256": "d" * 64,
+            "numpy": "2.4.6",
+            "python": "3.14.4",
+            "scikit_learn": "1.8.0",
+        },
+        "readings": {
+            "completed_readings": ["P0", "P1", "P2", "P5", "P6", "P7"],
+            "path": "/tmp/barrier.json",
+            "self_excluding_sha256": "e" * 64,
+            "sha256": "f" * 64,
+        },
+        "retargeted_C3": selected_reference,
+    }
+    c1_metadata = {
+        "d0_sha256": FINAL.EXPECTED_AUTHORITY[FINAL.D0_JSON],
+        "design_sha256": FINAL.EXPECTED_AUTHORITY[FINAL.DESIGN],
+        "fold_fragment_ids_sha256": "1" * 64,
+        "prerequisites": c1_prerequisites,
+    }
     FINAL.validate_nested_source_lists(
         {"value": 1.0, "sources": [source]}, catalog, "test"
     )
     FINAL.validate_nested_source_lists(
         {"value": 1.0, "sources": [producer_metadata, source]}, catalog, "test"
+    )
+    FINAL.validate_nested_source_lists(
+        {"value": 1.0, "sources": [c1_metadata, source]}, catalog, "test"
     )
 
     with pytest.raises(ValueError, match="SHA-256 is invalid"):
@@ -1772,6 +1867,21 @@ def test_nested_report_sources_must_have_cataloged_lowercase_sha256() -> None:
             {
                 "value": 1.0,
                 "sources": [{**producer_metadata, "extra": "not sealed"}, source],
+            },
+            catalog,
+            "test",
+        )
+    with pytest.raises(ValueError, match="untyped source metadata"):
+        FINAL.validate_nested_source_lists(
+            {
+                "value": 1.0,
+                "sources": [
+                    {
+                        **c1_metadata,
+                        "fold_fragment_ids_sha256": "A" * 64,
+                    },
+                    source,
+                ],
             },
             catalog,
             "test",

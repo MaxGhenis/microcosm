@@ -173,11 +173,20 @@ The strict readings barrier is `READINGS_COMPLETE` at
 `fb7b4ad41f5c6d08201208ab9938d5ba75fe4eddb5f1aec3553a1dceb63f2515`,
 canonical SHA-256
 `2b9ffc6838b37f7ea226f0f100bc2dedb9e2e5d6d28bafc72f40cb818bd15101`.
-It records no priority omissions and authorizes C1. C1 is active from source
-SHA-256 `6cef30aa36abef40879761d45c3a6313932d653665a13fcae53b4a8e155c6f31`.
-Verdicts have not yet executed. No pool build,
-refit-with-changes, network access, publication, promotion, or logbook write
-is authorized or planned.
+It records no priority omissions and authorizes C1. C1 is complete at
+`/private/tmp/qrf_phase0_a18_c1.json`, file SHA-256
+`6cf6e46ef9c1ea02f3b00e84dd4c5e76f2c3522cd273eeb6a4229260d25b9eed`,
+canonical SHA-256
+`52579bffe3b87ec00d219331be2daeae6d00afee1bd6af78fb54fd16eacc017d`.
+All 810 registered C1 cells are present. A full temporary finalizer execution
+with the sealed P1, P2, six P5 shards, readings barrier, C1, and baseline
+cross-rung artifacts is `COMPLETE`: 6,155/6,155 manifest cells, no partial
+reason, report-contract PASS, and Markdown-mirror PASS. Its canonical report
+SHA-256 is
+`4ac5b2c339e63024bb5ff7e7cc2c5e838b3215445321a77834dfd9d12f9e9d74`.
+The requested output paths have not yet been rerendered by this source/test
+hardening step. No pool build, refit-with-changes, network access,
+publication, promotion, or logbook write is authorized or planned.
 
 ## Done
 
@@ -416,14 +425,22 @@ is authorized or planned.
   focused and 101 Phase-0 tests pass; Ruff and diff checks pass. A real
   P0/P1/P2/P5/P6/P7/barrier assembly validates completely and is partial only
   for the not-yet-supplied 810 registered C1 cells.
+- Accepted the two exact sealed C1 producer-lineage metadata shapes while
+  keeping unknown or partial provenance fail-closed. The validator binds the
+  A18 adoption, retargeted C3, readings barrier, five-file executor census,
+  D0/design/A16 authorities, fit-cell coordinates, and lowercase digests.
+  The execution-only regression now merges all 810 C1 cells and runs the
+  complete 6,155-cell finalizer from sealed artifacts. The focused suite is
+  33/33 and the full Phase-0 suite is 101/101; Ruff, formatting, and diff
+  checks pass.
 - Preserved the complete A17 terminal journal below as historical evidence.
 
 ## Next
 
-1. Complete the active all-target C1 run, then compute VERDICTS from the
-   sealed additive ledger and valid probes.
-2. Render and validate the Markdown/JSON reports while leaving both output
-   files uncommitted, then commit the final journal state separately.
+1. Independently audit the exact C1 metadata union and clean-checkout
+   execution regression.
+2. Render and validate the requested Markdown/JSON reports from the complete
+   sealed artifact set while leaving both output files uncommitted.
 
 ## Historical A17 terminal snapshot
 
