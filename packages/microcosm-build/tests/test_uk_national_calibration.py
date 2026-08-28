@@ -21,6 +21,7 @@ from microcosm.build.uk_runtime import (
     UK_NATIONAL_TARGET_LOSS_CAP,
     UK_NATIONAL_TARGET_WEIGHT_RULE,
     UKNationalSolveDoctrine,
+    national_calibration,
     uk_doctrine_with_overrides,
     uk_national_target_loss_weights,
 )
@@ -28,13 +29,15 @@ from microcosm.build.uk_runtime.ledger_targets import (
     UKLedgerTargetCompilation,
     _uk_contract_targets,
 )
-from microcosm.build.uk_runtime.national_build import write_uk_national_frame
 from microcosm.build.uk_runtime.national_calibration import (
     UKNationalCalibrationStage,
     _post_solve_calibration_record,
     national_calibration_mass_reason,
 )
-from microcosm.build.uk_runtime.national_frame import validate_uk_national_frame
+from microcosm.build.uk_runtime.national_frame import (
+    validate_uk_national_frame,
+    write_uk_national_frame,
+)
 from microcosm.calibrate import TargetRegistry, TargetSpec
 from microcosm.frame import EntitySchema, Frame, WeightKind, Weights
 
@@ -288,6 +291,7 @@ def test_uc_calibration_compiles_and_moves_weighted_count_towards_fact() -> None
     frame = _frame()
     stage = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=200, learning_rate=0.05),
     )
@@ -320,6 +324,7 @@ def test_uc_calibration_stage_accepts_benunit_grain_reference_on_nested_frame() 
     frame = _nested_frame()
     stage = UKNationalCalibrationStage(
         _registry(value=60.0),
+        band_edge_registry=_registry(value=60.0),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -340,6 +345,7 @@ def test_stage_measure_resolver_injects_columns_then_restores_pristine_output() 
     original_columns = {entity: set(frame.table(entity).columns) for entity in frame.entities}
     stage = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
         measure_resolver=resolver,
@@ -361,6 +367,7 @@ def test_stage_measure_resolver_injects_columns_then_restores_pristine_output() 
 def test_stage_manifest_omits_measure_resolution_without_resolver() -> None:
     stage = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -368,6 +375,41 @@ def test_stage_manifest_omits_measure_resolution_without_resolver() -> None:
     stage(_frame())
 
     assert "measure_resolution" not in stage.manifest
+
+
+def test_stage_threads_band_edge_registry_to_materialization(monkeypatch) -> None:
+    captured = []
+    real_materialize = national_calibration.materialize_uk_ledger_targets
+
+    def capture_materialize(*args, **kwargs):
+        captured.append(kwargs)
+        return real_materialize(*args, **kwargs)
+
+    monkeypatch.setattr(
+        national_calibration,
+        "materialize_uk_ledger_targets",
+        capture_materialize,
+    )
+    sentinel = TargetRegistry([], country="uk")
+    stage = UKNationalCalibrationStage(
+        _registry(),
+        period=2025,
+        doctrine=UKNationalSolveDoctrine(epochs=1),
+        band_edge_registry=sentinel,
+    )
+
+    stage(_frame())
+
+    assert captured[-1]["band_edge_registry"] is sentinel
+
+    # The parameter is required, never defaulted: a stage cannot tell a
+    # pruned registry from a full one (#803 review finding 1).
+    with pytest.raises(TypeError, match="band_edge_registry"):
+        UKNationalCalibrationStage(
+            _registry(),
+            period=2025,
+            doctrine=UKNationalSolveDoctrine(epochs=1),
+        )
 
 
 def test_activated_unresolvable_compiled_reference_aborts_loudly() -> None:
@@ -382,6 +424,7 @@ def test_activated_unresolvable_compiled_reference_aborts_loudly() -> None:
                 },
             ),
         ),
+        band_edge_registry=TargetRegistry([], country="uk"),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=1),
     )
@@ -461,6 +504,7 @@ def test_packaged_binding_classes_materialize_through_national_stage() -> None:
     resolver.contract_targets = _uk_contract_targets()
     stage = UKNationalCalibrationStage(
         registry,
+        band_edge_registry=registry,
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=1, learning_rate=0.01),
         measure_resolver=resolver,
@@ -521,6 +565,7 @@ def test_packaged_materialization_skip_aborts_national_stage() -> None:
     )
     stage = UKNationalCalibrationStage(
         registry,
+        band_edge_registry=registry,
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=1),
     )
@@ -533,6 +578,7 @@ def test_calibration_preserves_entity_ids_and_national_integrity() -> None:
     frame = _frame()
     stage = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -549,6 +595,7 @@ def test_checkpoint_metadata_round_trips_calibration_evidence() -> None:
     frame = _frame()
     stage = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -558,6 +605,7 @@ def test_checkpoint_metadata_round_trips_calibration_evidence() -> None:
 
     resumed = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -569,6 +617,7 @@ def test_checkpoint_metadata_round_trips_calibration_evidence() -> None:
 
     drifted = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -577,6 +626,7 @@ def test_checkpoint_metadata_round_trips_calibration_evidence() -> None:
 
     empty = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -594,6 +644,7 @@ def test_checkpoint_metadata_round_trips_calibration_evidence() -> None:
 
     unrun = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -605,6 +656,7 @@ def test_prepared_slash_columns_are_not_returned_to_the_writer(tmp_path) -> None
     pytest.importorskip("tables")
     stage = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5),
     )
@@ -786,6 +838,7 @@ def test_doctrine_target_weight_rule_reaches_the_solver(
     )
     stage = UKNationalCalibrationStage(
         _registry(),
+        band_edge_registry=_registry(),
         period=2025,
         doctrine=UKNationalSolveDoctrine(epochs=5, target_weight_rule=rule),
     )
@@ -861,3 +914,57 @@ def test_measure_resolution_never_touches_the_source_frame() -> None:
     assert ("household", "probe_measure") in resolution.measure_inputs
     for entity in frame.entities:
         assert list(frame.table(entity).columns) == before[entity]
+
+
+def test_published_child_reduction_translates_to_the_age_predicate():
+    """A published fact keeps its publisher's semantics; binding it is our job.
+
+    DWP names a dependent-child concept in `any_child_under`. The model carries
+    no `is_child` column because it has no need of one — dependency is derived
+    from age where it is wanted — so "any child under N" is exactly "any person
+    aged under N" here. The translation is declared, not aliased at the call
+    site, and refusing the fact instead would drop a real target.
+    """
+
+    from microcosm.build.uk_runtime.ledger_targets import (
+        UK_TRANSLATED_HOUSEHOLD_REDUCTIONS,
+        UKFrameTargetAdapter,
+    )
+
+    assert UK_TRANSLATED_HOUSEHOLD_REDUCTIONS["any_child_under"] == "any"
+
+    frame = _materialization_binding_frame()
+    adapter = UKFrameTargetAdapter(frame)
+    # Households 0 and 2 each carry an infant; household 1 does not.
+    adapter.tables["person"]["age"] = [0.0, 40.0, 35.0, 0.0, 38.0, 41.0]
+    condition = {
+        "variable": "age",
+        "entity": "person",
+        "reduce": "any_child_under",
+        "operator": "<",
+        "value": 1,
+    }
+
+    translated = adapter.household_condition(condition)
+
+    assert list(translated) == [True, False, True]
+    assert list(translated) == list(
+        adapter.household_condition({**condition, "reduce": "any"})
+    )
+
+
+def test_unmapped_household_reduction_names_the_published_reducer():
+    from microcosm.build.uk_runtime.ledger_targets import UKFrameTargetAdapter
+
+    adapter = UKFrameTargetAdapter(_materialization_binding_frame())
+
+    with pytest.raises(ValueError, match="any_grandchild_under"):
+        adapter.household_condition(
+            {
+                "variable": "capital_gains",
+                "entity": "person",
+                "reduce": "any_grandchild_under",
+                "operator": "<",
+                "value": 1,
+            }
+        )

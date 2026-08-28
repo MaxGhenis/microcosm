@@ -1,233 +1,327 @@
-# Gate-failed base-pool release lane: final report
+# ACSPRED: release-side ACS predictor join final report
 
-Date: 2026-08-26
+> **Historical note (2026-08-28).** Lane report, accurate as of 2026-08-27.
+> The branch was subsequently merged into `stacked-release-fix-train`
+> alongside the #794 and #798/#799 fixes; attested digests were regenerated
+> over the merged tree. Currency claims below are historical.
 
-Branch: `release-from-gate-failed-pool`
+Date: 2026-08-27
 
-Base: `origin/main` at `2263df36`
+Branch: `acs-predictor-release-join`
+
+Lane base: `606cbd69` (`stacked-release-gate-alignment`)
 
 ## Outcome
 
-The legacy `--base-h5` release and preflight paths now fail closed when the H5
-identifies as a US multispine pool. They require and authenticate the canonical
-sibling pool manifest, bind it to the exact requested H5, and reject a red
-terminal agreement battery by default. The new explicit opt-in is:
+The release builder now populates every CPS-named predictor consumed by the six
+archived donor models on every physical ACS support row. It does so through an
+exact release-time join to the two canonical, SHA-pinned 2024 one-year ACS PUMS
+archives and a versioned, digest-pinned crosswalk. It does not fill unknowns
+with silent defaults, weaken a gate, retrain a model, or change model selection
+logic.
 
-`--allow-gate-failed-base-pool`
+The join passed read-only on the complete supplied candidate: 856,626 unique
+ACS source people matched exactly 856,626 raw person records in 382,903 raw
+households and fanned out to 1,736,840 ACS support rows. All model predictors
+have zero remaining nulls. The SSI reporter path separately preserves 261,605
+genuine below-age-15 ACS support-row nulls and treats them as false only at the
+consumer's `> 0` predicate.
 
-The flag is valid only with `--base-h5` and only for an authenticated current
-stacked pool with `status=gate_failed` and `simulation_ready=false`. It is
-rejected for generic H5 inputs, green pools, and the exact-k manifest arm. A
-release built with the flag carries the full authenticated red verdict so a
-reader can see `battery: red, N failures` without fetching the pool.
+The implementation adds four all-or-none release CLI inputs, writes the full
+receipt to both manifests, keeps legacy non-ACS releases as an explicit
+disabled identity path, and leaves the launcher contract to the dispatcher as
+required.
 
-Publication preflight authenticates the same pool and displays the red receipt
-as prominent human-review evidence. The red battery alone does not change the
-existing preflight PASS/AT_RISK/FAIL calculation or exit code. Publication
-remains a separate human-gated operation.
+No network access, pool build, release build, wheel build, publication, push,
+or launcher edit was performed.
 
-No network access, pool build, release build, publication, push, battery
-threshold change, or gate-logic change was performed.
+## Join-key verification
 
-## Diff summary and rationale
+### Why `person_source_id` is not the raw key
 
-- `CLAUDE.md`: documents the authenticated `--base-h5` boundary, explicit red
-  opt-in, verdict carriage, strict exact-k arm, and separate publication step.
-- `PROGRESS.md`: maintains the required state/done/next journal from kickoff
-  through the final verified handoff while preserving the prior lane history.
-- `changelog.d/gate-failed-pool-release.fixed.md`: records the closed receipt
-  bypass and explicit opt-in under the repository changelog convention.
-- `packages/microcosm-build/src/microcosm/build/us_runtime/h5_io.py`: adds the
-  shared pool classifier, exact-H5 binding check, release-specific authenticated
-  loader, and normalized self-contained release receipt. The existing strict
-  simulation-ready and scoring loader contracts were not weakened.
-- `packages/microcosm-build/src/microcosm/build/us_runtime/release_gate_preflight.py`:
-  authenticates identified base pools through the shared seam, records their
-  receipt in `PreflightReport`, and renders authenticated red evidence before
-  the ordinary check table without including it in exit-code calculation.
-- `tools/build_us_fiscal_refresh_release.py`: adds
-  `--allow-gate-failed-base-pool`, authenticates pool-like legacy base H5s before
-  the generic loader can run, uses the authenticated frame/H5 identity, and
-  passes the receipt into both generated manifests. The exact-k arm remains
-  simulation-ready-only.
-- `tools/preflight_us_release_gates.py`: adds the same explicit opt-in and an
-  optional `--release-manifest`; validates the carried full verdict, requires
-  its receipt to exactly equal the pool authenticated from `--base-h5`, emits a
-  large red/human-review banner, and adds machine-readable carried evidence.
-  Existing required `--base-h5` and `--selection-source-manifest` arguments and
-  all other preflight behavior remain intact.
-- `packages/microcosm-build/tests/test_us_multispine_pool_h5_io.py`: exercises
-  real stamped H5 classification, strict/default refusal, explicit red
-  acceptance, redundant-green refusal, receipt contents, identity binding, and
-  malformed aggregate/nested verdict refusal. PyTables-dependent cases use the
-  sibling-test `importorskip` idiom.
-- `packages/microcosm-build/tests/test_us_fiscal_refresh_builder.py`: covers the
-  old bare-H5 bypass directly, red-manifest default refusal, flag routing,
-  generic/non-pool refusal when the flag is present, both-manifest carriage,
-  exact-k isolation, and AST-level ordinary base-pool wiring guards.
-- `packages/microcosm-build/tests/test_us_release_gate_preflight.py`: covers
-  bare/missing/red receipt authentication, prominent text and JSON carriage,
-  nonblocking PASS/AT_RISK/FAIL exit semantics, required static inputs, and
-  exact mismatch refusal across manifest/H5/publication/gates/full-verdict
-  identities.
-- `out.md`: this final implementation, audit, verification, and handoff report.
+The ACS loader rejects duplicate `(SERIALNO, SPORDER)` pairs, stably sorts by
+that pair, and only then assigns a zero-based raw `source_row_id`
+(`acs_pums.py:204-238`). Source construction stores `SPORDER` separately as
+`source_person_id` and links people to the household identified by `SERIALNO`
+(`acs_pums.py:264-279`). Assembly then collision-offsets structural IDs and
+creates assembly-unique support source IDs (`spine_assembly.py:366-430`;
+`support_provenance.py:346-371`). Therefore neither the final structural ID nor
+`person_source_id` is a reversible Census record key.
 
-## Flag and manifest contract
+The release join instead recovers the retained semantic identity:
 
-The exact flag is `--allow-gate-failed-base-pool`. The release builder permits
-it only on its legacy `--base-h5` arm. Publication preflight uses the same flag
-to authenticate and inspect the same red pool; neither invocation is an
-authorization to publish.
+| Role | Retained evidence | Enforced relation |
+|---|---|---|
+| Household key | linked household `SERIALNO` | nonblank, one source household identity per serial |
+| Person key | integral `SPORDER` and `source_person_id` | exactly equal and at least 1 |
+| Raw ordinal | `source_row_id`, `person_spine_source_id` | exactly equal, but never used as the Census join key |
+| Source identity | `person_source_id` | one raw identity across all clones; fan-out only |
+| Clone identity | `person_support_clone_index` | unique `(person_source_id, clone_index)` and exactly one clone 0 |
+| Vintage | `source_year` | exactly 2024 on physical ACS rows |
 
-The build manifest stores the receipt at top-level `base_pool`. The release
-manifest stores the same receipt at `build.base_pool`:
+The implementation derives these relations at
+`acs_release_predictors.py:1078-1289`, including person-to-household channel
+agreement, clone agreement, raw ordinal agreement, and unique canonical
+`(SERIALNO, SPORDER)`. It then performs a pandas `one_to_one` left merge on
+that semantic key, rejects any unmatched pool source person, and refuses a row
+count change (`acs_release_predictors.py:893-923`). Only after that proof does
+it map values back through `person_source_id` to every clone
+(`acs_release_predictors.py:939-968`).
 
-- `artifact_kind`
-- `status`
-- `simulation_ready`
-- `manifest_sha256`
-- `publication_run_id`
-- `pool_h5_sha256`
-- `pool_h5_size_bytes`
-- `allow_gate_failed_base_pool`
-- `agreement_gate_reference.battery_status`
-- `agreement_gate_reference.passed`
-- `agreement_gate_reference.gates_json_sha256`
-- `agreement_gate_reference.failure_count`
-- `agreement_gate_reference.failures`, a flattened list of `{gate, message}`
-- `agreement_gate_reference.verdict`, the complete agreement-gate verdict
+## Artifact and refusal contract
 
-The receipt accepts only coherent pairs: simulation-ready/green/passed or
-gate-failed/red/failed. Every nested gate must carry a boolean `passed` and a
-coherent failure list; the nested aggregate must match the terminal status.
-For a red pool the failure list must be nonempty. SHA-256, publication run ID,
-H5 size, full verdict, and all other receipt fields are bound through exact
-preflight equality.
+The reviewed archive identities are declared at
+`acs_release_predictors.py:70-88`:
 
-The preflight report also exposes the authenticated receipt as `base_pool`.
-When `--release-manifest` supplies a red carried receipt, JSON adds
-`carried_base_pool_agreement_battery`, including `battery_status=red`, the
-failure count/list, gates digest, full agreement reference,
-`publication_decision=human_review_required`, and `affects_exit_code=false`.
+| Archive | SHA-256 | Size observed |
+|---|---|---:|
+| 2024 ACS person `csv_pus.zip` | `afdc6d90c6e2f0bab365ed32d95ba4c4d8ac651162f46ac7861295b2dc469894` | 602,847,146 bytes |
+| 2024 ACS household `csv_hus.zip` | `8281008e53de98f0ef81e7a2ee5a8725991dda1ecfd2713ead73246425e515d0` | 251,500,587 bytes |
 
-## §4 consumer audit
+Before either zip is opened, the boundary requires lowercase 64-hex syntax,
+requires the caller's expected hash to equal the reviewed canonical pin, and
+hashes the actual file (`acs_release_predictors.py:991-1021`). It then requires
+exact `psam_pusa/b.csv` or `psam_husa/b.csv` membership, verifies required
+headers, and streams only selected serials (`acs_release_predictors.py:1024-1075`).
 
-The requested exhaustive source audit used
-`simulation_ready|gate_failed|load_simulation_ready` across `tools/` and
-`packages/`, followed by source tracing of every non-test match.
+The boundary also refuses:
 
-- `h5_io.py` owns the authentication boundary. The new release wrapper selects
-  the unchanged strict loader by default and the existing private terminal
-  loader only when its required explicit boolean is true. The public scoring
-  and strict simulation-ready contracts remain unchanged.
-- `tools/build_us_exact_k_ladder_release.py` remains deliberately strict: it
-  uses the simulation-ready loader, validates config/release identities, checks
-  `agreement_gate.passed`, and never forwards the new flag.
-- `tools/score_us_release_head_to_head.py` retains its existing authenticated
-  terminal-evidence exception. It requires a pool manifest and terminal gates;
-  it cannot authorize a release or accept a naked pool H5.
-- `tools/build_us_multispine_pool.py` and
-  `us_runtime/multispine_pool.py` are producers of the status, readiness, H5
-  stamp, manifest, diagnostics, and terminal verdict rather than downstream
-  release consumers.
-- `tools/_legacy/build_us_acs_multispine_base.py` writes its own pre-calibration
-  `simulation_ready=false` state; it is not a current terminal-pool consumer.
-- `tools/build_us_acs_local_release.py` uses its own calibrated-release
-  readiness summary. A derivative keeps donor release/revision provenance but
-  does not project the nested `build.base_pool` verdict into its own manifest.
-- The microcosm-data release contract, loader, TRACE conversion, and publisher
-  tolerate but otherwise ignore the additive `build.base_pool` object. The
-  designated publication preflight is therefore the prominent human-facing
-  red-verdict surface.
+- partial CLI/archive inputs or archive inputs on a frame with no ACS rows;
+- a stale crosswalk digest;
+- malformed or incomplete assembly provenance;
+- duplicate raw person or household keys;
+- source-identity, semantic-key, or clone-index collisions;
+- orphaned or cross-channel person/household links;
+- pool household `TEN` disagreement with the pinned household archive;
+- an incomplete one-to-one person join;
+- an unsupported raw code or age/universe violation;
+- a conflicting pre-existing ACS predictor value;
+- missing, nonnumeric, or nonfinite native ASEC predictors, or negative
+  `SSI_VAL`; and
+- any remaining null in a model-consumed predictor.
 
-Report-only interactions left unchanged, as directed:
+The relevant executable checks are at
+`acs_release_predictors.py:830-968,1078-1356,1548-1586`.
 
-1. `tools/build_us_multispine_pool.py::_stacked_manifest_payload` still labels
-   `calibration.consumer` as `k-ladder` and says
-   `requires_manifest_simulation_ready=true`. That metadata is now incomplete
-   for the explicit legacy base-H5 red-pool route, but it is informational and
-   unenforced.
-2. A red pool producer writes its H5, manifest, gates evidence, and failed
-   Logbook row, then returns status 1. Existing `set -e` candidate chains stop
-   there, so an operator must deliberately start the separate release command
-   to use the new opt-in.
-3. ACS-local derivative manifests retain fetchable donor provenance but do not
-   self-contain the nested red receipt.
-4. Generic data/release consumers accept the additive receipt but do not
-   surface it. This is not a publication bypass because the publication tool's
-   designated preflight now authenticates and displays it.
+## Reviewed crosswalks
 
-No audit-only consumer was modified.
+The canonical crosswalk payload is source-controlled at
+`acs_release_predictors.py:726-790` and pinned as:
 
-## Judgment calls
+`1d4906242e9c73e31b3283659e5cad8242b8cbc42914ab6fa59547a10c8770e9`
 
-- Pool detection uses either a canonical sibling manifest whose artifact kind
-  is the pool kind or the H5's own artifact-metadata stamp. Either positive
-  identity requires the sidecar; sidecar existence alone is never trusted.
-- A dedicated release loader with a required
-  `allow_terminal_gate_failure` argument keeps the strict and scoring APIs
-  semantically stable.
-- The opt-in is rejected for a green pool rather than silently accepted, so
-  every recorded flag use has one unambiguous meaning.
-- Preflight requires exact equality between the release-carried receipt and the
-  freshly authenticated base receipt. This prevents displaying release A's red
-  evidence while checking release B's pool.
-- The earlier salvage branch was used as a reference and selected commits were
-  replayed only after line-by-line review. The final tree corrected its
-  manifest-only preflight expansion, loader naming/contract ambiguity,
-  redundant-green behavior, receipt binding, nested-verdict coherence, and an
-  inaccurate exact-k diagnostic. Full verification ran on the corrected tree.
+| Source | Target | Exact reviewed mapping | Consumed model bin |
+|---|---|---|---|
+| `DDRS` | `PEDISDRS` | age 5+: `1 -> 1`, `2 -> 2`; younger blank `-> -1` | SSI tests only `== 1` |
+| `DEAR` | `PEDISEAR` | all ages: `1 -> 1`, `2 -> 2` | SSI tests only `== 1` |
+| `DEYE` | `PEDISEYE` | all ages: `1 -> 1`, `2 -> 2` | SSI tests only `== 1` |
+| `DOUT` | `PEDISOUT` | age 15+: `1 -> 1`, `2 -> 2`; younger blank `-> -1` | SSI tests only `== 1` |
+| `DPHY` | `PEDISPHY` | age 5+: `1 -> 1`, `2 -> 2`; younger blank `-> -1` | SSI tests only `== 1` |
+| `DREM` | `PEDISREM` | age 5+: `1 -> 1`, `2 -> 2`; younger blank `-> -1` | SSI tests only `== 1` |
+| `RAC1P` | `PRDTRACE` | `1 -> 1` White; `2 -> 2` Black; `6 -> 4` Asian; `3/4/5/7/8/9 -> 3` residual Other | SCF White/Black/Asian/Other; ORG White/Black/Other |
+| `HISP` | `PRDTHSP` | `1 -> 0` non-Hispanic; `2..24 -> 1` positive Hispanic representative | both consumers test zero versus positive |
+| observed `OCCP` | `PEIOOCC` | identity over all 530 pinned detailed codes | SIPP tips exact detailed-code membership |
+| blank `OCCP` | `PEIOOCC` | `-1`, the CPS NIU sentinel | unlisted/non-tipped |
+| observed `OCCP` | `POCCU2` | explicit 530-key table covering consumed bins 1 through 53 | ORG exact categories and EAP set |
+| blank `OCCP` | `POCCU2` | age below 16 `-> 0`; age 16+ permitted only with `ESR=6`, then `-> 53` | preserve NIU; adult no occupation/never worked |
+| household `TEN` | `SPM_TENMORTSTATUS` | `1 -> 1`, `2 -> 2`, `3/4 -> 3`; verified group-quarters blank `-> 3` | SIPP vehicle homeowner iff `{1,2}` |
 
-## Verification evidence
+The disability, race, occupation, and tenure executable mappings are at
+`acs_release_predictors.py:108-687,689-694,1364-1454`. The occupation map's
+notable reviewed edges include `3250 -> 26` while `3255/3256/3258 -> 25`, ACS
+military `9800/9810/9825/9830 -> 52`, and `9920 -> 53`. The table maps the
+shared detailed code vocabulary to the modal 2024 ASEC category; it is not
+represented as a fictional rowwise CPS identity.
 
-All commands ran offline against the pre-built environment with
-`uv run --no-sync` (and a task-local UV cache where required). Each pytest
-shard ran in one independent process.
+### Age-15 occupation judgment
+
+ACS `OCCP` begins at age 16, while CPS `POCCU2` is already in universe at age
+15. In source-year-2024 ASEC, 2,174 people are age 15: 1,931 have `POCCU2=53`
+but 243 have categories 1 through 52. Mapping every ACS age-15 blank to 53
+would therefore invent never-worked evidence. The crosswalk preserves 0 for
+that one-year source/target universe gap and uses 53 only for defensible adult
+blanks. Raw `ESR` is required blank below 16 and in `1..6` from 16; an adult
+`OCCP` blank is allowed only at `ESR=6`.
+
+## SSI reporter semantics
+
+`SSI_VAL` is the measured ASEC amount. The pool's native ACS mapping already
+stores adjusted `SSIP` as `ssi_reported`. The release join now reads raw `SSIP`
+and `ADJINC`, enforces the exact age-15 universe, and proves clone-zero
+`ssi_reported == SSIP * ADJINC / 1_000_000` source person by source person
+(`acs_release_predictors.py:1458-1545`).
+
+The SSI receiver coalesces `SSI_VAL` and `ssi_reported` rowwise, without
+origin-routing the model, rejects conflicting dual reporter statuses, permits
+a blank only below age 15, and fills that blank only transiently for the
+existing `> 0` predicate (`ssi_disability_criteria.py:758-813,1082-1093`). The
+gate summary uses the same coalesced anchor and native-role scope, so a lost
+positive ACS-native reporter cannot evade the diagnostic. Source nulls remain
+null in the frame.
+
+## Release integration and receipts
+
+The release builder declares the four inputs at
+`build_us_fiscal_refresh_release.py:1293-1318` and validates all-or-none plus
+lowercase SHA syntax at `:1587-1610`:
+
+- `--acs-person-zip`
+- `--acs-person-sha256`
+- `--acs-household-zip`
+- `--acs-household-sha256`
+
+It invokes the join at `build_us_fiscal_refresh_release.py:9828-9846`, before
+SCF wealth and consequently before all six archived-model stages. The receipt
+is embedded at top level in `build_manifest.json` (`:7534-7642`) and under
+`release_manifest.json.build` (`:7841-7871`); the sole writer call receives the
+saved runtime receipt at `:11860-11879`.
+
+The complete real-data receipt included this core evidence:
+
+```json
+{
+  "enabled": true,
+  "crosswalk": {
+    "version": 1,
+    "sha256": "1d4906242e9c73e31b3283659e5cad8242b8cbc42914ab6fa59547a10c8770e9"
+  },
+  "join": {
+    "semantic_key": ["household.SERIALNO", "person.SPORDER"],
+    "clone_fanout_key": "person_source_id",
+    "acs_source_people": 856626,
+    "acs_support_rows": 1736840,
+    "acs_support_rows_by_clone_index": {"0": 856626, "1": 856626, "2": 23588},
+    "selected_raw_person_rows": 856626,
+    "selected_raw_household_rows": 382903,
+    "unmatched_pool_source_people": 0,
+    "source_identity_collisions": 0,
+    "semantic_key_sha256": "c7723adc889fc655b46103426d21f6c74937434eff51e8f3e6025bdf60972b74"
+  }
+}
+```
+
+Per-model counts were:
+
+| Model | Predictors | ASEC-native each | ACS-joined each | Still null |
+|---|---|---:|---:|---:|
+| SSI disability | six `PEDIS*` | 234,133 | 1,736,840 | 0 |
+| SCF wealth | `PRDTRACE`, `PRDTHSP` | 234,133 | 1,736,840 | 0 |
+| SCF auto loans | `PRDTRACE`, `PRDTHSP` | 234,133 | 1,736,840 | 0 |
+| SIPP vehicles | `SPM_TENMORTSTATUS` | 234,133 | 1,736,840 | 0 |
+| SIPP tips | `PEIOOCC` | 234,133 | 1,736,840 | 0 |
+| ORG wages/FLSA | `PRDTRACE`, `PRDTHSP`, `POCCU2` | 234,133 | 1,736,840 | 0 |
+| SSI logical reporter anchor | ASEC `SSI_VAL`; ACS `ssi_reported` | 234,133 | 1,475,235 | 261,605 child-universe nulls |
+
+The receipt producer is at `acs_release_predictors.py:1589-1677`.
+
+## Archived-model behavior retained
+
+The five non-SSI consumer modules are byte-unchanged from the lane base. The
+SSI model's predictor list, QRF feature/selection logic, role routing, and
+thresholds are unchanged; only its source-faithful reporter read and matching
+gate diagnostic changed.
+
+| Consumer | Executable consumed bins | Evidence |
+|---|---|---|
+| SSI disability | six difficulty inputs consumed only as `== 1`; reporter is under 65 and `> 0` | `ssi_disability_criteria.py:143-150,902-908,1082-1093` |
+| SCF wealth | White 1, Black 2, Asian 4, Hispanic positive, residual Other | `scf_wealth.py:611-621,654-724` |
+| SCF auto loans | reuses the SCF wealth race helper | `scf_auto_loans.py:38-42,365-380` |
+| SIPP vehicles | homeowner iff tenure code is 1 or 2 | `sipp_vehicles.py:577-621,740-763` |
+| SIPP tips | exact detailed Census occupation membership; unlisted NIU is zero | `sipp_tips.py:129-184,249-263,363-375` |
+| ORG wages/FLSA | POCCU2 53 never worked, 52 military, 8 computer, 41 farmer/fisher, explicit EAP set; Hispanic/White/Black/Other | `org_wages.py:133-183,408-415,535-559,610-625` |
+
+No gate band or numeric threshold was edited. Whether ORG and tips pass or fail
+on a future release is therefore determined by the real joined values, as
+required.
+
+## Real-pool audit and operational caveat
+
+The supplied candidate pool contains 1,970,973 people and 865,460 households.
+Its 3,239,263,147-byte H5 exactly matches the frozen manifest SHA-256
+`871b7e6467675a1e9475b54fd1baf64c53c0f75a3258b8357303a8df0d53642d`.
+
+The current official release loader refuses that older candidate before H5
+loading because the manifest's archived primary-QRF worker binding predates
+this branch's source-attested execution identity: `late primary-QRF worker
+binding changed`. To isolate and test this lane without building an artifact,
+the audit independently verified the H5 bytes, read its entity tables through
+the repository HDF reader, restored the frozen `assembly_receipt`, and ran the
+strict join. Every join and crosswalk assertion passed.
+
+This is not an unresolved crosswalk issue, but it is an operational handoff:
+the old candidate cannot be promoted through the current authenticated release
+loader. A fresh/currently authenticated candidate is required outside this
+headless no-build lane.
+
+## Verification
+
+All commands ran offline against the prebuilt environment. Each package shard
+ran in its own pytest process. Packaging was not touched, so wheels were not
+built.
 
 - `uv run --no-sync ruff check .`: PASS, `All checks passed!`
-- `uv run --no-sync pytest -q packages/microcosm-build/tests`: PASS, 6,545
-  passed, 45 skipped, 2,351 warnings in 3,326.74 seconds.
-- `uv run --no-sync pytest -q packages/microcosm-calibrate/tests`: PASS, 203
-  passed, 2 warnings in 11.39 seconds.
-- `uv run --no-sync pytest -q packages/microcosm-data/tests`: PASS, 318 passed,
-  2 skipped in 9.11 seconds.
-- `uv run --no-sync pytest -q packages/microcosm-fit/tests`: PASS, 93 passed,
-  1 warning in 30.27 seconds.
-- `uv run --no-sync pytest -q packages/microcosm-frame/tests`: PASS, 295
-  passed, 36 skipped, 1 warning in 89.30 seconds.
-- Full aggregate: 7,454 passed, 83 skipped.
-- `.venv/bin/python tools/ci_test_groups.py --verify`: PASS,
-  `tracked_test_files=309`, `verification=ok`.
-- Focused changed-file suites plus exact-k E2E/launcher and data
-  contract/release/publish-guard regressions: PASS; the full shard runs above
-  subsequently covered the same tests on the final code tree.
-- `git diff --check origin/main...HEAD`: PASS.
+- `uv run --no-sync python tools/ci_test_groups.py --verify`: PASS,
+  `tracked_test_files=310`, `verification=ok`
+- `tools/generate_us_bundle_from_constants.py --check`: PASS, US spec
+  `16b7d5e622e8a68e008165bb44a5836695d94a2b0dd8d4c51b3c9e8ca89dca38`
+- `tools/spec_engine_coverage.py --check`: PASS, 42,122/42,122 fields and
+  41/41 inventory checks
+- frame shard: PASS, 295 passed, 36 skipped
+- fit shard: PASS, 93 passed
+- calibrate shard: PASS, 203 passed
+- data shard: PASS, 318 passed, 2 skipped
+- build shard after reviewed source-attestation repin: PASS, 6,586 passed,
+  45 skipped
+- join-focused file: PASS, 15 passed
+- combined join, SSI, and source-blindness files: PASS
+- parser/order/manifest focused cases and all six parametrized mocked-main
+  corridor cases: PASS
+- repository `git diff --check`: PASS
 
-The build-shard warnings are expected numerical, pandas chained-assignment,
-PolicyEngine division, and intentionally fragmented-frame test warnings; no
-warning is a test failure and none originates in the new receipt path.
+The first complete build-shard run reached 100% with 6,575 passed and 45
+skipped plus five failures and six setup errors, all caused by stale expected
+source-attestation hashes after changing `ssi_disability_criteria.py`. That
+module participates in both seed-kernel source inventories. The narrow
+established repin updated the two seed digests, BE/UK/US spec identities, the
+minimal-loader golden, and generated coverage evidence. All 25 affected tests
+then passed, both retained `--check` commands passed, and the complete build
+shard rerun above was green.
 
-## Commit inventory
+Existing warnings were numerical overflow/divide, pandas chained-assignment,
+and fragmented-fixture performance warnings; none was a test failure.
 
-Implementation and journal commits before this final report carrier:
+## Judgment calls and unresolved items
 
-1. `34375fe6` Document gate-failed release lane kickoff
-2. `5be9e49a` Preserve prior progress journal history
-3. `c5a24c0f` Record release containment design review
-4. `72274910` feat: allow explicit gate-failed pool release inputs
-5. `e3d847d6` feat: surface carried red pool verdict in preflight
-6. `46811fdb` fix: preserve default exact-k receipt fixtures
-7. `dd1ad19a` Add shared multispine base-pool authentication seam
-8. `271ee1fe` Close legacy base-H5 pool receipt bypass
-9. `92134322` Authenticate and surface gate-failed pools in preflight
-10. `cd39f756` Document gate-failed base-pool release boundary
-11. `9db4694a` Tighten the authenticated red-pool release opt-in
-12. `72c4c7a1` Bind carried pool verdicts to preflight inputs
-13. `59c5759d` Record completed release containment work
-14. `af20d3f5` Lock ordinary base-pool release wiring in tests
+- The join uses retained semantic lineage, not a guessed arithmetic inversion
+  of assembly IDs.
+- Race and Hispanic mappings stop at the bins the consumers actually read;
+  they do not invent CPS detail absent from ACS.
+- Disability codes preserve `1/2` plus the CPS NIU sentinel rather than
+  collapsing the source to booleans.
+- Age-15 ACS occupation remains NIU because assigning 53 would fabricate
+  never-worked evidence for a group whose CPS distribution is not degenerate.
+- `PEIOOCC` blank uses CPS NIU `-1`, not a fictional detailed occupation 0.
+- SSI child nulls remain source nulls; only the predicate interprets them as
+  non-reporters.
+- Pool household `TEN` is preferred for lineage and must agree exactly with the
+  pinned household zip; group-quarters non-owner status is applied only after
+  raw universe checks.
+- ASEC values are validated but never rewritten, preserving their native model
+  inputs byte-for-byte.
+- No crosswalk semantic remains unresolved. The only open operational item is
+  obtaining a current authenticated pool and adding the four launcher
+  arguments; both are explicitly outside this lane and owned by the
+  dispatcher/build process.
 
-Commits after the list carry this report, the final `PROGRESS.md` state, and
-their handoff cleanup. A report cannot embed the hash of the commit containing
-its own final bytes, so `git log --oneline origin/main..HEAD` is the
-authoritative complete inventory. At final handoff the branch is 17 commits
-ahead of `origin/main` with no uncommitted paths.
+## Commits before final journal handoff
+
+- `2aa14e84` Start ACS predictor release join journal
+- `c1a41ccf` Record ACS predictor join contracts
+- `ecea55a2` Add strict ACS release predictor join
+- `a7108697` Harden ACS predictor crosswalk contracts
+- `6b8185e4` Wire ACS predictor join into release builder
+- `d87be068` Accept numeric H5 predictor cells
+- `69ec0fae` Document ACS release predictor join
+- `de5e5d03` Repin source-attested spec identities
+
+The final local commit adds this report and marks `PROGRESS.md` complete.
