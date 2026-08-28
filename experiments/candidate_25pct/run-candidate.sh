@@ -235,6 +235,8 @@ check_code_authority() {
     --sipp-tip-donor --sipp-vehicle-donor --org-wages-donor \
     --ssi-take-up-prior-weight-basis \
     --ssi-take-up-prior-weight-basis-sha256 \
+    --acs-person-zip --acs-person-sha256 \
+    --acs-household-zip --acs-household-sha256 \
     --checkpoint-root --release-id --seed --epochs \
     --skip-reform-validation --no-staging --out
   require_parser_flags sparse "$RELEASE_TOOL" --l0-refit-lambda-share
@@ -264,6 +266,8 @@ check_release_inputs() {
   check_sha256 sipp-tips-donor "$SIPP_TIPS" "$SIPP_TIPS_SHA"
   check_sha256 cps-org-wages-compressed "$ORG_WAGES" "$ORG_WAGES_SHA"
   check_sha256 packaged-cd-crosswalk "$CD_CROSSWALK" "$CD_CROSSWALK_SHA"
+  check_sha256 release-acs-person-zip "$ACS_PERSON" "$ACS_PERSON_SHA"
+  check_sha256 release-acs-household-zip "$ACS_HOUSEHOLD" "$ACS_HOUSEHOLD_SHA"
 }
 
 check_dense_inputs() {
@@ -1227,6 +1231,10 @@ DENSE_COMMAND=(
   --org-wages-donor "$ORG_WAGES"
   --ssi-take-up-prior-weight-basis "$SSI_BASIS"
   --ssi-take-up-prior-weight-basis-sha256 "$SSI_BASIS_SHA"
+  --acs-person-zip "$ACS_PERSON"
+  --acs-person-sha256 "$ACS_PERSON_SHA"
+  --acs-household-zip "$ACS_HOUSEHOLD"
+  --acs-household-sha256 "$ACS_HOUSEHOLD_SHA"
   --seed 0
   --epochs 3000
   --checkpoint-root "$DENSE_CHECKPOINTS"
@@ -1251,6 +1259,10 @@ SPARSE_COMMAND=(
   --org-wages-donor "$ORG_WAGES"
   --ssi-take-up-prior-weight-basis "$SPARSE_SSI_BASIS"
   --ssi-take-up-prior-weight-basis-sha256 "$SPARSE_SSI_BASIS_SHA"
+  --acs-person-zip "$ACS_PERSON"
+  --acs-person-sha256 "$ACS_PERSON_SHA"
+  --acs-household-zip "$ACS_HOUSEHOLD"
+  --acs-household-sha256 "$ACS_HOUSEHOLD_SHA"
   --seed 0
   --epochs 6000
   --checkpoint-root "$SPARSE_CHECKPOINTS"
@@ -1265,9 +1277,9 @@ if [ "$DRY_RUN" -eq 1 ]; then
   emit "PRECONDITION PLAN stage=pool poll_seconds=300 need_reclaimable_gib=85 checks=no-pool-or-release-builder,AC-power,go-marker:$GO_MARKER"
   print_command "COMMAND stage=pool" /usr/bin/time -l /usr/bin/env -u POPULACE_LOGBOOK_PREV_ROW_DIGEST "${POOL_COMMAND[@]}"
   emit "POOL MANIFEST PIN DEFERRED dynamic_output=$POOL_MANIFEST release-wrapper-will-record-and-consume-full-sha256"
-  emit "PRECONDITION PLAN stage=release-dense poll_seconds=300 need_reclaimable_gib=85 checks=no-pool-or-release-builder,AC-power,go-marker:$GO_MARKER"
+  emit "PRECONDITION PLAN stage=release-dense poll_seconds=300 need_reclaimable_gib=70 checks=no-pool-or-release-builder,AC-power,go-marker:$GO_MARKER"
   print_command "COMMAND stage=release-dense" /usr/bin/time -l /usr/bin/env -u POPULACE_LOGBOOK_PREV_ROW_DIGEST "${DENSE_COMMAND[@]}"
-  emit "PRECONDITION PLAN stage=release-sparse poll_seconds=300 need_reclaimable_gib=85 checks=no-pool-or-release-builder,AC-power,go-marker:$GO_MARKER"
+  emit "PRECONDITION PLAN stage=release-sparse poll_seconds=300 need_reclaimable_gib=70 checks=no-pool-or-release-builder,AC-power,go-marker:$GO_MARKER"
   print_command "COMMAND stage=release-sparse" /usr/bin/time -l /usr/bin/env -u POPULACE_LOGBOOK_PREV_ROW_DIGEST "${SPARSE_COMMAND[@]}"
 else
   recheck_code_authority
