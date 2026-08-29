@@ -12208,3 +12208,324 @@ def test_evidence_mode_conversion_is_pinned_structurally() -> None:
     assert len(owner_check_calls) == 5, (
         f"expected 5 owner-resolution sites in _main(), found {len(owner_check_calls)}"
     )
+
+
+def test_release_gate_roster_exactly_classifies_support_and_source_semantics() -> (
+    None
+):
+    """Every direct release gate is executable-ledgered, not prose-classified.
+
+    The #794 sweep found the farm gate but called it unchanged after static
+    role review.  This inventory closes that gap: it exact-compares every
+    direct gate-like call in ``_main`` (plus the two source-presence
+    boundaries), resolves the defining runtime module, discovers semantic
+    support/clone markers, and binds every in-class row to a reviewed replay
+    verdict.  A new call cannot enter the release path without classification.
+    """
+    import ast
+    from collections import Counter
+
+    builder = _load_builder_module()
+    source = Path(builder.__file__).read_text()
+    tree = ast.parse(source)
+    main_fn = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "_main"
+    )
+    special_boundaries = {
+        "assert_puf_capital_gains_tail_survives_selection",
+        "join_acs_release_predictors",
+        "us_ssi_take_up_reporter_source_ids",
+    }
+    direct_calls = Counter(
+        node.func.id
+        for node in ast.walk(main_fn)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and (
+            node.func.id.endswith("_gate")
+            or node.func.id in special_boundaries
+        )
+    )
+
+    # verdicts: old candidate-25 replay where valid; otherwise the exact
+    # stage-order reason a raw-pool replay is not a valid observation.
+    relevant = {
+        "_exact_k_puf_tail_support_gate": (
+            "build_us_fiscal_refresh_release",
+            1,
+            "conditional_exact_k_n_a",
+        ),
+        "_health_input_signal_gate": (
+            "build_us_fiscal_refresh_release",
+            2,
+            "initial_stacked_safe_unrelated_red_then_stage_n_a",
+        ),
+        "assert_puf_capital_gains_tail_survives_selection": (
+            "puf_capital_gains_tail",
+            2,
+            "initial_stacked_safe_then_selection_n_a",
+        ),
+        "join_acs_release_predictors": (
+            "acs_release_predictors",
+            1,
+            "source_boundary_stacked_safe",
+        ),
+        "us_alimony_signal_gate": ("alimony", 1, "stacked_safe"),
+        "us_capital_gain_details_signal_gate": (
+            "capital_gain_details",
+            1,
+            "fixed_writer",
+        ),
+        "us_child_support_signal_gate": ("child_support", 1, "stacked_safe"),
+        "us_childcare_signal_gate": ("childcare", 1, "stacked_safe"),
+        "us_disability_benefits_signal_gate": (
+            "disability_benefits",
+            1,
+            "stacked_safe",
+        ),
+        "us_domestic_production_ald_signal_gate": (
+            "domestic_production",
+            1,
+            "fixed_writer",
+        ),
+        "us_education_inputs_signal_gate": (
+            "education_inputs",
+            1,
+            "stacked_safe_unrelated_red",
+        ),
+        "us_educator_expense_signal_gate": (
+            "educator_expenses",
+            1,
+            "fixed_writer",
+        ),
+        "us_energy_subsidy_signal_gate": (
+            "energy_subsidy",
+            1,
+            "stacked_safe",
+        ),
+        "us_farm_business_income_signal_gate": (
+            "farm_business_income",
+            1,
+            "fixed_writer",
+        ),
+        "us_form_4952_election_signal_gate": (
+            "form_4952",
+            1,
+            "fixed_writer",
+        ),
+        "us_housing_inputs_signal_gate": (
+            "housing_inputs",
+            1,
+            "stacked_safe_unrelated_red",
+        ),
+        "us_medicare_take_up_signal_gate": (
+            "medicare_take_up",
+            1,
+            "stacked_safe",
+        ),
+        "us_org_wages_signal_gate": ("org_wages", 1, "stage_order_n_a"),
+        "us_other_health_insurance_signal_gate": (
+            "other_health_insurance",
+            2,
+            "stage_order_n_a",
+        ),
+        "us_pregnancy_signal_gate": ("pregnancy", 1, "stacked_safe"),
+        "us_prior_year_income_signal_gate": (
+            "prior_year_income",
+            1,
+            "authenticated_pool_stacked_safe",
+        ),
+        "us_qbi_inputs_signal_gate": ("qbi_inputs", 1, "stacked_safe"),
+        "us_reported_coverage_vintage_signal_gate": (
+            "support_provenance",
+            2,
+            "initial_stacked_safe_unrelated_red_then_stage_n_a",
+        ),
+        "us_retirement_contributions_signal_gate": (
+            "retirement_contributions",
+            1,
+            "stacked_safe",
+        ),
+        "us_retirement_distributions_signal_gate": (
+            "retirement_distributions",
+            1,
+            "stacked_safe",
+        ),
+        "us_salt_refund_income_signal_gate": (
+            "salt_refund_income",
+            1,
+            "fixed_writer",
+        ),
+        "us_scf_auto_loans_signal_gate": (
+            "scf_auto_loans",
+            1,
+            "stage_order_n_a",
+        ),
+        "us_scf_wealth_signal_gate": ("scf_wealth", 1, "stage_order_n_a"),
+        "us_sipp_head_start_signal_gate": (
+            "sipp_head_start",
+            1,
+            "stage_order_n_a",
+        ),
+        "us_sipp_tips_signal_gate": ("sipp_tips", 1, "stage_order_n_a"),
+        "us_sipp_vehicles_signal_gate": (
+            "sipp_vehicles",
+            1,
+            "stage_order_n_a",
+        ),
+        "us_ssi_disability_criteria_signal_gate": (
+            "ssi_disability_criteria",
+            1,
+            "stage_order_n_a",
+        ),
+        "us_ssi_take_up_gate": ("ssi_take_up", 2, "stage_order_n_a"),
+        "us_ssi_take_up_reporter_source_ids": (
+            "ssi_take_up",
+            1,
+            "source_boundary_stacked_safe",
+        ),
+        "us_voluntary_filing_signal_gate": (
+            "voluntary_filing",
+            1,
+            "stage_order_n_a",
+        ),
+        "us_weeks_unemployed_signal_gate": (
+            "weeks_unemployed",
+            2,
+            "initial_stacked_safe_then_selection_n_a",
+        ),
+        "us_wic_claim_signal_gate": (
+            "wic_claim",
+            1,
+            "stacked_safe_unrelated_red",
+        ),
+        "us_workers_compensation_signal_gate": (
+            "workers_compensation",
+            1,
+            "stacked_safe",
+        ),
+    }
+    out_of_class = {
+        "_base_population_scale_gate": ("build_us_fiscal_refresh_release", 1),
+        "_degenerate_input_signal_gate": ("build_us_fiscal_refresh_release", 1),
+        "_ecps_parity_gate": ("build_us_fiscal_refresh_release", 1),
+        "_exact_k_frozen_register_fit_gate": (
+            "build_us_fiscal_refresh_release",
+            1,
+        ),
+        "_export_input_mass_gate": ("build_us_fiscal_refresh_release", 1),
+        "_input_mass_reference_gate": ("build_us_fiscal_refresh_release", 1),
+        "_qrf_tail_concentration_gate": ("build_us_fiscal_refresh_release", 1),
+        "target_profile_coverage_gate": ("gates", 1),
+        "us_casualty_loss_signal_gate": ("casualty_losses", 1),
+        "us_eligibility_inputs_signal_gate": ("eligibility_inputs", 1),
+        "us_hours_worked_signal_gate": ("hours_worked", 1),
+        "us_immigration_composition_gate": ("immigration", 1),
+        "us_medicaid_take_up_gate": ("medicaid_take_up", 1),
+        "us_misc_itemized_signal_gate": ("misc_itemized", 1),
+        "us_reform_coverage_smoke_gate": ("reform_coverage_smoke", 1),
+        "us_register_consistency_gate": ("register_consistency", 1),
+        "us_relationship_inputs_signal_gate": ("relationship_inputs", 1),
+        "us_release_input_coverage_gate": ("release_input_coverage", 1),
+        "us_release_target_parity_gate": ("release_target_parity", 1),
+        "us_snap_discretionary_exemption_signal_gate": (
+            "snap_discretionary_exemption",
+            1,
+        ),
+        "us_snap_state_take_up_gate": ("snap_state_take_up", 1),
+        "us_snap_take_up_signal_gate": ("snap_take_up", 1),
+        "us_take_up_signal_gate": ("take_up", 1),
+        "us_validation_input_coverage_gate": ("validation_input_coverage", 1),
+    }
+    reviewed_identities = {
+        name: (module, count)
+        for name, (module, count, _verdict) in relevant.items()
+    } | out_of_class
+    actual_identities = {
+        name: (
+            getattr(builder, name).__module__.rsplit(".", 1)[-1],
+            count,
+        )
+        for name, count in direct_calls.items()
+    }
+    assert actual_identities == reviewed_identities
+
+    semantic_markers = (
+        "BASE_ASEC_SUPPORT_CHANNEL",
+        "PUF_TAX_DETAIL_SUPPORT_CHANNEL",
+        "support_channel_column",
+        "support_clone_index_column",
+        "support_role_series",
+        "support_gate_source_channel_series",
+        "person_source_id",
+        "tax_unit_source_id",
+        "spine_source_id_column",
+    )
+    discovered: set[str] = set()
+    for name in actual_identities:
+        function = getattr(builder, name)
+        module = function.__module__.rsplit(".", 1)[-1]
+        if module == "build_us_fiscal_refresh_release":
+            semantic_source = inspect.getsource(function)
+        else:
+            source_path = inspect.getsourcefile(function)
+            assert source_path is not None
+            semantic_source = Path(source_path).read_text()
+        if any(marker in semantic_source for marker in semantic_markers):
+            discovered.add(name)
+    explicit_source_presence = {
+        "_exact_k_puf_tail_support_gate",
+        "_health_input_signal_gate",
+        "us_org_wages_signal_gate",
+        "us_scf_auto_loans_signal_gate",
+        "us_scf_wealth_signal_gate",
+        "us_sipp_tips_signal_gate",
+        "us_sipp_vehicles_signal_gate",
+    }
+    assert discovered | explicit_source_presence == set(relevant)
+
+    fixed_gate_tests = {
+        "us_capital_gain_details_signal_gate": (
+            "test_us_capital_gain_details.py",
+            "test_signal_gate_accepts_both_stacked_leaves_with_native_zero",
+            "test_signal_gate_rejects_each_native_leaf_on_each_stacked_origin",
+        ),
+        "us_domestic_production_ald_signal_gate": (
+            "test_us_domestic_production.py",
+            "test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_zero",
+            "test_signal_gate_rejects_native_signal_on_each_stacked_origin",
+        ),
+        "us_educator_expense_signal_gate": (
+            "test_us_educator_expenses.py",
+            "test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_zero",
+            "test_signal_gate_rejects_native_signal_on_each_stacked_origin",
+        ),
+        "us_farm_business_income_signal_gate": (
+            "test_us_farm_business_income.py",
+            "test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_rent_zero",
+            "test_signal_gate_rejects_native_farm_rent_on_each_stacked_origin",
+        ),
+        "us_form_4952_election_signal_gate": (
+            "test_us_form_4952.py",
+            "test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_zero",
+            "test_signal_gate_rejects_native_signal_on_each_stacked_origin",
+        ),
+        "us_salt_refund_income_signal_gate": (
+            "test_us_salt_refund_income.py",
+            "test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_zero",
+            "test_signal_gate_rejects_native_signal_on_each_stacked_origin",
+        ),
+    }
+    assert {
+        gate for gate, (_module, _count, verdict) in relevant.items() if verdict == "fixed_writer"
+    } == set(fixed_gate_tests)
+    tests_root = Path(__file__).resolve().parent
+    for _gate, (filename, pass_case, contamination_case) in fixed_gate_tests.items():
+        regression_source = (tests_root / filename).read_text()
+        assert f"def {pass_case}" in regression_source
+        assert f"def {contamination_case}" in regression_source
+        assert '@pytest.mark.parametrize("physical_channel", ["asec", "acs"])' in (
+            regression_source
+        )

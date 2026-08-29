@@ -15,7 +15,10 @@ from microcosm.build.us_runtime import (
     clone_us_frame_for_puf_support,
     impute_us_puf_tax_detail_support,
     puf_tax_unit_donor_from_arrays,
+    spine_source_id_column,
     support_channel_column,
+    support_clone_index_column,
+    support_source_id_column,
     us_release_reform_coverage_probes,
 )
 from microcosm.build.us_runtime import puf_support as puf_support_module
@@ -46,6 +49,7 @@ _ARCHIVED_ROOT = (
     "42ed5d45c56df80d754fbe24cce21cfeb8d05cbe/"
     "policyengine_" + "us_data/"
 )
+_STACKED_ROWS_PER_ARM = 1_000
 
 
 class _ResolvedWeights:
@@ -65,6 +69,36 @@ class _PersonFrame:
     def resolve_weights(self, entity: str) -> _ResolvedWeights:
         assert entity == "person"
         return _ResolvedWeights(np.asarray(self._weights, dtype=np.float64))
+
+
+def _stacked_educator_signal() -> pd.DataFrame:
+    rows = _STACKED_ROWS_PER_ARM
+    person = pd.DataFrame(
+        {
+            support_channel_column("person"): np.repeat(
+                ["asec", "acs", "asec", "acs", "asec", "acs"], rows
+            ),
+            support_clone_index_column("person"): np.repeat(
+                [0, 0, 1, 1, 2, 2], rows
+            ),
+            support_source_id_column("person"): np.tile(
+                np.concatenate(
+                    [
+                        np.arange(1, rows + 1, dtype=np.int64),
+                        np.arange(rows + 1, 2 * rows + 1, dtype=np.int64),
+                    ]
+                ),
+                3,
+            ),
+            spine_source_id_column("person"): np.tile(
+                np.arange(1, rows + 1, dtype=np.int64), 6
+            ),
+        }
+    )
+    person["educator_expense"] = 0.0
+    for arm in (2, 3, 4, 5):
+        person.loc[arm * rows : arm * rows + 19, "educator_expense"] = 300.0
+    return person
 
 
 def _minimal_us_frame() -> Frame:
@@ -365,6 +399,50 @@ def test_signal_gate_requires_exact_zero_asec_and_sparse_nonzero_puf() -> None:
     failed = us_educator_expense_signal_gate(contaminated)  # type: ignore[arg-type]
     assert not failed.passed
     assert any("ASEC support channel" in failure for failure in failed.failures)
+
+
+def test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_zero() -> None:
+    person = _stacked_educator_signal()
+    native = person[support_clone_index_column("person")].eq(0)
+
+    assert set(person.loc[native, support_channel_column("person")]) == {
+        "asec",
+        "acs",
+    }
+    assert person.loc[native, "educator_expense"].eq(0.0).all()
+
+    result = us_educator_expense_signal_gate(  # type: ignore[arg-type]
+        _PersonFrame(person)
+    )
+
+    assert result.passed, result.failures
+    assert result.details["channels"][BASE_ASEC_SUPPORT_CHANNEL][
+        "positive_share"
+    ] == pytest.approx(0.0)
+    assert result.details["channels"][PUF_TAX_DETAIL_SUPPORT_CHANNEL][
+        "positive_share"
+    ] == pytest.approx(0.02)
+
+
+@pytest.mark.parametrize("physical_channel", ["asec", "acs"])
+def test_signal_gate_rejects_native_signal_on_each_stacked_origin(
+    physical_channel: str,
+) -> None:
+    person = _stacked_educator_signal()
+    native_origin = person[support_clone_index_column("person")].eq(0) & person[
+        support_channel_column("person")
+    ].eq(physical_channel)
+    person.loc[person.index[native_origin][0], "educator_expense"] = 300.0
+
+    result = us_educator_expense_signal_gate(  # type: ignore[arg-type]
+        _PersonFrame(person)
+    )
+
+    assert not result.passed
+    assert (
+        "educator_expense: ASEC support channel must remain source-zero; "
+        "positive share is 0.0005."
+    ) in result.failures
 
 
 @requires_us

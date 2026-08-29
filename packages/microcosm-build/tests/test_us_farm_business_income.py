@@ -31,6 +31,10 @@ from microcosm.build.us_runtime.puf_support import (
     clone_us_frame_for_puf_support,
     impute_us_puf_tax_detail_support,
     puf_tax_unit_donor_from_arrays,
+    spine_source_id_column,
+    support_channel_column,
+    support_clone_index_column,
+    support_source_id_column,
 )
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
 
@@ -41,6 +45,73 @@ requires_us = pytest.mark.skipif(
 )
 
 _OPERATIONS, _RENT = US_FARM_BUSINESS_INCOME_OUTPUT_COLUMNS
+_STACKED_ROWS_PER_ARM = 1_000
+
+
+class _ResolvedWeights:
+    def __init__(self, values: np.ndarray) -> None:
+        self.values = values
+
+
+class _PersonGateFrame:
+    def __init__(self, person: pd.DataFrame) -> None:
+        self._person = person
+
+    def table(self, entity: str) -> pd.DataFrame:
+        assert entity == "person"
+        return self._person
+
+    def resolve_weights(self, entity: str) -> _ResolvedWeights:
+        assert entity == "person"
+        return _ResolvedWeights(np.ones(len(self._person), dtype=np.float64))
+
+
+def _stacked_person_support() -> pd.DataFrame:
+    rows = _STACKED_ROWS_PER_ARM
+    physical_channels = np.repeat(
+        ["asec", "acs", "asec", "acs", "asec", "acs"], rows
+    )
+    clone_indices = np.repeat([0, 0, 1, 1, 2, 2], rows)
+    assembled_source_ids = np.tile(
+        np.concatenate(
+            [
+                np.arange(1, rows + 1, dtype=np.int64),
+                np.arange(rows + 1, 2 * rows + 1, dtype=np.int64),
+            ]
+        ),
+        3,
+    )
+    raw_source_ids = np.tile(np.arange(1, rows + 1, dtype=np.int64), 6)
+    return pd.DataFrame(
+        {
+            support_channel_column("person"): physical_channels,
+            support_clone_index_column("person"): clone_indices,
+            support_source_id_column("person"): assembled_source_ids,
+            spine_source_id_column("person"): raw_source_ids,
+        }
+    )
+
+
+def _stacked_farm_signal() -> pd.DataFrame:
+    person = _stacked_person_support()
+    person[_OPERATIONS] = 0.0
+    person[_RENT] = 0.0
+    rows = _STACKED_ROWS_PER_ARM
+    person.loc[[0, rows, 2 * rows, 3 * rows, 4 * rows, 5 * rows], _OPERATIONS] = [
+        500.0,
+        -200.0,
+        700.0,
+        -300.0,
+        900.0,
+        -400.0,
+    ]
+    person.loc[[2 * rows, 3 * rows, 4 * rows, 5 * rows], _RENT] = [
+        300.0,
+        -100.0,
+        600.0,
+        -200.0,
+    ]
+    return person
 
 
 def _asec_frame() -> Frame:
@@ -326,6 +397,53 @@ def test_signal_gate_rejects_clipped_losses_and_asec_rent(
     gate = us_farm_business_income_signal_gate(misplaced)
     assert not gate.passed
     assert any("ASEC support carries nonzero" in failure for failure in gate.failures)
+
+
+def test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_rent_zero() -> None:
+    person = _stacked_farm_signal()
+    native = person[support_clone_index_column("person")].eq(0)
+
+    assert set(person.loc[native, support_channel_column("person")]) == {
+        "asec",
+        "acs",
+    }
+    assert person.loc[native, _RENT].eq(0.0).all()
+
+    gate = us_farm_business_income_signal_gate(  # type: ignore[arg-type]
+        _PersonGateFrame(person)
+    )
+
+    assert gate.passed, gate.failures
+    assert gate.details["columns"][_RENT]["channels"]["asec"][
+        "nonzero_rows"
+    ] == 0
+    assert gate.details["columns"][_RENT]["channels"]["puf_tax_detail"][
+        "positive_rows"
+    ] == 2
+    assert gate.details["columns"][_RENT]["channels"]["puf_tax_detail"][
+        "negative_rows"
+    ] == 2
+
+
+@pytest.mark.parametrize("physical_channel", ["asec", "acs"])
+def test_signal_gate_rejects_native_farm_rent_on_each_stacked_origin(
+    physical_channel: str,
+) -> None:
+    person = _stacked_farm_signal()
+    native_origin = person[support_clone_index_column("person")].eq(0) & person[
+        support_channel_column("person")
+    ].eq(physical_channel)
+    person.loc[person.index[native_origin][0], _RENT] = 1.0
+
+    gate = us_farm_business_income_signal_gate(  # type: ignore[arg-type]
+        _PersonGateFrame(person)
+    )
+
+    assert not gate.passed
+    assert (
+        "farm_rent_income: ASEC support carries nonzero values despite no "
+        "farm-rent source."
+    ) in gate.failures
 
 
 @requires_us

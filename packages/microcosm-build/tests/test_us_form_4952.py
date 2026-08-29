@@ -14,7 +14,10 @@ from microcosm.build.us_runtime import (
     clone_us_frame_for_puf_support,
     impute_us_puf_tax_detail_support,
     puf_tax_unit_donor_from_arrays,
+    spine_source_id_column,
     support_channel_column,
+    support_clone_index_column,
+    support_source_id_column,
 )
 from microcosm.build.us_runtime import puf_support as puf_support_module
 from microcosm.build.us_runtime.form_4952 import (
@@ -48,6 +51,8 @@ requires_us = pytest.mark.skipif(
     reason="requires the policyengine-us [us] extra (build environment)",
 )
 
+_STACKED_ROWS_PER_ARM = 1_000
+
 
 class _ResolvedWeights:
     def __init__(self, values: np.ndarray) -> None:
@@ -70,6 +75,37 @@ class _PersonFrame:
     def resolve_weights(self, entity: str) -> _ResolvedWeights:
         assert entity == "person"
         return _ResolvedWeights(np.asarray(self._weights, dtype=np.float64))
+
+
+def _stacked_form_4952_signal() -> pd.DataFrame:
+    rows = _STACKED_ROWS_PER_ARM
+    person = pd.DataFrame(
+        {
+            support_channel_column("person"): np.repeat(
+                ["asec", "acs", "asec", "acs", "asec", "acs"], rows
+            ),
+            support_clone_index_column("person"): np.repeat(
+                [0, 0, 1, 1, 2, 2], rows
+            ),
+            support_source_id_column("person"): np.tile(
+                np.concatenate(
+                    [
+                        np.arange(1, rows + 1, dtype=np.int64),
+                        np.arange(rows + 1, 2 * rows + 1, dtype=np.int64),
+                    ]
+                ),
+                3,
+            ),
+            spine_source_id_column("person"): np.tile(
+                np.arange(1, rows + 1, dtype=np.int64), 6
+            ),
+        }
+    )
+    output = "investment_income_elected_form_4952"
+    person[output] = 0.0
+    for arm in (2, 3, 4, 5):
+        person.loc[arm * rows : arm * rows + 2, output] = 1_000.0
+    return person
 
 
 def _joint_support_frame() -> Frame:
@@ -280,6 +316,50 @@ def test_signal_gate_accepts_source_aligned_sparse_nondefault_values() -> None:
     assert result.details["channels"]["puf_tax_detail"]["positive_share"] == (
         pytest.approx(0.003)
     )
+
+
+def test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_zero() -> None:
+    output = "investment_income_elected_form_4952"
+    person = _stacked_form_4952_signal()
+    native = person[support_clone_index_column("person")].eq(0)
+
+    assert set(person.loc[native, support_channel_column("person")]) == {
+        "asec",
+        "acs",
+    }
+    assert person.loc[native, output].eq(0.0).all()
+
+    result = us_form_4952_election_signal_gate(  # type: ignore[arg-type]
+        _PersonFrame(person)
+    )
+
+    assert result.passed, result.failures
+    assert result.details["channels"]["asec"]["weighted_total"] == 0.0
+    assert result.details["channels"]["puf_tax_detail"][
+        "positive_share"
+    ] == pytest.approx(0.003)
+
+
+@pytest.mark.parametrize("physical_channel", ["asec", "acs"])
+def test_signal_gate_rejects_native_signal_on_each_stacked_origin(
+    physical_channel: str,
+) -> None:
+    output = "investment_income_elected_form_4952"
+    person = _stacked_form_4952_signal()
+    native_origin = person[support_clone_index_column("person")].eq(0) & person[
+        support_channel_column("person")
+    ].eq(physical_channel)
+    person.loc[person.index[native_origin][0], output] = 10.0
+
+    result = us_form_4952_election_signal_gate(  # type: ignore[arg-type]
+        _PersonFrame(person)
+    )
+
+    assert not result.passed
+    assert (
+        "Form 4952 input must remain zero on the source-unobserved ASEC support "
+        "channel."
+    ) in result.failures
 
 
 @pytest.mark.parametrize(

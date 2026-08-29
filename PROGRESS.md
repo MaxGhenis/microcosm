@@ -15,13 +15,14 @@ PUF-support rows, but the generic post-PUF late producer treats every clone-0
 row as an authorized recipient and predicts `farm_rent_income` over both
 physical ACS and ASEC native rows. The same ownership mismatch affects six
 other source-unobserved PUF-detail leaves and would trip the next strict gate
-one build at a time. The repair will make the primary PUF stage explicitly
+one build at a time. The repair makes the primary PUF stage explicitly
 materialize structural zero on native rows for all seven leaves, retain and
 validate clone-positive payloads, exclude those whole-pool-complete leaves
 from predictive late transfer, and leave every gate threshold intact. That
-root repair is now implemented and focused contract/spec tests are green; the
-remaining work is the executable gate ledger, full regression inventory, and
-repository-wide verification.
+root repair and an executable complete gate ledger are now implemented. The
+seven writer surfaces and all six affected gate modules have focused stacked
+regressions; the remaining work is repository-wide verification and the final
+receipt report.
 
 The pool, sibling manifests/gates, and release logs under
 `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
@@ -118,19 +119,29 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
 - Focused writer/DAG tests pass through the full stacked executor, and focused
   bundle/compiler/legacy-adapter tests pass after source-derived identity
   regeneration. Focused Ruff is green.
+- Added an AST-backed inventory contract over every direct release-gate call.
+  It requires exact call counts and defining modules, divides the complete
+  roster into reviewed support/source-sensitive and out-of-class sets, and
+  requires semantic-marker discovery plus explicit source-presence cases to
+  equal the reviewed sensitive roster. Future direct calls cannot silently
+  bypass the sweep.
+- Added assembled ASEC+ACS stacked-frame regressions to all six gate modules
+  affected by the seven repaired leaves. Every gate accepts native structural
+  zero with nonzero clone-positive PUF detail, and every gate still rejects a
+  genuinely misplaced nonzero on either a physical ASEC-native or ACS-native
+  clone-0 row. The capital-details regression checks each of its two leaves
+  independently.
+- The executable roster test passes. The six gate files pass together (120
+  cases), focused Ruff passes, and `tools/ci_test_groups.py --verify` reports
+  all 313 tracked flat test files assigned with `verification=ok`.
 
 ## Next
 
-1. Add and commit the reviewed complete release-gate ledger and an executable
-   inventory contract so future direct support/source-sensitive gate calls
-   cannot remain prose-only or untested.
-2. Commit the stacked ACS+ASEC clone regressions for each fixed leaf and prove every
-   gate still refuses a truly misplaced native nonzero value.
-3. Run focused tests, `tools/ci_test_groups.py --verify`, full
-   `uv run pytest`, and `uv run ruff check .`; update this journal after each
-   coherent commit.
-4. Write the complete receipt, roster, history, changed-files, and verification
-   report to `out.md` and commit the final handoff.
+1. Commit the executable roster and stacked gate regressions.
+2. Run full `uv run pytest` and `uv run ruff check .`; repair any regressions
+   without weakening the ownership or gate contracts.
+3. Write the complete receipt, roster, history, changed-files, and verification
+   report to `out.md`, update this journal, and commit the final handoff.
 
 ---
 

@@ -30,7 +30,13 @@ from microcosm.build.us_runtime.puf_aggregate_records import (
     _reconcile_puf_capital_gain_details_from_sources,
     derive_puf_policyengine_variables,
 )
-from microcosm.build.us_runtime.puf_support import puf_tax_unit_donor_from_arrays
+from microcosm.build.us_runtime.puf_support import (
+    puf_tax_unit_donor_from_arrays,
+    spine_source_id_column,
+    support_channel_column,
+    support_clone_index_column,
+    support_source_id_column,
+)
 from microcosm.build.us_runtime.reform_coverage_smoke import _build_reform
 from microcosm.build.us_runtime.release_input_coverage import (
     RESTORED_REFERENCE_ECPS_REQUIRED_INPUTS,
@@ -43,6 +49,8 @@ requires_us = pytest.mark.skipif(
     not policyengine_us_installed,
     reason="requires the policyengine-us [us] extra (build environment)",
 )
+
+_STACKED_ROWS_PER_ARM = 1_000
 
 
 class _ResolvedWeights:
@@ -74,6 +82,55 @@ class _CapitalGainFrame:
 
     def resolve_weights(self, entity: str) -> _ResolvedWeights:
         return _ResolvedWeights(np.asarray(self._weights[entity], dtype=np.float64))
+
+
+def _stacked_capital_gain_table(*, entity: str, output: str) -> pd.DataFrame:
+    rows = _STACKED_ROWS_PER_ARM
+    table = pd.DataFrame(
+        {
+            support_channel_column(entity): np.repeat(
+                ["asec", "acs", "asec", "acs", "asec", "acs"], rows
+            ),
+            support_clone_index_column(entity): np.repeat(
+                [0, 0, 1, 1, 2, 2], rows
+            ),
+            support_source_id_column(entity): np.tile(
+                np.concatenate(
+                    [
+                        np.arange(1, rows + 1, dtype=np.int64),
+                        np.arange(rows + 1, 2 * rows + 1, dtype=np.int64),
+                    ]
+                ),
+                3,
+            ),
+            spine_source_id_column(entity): np.tile(
+                np.arange(1, rows + 1, dtype=np.int64), 6
+            ),
+        }
+    )
+    table[output] = 0.0
+    positives_per_arm = (
+        1 if output == "long_term_capital_gains_on_collectibles" else 4
+    )
+    for arm in (2, 3, 4, 5):
+        table.loc[
+            arm * rows : arm * rows + positives_per_arm - 1,
+            output,
+        ] = 500.0
+    return table
+
+
+def _stacked_capital_gain_frame() -> _CapitalGainFrame:
+    return _CapitalGainFrame(
+        person=_stacked_capital_gain_table(
+            entity="person",
+            output="long_term_capital_gains_on_collectibles",
+        ),
+        tax_unit=_stacked_capital_gain_table(
+            entity="tax_unit",
+            output="unrecaptured_section_1250_gain",
+        ),
+    )
 
 
 def test_archived_coordinates_pin_derivation_export_and_imputation() -> None:
@@ -254,6 +311,59 @@ def test_signal_gate_accepts_sparse_source_aligned_values() -> None:
     assert result.details["unrecaptured_section_1250_gain"][
         "positive_share"
     ] == pytest.approx(0.002)
+
+
+def test_signal_gate_accepts_both_stacked_leaves_with_native_zero() -> None:
+    frame = _stacked_capital_gain_frame()
+    for entity, output in (
+        ("person", "long_term_capital_gains_on_collectibles"),
+        ("tax_unit", "unrecaptured_section_1250_gain"),
+    ):
+        table = frame.table(entity)
+        native = table[support_clone_index_column(entity)].eq(0)
+        assert set(table.loc[native, support_channel_column(entity)]) == {
+            "asec",
+            "acs",
+        }
+        assert table.loc[native, output].eq(0.0).all()
+
+    result = us_capital_gain_details_signal_gate(frame)  # type: ignore[arg-type]
+
+    assert result.passed, result.failures
+    assert result.details["long_term_capital_gains_on_collectibles"]["channels"][
+        "puf_tax_detail"
+    ]["positive_rows"] == 4
+    assert result.details["unrecaptured_section_1250_gain"]["channels"][
+        "puf_tax_detail"
+    ]["positive_rows"] == 16
+
+
+@pytest.mark.parametrize(
+    ("entity", "output"),
+    [
+        ("person", "long_term_capital_gains_on_collectibles"),
+        ("tax_unit", "unrecaptured_section_1250_gain"),
+    ],
+)
+@pytest.mark.parametrize("physical_channel", ["asec", "acs"])
+def test_signal_gate_rejects_each_native_leaf_on_each_stacked_origin(
+    entity: str,
+    output: str,
+    physical_channel: str,
+) -> None:
+    frame = _stacked_capital_gain_frame()
+    table = frame.table(entity)
+    native_origin = table[support_clone_index_column(entity)].eq(0) & table[
+        support_channel_column(entity)
+    ].eq(physical_channel)
+    table.loc[table.index[native_origin][0], output] = 10.0
+
+    result = us_capital_gain_details_signal_gate(frame)  # type: ignore[arg-type]
+
+    assert not result.passed
+    assert (
+        f"{output} must remain zero on the source-unobserved ASEC channel."
+    ) in result.failures
 
 
 def test_release_wiring_promotes_only_source_backed_detail_leaves() -> None:

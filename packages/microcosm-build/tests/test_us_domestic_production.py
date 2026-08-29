@@ -24,12 +24,20 @@ from microcosm.build.us_runtime.puf_aggregate_records import (
 from microcosm.build.us_runtime.release_input_coverage import (
     us_release_reform_coverage_probes,
 )
+from microcosm.build.us_runtime.support_provenance import (
+    spine_source_id_column,
+    support_channel_column,
+    support_clone_index_column,
+    support_source_id_column,
+)
 
 policyengine_us_installed = importlib.util.find_spec("policyengine_us") is not None
 requires_us = pytest.mark.skipif(
     not policyengine_us_installed,
     reason="requires the policyengine-us [us] extra (build environment)",
 )
+
+_STACKED_ROWS_PER_ARM = 1_000
 
 
 class _ResolvedWeights:
@@ -53,6 +61,40 @@ class _TaxUnitFrame:
     def resolve_weights(self, entity: str) -> _ResolvedWeights:
         assert entity == "tax_unit"
         return _ResolvedWeights(np.asarray(self._weights, dtype=np.float64))
+
+
+def _stacked_domestic_production_signal() -> pd.DataFrame:
+    rows = _STACKED_ROWS_PER_ARM
+    tax_unit = pd.DataFrame(
+        {
+            support_channel_column("tax_unit"): np.repeat(
+                ["asec", "acs", "asec", "acs", "asec", "acs"], rows
+            ),
+            support_clone_index_column("tax_unit"): np.repeat(
+                [0, 0, 1, 1, 2, 2], rows
+            ),
+            support_source_id_column("tax_unit"): np.tile(
+                np.concatenate(
+                    [
+                        np.arange(1, rows + 1, dtype=np.int64),
+                        np.arange(rows + 1, 2 * rows + 1, dtype=np.int64),
+                    ]
+                ),
+                3,
+            ),
+            spine_source_id_column("tax_unit"): np.tile(
+                np.arange(1, rows + 1, dtype=np.int64), 6
+            ),
+        }
+    )
+    tax_unit["domestic_production_ald"] = 0.0
+    tax_unit.loc[[2 * rows, 3 * rows, 4 * rows, 5 * rows], "domestic_production_ald"] = [
+        100.0,
+        200.0,
+        300.0,
+        400.0,
+    ]
+    return tax_unit
 
 
 def test_archived_coordinates_are_immutable_and_cover_the_full_source_path() -> None:
@@ -211,6 +253,48 @@ def test_signal_gate_rejects_positive_values_on_the_asec_support_channel() -> No
 
     assert not result.passed
     assert any("ASEC support channel" in failure for failure in result.failures)
+
+
+def test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_zero() -> None:
+    tax_unit = _stacked_domestic_production_signal()
+    native = tax_unit[support_clone_index_column("tax_unit")].eq(0)
+
+    assert set(tax_unit.loc[native, support_channel_column("tax_unit")]) == {
+        "asec",
+        "acs",
+    }
+    assert tax_unit.loc[native, "domestic_production_ald"].eq(0.0).all()
+
+    result = us_domestic_production_ald_signal_gate(  # type: ignore[arg-type]
+        _TaxUnitFrame(tax_unit)
+    )
+
+    assert result.passed, result.failures
+    assert result.details["channels"]["asec"]["positive_rows"] == 0
+    assert result.details["channels"]["puf_tax_detail"]["positive_rows"] == 4
+
+
+@pytest.mark.parametrize("physical_channel", ["asec", "acs"])
+def test_signal_gate_rejects_native_signal_on_each_stacked_origin(
+    physical_channel: str,
+) -> None:
+    tax_unit = _stacked_domestic_production_signal()
+    native_origin = tax_unit[support_clone_index_column("tax_unit")].eq(
+        0
+    ) & tax_unit[support_channel_column("tax_unit")].eq(physical_channel)
+    tax_unit.loc[
+        tax_unit.index[native_origin][0], "domestic_production_ald"
+    ] = 50.0
+
+    result = us_domestic_production_ald_signal_gate(  # type: ignore[arg-type]
+        _TaxUnitFrame(tax_unit)
+    )
+
+    assert not result.passed
+    assert (
+        "domestic_production_ald has positive values on the ASEC support channel, "
+        "which has no E03240 source."
+    ) in result.failures
 
 
 @pytest.mark.parametrize(
