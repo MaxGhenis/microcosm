@@ -93,6 +93,35 @@ artifact, publication surface, or remote will be modified.
   semantics (native ACS weeks, ASEC-model transfer, or formula ownership). No
   modeling choice or gate weakening will be made in this lane without that
   ruling.
+- Replayed the four candidate housing failures exactly. The 31,133 assistance
+  mismatches and 260 positive-rent nonheads are physical-ACS coherence defects
+  caused by independent late target transfers. The other two failures reopen
+  the prior single-spine gate ruling with concrete authority receipts: all
+  91,032 nonfinite rents are physical-ACS `TYPEHUGQ` 2/3 group-quarters rows
+  whose absence receipt requires structural null, and `OWNED_OUTRIGHT` is a
+  valid physical-ACS `TEN` category. The exact gate text is: (1)
+  `takes_up_housing_assistance_if_eligible differs from measured
+  receives_housing_assistance on 31133 SPM unit(s).`; (2) `nonfinite
+  pre_subsidy_rent: 91032.`; (3) `positive rent on non-head people: 260.`;
+  and (4) `household tenure_type does not carry the three locked ASEC
+  categories: ['NONE', 'OWNED_OUTRIGHT', 'OWNED_WITH_MORTGAGE', 'RENTED'].`
+- Replayed the education red: all five AOTC facts disagree with final positive
+  qualified tuition on physical ACS rows because their independent final
+  transfer runs after the source operator's deterministic derivation. Four
+  mismatch counts are 17,290; the 1098-T/exception fact has 17,291. Replayed
+  the WIC red: physical-ACS independent transfer yields exact failures
+  `takes_up_wic_if_eligible: none weighted claim share 0.004767 outside
+  [0.000, 0.000]` and `takes_up_wic_if_eligible: 32078 support-clone claim
+  mismatch(es)`. These mechanisms are disjoint from and persist after the
+  farm seven-leaf repair.
+- Replayed all 14 vintage failures: seven reported-coverage outputs have zero
+  reporters over 78,289 `asec/2022` rows and again over 77,846 `asec/2023`
+  rows. The frozen Census-derived H5 cohorts carried only `NOW_GRP` and
+  `NOW_MRK`; this is a genuine ASEC raw-stage content defect, not sampling or
+  a gate assumption. The already pinned official 2023/2024/2025 ASEC CSV
+  person members contain every missing measured recode with complete unique
+  `PERIDNUM` keys and no null values, so the bounded repair is an exact,
+  authenticated `(source_year, PERIDNUM)` sidecar join—never imputation.
 
 ### Next
 
