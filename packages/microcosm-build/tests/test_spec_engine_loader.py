@@ -233,8 +233,8 @@ def test_semantic_hash_has_golden_vector_and_surface_separation(tmp_path) -> Non
         _rich_minimal(tmp_path / "xx", note="first", store="local:a"),
         kernel_registry=KernelRegistry.from_ids(SELECTION_KERNEL_IDS),
     )
-    # Pin the domain separator, normalization rules, schema-set receipt, and
-    # exact normative projection as one reviewable golden vector.
+    # Pin the domain separator, normalization rules, resolved seed-protocol
+    # source attestation, and exact normative projection as one golden vector.
     assert first.spec_sha256 == (
         "6ab678054ef55f2ff02e7ab4723824bf8042413be7d45b2eec87b507b12dfbc6"
     )
