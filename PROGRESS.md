@@ -8,14 +8,17 @@ Lane base: `7d44c0b5`
 
 ## State
 
-In progress. The immutable candidate-25 stacked pool sealed successfully but
-the DENSE release stopped in `us_farm_business_income_signal_gate` because
-`farm_rent_income` appeared nonzero on rows that the gate classified as the
-base ASEC support channel. This lane will establish row- and producer-level
-provenance from the supplied pool, enumerate every release-path gate that
-depends on support channel/source/single-spine row semantics, repair each
-genuine assumption at its root without weakening any threshold or skipping a
-stacked frame, and add stacked plus contamination regressions.
+In progress. The immutable candidate-25 evidence proves that the farm-rent
+failure is a writer defect, not channel-attribution drift, clone fan-out, or a
+gate defect. The stacked primary PUF producer correctly owns clone-positive
+PUF-support rows, but the generic post-PUF late producer treats every clone-0
+row as an authorized recipient and predicts `farm_rent_income` over both
+physical ACS and ASEC native rows. The same ownership mismatch affects six
+other source-unobserved PUF-detail leaves and would trip the next strict gate
+one build at a time. The repair will make the primary PUF stage explicitly
+materialize structural zero on native rows for all seven leaves, retain and
+validate clone-positive payloads, exclude those whole-pool-complete leaves
+from predictive late transfer, and leave every gate threshold intact.
 
 The pool, sibling manifests/gates, and release logs under
 `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
@@ -36,19 +39,71 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
   `7d44c0b5` before starting.
 - Identified the inherited `PROGRESS.md`, `FINAL_REPORT.md`, and `out.md` as
   historical lane journals; this section is the current lane state.
+- Verified the immutable manifest and HDF byte-for-byte against their sibling
+  SHA-256 receipt files. The current loader correctly refuses to authenticate
+  this older candidate because its frozen primary-QRF worker binding differs
+  from current source; after that expected boundary, all measurements below
+  were made by fixed-table, read-only HDF access with inherited household
+  importance weights reconstructed exactly.
+- Measured `farm_rent_income != 0` on the base-support operator role:
+  5,314 of 964,699 clone-0 people, or 0.550845% unweighted and 0.554078%
+  weighted (893,122.0409190694 / 161,190,788.52395308). The signal contains
+  3,125 positive and 2,189 negative rows, a weighted total of
+  5,573,148,282.564434, and a weighted absolute total of
+  14,861,079,373.331043.
+- Split the contamination by physical origin: 647 / 108,073 ASEC rows carry
+  501,191.0979286348 / 81,353,165.66410413 weight (0.616068%), while
+  4,667 / 856,626 ACS rows carry 391,930.9429904348 /
+  79,837,622.85984892 weight (0.490910%). Every flagged row has clone index
+  zero and consistent person/household physical channel, source ID, source
+  row, spine ID, and clone lineage. The canonical flagged-row receipt SHA-256
+  is `90385859bb275ac6394eb7487dd20e4bdf684779127e0cf74bdeb1119b0797e5`.
+- Rejected clone fan-out as the mechanism: all 5,314 native rows have a clone-1
+  counterpart, but 5,236 counterparts are zero and only 11 values are
+  bit-equal. Rejected a gate-column bug because `support_role_series`
+  intentionally maps clone zero to the base-support operator role and 647
+  physically ASEC-native rows are genuinely contaminated.
+- Traced the final producer in the manifest to
+  `transfer:person/puf_tax_itemization__batch_3`: the target receipt records
+  1,006,274 `puf_clone` producer rows and exactly 964,699 authorized/imputed
+  native recipients. Its checkpoint raw-draw bits equal every final clone-0
+  cell and every flagged nonzero cell, with raw-draw SHA-256
+  `67831fe4ac1269bfe1ffa00faf26034e3f10dde7df5333e4673b7c1e6005ed3d`.
+  This confirms mechanism (a), a generic late-writer scope bug.
+- Replayed the source-zero support gates over the real final pool. In addition
+  to farm rent, predictive late transfer contaminates `domestic_production_ald`
+  (2,095 native tax units), `educator_expense` (20,371 native people),
+  `investment_income_elected_form_4952` (1,657), `salt_refund_income`
+  (67,310), `long_term_capital_gains_on_collectibles` (601), and
+  `unrecaptured_section_1250_gain` (2,960). These are correct contamination
+  sentinels and will not be weakened or skipped.
+- Established the shared source contract for the seven leaves from their
+  runtime gates and `source_stages.json`: they are PUF tax-detail support only
+  and therefore structural zero on the native operator role. Other PUF-derived
+  leaves are not being generalized into this rule because some intentionally
+  use late native-row models.
+- Reconstructed #794 precisely. It did enumerate farm business at the release
+  call site, but grouped it with the six related gates as "intentionally
+  unchanged" after a static role-semantics review. It replayed only repaired
+  gates, never executed that unchanged group against the final pool, never
+  traced their assertions to the later generic writer receipts, and had no
+  executable roster-to-test ledger. The new sweep will bind the actual release
+  call roster to a reviewed semantic ledger and real-pool verdict for every
+  classified gate.
 
 ## Next
 
-1. Inventory the candidate HDF schema and manifest producer/transfer receipts,
-   then measure every nonzero `farm_rent_income` row classified as base ASEC:
-   counts, weights, source/channel/clone lineage, and final producer.
-2. Enumerate the complete dense/sparse release gate call roster and every
-   imported support-channel/source-presence/single-spine predicate; execute or
-   reproduce each verdict against the real candidate pool.
-3. Diagnose why the #794 roster sweep omitted this gate, repair all root
-   assumptions found, and add stacked-semantics plus true-contamination tests.
-4. Keep `tools/ci_test_groups.py --verify`, full `uv run pytest`, and
-   `uv run ruff check .` green; update this journal after each coherent commit.
+1. Commit the reviewed complete release-gate ledger and add an executable
+   inventory contract so future direct support/source-sensitive gate calls
+   cannot remain prose-only or untested.
+2. Implement a receipted primary-PUF native-zero materializer for the exact
+   seven source-unobserved leaves, mark their ownership whole-pool, and remove
+   them from the predictive post-PUF transfer surface.
+3. Add stacked ACS+ASEC clone regressions for each fixed leaf and prove every
+   gate still refuses a truly misplaced native nonzero value.
+4. Run focused tests, `tools/ci_test_groups.py --verify`, full
+   `uv run pytest`, and `uv run ruff check .`; update this journal after each
+   coherent commit.
 5. Write the complete receipt, roster, history, changed-files, and verification
    report to `out.md` and commit the final handoff.
 
