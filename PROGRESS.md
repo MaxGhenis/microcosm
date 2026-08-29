@@ -30,12 +30,35 @@ artifact, publication surface, or remote will be modified.
 - Reconfirmed the standing constraints: commit every coherent step, maintain
   this journal from the start, do not modify pool/release artifacts, do not
   push, and make `out.md` the final report with the required first line.
+- Traced the post-farm release order in current `_main`. On an authenticated
+  pool, the prior-year (`9578`) and housing (`9601`) gates consume the loaded
+  base after only release-owned value repairs and SNAP take-up; the education
+  (`9703`), pregnancy, and WIC (`9782`) source writers are explicitly skipped
+  when `pool_frame is not None`, so those gates consume the corresponding pool
+  content. The reported-coverage vintage gate (`9748`) likewise consumes that
+  frame directly.
+- Confirmed the release-only divergence for health: the first
+  `_health_input_signal_gate` call (`10261`) follows
+  `_with_aca_marketplace_source_outputs`, which replaces both required tax-unit
+  columns; the second call is on the later export frame. A raw-pool health red
+  is therefore not an actual-stage verdict unless it survives that producer.
+- Confirmed the merged ACS predictor join (`9828`) precedes exactly the six
+  archived-model producer/gate pairs: SCF wealth, SSI disability criteria, SCF
+  auto loans, SIPP vehicles, SIPP tips, and ORG wages/FLSA. The order is also
+  executable-contracted by
+  `test_acs_predictor_join_precedes_all_six_archived_model_stages`.
+- Exact-compared the requested surfaces with the farm repair's seven
+  PUF-detail/native-zero leaves. Housing, education/AOTC, reported coverage,
+  WIC, ACA health, prior-year income, ACS predictor inputs, and all six model
+  outputs are disjoint from those seven leaves; any existing red on those
+  surfaces is independent of the rebuild unless a later release producer
+  materializes it.
 
 ### Next
 
-Trace `_main` preprocessing and call order, build a read-only replay harness
-for the exact stage frames, then classify and disposition every requested
-gate before deciding whether this lane needs any additional code change.
+Finish the read-only numeric replays at those exact stage boundaries, classify
+and disposition every requested gate, and decide whether this lane needs any
+additional code change.
 
 ---
 
