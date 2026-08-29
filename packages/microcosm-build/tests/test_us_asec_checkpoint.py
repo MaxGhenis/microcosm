@@ -18,6 +18,7 @@ from microcosm.build.us_runtime import (
     ASEC_RAW_STAGE_OPERATOR_STATUS,
     ASEC_RAW_STAGE_SCHEMA_VERSION,
     ASEC_RAW_STAGE_STAGE,
+    ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
     PRE_ASSEMBLY_OPERATOR_OUTPUT_FAMILIES,
     assert_operator_free_source_frame,
     load_asec_pre_clone_checkpoint,
@@ -134,7 +135,12 @@ def _raw_binding(frame: Frame) -> dict[str, object]:
                 "operation": "exact_source_join",
                 "source_pins": [pin],
             }
-            for column in ("ED_VAL", "LKWEEKS", "PAW_TYP")
+            for column in (
+                "ED_VAL",
+                "LKWEEKS",
+                "PAW_TYP",
+                *ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
+            )
         },
         "schema_version": ASEC_RAW_STAGE_SCHEMA_VERSION,
         "source_construction_identity": frame_identity(frame).to_payload(),
@@ -166,6 +172,11 @@ def _raw_us_frame(*, id_offset: int = 0) -> Frame:
     tables["person"]["ED_VAL"] = [0.0, 500.0]
     tables["person"]["LKWEEKS"] = [-1, 12]
     tables["person"]["PAW_TYP"] = np.asarray([0, 1], dtype=np.int64)
+    for index, column in enumerate(ASEC_REPORTED_COVERAGE_RAW_COLUMNS):
+        tables["person"][column] = np.asarray(
+            [1 + index % 2, 2 - index % 2],
+            dtype=np.int64,
+        )
     return Frame(
         tables,
         source.schema,
@@ -248,7 +259,14 @@ def test_loads_operator_untouched_raw_stage_checkpoint(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "column",
-    ("ED_VAL", "LKWEEKS", "PAW_TYP", "PERIDNUM", "source_year"),
+    (
+        "ED_VAL",
+        "LKWEEKS",
+        "PAW_TYP",
+        "PERIDNUM",
+        "source_year",
+        *ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
+    ),
 )
 def test_raw_loader_rejects_missing_input_complete_source_column(
     tmp_path: Path,
@@ -278,6 +296,11 @@ def test_raw_loader_rejects_missing_input_complete_source_column(
         ("ED_VAL", [0.0, np.nan], "ED_VAL must be complete"),
         ("LKWEEKS", [-1, 53], "LKWEEKS must be complete"),
         ("PAW_TYP", [0, 4], "PAW_TYP must be complete integers"),
+        (
+            "NOW_MCAID",
+            [1, 0],
+            "NOW_MCAID must be complete integers in",
+        ),
     ),
 )
 def test_raw_loader_rejects_invalid_input_complete_source_values(

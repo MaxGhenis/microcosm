@@ -27,6 +27,9 @@ from microcosm.build.serialization_dtypes import canonicalize_frame_string_dtype
 from microcosm.build.us_runtime.operator_boundary import (
     assert_operator_free_source_frame,
 )
+from microcosm.build.us_runtime.reported_coverage_source import (
+    ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
+)
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
 
 __all__ = [
@@ -57,10 +60,10 @@ _BINDING_KEYS = frozenset(
 ASEC_RAW_STAGE_ARTIFACT_KIND = "populace_us_asec_raw_stage"
 ASEC_RAW_STAGE_CHECKPOINT_FILENAME = "asec_raw_stage.checkpoint.h5"
 ASEC_RAW_STAGE_OPERATOR_STATUS = "operator_untouched"
-# Version 3 added the PAW_TYP restoration that gates TANF enrollment; older
-# artifacts lack the gate column and must fail loudly rather than let
-# PAW_VAL-only conflation back in (microcosm#591).
-ASEC_RAW_STAGE_SCHEMA_VERSION = 3
+# Version 4 adds the seven measured NOW_* coverage recodes omitted by the
+# frozen 2022/2023 H5 inputs. Older artifacts would silently encode those
+# vintages as structural false coverage, so they are not source-compatible.
+ASEC_RAW_STAGE_SCHEMA_VERSION = 4
 ASEC_RAW_STAGE_STAGE = "raw_source_mapping"
 _RAW_STAGE_BINDING_KEYS = frozenset(
     {
@@ -75,9 +78,18 @@ _RAW_STAGE_BINDING_KEYS = frozenset(
         "stage",
     }
 )
-_RAW_SOURCE_MAPPING_COLUMNS = frozenset({"ED_VAL", "LKWEEKS", "PAW_TYP"})
+_RAW_SOURCE_MAPPING_COLUMNS = frozenset(
+    {"ED_VAL", "LKWEEKS", "PAW_TYP", *ASEC_REPORTED_COVERAGE_RAW_COLUMNS}
+)
 _RAW_STAGE_REQUIRED_PERSON_COLUMNS = frozenset(
-    {"ED_VAL", "LKWEEKS", "PAW_TYP", "PERIDNUM", "source_year"}
+    {
+        "ED_VAL",
+        "LKWEEKS",
+        "PAW_TYP",
+        "PERIDNUM",
+        "source_year",
+        *ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
+    }
 )
 _RAW_SOURCE_MAPPING_KEYS = frozenset(
     {
@@ -457,6 +469,17 @@ def _validate_raw_stage_source_columns(frame: Frame, *, path: Path) -> None:
             f"ASEC raw-stage checkpoint {path} PAW_TYP must be complete integers "
             "in {0, 1, 2, 3}."
         )
+
+    for column in ASEC_REPORTED_COVERAGE_RAW_COLUMNS:
+        values = pd.to_numeric(person[column], errors="coerce").to_numpy(
+            dtype=np.float64
+        )
+        valid = np.isfinite(values) & np.isin(values, (1.0, 2.0))
+        if not valid.all():
+            raise ValueError(
+                f"ASEC raw-stage checkpoint {path} {column} must be complete "
+                "integers in {1, 2}."
+            )
 
 
 def _validate_asec_frame(

@@ -700,6 +700,13 @@ from microcosm.build.us_runtime.release_target_parity import (
     us_release_target_parity_reviewed_exclusions,
     us_target_family_id,
 )
+from microcosm.build.us_runtime.reported_coverage_source import (
+    ASEC_REPORTED_COVERAGE_INCOME_YEARS,
+    ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
+    ASEC_REPORTED_COVERAGE_SOURCE_COLUMNS,
+    fill_asec_reported_coverage_source,
+    load_asec_reported_coverage_sources,
+)
 from microcosm.build.us_runtime.retirement_contributions import (
     US_RETIREMENT_CONTRIBUTION_NONCONSTANT_PERSON_COLUMNS,
     US_RETIREMENT_CONTRIBUTION_OUTPUT_COLUMNS,
@@ -1473,6 +1480,11 @@ __all__ = [
     "PAW_TYPE_VALID_CODES",
     "fill_asec_public_assistance_type_source",
     "load_asec_public_assistance_type_sources",
+    "ASEC_REPORTED_COVERAGE_INCOME_YEARS",
+    "ASEC_REPORTED_COVERAGE_RAW_COLUMNS",
+    "ASEC_REPORTED_COVERAGE_SOURCE_COLUMNS",
+    "fill_asec_reported_coverage_source",
+    "load_asec_reported_coverage_sources",
     "US_EDUCATION_INPUTS_REQUIRED_SOURCE_COLUMNS",
     "US_EDUCATION_INPUTS_STAGE_NAME",
     "derive_us_education_inputs_from_manifest",

@@ -145,6 +145,19 @@ artifact, publication surface, or remote will be modified.
   direct ACS `WKWN` mapping carried ephemerally by the release join while ASEC
   retains measured `WKSWORK`, but authorizing that formula-owned release
   materialization remains outside this lane.
+- Implemented the genuine reported-coverage content repair at the producing
+  ASEC raw stage. A new pinned-source loader reuses the existing official ASEC
+  archive/member SHA-256 authorities, requires complete unique 22-digit
+  `PERIDNUM` keys, redundant Census identity agreement, exact `{1, 2}` domains,
+  and consistency with any already-present value, then joins all seven
+  measured recodes by `(source_year, PERIDNUM)`. Each column receives its own
+  audit/mapping receipt. Raw checkpoint schema 4 now requires those columns
+  and mappings, so schema-3 artifacts fail closed. Read-only real-data replay
+  matched 290,398/290,398 locked 2022+2023 H5 people and restored nonzero
+  reporters (including Medicaid 28,184/26,367 and CHAMPVA 260/335). The focused
+  source/builder/checkpoint corridor passes 297 cases, the gate/source-closure
+  corridor passes 16, and targeted Ruff/format checks are green. No evidence
+  artifact or authored gate threshold changed.
 
 ### Next
 

@@ -253,6 +253,47 @@ def _public_assistance_type_source() -> pd.DataFrame:
     return source
 
 
+def _reported_coverage_source() -> pd.DataFrame:
+    source = pd.DataFrame(
+        {
+            "source_year": [2022, 2022, 2022],
+            "PH_SEQ": [101, 101, 202],
+            "P_SEQ": [1, 2, 1],
+            "A_LINENO": [1, 2, 1],
+            "PERIDNUM": [f"{value:022d}" for value in (1, 2, 3)],
+            "NOW_NONM": [1, 2, 2],
+            "NOW_MCAID": [2, 1, 2],
+            "NOW_CHAMPVA": [2, 2, 1],
+            "NOW_MIL": [1, 2, 2],
+            "NOW_VACARE": [2, 1, 2],
+            "NOW_OTHMT": [2, 2, 1],
+            "NOW_IHSFLG": [1, 2, 2],
+        }
+    )
+    source.attrs["source_audit"] = {
+        2022: {
+            "rows": 3,
+            "columns": {
+                column: {"yes_rows": int(source[column].eq(1).sum())}
+                for column in builder_coverage_columns()
+            },
+        }
+    }
+    return source
+
+
+def builder_coverage_columns() -> tuple[str, ...]:
+    return (
+        "NOW_NONM",
+        "NOW_MCAID",
+        "NOW_CHAMPVA",
+        "NOW_MIL",
+        "NOW_VACARE",
+        "NOW_OTHMT",
+        "NOW_IHSFLG",
+    )
+
+
 def _pooled_source_receipt(tmp_path: Path) -> dict[str, object]:
     return {
         "kind": "pooled_asec",
@@ -334,6 +375,11 @@ def _patch_raw_stage_sources(
         builder,
         "load_asec_public_assistance_type_sources",
         lambda _paths, *, income_years: _public_assistance_type_source(),
+    )
+    monkeypatch.setattr(
+        builder,
+        "load_asec_reported_coverage_sources",
+        lambda _paths, *, income_years: _reported_coverage_source(),
     )
     monkeypatch.setattr(
         builder,
@@ -820,6 +866,11 @@ def test_raw_stage_copy_adds_only_exact_source_mappings(
         "load_asec_public_assistance_type_sources",
         lambda _paths, *, income_years: _public_assistance_type_source(),
     )
+    monkeypatch.setattr(
+        builder,
+        "load_asec_reported_coverage_sources",
+        lambda _paths, *, income_years: _reported_coverage_source(),
+    )
 
     raw, mappings = builder._asec_raw_source_mapping_frame(
         args,
@@ -834,7 +885,17 @@ def test_raw_stage_copy_adds_only_exact_source_mappings(
     assert raw.table("person")["LKWEEKS"].tolist() == [7.0, -1.0, 12.0]
     assert raw.table("person")["ED_VAL"].tolist() == [0.0, 500.0, 1_000.0]
     assert raw.table("person")["PAW_TYP"].tolist() == [0, 1, 2]
-    assert set(mappings) == {"ED_VAL", "LKWEEKS", "PAW_TYP"}
+    for column in builder.ASEC_REPORTED_COVERAGE_RAW_COLUMNS:
+        assert (
+            raw.table("person")[column].tolist()
+            == _reported_coverage_source()[column].tolist()
+        )
+    assert set(mappings) == {
+        "ED_VAL",
+        "LKWEEKS",
+        "PAW_TYP",
+        *builder.ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
+    }
     assert all(
         mapping["operation"] == "exact_source_join"
         and mapping["join_keys"] == ["source_year", "PERIDNUM"]
@@ -925,6 +986,11 @@ def test_pooled_source_stage_dual_exports_without_changing_legacy_checkpoints(
     assert raw.table("person")["LKWEEKS"].tolist() == [7.0, -1.0, 12.0]
     assert raw.table("person")["ED_VAL"].tolist() == [0.0, 500.0, 1_000.0]
     assert raw.table("person")["PAW_TYP"].tolist() == [0, 1, 2]
+    for column in builder.ASEC_REPORTED_COVERAGE_RAW_COLUMNS:
+        assert (
+            raw.table("person")[column].tolist()
+            == _reported_coverage_source()[column].tolist()
+        )
     assert "age" not in raw.table("person")
     assert [path.name for path in args.checkpoint_dir.glob("*.frame.h5")] == [
         "000_source_construction.frame.h5"
@@ -976,6 +1042,10 @@ def test_completed_source_stage_repairs_raw_auxiliary_without_rewriting_legacy(
     repaired, _metadata = builder.load_asec_raw_stage_checkpoint(raw_path)
     assert repaired.table("person")["ED_VAL"].tolist() == [0.0, 500.0, 1_000.0]
     assert repaired.table("person")["PAW_TYP"].tolist() == [0, 1, 2]
+    for column in builder.ASEC_REPORTED_COVERAGE_RAW_COLUMNS:
+        assert repaired.table("person")[column].tolist() == (
+            _reported_coverage_source()[column].tolist()
+        )
 
 
 def test_source_and_preclone_stages_round_trip_design_weight_kind(

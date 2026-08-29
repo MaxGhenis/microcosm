@@ -21,6 +21,9 @@ from microcosm.build.us_runtime.public_assistance_type_source import (
     PAW_TYPE_TANF_CODES,
     fill_asec_public_assistance_type_source,
 )
+from microcosm.build.us_runtime.reported_coverage_source import (
+    fill_asec_reported_coverage_source,
+)
 from microcosm.frame import US_SCHEMA, Frame
 
 __all__ = [
@@ -137,6 +140,7 @@ def derive_us_cps_carried_inputs(
     frame: Frame,
     *,
     public_assistance_type_source: pd.DataFrame | None = None,
+    reported_coverage_source: pd.DataFrame | None = None,
 ) -> Frame:
     """Carry raw CPS ASEC values onto PE input leaves.
 
@@ -159,12 +163,23 @@ def derive_us_cps_carried_inputs(
     ``public_assistance_type_source`` — the pinned sidecar loaded by
     :func:`~microcosm.build.us_runtime.public_assistance_type_source.load_asec_public_assistance_type_sources`
     — which is joined transiently and never lands on the output frame.
+
+    ``reported_coverage_source`` restores the seven measured ``NOW_*``
+    at-interview recodes omitted by the frozen 2022/2023 source tables.  The
+    pinned sidecar join lands those raw recodes on the returned frame so the
+    derived coverage leaves and their source evidence stay together.
     """
 
     if frame.schema != US_SCHEMA:
         raise ValueError("CPS-carried derivations require the US schema.")
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
     person = tables["person"]
+    if reported_coverage_source is not None:
+        person = fill_asec_reported_coverage_source(
+            person,
+            reported_coverage_source,
+        )
+        tables["person"] = person
 
     _fill_missing(person, "age", _source(person, "A_AGE"))
     _fill_bool_missing(person, "is_female", _integer_source(person, "A_SEX") == 2)

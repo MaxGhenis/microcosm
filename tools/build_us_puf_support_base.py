@@ -51,6 +51,7 @@ from microcosm.build.us_runtime import (
     ASEC_RAW_STAGE_OPERATOR_STATUS,
     ASEC_RAW_STAGE_SCHEMA_VERSION,
     ASEC_RAW_STAGE_STAGE,
+    ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
     BASE_ASEC_SUPPORT_CHANNEL,
     CONGRESSIONAL_DISTRICT_VINTAGE_CROSSWALK_SHA256_ATTR,
     CONGRESSIONAL_DISTRICT_VINTAGE_TARGET_ATTR,
@@ -76,6 +77,7 @@ from microcosm.build.us_runtime import (
     fill_asec_2022_weeks_unemployed_source,
     fill_asec_education_assistance_source,
     fill_asec_public_assistance_type_source,
+    fill_asec_reported_coverage_source,
     finalize_puf_e01000_reconciliation,
     impute_us_housing_assistance_to_puf_support,
     impute_us_puf_tax_detail_support,
@@ -84,6 +86,7 @@ from microcosm.build.us_runtime import (
     load_asec_education_assistance_sources,
     load_asec_public_assistance_type_sources,
     load_asec_raw_stage_checkpoint,
+    load_asec_reported_coverage_sources,
     load_congressional_district_vintage_crosswalk,
     load_us_block_ladder,
     puf_tax_unit_donor_from_arrays,
@@ -322,10 +325,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=(
             "Optional INCOME_YEAR=PATH mapping to a local copy of the "
             "SHA-pinned official ASEC survey archive (zip or extracted "
-            "pppub member) restoring that pooled income year's ED_VAL and "
-            "PAW_TYP (income year YYYY maps to the survey-year YYYY+1 "
-            "archive). Years without a mapping are fetched from the "
-            "official Census archive and verified against the same pins."
+            "pppub member) restoring that pooled income year's ED_VAL, "
+            "PAW_TYP, and omitted reported-coverage NOW_* recodes (income "
+            "year YYYY maps to the survey-year YYYY+1 archive). Years "
+            "without a mapping are fetched from the official Census archive "
+            "and verified against the same pins."
         ),
     )
     parser.add_argument(
@@ -900,9 +904,18 @@ def _run_all(
         _asec_education_source_paths(args),
         income_years=_pooled_income_years(args),
     )
+    reported_coverage_source = load_asec_reported_coverage_sources(
+        _asec_education_source_paths(args),
+        income_years=_pooled_income_years(args),
+    )
     base = derive_us_cps_carried_inputs(
         raw_base,
         public_assistance_type_source=public_assistance_type_source,
+        reported_coverage_source=(
+            reported_coverage_source
+            if getattr(args, "asec_h5", None) is not None
+            else None
+        ),
     )
     base = with_us_prior_year_income_inputs(
         base,
@@ -1472,6 +1485,10 @@ def _run_all(
             "income_years": [int(year) for year in _pooled_income_years(args)],
             "audit": dict(public_assistance_type_source.attrs.get("source_audit", {})),
         },
+        "reported_coverage_source": {
+            "income_years": [int(year) for year in _pooled_income_years(args)],
+            "audit": dict(reported_coverage_source.attrs.get("source_audit", {})),
+        },
         "output_h5": str(output_h5),
         "output_sha256": _sha256(output_h5),
         "seed": args.seed,
@@ -1909,6 +1926,10 @@ def _asec_raw_source_mapping_frame(
         _asec_education_source_paths(args),
         income_years=_pooled_income_years(args),
     )
+    reported_coverage_source = load_asec_reported_coverage_sources(
+        _asec_education_source_paths(args),
+        income_years=_pooled_income_years(args),
+    )
     tables = {
         entity: source_frame.table(entity).copy(deep=True)
         for entity in source_frame.entities
@@ -1922,6 +1943,7 @@ def _asec_raw_source_mapping_frame(
         person,
         public_assistance_type_source,
     )
+    person = fill_asec_reported_coverage_source(person, reported_coverage_source)
     tables["person"] = person
     raw_frame = Frame(
         tables,
@@ -1988,6 +2010,25 @@ def _asec_raw_source_mapping_frame(
             "operation": "exact_source_join",
             "source_pins": education_pins,
         },
+        **{
+            column: {
+                "audit": {
+                    income_year: {
+                        "rows": audit["rows"],
+                        **audit["columns"][column],
+                    }
+                    for income_year, audit in dict(
+                        reported_coverage_source.attrs.get("source_audit", {})
+                    ).items()
+                },
+                "column": column,
+                "entity": "person",
+                "join_keys": ["source_year", "PERIDNUM"],
+                "operation": "exact_source_join",
+                "source_pins": education_pins,
+            }
+            for column in ASEC_REPORTED_COVERAGE_RAW_COLUMNS
+        },
     }
 
 
@@ -2002,9 +2043,18 @@ def _pre_clone_enrichment_stage(
         _asec_education_source_paths(args),
         income_years=_pooled_income_years(args),
     )
+    reported_coverage_source = load_asec_reported_coverage_sources(
+        _asec_education_source_paths(args),
+        income_years=_pooled_income_years(args),
+    )
     base = derive_us_cps_carried_inputs(
         raw_base,
         public_assistance_type_source=public_assistance_type_source,
+        reported_coverage_source=(
+            reported_coverage_source
+            if getattr(args, "asec_h5", None) is not None
+            else None
+        ),
     )
     base = with_us_prior_year_income_inputs(
         base,
@@ -2138,6 +2188,10 @@ def _pre_clone_enrichment_stage(
             "upstream_archive_sha256": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_SHA256,
             "rows": int(len(weeks_source)),
             "audit": dict(weeks_source.attrs.get("source_audit", {})),
+        },
+        "reported_coverage_source": {
+            "income_years": [int(year) for year in _pooled_income_years(args)],
+            "audit": dict(reported_coverage_source.attrs.get("source_audit", {})),
         },
     }
 
