@@ -53,12 +53,26 @@ artifact, publication surface, or remote will be modified.
   outputs are disjoint from those seven leaves; any existing red on those
   surfaces is independent of the rebuild unless a later release producer
   materializes it.
+- Reproduced the prior-year discrepancy at the true release boundary. The
+  authenticated stack receipt supplies version 4 / `sample_fraction=0.25`, and
+  the gate passes the candidate bytes at weighted availability
+  `0.042838786938937584` against the derived `[0.0125, 0.50]` band. However,
+  both unconditional release value repairs reconstructed `Frame` without its
+  metadata; line 9578 therefore saw no rung, applied `[0.05, 0.50]`, and
+  emitted `previous-year availability weighted share 0.042839 outside
+  [0.050000, 0.500000].`
+- Fixed that dense-blocking release-path plumbing defect at its root: the
+  Social Security component and non-schedule-D capital-gain value repairs now
+  preserve `frame.metadata` exactly alongside strata, weights, and mass log.
+  Their focused regressions carry a production-like rung receipt through each
+  constructor. The two focused tests pass and focused Ruff/diff checks are
+  green. No authored prior-year band or threshold changed.
 
 ### Next
 
-Finish the read-only numeric replays at those exact stage boundaries, classify
-and disposition every requested gate, and decide whether this lane needs any
-additional code change.
+Finish the remaining read-only numeric replays at their exact stage boundaries,
+classify and disposition every requested gate, and determine whether any other
+dense-blocking root fix is both authorized and locally achievable.
 
 ---
 

@@ -2803,6 +2803,7 @@ def test_social_security_component_value_repair_uses_registry_targets(
     small_frame,
 ) -> None:
     builder = _load_builder_module()
+    stacked_manifest = {"version": 4, "sample_fraction": 0.25}
     person = small_frame.table("person").copy()
     person["social_security_retirement"] = [1.0, 0.0, 2.0, 0.0]
     person["social_security_disability"] = [0.0, 3.0, 0.0, 1.0]
@@ -2815,6 +2816,7 @@ def test_social_security_component_value_repair_uses_registry_targets(
         },
         small_frame.schema,
         {"household": small_frame.weights_for("household")},
+        metadata={"us_stacked_spine_manifest": stacked_manifest},
     )
     targets = {
         "ssa_retirement_total": 10_000.0,
@@ -2841,6 +2843,7 @@ def test_social_security_component_value_repair_uses_registry_targets(
     )
 
     assert repair["applied"]
+    assert dict(repaired.metadata["us_stacked_spine_manifest"]) == stacked_manifest
     weights = pd.Series(repaired.resolve_weights("person").values)
     for role, column in builder.US_SOCIAL_SECURITY_COMPONENT_TARGET_ROLES.items():
         total = float((repaired.table("person")[column] * weights).sum())
@@ -2853,6 +2856,7 @@ def test_social_security_component_value_repair_uses_registry_targets(
 
 def test_non_sch_d_cgd_value_repair_pins_the_aged_soi_fact(small_frame) -> None:
     builder = _load_builder_module()
+    stacked_manifest = {"version": 4, "sample_fraction": 0.25}
     person = small_frame.table("person").copy()
     person["non_sch_d_capital_gains"] = [100.0, 0.0, 300.0, 0.0]
     frame = Frame(
@@ -2862,6 +2866,7 @@ def test_non_sch_d_cgd_value_repair_pins_the_aged_soi_fact(small_frame) -> None:
         },
         small_frame.schema,
         {"household": small_frame.weights_for("household")},
+        metadata={"us_stacked_spine_manifest": stacked_manifest},
     )
     # The REAL compiled spec name is the unsuffixed ledger source_record_id
     # (verified against a live v9.2 compile; PR #486 review finding 1).
@@ -2898,6 +2903,7 @@ def test_non_sch_d_cgd_value_repair_pins_the_aged_soi_fact(small_frame) -> None:
     )
 
     assert repair["applied"]
+    assert dict(repaired.metadata["us_stacked_spine_manifest"]) == stacked_manifest
     weights = pd.Series(repaired.resolve_weights("person").values)
     total = float((repaired.table("person")["non_sch_d_capital_gains"] * weights).sum())
     assert np.isclose(total, 500.0)

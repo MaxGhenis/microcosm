@@ -5758,6 +5758,7 @@ def _with_social_security_component_value_repair(
         {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
         frame.strata,
         mass_log=frame.mass_log,
+        metadata=frame.metadata,
     )
     return repaired, {
         "method": "rescale_social_security_component_leaves_to_ssa_targets",
@@ -5843,6 +5844,7 @@ def _with_non_sch_d_cgd_value_repair(
         {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
         frame.strata,
         mass_log=frame.mass_log,
+        metadata=frame.metadata,
     )
     return repaired, {
         "method": "rescale_non_sch_d_capital_gains_to_soi_table_1_4_fact",
