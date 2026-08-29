@@ -93,6 +93,20 @@ artifact, publication surface, or remote will be modified.
   semantics (native ACS weeks, ASEC-model transfer, or formula ownership). No
   modeling choice or gate weakening will be made in this lane without that
   ruling.
+- An independent source/receipt audit confirmed the exact ownership boundary.
+  The candidate carries raw ASEC `WKSWORK` plus both transferred hours leaves,
+  and its manifest records a passing 53-value weeks source surface followed by
+  `pool_excluded_outputs_removed.person=['weeks_worked']`. The ACS loader and
+  #805 join both omit `WKWN`; moreover #805 runs after the hours gate. The
+  pinned official ACS archive does contain `WKWN` on 1,767,132 of 3,422,888
+  people with the exact 1..52 domain (blank for its official NIU population),
+  so the evidence-favored smallest ruling is: authorize a **2024 release-only,
+  origin-aware measured leaf** before the hours gate—ASEC lineages use clipped
+  `WKSWORK`, ACS lineages use pinned `WKWN` with official blank/NIU mapped to
+  zero, and both fan out by authenticated source identity—while retaining the
+  pool's cross-period formula-owned exclusion. Alternatives are the larger
+  modeling choices of ASEC-to-ACS statistical transfer or changing ORG/FLSA's
+  denominator semantics. None is authorized here.
 - Replayed the four candidate housing failures exactly. The 31,133 assistance
   mismatches and 260 positive-rent nonheads are physical-ACS coherence defects
   caused by independent late target transfers. The other two failures reopen
