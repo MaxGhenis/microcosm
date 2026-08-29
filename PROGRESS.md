@@ -10,16 +10,34 @@ Lane base: `7d44c0b5`
 
 ### State
 
-In progress on 2026-08-29 from clean continuation base `2422669e`. This pass
-will reproduce the release builder's actual `base_frame` at each post-farm
-gate, record exact emitted failures for the five known candidate reds,
-reconcile the rung-aware prior-year floor, and adjudicate the six archived-
-model producer gates after the merged ACS predictor join. The immutable
-candidate-25 pool and release evidence remain read-only; no pool/release
-artifact, publication surface, or remote will be modified.
+In progress on 2026-08-29. Continuation r3 resumed at `615710d7` with the
+interrupted r2 implementation still dirty. Before any new implementation, the
+31 tracked files were verified byte-for-byte against salvage commit
+`38b424f8`, reviewed at the change-cluster level against this section's plan,
+and preserved as the explicitly unaccepted WIP commit `8129c9b7`. Evaluation
+will proceed through focused tests and independent source review; unsound
+pieces will be corrected by follow-up commits rather than history rewriting.
+The immutable candidate-25 pool and release evidence remain read-only; no
+pool/release artifact, publication surface, remote, or data build will be
+modified or run.
 
 ### Done
 
+- Read this 918-line journal in full before inspecting the worktree, then read
+  `CLAUDE.md` and the GitNexus debugging workflow. The repository remains
+  unindexed, so review uses direct source, tests, immutable evidence, and
+  executable call/dataflow receipts without generating unrelated index state.
+- Inventoried the inherited r2 tree: 31 tracked files, 4,595 insertions and 254
+  deletions, plus the r3 lane prompt. `git diff --check` was clean. The tracked
+  tree exactly matched salvage `38b424f8`, whose sole parent is `615710d7`;
+  only the session prompt differs between the preserved r2 salvage and r3.
+- Preserved the complete inherited tracked implementation at `8129c9b7` with
+  an honest WIP message. It appears to contain the joint `acs_rent`
+  property-tax producer and native ACS source-domain receipt, the ten-leaf
+  native-zero expansion, authority-bound SSI/rent/tenure engine-copy adapters,
+  stacked receipt propagation, generated spec/schema identity changes, and
+  focused fixtures. None of that inherited work is accepted merely by the
+  snapshot commit.
 - Re-read `CLAUDE.md`, confirmed the PR-CI/certification boundary and the
   root-journal history convention, and verified a clean
   `stacked-dense-gate-sweep` worktree at `2422669e` before this continuation.
@@ -251,11 +269,13 @@ artifact, publication surface, or remote will be modified.
 
 ### Next
 
-Finish the property-tax and native-zero source repairs, the bounded
-SSI/rent/tenure simulation-copy adapter, independent integration review, and
-the actual post-producer health replay; then write the verdict report and run
-repository-wide verification. The stacked `weeks_worked`/ORG ownership ruling
-remains an explicit dense blocker.
+Evaluate WIP `8129c9b7` with focused tests and independent integration review;
+keep and finish the sound property-tax/native-zero and bounded
+SSI/rent/tenure simulation-copy repairs, correcting defects only through
+follow-up commits. Then run the actual post-producer health replay over the
+existing candidate evidence, write the verdict report, and run repository-wide
+verification. The stacked `weeks_worked`/ORG ownership ruling remains an
+explicit dense blocker.
 
 ---
 
