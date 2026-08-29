@@ -158,13 +158,34 @@ artifact, publication surface, or remote will be modified.
   source/builder/checkpoint corridor passes 297 cases, the gate/source-closure
   corridor passes 16, and targeted Ruff/format checks are green. No evidence
   artifact or authored gate threshold changed.
+- Reproduced the first PolicyEngine dataset-boundary failure hidden behind the
+  archived-model ordering. At the true pre-SSI-take-up boundary, all 261,605
+  blank ACS `ssi_reported` cells belong to people below age 15, while ASEC has
+  234,133 blank `ssi_reported` cells but a complete measured `SSI_VAL` for all
+  of them (including 186,207 people age 15 or older). The first selected-
+  household SSI simulation batch therefore raises `Unable to set value for
+  variable "ssi_reported", as the input contains NaN values.` The bounded
+  adapter must coalesce the already-reviewed ASEC/ACS reporter anchor, convert
+  only the below-age-15 combined blank to zero, and leave the source `Frame`
+  byte-unchanged; adult blanks and conflicting reporters remain refusals.
+- Measured the other PolicyEngine copy-boundary structural-null universe
+  exactly. All 91,032 blank `pre_subsidy_rent` rows are authority-valid ACS
+  `TYPEHUGQ` 2/3 lineages: 45,510 clone-0, 45,510 clone-1, and 12 clone-2 rows.
+  The 45,510 unique sources fan out to 45,498 two-role and 12 three-role live
+  lineages, with person/household channel, clone role, and null tenure aligned
+  exactly. A clone-0-only artifact rule would wrongly exclude 45,522 valid
+  rows. Simulation batches preserve the whole-pool manifest but not its live
+  counts, so they cannot self-authenticate against aggregate digests. The
+  implementation will validate the full frame once, bind every authorized
+  person/household/source lineage, and let a selected batch materialize zero
+  only in its engine-copy when every blank row matches that prevalidated set.
 
 ### Next
 
-Finish the remaining read-only numeric replays at their exact stage boundaries;
-repair the bounded housing/education/WIC writer/gate defects and measured-
-vintage source deficiency; record the hours/ORG owner-ruling blocker precisely;
-then complete the verdict report and repository-wide verification.
+Finish the actual post-producer health replay; complete and review the bounded
+housing/education/WIC coherence repairs plus the engine-copy SSI/rent adapter;
+then write the verdict report and run repository-wide verification. The
+stacked `weeks_worked`/ORG ownership ruling remains an explicit dense blocker.
 
 ---
 
