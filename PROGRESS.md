@@ -38,6 +38,22 @@ modified or run.
   stacked receipt propagation, generated spec/schema identity changes, and
   focused fixtures. None of that inherited work is accepted merely by the
   snapshot commit.
+- Ran the first producer corridor: all 43 ACS-input and housing-input cases
+  pass. The broader stacked-spine/late-DAG/pool runtime cases were green, but
+  24 typed-spec cases errored because the inherited generated bindings outran
+  their closed JSON schema and reverse projector. The narrow schema/projector
+  repair is in progress; no stale generated identity will be hand-edited.
+- Independent integration review found stale current-version locks outside the
+  inherited diff. Commit `2ebd0a2c` updates stacked authority v12 and pool
+  checkpoint materializer v8 expectations, retains v7 as an explicitly tested
+  legacy checkpoint, and passes all 12 affected cases with focused Ruff.
+- The complete SSI/H5/release-builder adapter corridor passes 323 tests. Added
+  missing sparse-tenure and candidate-style full-clone/version-2-tail
+  regressions. The latter exposed a real loader defect: nested receipts are
+  frozen inside `Frame`, so shallow `dict` equality rejected an otherwise
+  exact version-2 receipt. Commit `f82d7bc8` compares JSON-normalized receipts;
+  both new cases and focused Ruff pass. The adapters still alter only engine
+  table copies and reject selected-batch lineage drift.
 - Re-read `CLAUDE.md`, confirmed the PR-CI/certification boundary and the
   root-journal history convention, and verified a clean
   `stacked-dense-gate-sweep` worktree at `2422669e` before this continuation.
@@ -269,13 +285,15 @@ modified or run.
 
 ### Next
 
-Evaluate WIP `8129c9b7` with focused tests and independent integration review;
-keep and finish the sound property-tax/native-zero and bounded
-SSI/rent/tenure simulation-copy repairs, correcting defects only through
-follow-up commits. Then run the actual post-producer health replay over the
-existing candidate evidence, write the verdict report, and run repository-wide
-verification. The stacked `weeks_worked`/ORG ownership ruling remains an
-explicit dense blocker.
+Finish the typed-schema/reverse-projection repair, regenerate the checked-in
+spec projection, and recut every mechanically derived compiler/coverage
+identity. Then complete independent review of the accepted
+property-tax/native-zero and bounded SSI/rent/tenure repairs, run the actual
+post-producer health replay over existing candidate evidence, write the verdict
+report, and run repository-wide verification. The stacked
+`weeks_worked`/ORG ownership ruling remains an explicit dense blocker; the
+separate untracked ruling note explicitly defers any implementation until this
+r3 lane completes and is not part of this lane.
 
 ---
 
