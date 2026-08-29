@@ -10015,6 +10015,103 @@ def test_dataset_from_frame_uses_full_frame_authority_for_selected_batch(
         )
 
 
+def test_dataset_from_frame_uses_full_frame_tenure_authority_for_selected_batch(
+    monkeypatch,
+) -> None:
+    from microcosm.build.us_runtime import stacked_spine as stacked_spine_module
+
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    household = frame.table("household")
+    spm_unit = frame.table("spm_unit")
+    household["tenure_type"] = pd.Series([np.nan, "RENTED"], dtype="object")
+    spm_unit["spm_unit_tenure_type"] = pd.Series(
+        [np.nan, "RENTER"], dtype="object"
+    )
+    for table, entity, source_ids in (
+        (household, "household", [101, 202]),
+        (spm_unit, "spm_unit", [1001, 2002]),
+    ):
+        table[f"{entity}_support_channel"] = ["acs", "asec"]
+        table[f"{entity}_support_clone_index"] = np.asarray([0, 0])
+        table[f"{entity}_source_id"] = np.asarray(source_ids)
+    source_tables = {
+        entity: frame.table(entity).copy(deep=True) for entity in frame.entities
+    }
+    validated_frames: list[Frame] = []
+
+    def fake_tenure_absence(frame_arg, *, boundary):
+        validated_frames.append(frame_arg)
+        assert frame_arg is frame
+        return (
+            {
+                "person": pd.Series(
+                    [True, True, False], index=frame.table("person").index
+                ),
+                "household": pd.Series([True, False], index=household.index),
+                "spm_unit": pd.Series([True, False], index=spm_unit.index),
+            },
+            {"rule_id": "fixture", "status": "exact_structural_absence"},
+        )
+
+    class CapturingDataset:
+        def __init__(self, **kwargs):
+            self.tables = kwargs
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validated_stacked_housing_tenure_absence",
+        fake_tenure_absence,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "policyengine_us.data",
+        SimpleNamespace(USSingleYearDataset=CapturingDataset),
+    )
+
+    authority = builder._simulation_dataset_authority(
+        frame,
+        boundary="selected-batch tenure fixture",
+    )
+    batch = builder._select_households_by_position(frame, np.asarray([0]))
+    dataset = builder._dataset_from_frame(
+        batch,
+        assert_no_formula_owned_columns=False,
+        simulation_dataset_authority=authority,
+    )
+
+    assert validated_frames == [frame]
+    assert dataset.tables["household"]["tenure_type"].tolist() == ["NONE"]
+    assert dataset.tables["spm_unit"]["spm_unit_tenure_type"].tolist() == [
+        "RENTER"
+    ]
+    for entity, source in source_tables.items():
+        pd.testing.assert_frame_equal(frame.table(entity), source, check_exact=True)
+
+    tables = {entity: batch.table(entity).copy() for entity in batch.entities}
+    tables["household"].loc[
+        tables["household"]["tenure_type"].isna(),
+        "household_source_id",
+    ] = 999
+    damaged_batch = Frame(
+        tables,
+        batch.schema,
+        {
+            entity: batch.weights_for(entity)
+            for entity in batch.weighted_entities
+        },
+        batch.strata,
+        mass_log=batch.mass_log,
+        metadata=batch.metadata,
+    )
+    with pytest.raises(ValueError, match=r"household\.tenure_type.*rows=1"):
+        builder._dataset_from_frame(
+            damaged_batch,
+            assert_no_formula_owned_columns=False,
+            simulation_dataset_authority=authority,
+        )
+
+
 def test_dataset_from_frame_materializes_only_authorized_group_quarters_tenure(
     monkeypatch,
 ) -> None:

@@ -46,6 +46,7 @@ from microcosm.build.us_runtime.h5_io import (
 )
 from microcosm.build.us_runtime.puf_support import (
     PUF_CLONE_ATTACHMENT_MANIFEST_KEY,
+    bind_puf_clone_attachment_tail_descendant,
     validate_puf_clone_attachment,
 )
 from microcosm.build.us_runtime.support_provenance import (
@@ -186,6 +187,79 @@ def _pool_frame_with_object_strings_on_every_entity(
         frame.strata,
         mass_log=frame.mass_log,
         metadata=metadata,
+    )
+
+
+def _full_tail_descendant_pool_frame() -> Frame:
+    """Match candidate-25's full attachment after a clone-2 tail split."""
+
+    base = _pool_frame_with_object_strings_on_every_entity(stacked=True)
+    tables: dict[str, pd.DataFrame] = {}
+    for entity in base.entities:
+        table = base.table(entity).copy()
+        id_column = US_SCHEMA.entity_id_column(entity)
+
+        asec_detail = table.iloc[[0]].copy()
+        asec_detail[id_column] = 40
+        asec_detail[support_clone_index_column(entity)] = 1
+
+        acs_tail = table.iloc[[2]].copy()
+        acs_tail[id_column] = 50
+        acs_tail[support_clone_index_column(entity)] = 2
+
+        if entity == "person":
+            for group_entity in US_SCHEMA.group_entities:
+                membership = US_SCHEMA.membership_column(group_entity)
+                asec_detail[membership] = 40
+                acs_tail[membership] = 50
+        tables[entity] = pd.concat(
+            [table, asec_detail, acs_tail],
+            ignore_index=True,
+        )
+
+    weights = {
+        entity: base.weights_for(entity) for entity in base.weighted_entities
+    }
+    weights["household"] = Weights(
+        np.asarray([2.0, 3.0, 2.0, 2.0, 1.0]),
+        WeightKind.IMPORTANCE,
+    )
+    pre_tail = Frame(
+        tables,
+        base.schema,
+        weights,
+        None,
+        mass_log=base.mass_log,
+        metadata={
+            key: value
+            for key, value in base.metadata.items()
+            if key != PUF_CLONE_ATTACHMENT_MANIFEST_KEY
+        },
+    )
+    selected_source_ids = np.asarray([10, 20], dtype=np.int64)
+    attachment_receipt = {
+        "authority_form": "full_clone_identity_no_manifest",
+        "clone_attachment_fraction": 1.0,
+        "clone_attachment_seed": 578,
+        "eligible_household_count": 2,
+        "requested_household_count": 2,
+        "realized_household_count": 2,
+        "exact_count_rule": "full native/detail identity",
+        "selected_household_source_ids_sha256": hashlib.sha256(
+            json.dumps(
+                selected_source_ids.tolist(),
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest(),
+    }
+    return bind_puf_clone_attachment_tail_descendant(
+        pre_tail,
+        attachment_receipt=attachment_receipt,
+        tail_manifest={
+            "stage": "puf_capital_gains_tail",
+            "manifest_sha256": "a" * 64,
+            "records": [{"recipient_household_source_id": 20}],
+        },
     )
 
 
@@ -677,6 +751,7 @@ def _write_ready_pool(
     *,
     stacked: bool = False,
     sample_fraction: float = 1.0,
+    pool_frame_override: Frame | None = None,
 ) -> Path:
     run_id = "fixture-publication"
     pool_path = tmp_path / "pool.h5"
@@ -693,7 +768,11 @@ def _write_ready_pool(
         },
     }
     schema_version = US_MULTISPINE_POOL_MANIFEST_SCHEMA_VERSION if stacked else 4
-    pool_frame = _pool_frame_with_object_strings_on_every_entity(stacked=stacked)
+    pool_frame = (
+        pool_frame_override
+        if pool_frame_override is not None
+        else _pool_frame_with_object_strings_on_every_entity(stacked=stacked)
+    )
     geography_assignment = (
         _fixture_geography_assignment(pool_frame.table("household"))
         if stacked
@@ -771,7 +850,7 @@ def _write_ready_pool(
             },
         },
         "agreement_gate": agreement_gate,
-        "provenance_counts": {"household": {"rows": 3}},
+        "provenance_counts": {"household": {"rows": pool_frame.n("household")}},
         "pool_h5": {
             "path": str(pool_path.resolve()),
             "sha256": _sha256(pool_path),
@@ -1606,6 +1685,55 @@ def test_ready_stacked_pool_loader_requires_clone_attachment_receipt(
         match=r"stacked_puf_pass\.clone_attachment must be an object",
     ):
         load_simulation_ready_us_multispine_pool(manifest_path)
+
+
+def test_ready_stacked_pool_loader_restores_full_tail_attachment(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("tables")
+    source = _full_tail_descendant_pool_frame()
+    manifest_path = _write_ready_pool(
+        tmp_path,
+        stacked=True,
+        sample_fraction=1.0,
+        pool_frame_override=source,
+    )
+
+    frame, manifest, _ = load_simulation_ready_us_multispine_pool(manifest_path)
+
+    receipt = frame.metadata[PUF_CLONE_ATTACHMENT_MANIFEST_KEY]
+    assert receipt["version"] == 2
+    assert receipt["clone_attachment_fraction"] == 1.0
+    assert stacked_spine_module._json_ready(
+        receipt["post_attachment_transform"]
+    ) == {
+        "stage": "puf_capital_gains_tail",
+        "tail_clone_index": 2,
+        "tail_manifest_sha256": "a" * 64,
+        "tail_household_count": 1,
+        "tail_household_source_ids_sha256": hashlib.sha256(
+            json.dumps([20], separators=(",", ":")).encode("utf-8")
+        ).hexdigest(),
+    }
+    assert (
+        stacked_spine_module._json_ready(receipt)
+        == manifest["stage_receipts"]["impute"]["stacked_puf_pass"][
+            "clone_attachment"
+        ]
+    )
+    assert (
+        validate_puf_clone_attachment(
+            frame,
+            boundary="full tail loader regression",
+            expected_fraction=1.0,
+            expected_seed=578,
+        )
+        is receipt
+    )
+    stacked_spine_module._validate_stacked_clone_role_lifecycle(
+        frame,
+        boundary="full tail housing authority regression",
+    )
 
 
 def test_ready_stacked_pool_loader_validates_clone_attachment_against_h5(

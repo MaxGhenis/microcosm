@@ -1865,13 +1865,15 @@ def _load_us_multispine_pool(
         )
     if clone_attachment is not None:
         attachment_receipt, attachment_fraction, attachment_seed = clone_attachment
+        from microcosm.build.us_runtime.stacked_spine import _json_ready
+
         validated_attachment = validate_puf_clone_attachment(
             frame,
             boundary=f"US multispine pool H5 {pool_path}",
             expected_fraction=attachment_fraction,
             expected_seed=attachment_seed,
         )
-        if dict(validated_attachment) != dict(attachment_receipt):
+        if _json_ready(validated_attachment) != _json_ready(attachment_receipt):
             raise ValueError(
                 f"US multispine pool H5 {pool_path} live clone attachment "
                 "differs from its frozen manifest receipt."
