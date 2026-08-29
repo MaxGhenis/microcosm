@@ -22,8 +22,11 @@ from predictive late transfer, and leave every gate threshold intact. That
 root repair and an executable complete gate ledger are now implemented. The
 seven writer surfaces and all six affected gate modules have focused stacked
 regressions. A first full-suite pass exposed and the lane has now recut every
-closed compiler-coverage identity affected by the smaller producer graph; the
-remaining work is a clean full-suite rerun and the final receipt report.
+closed compiler-coverage identity affected by the smaller producer graph. The
+latest restart reached 922 passing cases before exposing the loader's one
+schema-catalog semantic-hash golden. That exact vector is now recut and its
+full loader/schema corridor passes. The remaining work is a clean full-suite
+rerun and the final receipt report.
 
 The pool, sibling manifests/gates, and release logs under
 `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
@@ -168,10 +171,17 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
   proof derived from the canonical transfer-group registry (one pipeline owner
   plus every live transfer producer). The full identity-contract file and Ruff
   pass.
+- The following full restart passed 922 cases before finding the one remaining
+  catalog-wide identity: the rich-minimal loader golden includes the SHA-256 of
+  every closed-world schema, so the intentional seven-output additions to
+  `imputation.schema.json` moved it from `9f5b3727...` to `6ab67805...` even
+  though the fixture itself does not author US imputation resources. Recut the
+  exact golden without weakening its surface-separation assertions; all 33
+  loader, schema, imputation-semantics, and stacked-authority cases pass.
 
 ## Next
 
-1. Commit the exact seed-owner regression.
+1. Commit the exact schema-catalog semantic-hash recut.
 2. Restart full `uv run pytest` from zero; the latest full `uv run ruff check .`
    is green and will be rerun after any further edit.
 3. Write the complete receipt, roster, history, changed-files, and verification
