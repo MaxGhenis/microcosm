@@ -25,8 +25,9 @@ regressions. A first full-suite pass exposed and the lane has now recut every
 closed compiler-coverage identity affected by the smaller producer graph. The
 latest restart reached 922 passing cases before exposing the loader's one
 resolved-seed-protocol semantic-hash golden. That exact vector is now recut
-and its full loader/schema corridor passes. The remaining work is a clean
-full-suite rerun and the final receipt report.
+and its full loader/schema corridor passes. The clean repository-wide suite,
+Ruff, and CI test-file partition checks are now green. Only the final receipt
+report and clean committed handoff remain.
 
 The pool, sibling manifests/gates, and release logs under
 `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
@@ -181,14 +182,20 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
   not this semantic envelope. Recut the exact golden without weakening its
   surface-separation assertions; all 33 loader, schema,
   imputation-semantics, and stacked-authority cases pass.
+- The final literal full-suite run completed green from zero: 7,485 passed,
+  83 skipped, and 2,354 warnings in 3,602.68 seconds (1:00:02). The warnings
+  are pre-existing numerical, pandas fragmentation/chained-assignment, and
+  sparse-tensor diagnostics; there were no failures or errors.
+- Final `uv run ruff check .` reports `All checks passed!`.
+- Final `tools/ci_test_groups.py --verify` reports 313 tracked test files and
+  `verification=ok`.
 
 ## Next
 
-1. Commit the corrected resolved-seed-protocol provenance for the hash recut.
-2. Restart full `uv run pytest` from zero; the latest full `uv run ruff check .`
-   is green and will be rerun after any further edit.
-3. Write the complete receipt, roster, history, changed-files, and verification
-   report to `out.md`, update this journal, and commit the final handoff.
+1. Write the complete receipt, roster, history, changed-files, and verification
+   report to `out.md`.
+2. Mark this journal complete, commit the final handoff, and leave the worktree
+   clean without pushing or opening a PR.
 
 ---
 
