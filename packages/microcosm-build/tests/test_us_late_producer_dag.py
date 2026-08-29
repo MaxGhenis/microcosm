@@ -357,9 +357,9 @@ def test_canonical_us_late_registry_has_exact_producer_surface() -> None:
     assert len(registry[US_LATE_PRIMARY_PUF_STAGE].inputs) == 119
     primary_outputs = registry[US_LATE_PRIMARY_PUF_STAGE].outputs
     assert len(primary_outputs) == 100
-    assert sum(output.coverage_scope == "puf_clone" for output in primary_outputs) == 57
+    assert sum(output.coverage_scope == "puf_clone" for output in primary_outputs) == 54
     assert (
-        sum(output.coverage_scope == "whole_pool" for output in primary_outputs) == 42
+        sum(output.coverage_scope == "whole_pool" for output in primary_outputs) == 45
     )
     assert sum(output.coverage_scope == "acs_source" for output in primary_outputs) == 1
     assert {
@@ -383,9 +383,7 @@ def test_canonical_us_late_registry_has_exact_producer_surface() -> None:
         },
     }
     late_targets = {
-        (group.entity, target)
-        for group in groups
-        for target in group.targets
+        (group.entity, target) for group in groups for target in group.targets
     }
     assert not (late_targets & set(PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS))
     assert all(contract.inputs for contract in registry.values())
@@ -634,8 +632,14 @@ def test_primary_puf_inventory_declares_exact_read_before_write_surface() -> Non
 
 def test_canonical_us_late_registry_declares_required_cross_producer_edges() -> None:
     edges = set(CANONICAL_US_LATE_PRODUCER_SCHEDULE.edges)
+    pregnancy_transfer = transfer_producer_name("person", "model_required_boolean")
+    tuition_transfer = transfer_producer_name("person", "puf_tax_itemization__batch_2")
+    education_transfer = transfer_producer_name(
+        "person", "source_operator_education_inputs"
+    )
+    wic_transfer = transfer_producer_name("person", "source_operator_wic_claim")
 
-    assert len(edges) == 69
+    assert len(edges) == 71
     assert (
         US_LATE_ACS_EARNINGS_UNIVERSE_STAGE,
         US_LATE_PRIMARY_PUF_STAGE,
@@ -653,9 +657,26 @@ def test_canonical_us_late_registry_declares_required_cross_producer_edges() -> 
         source_producer_name("with_us_adult_care_inputs"),
     ) in edges
     assert (
-        transfer_producer_name("person", "puf_tax_itemization__batch_2"),
+        tuition_transfer,
         source_producer_name("with_us_education_inputs"),
     ) in edges
+    assert (tuition_transfer, education_transfer) in edges
+    assert (pregnancy_transfer, wic_transfer) in edges
+    order = CANONICAL_US_LATE_PRODUCER_SCHEDULE.order
+    assert order.index(tuition_transfer) < order.index(education_transfer)
+    assert order.index(pregnancy_transfer) < order.index(wic_transfer)
+    for consumer, column, producer in (
+        (education_transfer, "qualified_tuition_expenses", tuition_transfer),
+        (wic_transfer, "is_pregnant", pregnancy_transfer),
+    ):
+        matching_inputs = [
+            item
+            for item in CANONICAL_US_LATE_PRODUCER_REGISTRY[consumer].inputs
+            if item.entity == "person" and item.column == column
+        ]
+        assert len(matching_inputs) == 1
+        assert matching_inputs[0].required_scope == "whole_pool"
+        assert matching_inputs[0].producing_stage == producer
     assert {
         consumer
         for producer, consumer in edges
@@ -793,7 +814,7 @@ def test_canonical_us_late_schedule_is_import_validated_and_byte_stable() -> Non
 
     assert reconstructed == CANONICAL_US_LATE_PRODUCER_SCHEDULE
     receipt = us_late_producer_schedule_receipt()
-    assert receipt["schema_version"] == 17
+    assert receipt["schema_version"] == 18
     assert receipt["execution_receipt_contract"] == {
         "version": 3,
         "row_binding": (

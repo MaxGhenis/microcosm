@@ -1069,6 +1069,49 @@ _VIRTUAL_RESOURCE_SURFACE_KINDS = {
 }
 
 
+def _normalise_late_structural_reconciliation_policy(
+    value: object,
+) -> dict[str, object] | None:
+    """Replace one embedded source-stage receipt with its typed reference."""
+
+    if value is None:
+        return None
+    policy = deepcopy(
+        dict(_mapping_like(value, "late structural reconciliation policy"))
+    )
+    declared_sha256 = policy.pop("sha256", None)
+    if declared_sha256 != _canonical_sha256(policy):
+        raise RuntimeError(
+            "Late structural reconciliation policy SHA-256 is not canonical."
+        )
+    source_stage = _mapping_like(
+        policy.pop("source_stage"),
+        "late structural reconciliation source-stage receipt",
+    )
+    resolver = _mapping_like(
+        source_stage["runtime_stage_spec_resolver"],
+        "late structural reconciliation runtime resolver",
+    )
+    if source_stage.get("asset") != "microcosm.build.us/source_stages.json":
+        raise RuntimeError(
+            "Late structural reconciliation references an unexpected source asset."
+        )
+    if source_stage.get("runtime_stage_spec_verified") is not True:
+        raise RuntimeError(
+            "Late structural reconciliation source-stage receipt is unverified."
+        )
+    policy["source_stage_ref"] = {
+        "asset_id": "source_stages",
+        "stage_id": source_stage["stage_name"],
+        "runtime_resolver": {
+            "module": resolver["module"],
+            "callable": resolver["callable"],
+            "purpose": "legacy_runtime_verification_evidence",
+        },
+    }
+    return policy
+
+
 def _normalise_virtual_resource(
     *,
     producer: str,
@@ -1111,6 +1154,11 @@ def _normalise_virtual_resource(
             binding.pop(duplicate)
         if binding.pop("seed") != POOL_RANDOM_SEED:
             raise RuntimeError("Late-transfer seed differs from build_model_seed.")
+        binding["structural_reconciliation_policy"] = (
+            _normalise_late_structural_reconciliation_policy(
+                binding["structural_reconciliation_policy"]
+            )
+        )
     elif resource_kind == "primary_puf_execution_config":
         clone_attachment = _mapping_like(
             binding.pop("clone_attachment"), "primary clone attachment"
@@ -1803,19 +1851,43 @@ def _producer_graph(
 
 def _normalise_gap_fill_schedule(
     receipt: Mapping[str, object],
+    *,
+    gap_fill_plan: Sequence[Mapping[str, object]],
 ) -> dict[str, object]:
-    """Keep only non-derivable producer scheduling facts."""
+    """Keep only non-derivable direction and producer scheduling facts."""
+
+    plans = {
+        str(plan["name"]): _mapping_like(plan, "stacked gap-fill plan direction")
+        for plan in gap_fill_plan
+    }
+    if len(plans) != len(gap_fill_plan):
+        raise RuntimeError("Stacked gap-fill plan repeats direction names.")
 
     directions: list[dict[str, object]] = []
     for direction_value in _array_like(
         receipt["directions"], "gap-fill producer schedule directions"
     ):
         direction = _mapping_like(direction_value, "gap-fill schedule direction")
+        name = str(direction["name"])
+        if name not in plans:
+            raise RuntimeError(
+                f"Gap-fill schedule direction {name!r} has no plan declaration."
+            )
         directions.append(
             {
-                "name": direction["name"],
+                "name": name,
                 "activation_stage": direction["activation_stage"],
+                "post_reconciliation_policy": deepcopy(
+                    plans[name].get("post_reconciliation_policy")
+                ),
             }
+        )
+    scheduled_names = {str(direction["name"]) for direction in directions}
+    if scheduled_names != set(plans):
+        raise RuntimeError(
+            "Stacked gap-fill plan and schedule direction names differ: "
+            f"plan_only={sorted(set(plans) - scheduled_names)}, "
+            f"schedule_only={sorted(scheduled_names - set(plans))}."
         )
     return {
         "activation_policy": receipt["status"],
@@ -2124,7 +2196,7 @@ def _assert_invariants(
         len(compiled_schedule["edges"]),
         len(compiled_schedule["waves"]),
         len(graph["ownership_matrix"]),
-    ) != (37, 69, 6, 18):
+    ) != (37, 71, 6, 18):
         raise RuntimeError("US producer graph count invariant changed.")
     input_count = sum(len(node["inputs"]) for node in graph["nodes"])
     authored_output_count = sum(len(node["outputs"]) for node in graph["nodes"])
@@ -2152,7 +2224,7 @@ def _assert_invariants(
         late_authored_output_count,
         len(tolerated_receipts),
     )
-    expected_graph_counts = (2646, 92, 220, 35, 0, 206)
+    expected_graph_counts = (2651, 92, 220, 35, 0, 206)
     if graph_counts != expected_graph_counts:
         raise RuntimeError(
             "US producer graph input/output/absence counts changed: "
@@ -2375,7 +2447,10 @@ def build_imputation() -> dict[str, object]:
             }
         ],
         "transfer_execution": _normalise_transfer_execution(base_transfer_contract),
-        "gap_fill_schedule": _normalise_gap_fill_schedule(gap_fill_schedule),
+        "gap_fill_schedule": _normalise_gap_fill_schedule(
+            gap_fill_schedule,
+            gap_fill_plan=gap_fill_plan,
+        ),
         "primary_checkpoint": {
             "schema_version": PRIMARY_QRF_CHECKPOINT_SCHEMA_VERSION,
             "target_order_digest_rule": "sha256(compact_json_array)",

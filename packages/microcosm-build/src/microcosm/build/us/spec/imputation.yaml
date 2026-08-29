@@ -481,8 +481,47 @@ gap_fill_schedule:
   directions:
   - name: asec_survey_to_acs
     activation_stage: gap_fill_stacked_spine.activation[asec_survey_to_acs]
+    post_reconciliation_policy: null
   - name: asec_housing_to_acs
     activation_stage: gap_fill_stacked_spine.activation[asec_housing_to_acs]
+    post_reconciliation_policy:
+      resource_kind: stacked_post_gap_reconciliation_policy
+      schema_version: 1
+      policy_id: housing_source_identities_after_cross_origin_transfer
+      stage: after_all_gap_fill_directions_before_clone
+      dependencies:
+        person:
+        - is_household_head
+        - pre_subsidy_rent
+        - person_support_channel
+        - person_support_clone_index
+        spm_unit:
+        - receives_housing_assistance
+        - takes_up_housing_assistance_if_eligible
+        - spm_unit_support_channel
+        - spm_unit_support_clone_index
+        structural_rent_absence_rule: acs_native_group_quarters_without_housing_unit
+      assignments:
+      - target: spm_unit.takes_up_housing_assistance_if_eligible
+        scope: acs_origin
+        value: spm_unit.receives_housing_assistance
+      - target: person.pre_subsidy_rent
+        scope: acs_origin_non_household_head_excluding_authority_valid_group_quarters
+        value: 0.0
+      preserved_producer_scope: asec_origin_bit_exact
+      downstream_writer_guarantee:
+        operator: impute_us_housing_assistance_to_puf_support
+        family: housing_assistance
+        phases:
+        - post_clone
+        execution_scope: cps_source
+        mutable_scope: puf_tax_detail_support_units_only
+        writes:
+        - spm_unit.receives_housing_assistance
+        - spm_unit.takes_up_housing_assistance_if_eligible
+        assignment: both_outputs_from_one_aligned_boolean_array
+        rent_write: false
+      sha256: 551d3f9c7731b94feb27e8a37cdf31e4acc70f53d2b016ae96d400eabffe62df
 primary_checkpoint:
   schema_version: 6
   target_order_digest_rule: sha256(compact_json_array)
@@ -1784,7 +1823,7 @@ families:
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: first_home_mortgage_interest
     entity: tax_unit
     value_kind: amount
@@ -1798,7 +1837,7 @@ families:
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: first_home_mortgage_origination_year
     entity: tax_unit
     value_kind: category
@@ -1812,7 +1851,7 @@ families:
     dtype: int
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: health_savings_account_ald
     entity: tax_unit
     value_kind: amount
@@ -2699,7 +2738,7 @@ families:
     output_coverage_scope: whole_pool
 producer_graph:
   graph_schema_version: 2
-  schedule_payload_schema_version: 17
+  schedule_payload_schema_version: 18
   external_stages:
   - post_clone_input_surface
   scope_coverage:
@@ -4402,6 +4441,7 @@ producer_graph:
               coverage_scope: whole_pool
               materialized_value: 0.0
               source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: strict_release_gate_native_zero
               puf_clone_precondition: finite_preserve_bit_exact
               native_precondition: all_null
               assignment: explicit_native_array_assignment
@@ -4413,6 +4453,7 @@ producer_graph:
               coverage_scope: whole_pool
               materialized_value: 0.0
               source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: strict_release_gate_native_zero
               puf_clone_precondition: finite_preserve_bit_exact
               native_precondition: all_null
               assignment: explicit_native_array_assignment
@@ -4424,6 +4465,7 @@ producer_graph:
               coverage_scope: whole_pool
               materialized_value: 0.0
               source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: strict_release_gate_native_zero
               puf_clone_precondition: finite_preserve_bit_exact
               native_precondition: all_null
               assignment: explicit_native_array_assignment
@@ -4435,6 +4477,7 @@ producer_graph:
               coverage_scope: whole_pool
               materialized_value: 0.0
               source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: strict_release_gate_native_zero
               puf_clone_precondition: finite_preserve_bit_exact
               native_precondition: all_null
               assignment: explicit_native_array_assignment
@@ -4446,6 +4489,7 @@ producer_graph:
               coverage_scope: whole_pool
               materialized_value: 0.0
               source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: strict_release_gate_native_zero
               puf_clone_precondition: finite_preserve_bit_exact
               native_precondition: all_null
               assignment: explicit_native_array_assignment
@@ -4457,6 +4501,7 @@ producer_graph:
               coverage_scope: whole_pool
               materialized_value: 0.0
               source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: strict_release_gate_native_zero
               puf_clone_precondition: finite_preserve_bit_exact
               native_precondition: all_null
               assignment: explicit_native_array_assignment
@@ -4468,6 +4513,43 @@ producer_graph:
               coverage_scope: whole_pool
               materialized_value: 0.0
               source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: strict_release_gate_native_zero
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            tax_unit.second_home_mortgage_balance:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: tax_unit
+              column: second_home_mortgage_balance
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: policyengine_schema_default_native_zero
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            tax_unit.second_home_mortgage_interest:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: tax_unit
+              column: second_home_mortgage_interest
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: policyengine_schema_default_native_zero
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            tax_unit.second_home_mortgage_origination_year:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: tax_unit
+              column: second_home_mortgage_origination_year
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              authority_kind: policyengine_schema_default_native_zero
               puf_clone_precondition: finite_preserve_bit_exact
               native_precondition: all_null
               assignment: explicit_native_array_assignment
@@ -15593,7 +15675,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -16552,7 +16635,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -17564,7 +17648,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -18601,7 +18686,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -19629,7 +19715,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -20657,7 +20744,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -21631,7 +21719,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -22590,7 +22679,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -23389,6 +23479,15 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
+      - - column: qualified_tuition_expenses
+          entity: person
+          value_kind: finite_numeric
+      column: qualified_tuition_expenses
+      entity: person
+      producing_stage: transfer:person/puf_tax_itemization__batch_2
+      required_scope: whole_pool
+      tolerated_absence_receipts: []
+    - alternatives:
       - - column: rental_income
           entity: person
           value_kind: finite_numeric
@@ -23593,7 +23692,89 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy:
+          resource_kind: late_transfer_structural_reconciliation_policy
+          schema_version: 1
+          policy_id: aotc_flags_equal_positive_qualified_tuition
+          producer: transfer:person/source_operator_education_inputs
+          entity: person
+          family: source_operator_education_inputs
+          ordered_group_targets:
+          - attends_eligible_educational_institution_for_american_opportunity_credit
+          - educational_assistance
+          - has_american_opportunity_credit_1098_t_or_exception
+          - has_american_opportunity_credit_institution_ein
+          - is_enrolled_at_least_half_time_for_american_opportunity_credit
+          - is_pursuing_credential_for_american_opportunity_credit
+          dependencies:
+          - qualified_tuition_expenses
+          outputs:
+          - is_pursuing_credential_for_american_opportunity_credit
+          - attends_eligible_educational_institution_for_american_opportunity_credit
+          - is_enrolled_at_least_half_time_for_american_opportunity_credit
+          - has_american_opportunity_credit_1098_t_or_exception
+          - has_american_opportunity_credit_institution_ein
+          assignment: each_output_equals_qualified_tuition_expenses_gt_zero
+          preserved_producer_scope: asec_origin_bit_exact
+          source_stage:
+            asset: microcosm.build.us/source_stages.json
+            asset_sha256: 128d3c3832b3d6863276ca9de041ced0b1d2097ca8dcd9f8a1271c57bc319723
+            manifest:
+              country: us
+              version: 1
+              policy: US source stages are manifest-defined. Country/source content may declare primary
+                artifacts, columns, sentinel handling, derivations, imputation recipes, and outputs here;
+                executable Python belongs only in shared Microcosm runtimes.
+            stage_name: education_inputs
+            resolved_stage_spec:
+              stage: education_inputs
+              survey: IRS PUF 2015 (uprated) + Census CPS ASEC
+              source: https://www.irs.gov/statistics/soi-tax-stats-individual-public-use-microdata-files
+              grain: person
+              artifacts:
+              - kind: public_microdata
+                format: fixed_width_or_csv
+                vintage: '2015'
+                source: https://www.irs.gov/statistics/soi-tax-stats-individual-public-use-microdata-files
+                locator: IRS SOI Public Use File E03230 and optional E87530 tuition fields
+              - kind: public_microdata
+                format: census_asec
+                vintage: build_year
+                source: https://www.census.gov/programs-surveys/cps/data/datasets.html
+                locator: Census CPS ASEC person ED_VAL educational-assistance field
+              operations:
+              - kind: read_table
+                parameters:
+                  table: person
+                  weight: person_weight
+              - kind: derive_education_inputs
+                parameters: {}
+              outputs:
+              - qualified_tuition_expenses
+              - educational_assistance
+              - is_pursuing_credential_for_american_opportunity_credit
+              - attends_eligible_educational_institution_for_american_opportunity_credit
+              - is_enrolled_at_least_half_time_for_american_opportunity_credit
+              - has_american_opportunity_credit_1098_t_or_exception
+              - has_american_opportunity_credit_institution_ein
+              nonnegative_outputs:
+              - qualified_tuition_expenses
+              - educational_assistance
+              rewrites: []
+              notes: 'Retired published-eCPS construction: the PUF publication path drops the reported
+                american_opportunity_credit tax output before AOTC factual-input postprocessing, so archived
+                extended_cps.py takes its positive-qualified-tuition fallback and sets all five affirmative
+                AOTC inputs on that mask (publication candidate 9f8db56e9ed1ca25f0ed16285fcc928343d2e474).
+                educational_assistance carries directly from measured ASEC ED_VAL (archived cps.py at
+                9a823603e6b5fb916d65ec45d74c9c7eb0043db1). The pinned export independently confirms that
+                the five flags and tuition share one support mask.'
+            resolved_stage_spec_sha256: 6628b0d864d4621643b4552f0b7919077d53b89ae45d9a0df69421e1eb9d3aea
+            runtime_stage_spec_resolver:
+              module: microcosm.build.us_runtime.education_inputs
+              callable: us_education_inputs_stage_spec
+            runtime_stage_spec_verified: true
+          sha256: 95483890b3c9d38515a77d768bfafc47f57fb6aea223b99c9d58b453feb33de3
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -24565,7 +24746,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -25524,7 +25706,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -26500,7 +26683,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -27496,7 +27680,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -28458,7 +28643,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -29068,6 +29254,33 @@ producer_graph:
       required_scope: whole_pool
       tolerated_absence_receipts: []
     - alternatives:
+      - - column: person_family_id
+          entity: person
+          value_kind: finite_numeric
+      column: '@effective:wic_family_identity'
+      entity: person
+      producing_stage: post_clone_input_surface
+      required_scope: whole_pool
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: own_children_in_household
+          entity: person
+          value_kind: finite_numeric
+      column: '@effective:wic_own_children'
+      entity: person
+      producing_stage: post_clone_input_surface
+      required_scope: whole_pool
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: person_source_id
+          entity: person
+          value_kind: finite_numeric
+      column: '@effective:wic_stable_person_identity'
+      entity: person
+      producing_stage: post_clone_input_surface
+      required_scope: whole_pool
+      tolerated_absence_receipts: []
+    - alternatives:
       - - column: '@resolved_weight'
           entity: person
           value_kind: non_null
@@ -29093,6 +29306,15 @@ producer_graph:
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: is_pregnant
+          entity: person
+          value_kind: non_null
+      column: is_pregnant
+      entity: person
+      producing_stage: transfer:person/model_required_boolean
+      required_scope: whole_pool
       tolerated_absence_receipts: []
     - alternatives:
       - - column: non_qualified_dividend_income
@@ -29416,7 +29638,115 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy:
+          resource_kind: late_transfer_structural_reconciliation_policy
+          schema_version: 1
+          policy_id: wic_claim_stable_source_person_redraw
+          producer: transfer:person/source_operator_wic_claim
+          entity: person
+          family: source_operator_wic_claim
+          ordered_group_targets:
+          - takes_up_wic_if_eligible
+          dependencies:
+          - age
+          - is_female
+          - is_pregnant
+          - own_children_in_household
+          - person_family_id
+          - person_source_id
+          outputs:
+          - takes_up_wic_if_eligible
+          assignment: source_stage_redraw_by_stable_person_source_id
+          seed_owner: late_transfer_model_config.seed
+          time_period: 2024
+          preserved_producer_scope: asec_origin_bit_exact
+          source_stage:
+            asset: microcosm.build.us/source_stages.json
+            asset_sha256: 128d3c3832b3d6863276ca9de041ced0b1d2097ca8dcd9f8a1271c57bc319723
+            manifest:
+              country: us
+              version: 1
+              policy: US source stages are manifest-defined. Country/source content may declare primary
+                artifacts, columns, sentinel handling, derivations, imputation recipes, and outputs here;
+                executable Python belongs only in shared Microcosm runtimes.
+            stage_name: wic_claim_input
+            resolved_stage_spec:
+              stage: wic_claim_input
+              survey: USDA FNS WIC Eligibility and Enrollment Estimates + Census CPS ASEC
+              source: https://www.fns.usda.gov/research/wic/eligibility-and-coverage-rates-2022
+              grain: person
+              artifacts:
+              - kind: administrative_table
+                format: published_estimate
+                vintage: CY2022
+                source: https://fns-prod.azureedge.us/sites/default/files/resource-files/wic-eer-2022-summary.pdf
+                locator: USDA FNS WIC coverage rates by participant category, Summary Table 1
+              - kind: archived_derivation_evidence
+                repository_owner: PolicyEngine
+                repository_name_parts:
+                - policyengine-
+                - us-data
+                commit: 42ed5d45c56df80d754fbe24cce21cfeb8d05cbe
+                path_parts:
+                - policyengine_
+                - us_data
+                - datasets
+                - cps
+                - cps.py
+                lines: 684-691
+                parameter_path_parts:
+                - policyengine_
+                - us_data
+                - parameters
+                - take_up
+                - wic_takeup.yaml
+                parameter_lines: 1-33
+                randomness_path_parts:
+                - policyengine_
+                - us_data
+                - utils
+                - randomness.py
+                randomness_lines: 5-28
+              operations:
+              - kind: read_table
+                parameters:
+                  table: person
+                  weight: person_weight
+              - kind: derive_wic_claim
+                parameters:
+                  seed_from_build_config: true
+                  category_rates:
+                    source: https://fns-prod.azureedge.us/sites/default/files/resource-files/wic-eer-2022-summary.pdf
+                    vintage: CY2022
+                    values:
+                      pregnant: 0.456
+                      postpartum: 0.689
+                      breastfeeding: 0.663
+                      infant: 0.784
+                      child: 0.46
+                      none: 0.0
+              outputs:
+              - takes_up_wic_if_eligible
+              nonnegative_outputs: []
+              rewrites: []
+              notes: 'The retired eCPS derives PolicyEngine-US wic_category_str and assigns a stable seeded
+                Bernoulli at category-specific rates (archived cps.py lines 684-691, wic_takeup.yaml lines
+                1-33, and randomness.py lines 5-28). The archived rates exactly match USDA FNS CY2022
+                average-month coverage: pregnant 45.6%, all postpartum 68.9%, breastfeeding 66.3%, infants
+                78.4%, and children 46.0%. Microcosm deliberately runs this stage after pregnancy; the
+                retired file computed WIC categories before its later pregnancy seed, which accidentally
+                made the pregnant rate unreachable. The hermetic sources carry no breastfeeding assessment,
+                so breastfeeding remains unavailable and mothers of infants use FNS''s all-postpartum
+                rate rather than an invented breastfeeding status. Stable source-identity hashes preserve
+                paired support-clone outcomes. The separate is_wic_at_nutritional_risk input remains a
+                reviewed source-unavailability exclusion.'
+            resolved_stage_spec_sha256: a3a068bf896c3ab8edbbc25baa710ceed011bfb5530bba9ea67486031af8bfda
+            runtime_stage_spec_resolver:
+              module: microcosm.build.us_runtime.wic_claim
+              callable: us_wic_claim_stage_spec
+            runtime_stage_spec_verified: true
+          sha256: 80686d7cba23aacc7861d5d3d856beaa9aae1e63c56b4dd8f9b4a1b5a81d6f12
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -30374,7 +30704,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -31341,7 +31672,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: spm_unit.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -32335,7 +32667,8 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: late_transfer_model_config
-        schema_version: 3
+        schema_version: 4
+        structural_reconciliation_policy: null
     - id: tax_unit.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived

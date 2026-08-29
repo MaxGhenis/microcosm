@@ -35,6 +35,10 @@ from microcosm.build.us_runtime.congressional_district_vintage import (
     CONGRESSIONAL_DISTRICT_VINTAGE_TARGET_ATTR,
     CURRENT_CONGRESSIONAL_DISTRICT_VINTAGE,
 )
+from microcosm.build.us_runtime.puf_support import (
+    PUF_CLONE_ATTACHMENT_MANIFEST_KEY,
+    validate_puf_clone_attachment,
+)
 from microcosm.build.us_runtime.support_provenance import (
     SPINE_ASSEMBLY_MANIFEST_KEY,
     support_clone_index_column,
@@ -306,14 +310,8 @@ def _validated_stacked_sampling_manifest_binding(
         ("sampling.sample_fraction", sampling_fraction),
         ("stack_manifest.sample_fraction", stack_fraction),
     ):
-        if (
-            type(value) is not float
-            or not np.isfinite(value)
-            or not 0.0 < value <= 1.0
-        ):
-            raise ValueError(
-                f"{label} {location} must be a finite float in (0, 1]."
-            )
+        if type(value) is not float or not np.isfinite(value) or not 0.0 < value <= 1.0:
+            raise ValueError(f"{label} {location} must be a finite float in (0, 1].")
     if sampling_fraction != stack_fraction:
         raise ValueError(
             f"{label} sampling.sample_fraction differs from "
@@ -412,6 +410,68 @@ def _validated_stacked_sampling_manifest_binding(
             f"{label} sampling stack-manifest SHA-256 does not match its receipt."
         )
     return stack_manifest
+
+
+def _validated_stacked_clone_attachment_binding(
+    manifest: Mapping[str, object],
+    *,
+    manifest_path: Path,
+) -> tuple[Mapping[str, object], float, int] | None:
+    """Bind the pool request to its frozen live clone-attachment receipt."""
+
+    if manifest.get("pipeline") != _STACKED_PIPELINE:
+        return None
+
+    label = f"US stacked pool manifest {manifest_path}"
+    requested = _mapping(
+        manifest.get("clone_attachment"),
+        label=f"{label}.clone_attachment",
+    )
+    if set(requested) != {"fraction", "seed"}:
+        raise ValueError(
+            f"{label} clone_attachment must contain exactly fraction and seed."
+        )
+    fraction = requested.get("fraction")
+    seed = requested.get("seed")
+    if (
+        type(fraction) is not float
+        or not np.isfinite(fraction)
+        or not 0.0 < fraction <= 1.0
+    ):
+        raise ValueError(
+            f"{label} clone_attachment.fraction must be a finite float in (0, 1]."
+        )
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise ValueError(
+            f"{label} clone_attachment.seed must be a non-negative integer."
+        )
+
+    stage_receipts = _mapping(
+        manifest.get("stage_receipts"),
+        label=f"{label}.stage_receipts",
+    )
+    impute = _mapping(
+        stage_receipts.get("impute"),
+        label=f"{label}.stage_receipts.impute",
+    )
+    stacked_puf_pass = _mapping(
+        impute.get("stacked_puf_pass"),
+        label=f"{label}.stage_receipts.impute.stacked_puf_pass",
+    )
+    receipt = _mapping(
+        stacked_puf_pass.get("clone_attachment"),
+        label=(f"{label}.stage_receipts.impute.stacked_puf_pass.clone_attachment"),
+    )
+    if receipt.get("clone_attachment_fraction") != fraction:
+        raise ValueError(
+            f"{label} frozen clone-attachment receipt differs from the requested "
+            "fraction."
+        )
+    if receipt.get("clone_attachment_seed") != seed:
+        raise ValueError(
+            f"{label} frozen clone-attachment receipt differs from the requested seed."
+        )
+    return receipt, fraction, seed
 
 
 class AuthenticatedPoolH5MismatchError(RuntimeError):
@@ -620,10 +680,10 @@ def us_multispine_pool_release_receipt(
         )
         gate_passed = gate.get("passed")
         gate_failures = gate.get("failures")
-        if type(gate_passed) is not bool or not isinstance(
-            gate_failures, list
-        ) or not all(
-            isinstance(failure, str) for failure in gate_failures
+        if (
+            type(gate_passed) is not bool
+            or not isinstance(gate_failures, list)
+            or not all(isinstance(failure, str) for failure in gate_failures)
         ):
             raise ValueError(
                 f"Authenticated US multispine pool gate {gate_name!r} has an "
@@ -1749,6 +1809,10 @@ def _load_us_multispine_pool(
         manifest,
         manifest_path=manifest_path,
     )
+    clone_attachment = _validated_stacked_clone_attachment_binding(
+        manifest,
+        manifest_path=manifest_path,
+    )
     frame_metadata: dict[str, object] = {}
     assembly_receipt: Mapping[str, object] | None = None
     if "assembly_receipt" in manifest:
@@ -1767,6 +1831,15 @@ def _load_us_multispine_pool(
         )
 
         frame_metadata[STACKED_SPINE_MANIFEST_KEY] = deepcopy(stack_manifest)
+    if clone_attachment is not None:
+        attachment_receipt, _attachment_fraction, _attachment_seed = clone_attachment
+        # A full clone before the tail split deliberately carries no Frame
+        # metadata; its frozen out-of-frame receipt is exact-compared below.
+        # Partial attachments and tail descendants require their live manifest.
+        if "version" in attachment_receipt:
+            frame_metadata[PUF_CLONE_ATTACHMENT_MANIFEST_KEY] = deepcopy(
+                attachment_receipt
+            )
     if late_transition is not None:
         _dag, transition_authority, _transition_authority_sha256 = late_transition
         from microcosm.build.us_runtime.stacked_spine import (
@@ -1790,6 +1863,19 @@ def _load_us_multispine_pool(
             frame,
             boundary=f"US multispine pool H5 {pool_path}",
         )
+    if clone_attachment is not None:
+        attachment_receipt, attachment_fraction, attachment_seed = clone_attachment
+        validated_attachment = validate_puf_clone_attachment(
+            frame,
+            boundary=f"US multispine pool H5 {pool_path}",
+            expected_fraction=attachment_fraction,
+            expected_seed=attachment_seed,
+        )
+        if dict(validated_attachment) != dict(attachment_receipt):
+            raise ValueError(
+                f"US multispine pool H5 {pool_path} live clone attachment "
+                "differs from its frozen manifest receipt."
+            )
     if late_transition is not None:
         dag, _transition_authority, transition_authority_sha256 = late_transition
         from microcosm.build.us_runtime.stacked_spine import (

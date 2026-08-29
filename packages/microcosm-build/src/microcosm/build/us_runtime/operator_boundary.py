@@ -12,8 +12,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
+from microcosm.build.us_runtime.acs_inputs import (
+    ACS_REAL_ESTATE_TAX_SOURCE_DOMAIN_VERSION,
+    ACS_REAL_ESTATE_TAX_STRUCTURAL_ZERO_RULE,
+)
 from microcosm.build.us_runtime.acs_transfer import ACS_DERIVED_TRANSFER_INPUTS
 from microcosm.build.us_runtime.adult_care import US_ADULT_CARE_OUTPUT_COLUMNS
 from microcosm.build.us_runtime.child_support import (
@@ -123,6 +128,12 @@ _NATIVE_INPUT_RECEIPT_KEYS = frozenset(
         "transformation",
     }
 )
+_NATIVE_INPUT_SOURCE_DOMAIN_RECEIPT_KEYS = (
+    _NATIVE_INPUT_RECEIPT_KEYS | {"source_domain"}
+)
+_ACS_REAL_ESTATE_TAX_SOURCE_DOMAIN_OUTPUTS = frozenset(
+    {"acs_annual_property_tax", "real_estate_taxes"}
+)
 _ACS_NATIVE_PROVENANCE = "acs_2024_1yr_native"
 _ACS_NATIVE_INPUT_CONTRACTS: Mapping[
     str,
@@ -179,13 +190,19 @@ _ACS_NATIVE_INPUT_CONTRACTS: Mapping[
     ),
     "acs_annual_property_tax": (
         "household",
-        ("TAXAMT", "ADJHSG"),
-        "TAXAMT * ADJHSG / 1_000_000",
+        ("TAXAMT", "ADJHSG", "TEN", "TYPEHUGQ"),
+        (
+            "TAXAMT * ADJHSG / 1_000_000; TEN/TYPEHUGQ "
+            "structural-zero domain"
+        ),
     ),
     "real_estate_taxes": (
         "person",
-        ("TAXAMT", "ADJHSG", "RELSHIPP"),
-        "TAXAMT * ADJHSG / 1_000_000; reference-person carry",
+        ("TAXAMT", "ADJHSG", "TEN", "TYPEHUGQ", "RELSHIPP"),
+        (
+            "TAXAMT * ADJHSG / 1_000_000; TEN/TYPEHUGQ structural-zero "
+            "domain; reference-person carry"
+        ),
     ),
 }
 _CAPITAL_GAINS_TAIL_PROVENANCE_COLUMNS = frozenset(
@@ -432,8 +449,14 @@ def _validated_native_inputs(
                 f"{label} native_inputs[{output!r}] is not a declared ACS native "
                 "mapping output."
             )
-        if not isinstance(raw_receipt, Mapping) or frozenset(raw_receipt) != (
-            _NATIVE_INPUT_RECEIPT_KEYS
+        expected_receipt_keys = (
+            _NATIVE_INPUT_SOURCE_DOMAIN_RECEIPT_KEYS
+            if output in _ACS_REAL_ESTATE_TAX_SOURCE_DOMAIN_OUTPUTS
+            else _NATIVE_INPUT_RECEIPT_KEYS
+        )
+        if (
+            not isinstance(raw_receipt, Mapping)
+            or frozenset(raw_receipt) != expected_receipt_keys
         ):
             raise ValueError(
                 f"{label} native_inputs[{output!r}] is not an exact ACS native "
@@ -471,6 +494,13 @@ def _validated_native_inputs(
                 f"{label} native_inputs[{output!r}].provenance must be "
                 f"{_ACS_NATIVE_PROVENANCE!r}."
             )
+        if output in _ACS_REAL_ESTATE_TAX_SOURCE_DOMAIN_OUTPUTS:
+            _validate_acs_real_estate_tax_source_domain(
+                frame,
+                raw_receipt["source_domain"],
+                label=label,
+                output=output,
+            )
         _require_row_count(observed_rows, label=label, output=output, field="observed")
         _require_row_count(missing_rows, label=label, output=output, field="missing")
         table = frame.table(entity)
@@ -488,6 +518,83 @@ def _validated_native_inputs(
             )
         allowed.add((entity, output))
     return frozenset(allowed)
+
+
+def _validate_acs_real_estate_tax_source_domain(
+    frame: Frame,
+    raw_receipt: object,
+    *,
+    label: str,
+    output: str,
+) -> None:
+    """Validate the versioned TAXAMT domain receipt against live raw rows."""
+
+    expected_keys = {
+        "version",
+        "owner_housing_rows",
+        "owner_observed_rows",
+        "renter_or_no_rent_structural_zero_rows",
+        "group_quarters_structural_zero_rows",
+        "structural_zero_rule",
+    }
+    if not isinstance(raw_receipt, Mapping) or set(raw_receipt) != expected_keys:
+        raise ValueError(
+            f"{label} native_inputs[{output!r}].source_domain is not an exact "
+            "versioned ACS real-estate-tax domain receipt."
+        )
+    household = frame.table("household")
+    required = {"TAXAMT", "TEN", "TYPEHUGQ"}
+    missing = sorted(required - set(household))
+    if missing:
+        raise ValueError(
+            f"{label} native_inputs[{output!r}].source_domain cannot be "
+            f"validated; missing household raw column(s) {missing}."
+        )
+    kind = pd.to_numeric(household["TYPEHUGQ"], errors="coerce")
+    if kind.isna().any() or not kind.isin((1, 2, 3)).all():
+        raise ValueError(
+            f"{label} native_inputs[{output!r}].source_domain has invalid live "
+            "TYPEHUGQ values."
+        )
+    tenure = pd.to_numeric(household["TEN"], errors="coerce")
+    housing_unit = kind.eq(1)
+    invalid_tenure = housing_unit & (tenure.isna() | ~tenure.isin((1, 2, 3, 4)))
+    if invalid_tenure.any():
+        raise ValueError(
+            f"{label} native_inputs[{output!r}].source_domain has invalid live "
+            "housing-unit TEN values."
+        )
+    owner = housing_unit & tenure.isin((1, 2))
+    renter_or_no_rent = housing_unit & tenure.isin((3, 4))
+    group_quarters = kind.isin((2, 3))
+    raw_tax = household["TAXAMT"]
+    tax = pd.to_numeric(raw_tax, errors="coerce")
+    invalid_numeric = raw_tax.notna() & tax.isna()
+    observed_tax = tax.loc[raw_tax.notna()].to_numpy(dtype=np.float64)
+    if (
+        invalid_numeric.any()
+        or not np.isfinite(observed_tax).all()
+        or (observed_tax < 0.0).any()
+        or (owner & tax.isna()).any()
+        or ((renter_or_no_rent | group_quarters) & tax.notna() & tax.ne(0.0)).any()
+    ):
+        raise ValueError(
+            f"{label} native_inputs[{output!r}].source_domain conflicts with "
+            "the live TAXAMT/TEN/TYPEHUGQ source universe."
+        )
+    expected = {
+        "version": ACS_REAL_ESTATE_TAX_SOURCE_DOMAIN_VERSION,
+        "owner_housing_rows": int(owner.sum()),
+        "owner_observed_rows": int((owner & tax.notna()).sum()),
+        "renter_or_no_rent_structural_zero_rows": int(renter_or_no_rent.sum()),
+        "group_quarters_structural_zero_rows": int(group_quarters.sum()),
+        "structural_zero_rule": ACS_REAL_ESTATE_TAX_STRUCTURAL_ZERO_RULE,
+    }
+    if dict(raw_receipt) != expected:
+        raise ValueError(
+            f"{label} native_inputs[{output!r}].source_domain does not match "
+            "the live ACS real-estate-tax domain counts and rule."
+        )
 
 
 def _require_row_count(

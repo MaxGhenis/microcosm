@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import warnings
+from collections.abc import Mapping
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,7 @@ from microcosm.build.us_runtime.support_provenance import (
     BASE_ASEC_SUPPORT_CHANNEL,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
     has_support_role_metadata,
+    support_gate_source_channel_series,
     support_role_series,
 )
 from microcosm.frame import US_SCHEMA, Frame
@@ -104,7 +106,10 @@ HOUSING_TAKE_UP_ARCHIVED_HUD_ETL_URL = (
 )
 
 US_HOUSING_INPUTS_STAGE_NAME = "acs_rent"
-US_HOUSING_PERSON_OUTPUT_COLUMNS: tuple[str, ...] = ("pre_subsidy_rent",)
+US_HOUSING_PERSON_OUTPUT_COLUMNS: tuple[str, ...] = (
+    "pre_subsidy_rent",
+    "real_estate_taxes",
+)
 US_HOUSING_HOUSEHOLD_OUTPUT_COLUMNS: tuple[str, ...] = ("tenure_type",)
 US_HOUSING_SPM_UNIT_OUTPUT_COLUMNS: tuple[str, ...] = (
     "receives_housing_assistance",
@@ -194,9 +199,14 @@ _SPM_TENURE_MAP = {
 _HOUSEHOLD_TENURE_VALUES = frozenset(_HOUSEHOLD_TENURE_CODES)
 _SPM_TENURE_VALUES = frozenset(_SPM_TENURE_MAP.values())
 _EXPECTED_HOUSEHOLD_TENURE_VALUES = frozenset({"NONE", "OWNED_WITH_MORTGAGE", "RENTED"})
+_EXPECTED_ACS_HOUSEHOLD_TENURE_VALUES = frozenset(
+    {"NONE", "OWNED_OUTRIGHT", "OWNED_WITH_MORTGAGE", "RENTED"}
+)
 _EXPECTED_SPM_TENURE_VALUES = frozenset(
     {"OWNER_WITH_MORTGAGE", "OWNER_WITHOUT_MORTGAGE", "RENTER"}
 )
+_STACKED_SPINE_MANIFEST_KEY = "us_stacked_spine_manifest"
+_ACS_STACKED_SUPPORT_CHANNEL = "acs"
 
 QRF: Any | None = None
 
@@ -822,39 +832,29 @@ def _archived_joint_training_sample(
     return sampled, sampled_masks
 
 
-def impute_us_pre_subsidy_rent(
+def _impute_us_housing_amount_from_sample(
     frame: Frame,
-    donor: pd.DataFrame,
+    training_sample: pd.DataFrame,
+    target_mask: np.ndarray,
     *,
+    target: str,
     seed: int,
     n_estimators: int = _DEFAULT_N_ESTIMATORS,
 ) -> np.ndarray:
-    """Draw annual ACS rent once per CPS household and place it on the head."""
+    """Fit one authored ACS housing target and place it once on each head."""
 
-    required = (
-        *ACS_RENT_PREDICTORS,
-        "rent",
-        _DONOR_ALLOCATION_COLUMN,
-        _DONOR_REAL_ESTATE_TAX_COLUMN,
-        _DONOR_REAL_ESTATE_TAX_ALLOCATION_COLUMN,
-        _DONOR_WEIGHT_COLUMN,
-    )
-    missing = [column for column in required if column not in donor.columns]
-    if missing:
-        raise ValueError(f"ACS rent donor table missing column(s): {missing}.")
-    training_sample, target_masks = _archived_joint_training_sample(
-        donor.loc[:, required].copy()
-    )
-    fit_frame = training_sample.loc[target_masks["rent"]].copy()
+    fit_frame = training_sample.loc[target_mask].copy()
     if fit_frame.empty:
-        raise ValueError("ACS rent donor has no observed training rows after sampling.")
+        raise ValueError(
+            f"ACS rent donor has no observed {target} training rows after sampling."
+        )
     for column in (
         *(
             predictor
             for predictor in ACS_RENT_PREDICTORS
             if predictor not in _ACS_CATEGORICAL_PREDICTORS
         ),
-        "rent",
+        target,
         _DONOR_WEIGHT_COLUMN,
     ):
         fit_frame[column] = pd.to_numeric(fit_frame[column], errors="coerce")
@@ -862,8 +862,8 @@ def impute_us_pre_subsidy_rent(
             raise ValueError(
                 f"ACS rent donor column {column!r} contains nonfinite values."
             )
-    if (fit_frame["rent"] < 0.0).any():
-        raise ValueError("ACS rent donor contains negative rent values.")
+    if (fit_frame[target] < 0.0).any():
+        raise ValueError(f"ACS rent donor contains negative {target} values.")
     if (fit_frame[_DONOR_WEIGHT_COLUMN] < 0.0).any():
         raise ValueError("ACS rent donor weights must be nonnegative.")
     if float(fit_frame[_DONOR_WEIGHT_COLUMN].sum()) <= 0.0:
@@ -879,25 +879,101 @@ def impute_us_pre_subsidy_rent(
         fit_frame,
         features,
     )
-    encoded_training["rent"] = fit_frame["rent"].to_numpy(dtype=np.float64)
-    encoded_training[_DONOR_WEIGHT_COLUMN] = fit_frame[_DONOR_WEIGHT_COLUMN].to_numpy(
-        dtype=np.float64
-    )
+    encoded_training[target] = fit_frame[target].to_numpy(dtype=np.float64)
+    encoded_training[_DONOR_WEIGHT_COLUMN] = fit_frame[
+        _DONOR_WEIGHT_COLUMN
+    ].to_numpy(dtype=np.float64)
     fitted = QRF(n_estimators=int(n_estimators), seed=int(seed)).fit(
         encoded_training,
         predictors=list(encoded_predictors),
-        targets=["rent"],
+        targets=[target],
         weights=_DONOR_WEIGHT_COLUMN,
     )
     predicted = pd.to_numeric(
-        fitted.predict(encoded_features)["rent"], errors="coerce"
+        fitted.predict(encoded_features)[target], errors="coerce"
     ).to_numpy(dtype=np.float64)
     if not np.isfinite(predicted).all():
-        raise ValueError("ACS rent QRF produced nonfinite predictions.")
+        raise ValueError(f"ACS {target} QRF produced nonfinite predictions.")
     predicted = np.maximum(predicted, 0.0)
-    person_rent = np.zeros(frame.n("person"), dtype=np.float64)
-    person_rent[head_mask] = predicted
-    return person_rent
+    person_values = np.zeros(frame.n("person"), dtype=np.float64)
+    person_values[head_mask] = predicted
+    return person_values
+
+
+def _validated_housing_donor_and_sample(
+    donor: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict[str, np.ndarray]]:
+    """Validate the paired donor surface and draw its one shared sample."""
+
+    required = (
+        *ACS_RENT_PREDICTORS,
+        "rent",
+        _DONOR_ALLOCATION_COLUMN,
+        _DONOR_REAL_ESTATE_TAX_COLUMN,
+        _DONOR_REAL_ESTATE_TAX_ALLOCATION_COLUMN,
+        _DONOR_WEIGHT_COLUMN,
+    )
+    missing = [column for column in required if column not in donor.columns]
+    if missing:
+        raise ValueError(f"ACS rent donor table missing column(s): {missing}.")
+    return _archived_joint_training_sample(
+        donor.loc[:, required].copy()
+    )
+
+
+def impute_us_pre_subsidy_rent(
+    frame: Frame,
+    donor: pd.DataFrame,
+    *,
+    seed: int,
+    n_estimators: int = _DEFAULT_N_ESTIMATORS,
+) -> np.ndarray:
+    """Draw annual ACS rent once per CPS household and place it on the head.
+
+    This compatibility surface retains the historical rent-only return type.
+    The production writer uses :func:`_impute_us_housing_amounts` so rent and
+    real-estate tax share one deterministic authored donor sample.
+    """
+
+    training_sample, target_masks = _validated_housing_donor_and_sample(donor)
+    return _impute_us_housing_amount_from_sample(
+        frame,
+        training_sample,
+        target_masks["rent"],
+        target="rent",
+        seed=seed,
+        n_estimators=n_estimators,
+    )
+
+
+def _impute_us_housing_amounts(
+    frame: Frame,
+    donor: pd.DataFrame,
+    *,
+    seed: int,
+    n_estimators: int = _DEFAULT_N_ESTIMATORS,
+) -> dict[str, np.ndarray]:
+    """Impute both declared head-carried targets from one joint sample."""
+
+    training_sample, target_masks = _validated_housing_donor_and_sample(donor)
+    return {
+        "pre_subsidy_rent": _impute_us_housing_amount_from_sample(
+            frame,
+            training_sample,
+            target_masks["rent"],
+            target="rent",
+            seed=seed,
+            n_estimators=n_estimators,
+        ),
+        "real_estate_taxes": _impute_us_housing_amount_from_sample(
+            frame,
+            training_sample,
+            target_masks[_DONOR_REAL_ESTATE_TAX_COLUMN],
+            target=_DONOR_REAL_ESTATE_TAX_COLUMN,
+            seed=seed,
+            n_estimators=n_estimators,
+        ),
+    }
 
 
 def _person_puf_predictors(frame: Frame) -> pd.DataFrame:
@@ -1163,14 +1239,15 @@ def with_us_housing_inputs(
     if us_housing_inputs_signal_gate(frame).passed:
         return frame
     carried = derive_us_housing_inputs(frame)
-    rent = impute_us_pre_subsidy_rent(
+    housing_amounts = _impute_us_housing_amounts(
         carried,
         acs_rent_donor,
         seed=int(seed),
         n_estimators=int(n_estimators),
     )
     tables = {entity: carried.table(entity).copy() for entity in carried.entities}
-    tables["person"]["pre_subsidy_rent"] = rent
+    for column, values in housing_amounts.items():
+        tables["person"][column] = values
     return Frame(
         tables,
         carried.schema,
@@ -1190,11 +1267,37 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
     rent = pd.to_numeric(person["pre_subsidy_rent"], errors="coerce").to_numpy(
         dtype=np.float64
     )
+    real_estate_taxes = pd.to_numeric(
+        person["real_estate_taxes"], errors="coerce"
+    ).to_numpy(dtype=np.float64)
     person_weights = np.asarray(
         frame.resolve_weights("person").values, dtype=np.float64
     )
     total_person_weight = float(person_weights.sum())
     positive_rent = np.isfinite(rent) & (rent > 0.0)
+    structural_rent_mask = np.zeros(len(person), dtype=bool)
+    structural_rent_receipt: Mapping[str, object] | None = None
+    if isinstance(frame.metadata.get(_STACKED_SPINE_MANIFEST_KEY), Mapping):
+        # Local import avoids a module cycle: stacked_spine owns the exact
+        # assembly-bound TYPEHUGQ lineage authority, while this module owns the
+        # release signal gate that consumes it.
+        from microcosm.build.us_runtime.stacked_spine import (
+            validated_stacked_housing_rent_absence,
+        )
+
+        structural_mask, structural_rent_receipt = (
+            validated_stacked_housing_rent_absence(
+                frame,
+                boundary="housing input signal structural-rent authority",
+            )
+        )
+        structural_rent_mask = structural_mask.to_numpy(dtype=bool)
+    missing_rent = pd.isna(rent)
+    nonfinite_rent = ~np.isfinite(rent)
+    missing_real_estate_taxes = pd.isna(real_estate_taxes)
+    nonfinite_real_estate_taxes = (
+        ~np.isfinite(real_estate_taxes) & ~missing_real_estate_taxes
+    )
     rent_share = (
         float(person_weights[positive_rent].sum()) / total_person_weight
         if total_person_weight > 0.0
@@ -1202,6 +1305,13 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
     )
 
     head = person["is_household_head"].fillna(False).astype(bool).to_numpy()
+    native_role = np.ones(len(person), dtype=bool)
+    if has_support_role_metadata(person, entity="person"):
+        native_role = (
+            support_role_series(person, entity="person")
+            .ne(PUF_TAX_DETAIL_SUPPORT_CHANNEL)
+            .to_numpy(dtype=bool)
+        )
     tenure_by_household = pd.Series(
         household["tenure_type"].astype(str).to_numpy(),
         index=household["household_id"].to_numpy(),
@@ -1248,6 +1358,33 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
             )
     household_values = sorted(set(household["tenure_type"].dropna().astype(str)))
     spm_values = sorted(set(spm_unit["spm_unit_tenure_type"].dropna().astype(str)))
+    household_values_by_origin: dict[str, list[str]] = {}
+    has_household_support_metadata = has_support_role_metadata(
+        household,
+        entity="household",
+    )
+    if has_household_support_metadata:
+        acs_households = (
+            support_gate_source_channel_series(
+                household,
+                entity="household",
+            )
+            .astype(str)
+            .eq(_ACS_STACKED_SUPPORT_CHANNEL)
+        )
+        asec_origin_households = ~acs_households
+        household_values_by_origin = {
+            "asec_origin": sorted(
+                set(
+                    household.loc[asec_origin_households, "tenure_type"]
+                    .dropna()
+                    .astype(str)
+                )
+            ),
+            "acs_origin": sorted(
+                set(household.loc[acs_households, "tenure_type"].dropna().astype(str))
+            ),
+        }
     return {
         "pre_subsidy_rent_share": rent_share,
         "pre_subsidy_rent_share_band": list(_RENT_SHARE_BAND),
@@ -1267,11 +1404,42 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
             assistance_positive_by_channel
         ),
         "has_spm_support_channel_metadata": has_spm_support_metadata,
-        "nonfinite_rent": int(np.count_nonzero(~np.isfinite(rent))),
+        "nonfinite_rent": int(np.count_nonzero(nonfinite_rent)),
+        "authorized_structural_nonfinite_rent": int(
+            np.count_nonzero(missing_rent & structural_rent_mask)
+        ),
+        "unexpected_nonfinite_rent": int(
+            np.count_nonzero(nonfinite_rent & ~structural_rent_mask)
+        ),
+        "authorized_structural_rent_materialized": int(
+            np.count_nonzero(~missing_rent & structural_rent_mask)
+        ),
+        "structural_rent_authority": (
+            dict(structural_rent_receipt)
+            if structural_rent_receipt is not None
+            else None
+        ),
         "negative_rent": int(np.count_nonzero(rent < 0.0)),
         "positive_rent_nonhead": int(np.count_nonzero(positive_rent & ~head)),
         "positive_rent_nonrenter": int(np.count_nonzero(nonrenter_positive)),
+        "missing_real_estate_taxes": int(
+            np.count_nonzero(missing_real_estate_taxes)
+        ),
+        "nonfinite_real_estate_taxes": int(
+            np.count_nonzero(nonfinite_real_estate_taxes)
+        ),
+        "negative_real_estate_taxes": int(
+            np.count_nonzero(real_estate_taxes < 0.0)
+        ),
+        "positive_native_real_estate_taxes_nonhead": int(
+            np.count_nonzero((real_estate_taxes > 0.0) & native_role & ~head)
+        ),
+        "real_estate_taxes_unique_count": int(
+            pd.Series(real_estate_taxes).dropna().nunique()
+        ),
         "household_tenure_values": household_values,
+        "household_tenure_values_by_origin": household_values_by_origin,
+        "has_household_source_metadata": has_household_support_metadata,
         "spm_tenure_values": spm_values,
         "unknown_household_tenure_values": sorted(
             set(household_values) - _HOUSEHOLD_TENURE_VALUES
@@ -1281,7 +1449,7 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
 
 
 def us_housing_inputs_signal_gate(frame: Frame) -> GateResult:
-    """Require plausible non-default signal for all five restored inputs."""
+    """Require plausible non-default signal for all six restored inputs."""
 
     missing: list[str] = []
     for entity, columns in (
@@ -1343,9 +1511,23 @@ def us_housing_inputs_signal_gate(frame: Frame) -> GateResult:
             f"receives_housing_assistance on {take_up_mismatches} SPM unit(s)."
         )
     for key, label in (
-        ("nonfinite_rent", "nonfinite pre_subsidy_rent"),
+        (
+            "unexpected_nonfinite_rent",
+            "nonfinite pre_subsidy_rent outside the authority-valid ACS group-quarters universe",
+        ),
+        (
+            "authorized_structural_rent_materialized",
+            "authority-valid ACS group-quarters rows with materialized pre_subsidy_rent",
+        ),
         ("negative_rent", "negative pre_subsidy_rent"),
         ("positive_rent_nonhead", "positive rent on non-head people"),
+        ("missing_real_estate_taxes", "missing real_estate_taxes"),
+        ("nonfinite_real_estate_taxes", "nonfinite real_estate_taxes"),
+        ("negative_real_estate_taxes", "negative real_estate_taxes"),
+        (
+            "positive_native_real_estate_taxes_nonhead",
+            "positive native-role real_estate_taxes on non-head people",
+        ),
     ):
         count = int(summary[key])
         if count:
@@ -1368,6 +1550,8 @@ def us_housing_inputs_signal_gate(frame: Frame) -> GateResult:
             failures.append(
                 f"{label} {share:.3f} outside plausibility band [{low}, {high}]."
             )
+    if int(summary["real_estate_taxes_unique_count"]) < 2:
+        failures.append("real_estate_taxes is not nonconstant.")
     channel_shares = summary["housing_assistance_share_by_support_channel"]
     if summary["has_spm_support_channel_metadata"]:
         if PUF_TAX_DETAIL_SUPPORT_CHANNEL not in channel_shares:
@@ -1384,7 +1568,21 @@ def us_housing_inputs_signal_gate(frame: Frame) -> GateResult:
                 )
     household_values = summary["household_tenure_values"]
     spm_values = summary["spm_tenure_values"]
-    if set(household_values) != _EXPECTED_HOUSEHOLD_TENURE_VALUES:
+    if summary["has_household_source_metadata"]:
+        values_by_origin = summary["household_tenure_values_by_origin"]
+        asec_values = values_by_origin["asec_origin"]
+        acs_values = values_by_origin["acs_origin"]
+        if set(asec_values) != _EXPECTED_HOUSEHOLD_TENURE_VALUES:
+            failures.append(
+                "ASEC-origin household tenure_type does not carry exactly the "
+                f"three locked ASEC categories: {asec_values}."
+            )
+        if set(acs_values) != _EXPECTED_ACS_HOUSEHOLD_TENURE_VALUES:
+            failures.append(
+                "ACS-origin household tenure_type does not carry exactly the "
+                f"four locked ACS categories: {acs_values}."
+            )
+    elif set(household_values) != _EXPECTED_HOUSEHOLD_TENURE_VALUES:
         failures.append(
             "household tenure_type does not carry the three locked ASEC "
             f"categories: {household_values}."

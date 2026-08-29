@@ -4318,6 +4318,19 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
             assert entity == "household"
             return pd.DataFrame({"household_id": np.asarray([10, 20], dtype="int64")})
 
+    full_base_simulation_authority = object()
+
+    def fake_simulation_dataset_authority(frame, *, boundary):
+        captured.setdefault("simulation_authority_boundaries", []).append(boundary)
+        assert isinstance(frame, FakeFrame)
+        return full_base_simulation_authority
+
+    monkeypatch.setattr(
+        builder,
+        "_simulation_dataset_authority",
+        fake_simulation_dataset_authority,
+    )
+
     if terminal_mode == "puf_tail":
         loss_basis = builder._fiscal_target_loss_basis(registry, np.ones(1))
         incumbent = tmp_path / "incumbent.json"
@@ -5385,9 +5398,13 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
         *,
         simulation=None,
         maximum_microsim_batch_size=None,
+        simulation_dataset_authority=None,
     ):
         captured["ssi_uncapped_stage_called"] = True
         captured["ssi_uncapped_batch_size"] = maximum_microsim_batch_size
+        captured.setdefault("ssi_simulation_authorities", []).append(
+            simulation_dataset_authority
+        )
         return np.zeros(4, dtype=np.float64)
 
     fake_band_targets = {
@@ -5634,8 +5651,12 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
         seed,
         substitutions=(),
         maximum_microsim_batch_size=None,
+        simulation_dataset_authority=None,
     ):
         captured["health_stage_events"].append("medicaid")
+        captured["medicaid_stage_simulation_authority"] = (
+            simulation_dataset_authority
+        )
         return frame, {}
 
     def fake_medicaid_gate(diagnostics):
@@ -5847,8 +5868,12 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
         seed,
         substitutions,
         maximum_microsim_batch_size=None,
+        simulation_dataset_authority=None,
     ):
         captured["final_medicaid_diagnostics_called"] = True
+        captured["final_medicaid_simulation_authority"] = (
+            simulation_dataset_authority
+        )
         return {}
 
     monkeypatch.setattr(builder, "_with_l0_refit_weights", fake_l0_refit_weights)
@@ -6323,6 +6348,17 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
         == builder.DEFAULT_MAXIMUM_MICROSIM_BATCH_SIZE
     )
     assert captured["ssi_take_up_stage_called"] is True
+    stage_authority, selected_export_authority = captured[
+        "ssi_simulation_authorities"
+    ]
+    assert stage_authority is full_base_simulation_authority
+    assert selected_export_authority is stage_authority
+    assert captured["simulation_authority_boundaries"] == [
+        "release full-base simulation authority"
+    ]
+    assert captured["medicaid_stage_simulation_authority"] is stage_authority
+    if terminal_mode != "integrity":
+        assert captured["final_medicaid_simulation_authority"] is stage_authority
     assert captured["ssi_take_up_seed"] == 0
     assert captured["ssi_take_up_uncapped"].shape == (4,)
     assert captured["ssi_take_up_targets"] == fake_band_targets
@@ -7223,6 +7259,7 @@ def test_aca_source_runtime_refreshes_degenerate_release_inputs(monkeypatch) -> 
                 kind=WeightKind.DESIGN,
             )
         },
+        metadata={"fixture_receipt": {"status": "authenticated"}},
     )
     specs = (
         TargetSpec(
@@ -7278,6 +7315,8 @@ def test_aca_source_runtime_refreshes_degenerate_release_inputs(monkeypatch) -> 
     )
     assert float(person_counts["assigned"].sum()) == 2.0
     assert builder._health_input_signal_gate(refreshed).passed
+    assert refreshed.metadata == frame.metadata
+    assert refreshed.mass_log == frame.mass_log
     assert frame.table("tax_unit")["takes_up_aca_if_eligible"].nunique() == 1
     assert (
         frame.table("tax_unit")["selected_marketplace_plan_benchmark_ratio"].nunique()
@@ -7472,6 +7511,8 @@ def test_aca_source_runtime_uses_bronze_targets_when_available(
         schema = object()
         weighted_entities = ()
         strata = None
+        mass_log = ()
+        metadata = {"sampling_rung": "fixture"}
 
         def table(self, entity):
             assert entity == "tax_unit"
@@ -7508,7 +7549,10 @@ def test_aca_source_runtime_uses_bronze_targets_when_available(
     monkeypatch.setattr(
         builder,
         "Frame",
-        lambda tables, schema, weights, strata: SimpleNamespace(tables=tables),
+        lambda tables, schema, weights, strata, **kwargs: SimpleNamespace(
+            tables=tables,
+            **kwargs,
+        ),
     )
 
     specs = (
@@ -7748,7 +7792,9 @@ def test_jct_materialization_collapses_reform_tax_units_and_clears_caches(
         zero_variables=(),
         system=None,
         assert_no_formula_owned_columns=True,
+        simulation_dataset_authority=None,
     ):
+        del simulation_dataset_authority
         datasets.append(
             (
                 frame_arg,
@@ -9769,6 +9815,319 @@ def test_dataset_from_frame_rejects_formula_owned_columns_by_default(
         builder._dataset_from_frame(small_frame)
 
 
+def test_dataset_from_frame_materializes_reported_ssi_only_in_dataset_copy(
+    monkeypatch,
+) -> None:
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    person = frame.table("person")
+    person["age"] = np.asarray([40.0, 50.0, 10.0])
+    person["SSI_VAL"] = np.asarray([1_200.0, np.nan, np.nan])
+    person["ssi_reported"] = np.asarray([np.nan, 900.0, np.nan])
+    source_tables = {
+        entity: frame.table(entity).copy(deep=True) for entity in frame.entities
+    }
+    source_weights = frame.weights_for("household").values.copy()
+
+    class CapturingDataset:
+        def __init__(self, **kwargs):
+            self.tables = kwargs
+
+    monkeypatch.setitem(
+        sys.modules,
+        "policyengine_us.data",
+        SimpleNamespace(USSingleYearDataset=CapturingDataset),
+    )
+
+    dataset = builder._dataset_from_frame(
+        frame,
+        assert_no_formula_owned_columns=False,
+    )
+
+    np.testing.assert_array_equal(
+        dataset.tables["person"]["ssi_reported"],
+        [1_200.0, 900.0, 0.0],
+    )
+    for entity, source in source_tables.items():
+        pd.testing.assert_frame_equal(
+            frame.table(entity),
+            source,
+            check_exact=True,
+        )
+    np.testing.assert_array_equal(
+        frame.weights_for("household").values,
+        source_weights,
+    )
+
+
+def test_dataset_from_frame_materializes_only_authorized_group_quarters_rent(
+    monkeypatch,
+) -> None:
+    from microcosm.build.us_runtime import stacked_spine as stacked_spine_module
+
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    person = frame.table("person")
+    person["pre_subsidy_rent"] = np.asarray([np.nan, 700.0, 800.0])
+    person["person_support_channel"] = ["acs", "acs", "asec"]
+    person["person_support_clone_index"] = np.asarray([0, 0, 0])
+    person["person_source_id"] = np.asarray([101, 102, 103])
+    source = person.copy(deep=True)
+    boundaries: list[str] = []
+
+    def fake_absence(frame_arg, *, boundary):
+        assert frame_arg is frame
+        boundaries.append(boundary)
+        return (
+            pd.Series([True, False, False], index=frame.table("person").index),
+            {"rule_id": "fixture"},
+        )
+
+    class CapturingDataset:
+        def __init__(self, **kwargs):
+            self.tables = kwargs
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validated_stacked_housing_rent_absence",
+        fake_absence,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "policyengine_us.data",
+        SimpleNamespace(USSingleYearDataset=CapturingDataset),
+    )
+
+    dataset = builder._dataset_from_frame(
+        frame,
+        assert_no_formula_owned_columns=False,
+    )
+
+    np.testing.assert_array_equal(
+        dataset.tables["person"]["pre_subsidy_rent"],
+        [0.0, 700.0, 800.0],
+    )
+    assert boundaries == ["release simulation dataset rent materialization"]
+    pd.testing.assert_frame_equal(frame.table("person"), source, check_exact=True)
+
+
+def test_dataset_from_frame_refuses_rent_null_outside_authorized_absence(
+    monkeypatch,
+) -> None:
+    from microcosm.build.us_runtime import stacked_spine as stacked_spine_module
+
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    frame.table("person")["pre_subsidy_rent"] = np.asarray([np.nan, 700.0, np.nan])
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validated_stacked_housing_rent_absence",
+        lambda frame_arg, *, boundary: (
+            pd.Series([True, False, False], index=frame_arg.table("person").index),
+            {"rule_id": "fixture"},
+        ),
+    )
+
+    with pytest.raises(ValueError, match=r"blank outside.*rows=1"):
+        builder._dataset_from_frame(
+            frame,
+            assert_no_formula_owned_columns=False,
+        )
+
+
+def test_dataset_from_frame_uses_full_frame_authority_for_selected_batch(
+    monkeypatch,
+) -> None:
+    from microcosm.build.us_runtime import stacked_spine as stacked_spine_module
+
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    person = frame.table("person")
+    person["pre_subsidy_rent"] = np.asarray([np.nan, 700.0, 800.0])
+    person["person_support_channel"] = ["acs", "acs", "asec"]
+    person["person_support_clone_index"] = np.asarray([0, 0, 0])
+    person["person_source_id"] = np.asarray([101, 102, 103])
+    source = person.copy(deep=True)
+    validated_frames: list[Frame] = []
+
+    def fake_absence(frame_arg, *, boundary):
+        validated_frames.append(frame_arg)
+        assert frame_arg is frame
+        return (
+            pd.Series([True, False, False], index=person.index),
+            {"rule_id": "fixture", "status": "exact_structural_absence"},
+        )
+
+    class CapturingDataset:
+        def __init__(self, **kwargs):
+            self.tables = kwargs
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validated_stacked_housing_rent_absence",
+        fake_absence,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "policyengine_us.data",
+        SimpleNamespace(USSingleYearDataset=CapturingDataset),
+    )
+
+    authority = builder._simulation_dataset_authority(
+        frame,
+        boundary="selected-batch fixture",
+    )
+    batch = builder._select_households_by_position(frame, np.asarray([0]))
+    dataset = builder._dataset_from_frame(
+        batch,
+        assert_no_formula_owned_columns=False,
+        simulation_dataset_authority=authority,
+    )
+
+    assert validated_frames == [frame]
+    np.testing.assert_array_equal(
+        dataset.tables["person"]["pre_subsidy_rent"],
+        [0.0, 700.0],
+    )
+    pd.testing.assert_frame_equal(frame.table("person"), source, check_exact=True)
+
+    damaged = batch.table("person").copy()
+    damaged.loc[damaged["pre_subsidy_rent"].isna(), "person_source_id"] = 999
+    tables = {entity: batch.table(entity).copy() for entity in batch.entities}
+    tables["person"] = damaged
+    damaged_batch = Frame(
+        tables,
+        batch.schema,
+        {
+            entity: batch.weights_for(entity)
+            for entity in batch.weighted_entities
+        },
+        batch.strata,
+        mass_log=batch.mass_log,
+        metadata=batch.metadata,
+    )
+    with pytest.raises(ValueError, match=r"blank outside.*rows=1"):
+        builder._dataset_from_frame(
+            damaged_batch,
+            assert_no_formula_owned_columns=False,
+            simulation_dataset_authority=authority,
+        )
+
+
+def test_dataset_from_frame_materializes_only_authorized_group_quarters_tenure(
+    monkeypatch,
+) -> None:
+    from microcosm.build.us_runtime import stacked_spine as stacked_spine_module
+
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    household = frame.table("household")
+    spm_unit = frame.table("spm_unit")
+    household["tenure_type"] = pd.Series([np.nan, "RENTED"], dtype="object")
+    spm_unit["spm_unit_tenure_type"] = pd.Series(
+        [np.nan, "RENTER"], dtype="object"
+    )
+    for table, entity, source_ids in (
+        (household, "household", [101, 202]),
+        (spm_unit, "spm_unit", [1001, 2002]),
+    ):
+        table[f"{entity}_support_channel"] = ["acs", "asec"]
+        table[f"{entity}_support_clone_index"] = np.asarray([0, 0])
+        table[f"{entity}_source_id"] = np.asarray(source_ids)
+    source_tables = {
+        entity: frame.table(entity).copy(deep=True) for entity in frame.entities
+    }
+
+    def fake_tenure_absence(frame_arg, *, boundary):
+        assert frame_arg is frame
+        assert boundary == "release simulation dataset tenure materialization"
+        return (
+            {
+                "person": pd.Series(
+                    [True, True, False], index=frame.table("person").index
+                ),
+                "household": pd.Series([True, False], index=household.index),
+                "spm_unit": pd.Series([True, False], index=spm_unit.index),
+            },
+            {"rule_id": "fixture", "status": "exact_structural_absence"},
+        )
+
+    class CapturingDataset:
+        def __init__(self, **kwargs):
+            self.tables = kwargs
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validated_stacked_housing_tenure_absence",
+        fake_tenure_absence,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "policyengine_us.data",
+        SimpleNamespace(USSingleYearDataset=CapturingDataset),
+    )
+
+    dataset = builder._dataset_from_frame(
+        frame,
+        assert_no_formula_owned_columns=False,
+    )
+
+    assert dataset.tables["household"]["tenure_type"].tolist() == [
+        "NONE",
+        "RENTED",
+    ]
+    assert dataset.tables["spm_unit"]["spm_unit_tenure_type"].tolist() == [
+        "RENTER",
+        "RENTER",
+    ]
+    for entity, source in source_tables.items():
+        pd.testing.assert_frame_equal(frame.table(entity), source, check_exact=True)
+
+
+def test_dataset_from_frame_refuses_tenure_null_outside_authorized_absence(
+    monkeypatch,
+) -> None:
+    from microcosm.build.us_runtime import stacked_spine as stacked_spine_module
+
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    household = frame.table("household")
+    spm_unit = frame.table("spm_unit")
+    household["tenure_type"] = pd.Series([np.nan, np.nan], dtype="object")
+    spm_unit["spm_unit_tenure_type"] = pd.Series(
+        [np.nan, "RENTER"], dtype="object"
+    )
+    for table, entity, source_ids in (
+        (household, "household", [101, 202]),
+        (spm_unit, "spm_unit", [1001, 2002]),
+    ):
+        table[f"{entity}_support_channel"] = ["acs", "asec"]
+        table[f"{entity}_support_clone_index"] = np.asarray([0, 0])
+        table[f"{entity}_source_id"] = np.asarray(source_ids)
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validated_stacked_housing_tenure_absence",
+        lambda frame_arg, *, boundary: (
+            {
+                "person": pd.Series(
+                    [True, True, False], index=frame_arg.table("person").index
+                ),
+                "household": pd.Series([True, False], index=household.index),
+                "spm_unit": pd.Series([True, False], index=spm_unit.index),
+            },
+            {"rule_id": "fixture", "status": "exact_structural_absence"},
+        ),
+    )
+
+    with pytest.raises(ValueError, match=r"household\.tenure_type.*rows=1"):
+        builder._dataset_from_frame(
+            frame,
+            assert_no_formula_owned_columns=False,
+        )
+
+
 def test_export_frame_accepts_leaf_only_columns(monkeypatch, small_frame) -> None:
     builder = _load_builder_module()
 
@@ -10353,7 +10712,9 @@ def _install_multi_reform_fakes(
         zero_variables=(),
         system=None,
         assert_no_formula_owned_columns=True,
+        simulation_dataset_authority=None,
     ):
+        del simulation_dataset_authority
         return {"frame": frame_arg, "zero_variables": tuple(zero_variables)}
 
     def fake_make_zero_variable_reform(system, variable_name):

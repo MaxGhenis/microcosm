@@ -142,11 +142,19 @@ def _donor(n: int = 60) -> pd.DataFrame:
     return donor
 
 
-class _RentFitted:
+class _HousingFitted:
+    def __init__(self, target: str) -> None:
+        self.target = target
+
     def predict(self, test: pd.DataFrame, **kwargs) -> pd.DataFrame:
         rented = test["tenure_type__RENTED"] > 0
+        values = (
+            np.where(rented, 12_000.0, 0.0)
+            if self.target == "rent"
+            else np.where(rented, 0.0, 4_000.0)
+        )
         return pd.DataFrame(
-            {"rent": np.where(rented, 12_000.0, 0.0)},
+            {self.target: values},
             index=test.index,
         )
 
@@ -155,8 +163,10 @@ class _RentQRF:
     def __init__(self, **_kwargs: object) -> None:
         pass
 
-    def fit(self, *_args: object, **_kwargs: object) -> _RentFitted:
-        return _RentFitted()
+    def fit(self, *_args: object, **kwargs: object) -> _HousingFitted:
+        targets = kwargs["targets"]
+        assert isinstance(targets, list) and len(targets) == 1
+        return _HousingFitted(targets[0])
 
 
 def test_stage_manifest_pins_exact_archived_sources_and_two_qrfs() -> None:
@@ -172,6 +182,7 @@ def test_stage_manifest_pins_exact_archived_sources_and_two_qrfs() -> None:
     ]
     rent_fit = spec.operations[2]
     assert tuple(rent_fit.parameters["predictors"]) == module.ACS_RENT_PREDICTORS
+    assert rent_fit.parameters["targets"] == ["rent", "real_estate_taxes"]
     assert rent_fit.parameters["max_train_samples"] == 10_000
     assert rent_fit.parameters["shared_sample_targets"] == [
         "rent",
@@ -179,6 +190,10 @@ def test_stage_manifest_pins_exact_archived_sources_and_two_qrfs() -> None:
     ]
     assert rent_fit.parameters["per_target_initial_cap"] == 5_000
     assert rent_fit.parameters["weight"] == "household_weight"
+    assert rent_fit.parameters["head_carry_outputs"] == {
+        "rent": "pre_subsidy_rent",
+        "real_estate_taxes": "real_estate_taxes",
+    }
     puf_fit = spec.operations[3]
     assert puf_fit.parameters["max_train_samples"] == 5_000
     assert puf_fit.parameters["reduction"] == "value_from_first_person"
@@ -270,8 +285,106 @@ def test_materialization_places_rent_only_on_renter_heads(
 
     rent = result.table("person")["pre_subsidy_rent"]
     assert rent.tolist()[:6] == [12_000.0] * 4 + [0.0, 0.0]
+    real_estate_taxes = result.table("person")["real_estate_taxes"]
+    assert real_estate_taxes.tolist()[:6] == [0.0] * 4 + [4_000.0] * 2
     gate = us_housing_inputs_signal_gate(result)
     assert gate.passed, gate.failures
+
+
+def test_materialization_places_both_housing_amounts_only_on_heads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(module, "QRF", _RentQRF)
+    frame = _frame()
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    child = tables["person"].iloc[[5]].copy()
+    child["person_id"] = 999
+    child["person_household_id"] = tables["person"].loc[5, "person_household_id"]
+    child["is_household_head"] = False
+    child["person_marital_unit_id"] = 999
+    tables["person"] = pd.concat([tables["person"], child], ignore_index=True)
+    tables["marital_unit"] = pd.concat(
+        [tables["marital_unit"], pd.DataFrame({"marital_unit_id": [999]})],
+        ignore_index=True,
+    )
+    with_child = Frame(
+        tables,
+        frame.schema,
+        {"household": frame.weights_for("household")},
+    )
+
+    result = with_us_housing_inputs(
+        with_child,
+        seed=0,
+        time_period=2024,
+        acs_rent_donor=_donor(),
+    )
+
+    person = result.table("person")
+    child_row = person.loc[person["person_id"].eq(999)].iloc[0]
+    assert child_row["pre_subsidy_rent"] == 0.0
+    assert child_row["real_estate_taxes"] == 0.0
+    assert person.loc[person["is_household_head"], "real_estate_taxes"].gt(0).any()
+
+
+def test_housing_amounts_share_one_deterministic_target_filtered_sample(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    donor = _donor(12_000)
+    positions = np.arange(len(donor))
+    donor["rent_is_allocated"] = positions >= 6_000
+    donor["real_estate_taxes_is_allocated"] = positions < 6_000
+    original_sample = module._archived_joint_training_sample
+    sample_calls = 0
+    sampled_masks: dict[str, np.ndarray] = {}
+    fits: dict[str, pd.DataFrame] = {}
+
+    def counted_sample(
+        current: pd.DataFrame,
+    ) -> tuple[pd.DataFrame, dict[str, np.ndarray]]:
+        nonlocal sample_calls
+        sample_calls += 1
+        sample, masks = original_sample(current)
+        sampled_masks.update(masks)
+        return sample, masks
+
+    class Fitted:
+        def __init__(self, target: str) -> None:
+            self.target = target
+
+        def predict(self, test: pd.DataFrame, **kwargs: object) -> pd.DataFrame:
+            return pd.DataFrame({self.target: np.zeros(len(test))}, index=test.index)
+
+    class QRF:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def fit(
+            self,
+            training: pd.DataFrame,
+            *,
+            predictors: list[str],
+            targets: list[str],
+            weights: str,
+        ) -> Fitted:
+            del predictors, weights
+            fits[targets[0]] = training.copy()
+            return Fitted(targets[0])
+
+    monkeypatch.setattr(module, "_archived_joint_training_sample", counted_sample)
+    monkeypatch.setattr(module, "QRF", QRF)
+
+    module._impute_us_housing_amounts(
+        derive_us_housing_inputs(_frame()), donor, seed=0
+    )
+
+    assert sample_calls == 1
+    assert set(fits) == {"rent", "real_estate_taxes"}
+    assert len(fits["rent"]) == 5_000
+    assert len(fits["real_estate_taxes"]) == 5_000
+    assert int(sampled_masks["rent"].sum()) == 5_000
+    assert int(sampled_masks["real_estate_taxes"].sum()) == 5_000
+    assert set(fits["rent"].index).isdisjoint(fits["real_estate_taxes"].index)
 
 
 def test_rent_fit_replays_archived_joint_target_sample(
@@ -329,6 +442,112 @@ def test_signal_gate_preserves_archived_qrf_rent_outside_renter_household(
 
     assert gate.passed, gate.failures
     assert gate.details["positive_rent_nonrenter"] == 1
+
+
+@pytest.mark.parametrize("bad_value", [np.nan, np.inf, -1.0])
+def test_signal_gate_rejects_invalid_real_estate_taxes(
+    monkeypatch: pytest.MonkeyPatch,
+    bad_value: float,
+) -> None:
+    monkeypatch.setattr(module, "QRF", _RentQRF)
+    result = with_us_housing_inputs(
+        _frame(), seed=0, time_period=2024, acs_rent_donor=_donor()
+    )
+    result.table("person").loc[5, "real_estate_taxes"] = bad_value
+
+    gate = us_housing_inputs_signal_gate(result)
+
+    assert not gate.passed
+    expected = (
+        "missing real_estate_taxes"
+        if np.isnan(bad_value)
+        else "nonfinite real_estate_taxes"
+        if np.isinf(bad_value)
+        else "negative real_estate_taxes"
+    )
+    assert any(expected in failure for failure in gate.failures)
+
+
+def test_signal_gate_rejects_constant_real_estate_taxes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(module, "QRF", _RentQRF)
+    result = with_us_housing_inputs(
+        _frame(), seed=0, time_period=2024, acs_rent_donor=_donor()
+    )
+    result.table("person")["real_estate_taxes"] = 0.0
+
+    gate = us_housing_inputs_signal_gate(result)
+
+    assert not gate.passed
+    assert "real_estate_taxes is not nonconstant." in gate.failures
+
+
+def test_signal_gate_rejects_positive_real_estate_taxes_on_nonhead(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(module, "QRF", _RentQRF)
+    result = with_us_housing_inputs(
+        _frame(), seed=0, time_period=2024, acs_rent_donor=_donor()
+    )
+    result.table("person").loc[5, "is_household_head"] = False
+
+    gate = us_housing_inputs_signal_gate(result)
+
+    assert not gate.passed
+    assert any("real_estate_taxes on non-head" in row for row in gate.failures)
+
+
+def test_signal_gate_allows_puf_secondary_tax_unit_property_tax_carrier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(module, "QRF", _RentQRF)
+    result = with_us_housing_inputs(
+        _frame(), seed=0, time_period=2024, acs_rent_donor=_donor()
+    )
+    tables = {entity: result.table(entity).copy() for entity in result.entities}
+    person = tables["person"]
+    person["person_support_channel"] = "asec"
+    person["person_support_clone_index"] = 0
+    head_index = person.index[person["person_household_id"].eq(5)][0]
+    secondary = person.loc[[head_index]].copy()
+    secondary["person_id"] = 999
+    secondary["person_tax_unit_id"] = 999
+    secondary["person_family_id"] = 999
+    secondary["person_marital_unit_id"] = 999
+    secondary["is_household_head"] = False
+    secondary["tax_unit_role_input"] = "HEAD"
+    secondary["person_support_channel"] = "puf_tax_detail"
+    secondary["person_support_clone_index"] = 1
+    secondary["real_estate_taxes"] = 1_500.0
+    tables["person"] = pd.concat([person, secondary], ignore_index=True)
+    tables["tax_unit"] = pd.concat(
+        [
+            tables["tax_unit"],
+            pd.DataFrame(
+                {"tax_unit_id": [999], "filing_status_input": ["SINGLE"]}
+            ),
+        ],
+        ignore_index=True,
+    )
+    tables["family"] = pd.concat(
+        [tables["family"], pd.DataFrame({"family_id": [999]})],
+        ignore_index=True,
+    )
+    tables["marital_unit"] = pd.concat(
+        [tables["marital_unit"], pd.DataFrame({"marital_unit_id": [999]})],
+        ignore_index=True,
+    )
+    multi_tax_unit = Frame(
+        tables,
+        result.schema,
+        {"household": result.weights_for("household")},
+    )
+
+    gate = us_housing_inputs_signal_gate(multi_tax_unit)
+
+    assert gate.passed, gate.failures
+    assert gate.details["positive_native_real_estate_taxes_nonhead"] == 0
 
 
 def test_puf_half_reimputes_only_housing_assistance(
@@ -415,6 +634,9 @@ def test_signal_gate_rejects_missing_or_invalid_take_up(bad_value: object) -> No
         result.table("person")["is_household_head"],
         1.0,
         0.0,
+    )
+    result.table("person")["real_estate_taxes"] = np.arange(
+        len(result.table("person")), dtype=np.float64
     )
 
     gate = us_housing_inputs_signal_gate(result)
@@ -543,6 +765,7 @@ def test_policyengine_us_input_contracts_and_rent_consumer() -> None:
     system = CountryTaxBenefitSystem()
     expected_entities = {
         "pre_subsidy_rent": "person",
+        "real_estate_taxes": "person",
         "receives_housing_assistance": "spm_unit",
         "takes_up_housing_assistance_if_eligible": "spm_unit",
         "spm_unit_tenure_type": "spm_unit",

@@ -5,6 +5,9 @@ import pandas as pd
 import pytest
 
 from microcosm.build.us_runtime.acs_inputs import map_acs_native_inputs
+from microcosm.build.us_runtime.operator_boundary import (
+    assert_operator_free_source_frame,
+)
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
 
 
@@ -36,6 +39,7 @@ def _acs_frame() -> Frame:
                 "household_id": [1],
                 "ADJHSG": [1_250_000],
                 "TEN": [3],
+                "TYPEHUGQ": [1],
                 "RNTP": [1_000.0],
                 "GRNTP": [1_200.0],
                 "TAXAMT": [np.nan],
@@ -101,13 +105,63 @@ def test_acs_housing_mapping_preserves_rent_without_synthesizing_model_rent() ->
     assert spm_unit["spm_unit_tenure_type"].tolist() == ["RENTER"]
     assert household["acs_monthly_contract_rent"].tolist() == [1_250.0]
     assert household["acs_monthly_gross_rent"].tolist() == [1_500.0]
-    assert household["acs_annual_property_tax"].isna().all()
+    assert household["acs_annual_property_tax"].tolist() == [0.0]
     assert "pre_subsidy_rent" not in person
-    assert person["real_estate_taxes"].isna().all()
+    assert person["real_estate_taxes"].tolist() == [0.0, 0.0]
+    assert result.native_inputs["real_estate_taxes"]["source_domain"] == {
+        "version": 1,
+        "owner_housing_rows": 0,
+        "owner_observed_rows": 0,
+        "renter_or_no_rent_structural_zero_rows": 1,
+        "group_quarters_structural_zero_rows": 0,
+        "structural_zero_rule": (
+            "TAXAMT blank-or-zero outside owner-occupied housing; owner blank refused"
+        ),
+    }
     assert result.native_inputs["acs_monthly_contract_rent"]["source_columns"] == [
         "RNTP",
         "ADJHSG",
     ]
+
+
+def test_property_tax_native_domain_receipt_crosses_operator_boundary() -> None:
+    result = map_acs_native_inputs(_acs_frame())
+
+    assert result.native_inputs["acs_annual_property_tax"]["source_columns"] == [
+        "TAXAMT",
+        "ADJHSG",
+        "TEN",
+        "TYPEHUGQ",
+    ]
+    assert result.native_inputs["real_estate_taxes"]["source_columns"] == [
+        "TAXAMT",
+        "ADJHSG",
+        "TEN",
+        "TYPEHUGQ",
+        "RELSHIPP",
+    ]
+    assert_operator_free_source_frame(
+        result.frame,
+        label="mapped ACS property-tax fixture",
+        native_inputs=result.native_inputs,
+    )
+
+    forged = {
+        output: dict(receipt) for output, receipt in result.native_inputs.items()
+    }
+    forged["real_estate_taxes"] = {
+        **forged["real_estate_taxes"],
+        "source_domain": {
+            **forged["real_estate_taxes"]["source_domain"],
+            "group_quarters_structural_zero_rows": 1,
+        },
+    }
+    with pytest.raises(ValueError, match="live ACS real-estate-tax domain"):
+        assert_operator_free_source_frame(
+            result.frame,
+            label="forged ACS property-tax fixture",
+            native_inputs=forged,
+        )
 
 
 def test_acs_owner_property_tax_mapping_places_observed_amount_on_head() -> None:
@@ -136,6 +190,21 @@ def test_acs_owner_property_tax_mapping_places_observed_amount_on_head() -> None
     ]
 
 
+def test_acs_owner_property_tax_mapping_refuses_blank_source() -> None:
+    frame = _acs_frame()
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["household"]["TEN"] = 2
+    owner = Frame(
+        tables,
+        frame.schema,
+        {"household": frame.weights_for("household")},
+        frame.strata,
+    )
+
+    with pytest.raises(ValueError, match="owner-housing TAXAMT must be observed"):
+        map_acs_native_inputs(owner)
+
+
 def test_acs_group_quarters_blank_tenure_is_not_synthesized() -> None:
     frame = _acs_frame()
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
@@ -156,6 +225,51 @@ def test_acs_group_quarters_blank_tenure_is_not_synthesized() -> None:
     assert result.frame.table("spm_unit")["spm_unit_tenure_type"].isna().all()
     assert result.native_inputs["tenure_type"]["observed_rows"] == 0
     assert result.native_inputs["tenure_type"]["missing_rows"] == 1
+    assert result.frame.table("household")["acs_annual_property_tax"].tolist() == [
+        0.0
+    ]
+    assert result.frame.table("person")["real_estate_taxes"].tolist() == [0.0, 0.0]
+
+
+def test_acs_property_tax_mapping_rejects_nonzero_group_quarters_value() -> None:
+    frame = _acs_frame()
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    household = tables["household"]
+    household["TEN"] = np.nan
+    household["TYPEHUGQ"] = 2
+    household["TAXAMT"] = 1.0
+    tampered = Frame(
+        tables,
+        frame.schema,
+        {"household": frame.weights_for("household")},
+        frame.strata,
+    )
+
+    with pytest.raises(ValueError, match="renter/group-quarters TAXAMT"):
+        map_acs_native_inputs(tampered)
+
+
+@pytest.mark.parametrize(
+    ("type_hugq", "tenure"),
+    [(np.nan, 3), (4, 3), (1, np.nan), (1, 9)],
+)
+def test_acs_property_tax_mapping_rejects_invalid_source_domain(
+    type_hugq: float,
+    tenure: float,
+) -> None:
+    frame = _acs_frame()
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["household"]["TYPEHUGQ"] = type_hugq
+    tables["household"]["TEN"] = tenure
+    invalid = Frame(
+        tables,
+        frame.schema,
+        {"household": frame.weights_for("household")},
+        frame.strata,
+    )
+
+    with pytest.raises(ValueError, match="real-estate-tax source-domain|ACS TEN"):
+        map_acs_native_inputs(invalid)
 
 
 @pytest.mark.parametrize(

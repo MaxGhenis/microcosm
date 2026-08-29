@@ -805,11 +805,22 @@
        },
        "name": {
         "type": "string"
+       },
+       "post_reconciliation_policy": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/$defs/stacked_post_gap_reconciliation_policy_v1"
+         }
+        ]
        }
       },
       "required": [
        "activation_stage",
-       "name"
+       "name",
+       "post_reconciliation_policy"
       ]
      }
     }
@@ -849,6 +860,165 @@
   }
  },
  "$defs": {
+  "stacked_post_gap_reconciliation_policy_v1": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "resource_kind",
+    "schema_version",
+    "policy_id",
+    "stage",
+    "dependencies",
+    "assignments",
+    "preserved_producer_scope",
+    "downstream_writer_guarantee",
+    "sha256"
+   ],
+   "properties": {
+    "resource_kind": {
+     "const": "stacked_post_gap_reconciliation_policy"
+    },
+    "schema_version": {
+     "const": 1
+    },
+    "policy_id": {
+     "$ref": "defs.schema.json#/$defs/identifier"
+    },
+    "stage": {
+     "const": "after_all_gap_fill_directions_before_clone"
+    },
+    "dependencies": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "person",
+      "spm_unit",
+      "structural_rent_absence_rule"
+     ],
+     "properties": {
+      "person": {
+       "type": "array",
+       "minItems": 1,
+       "uniqueItems": true,
+       "items": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "spm_unit": {
+       "type": "array",
+       "minItems": 1,
+       "uniqueItems": true,
+       "items": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "structural_rent_absence_rule": {
+       "$ref": "defs.schema.json#/$defs/identifier"
+      }
+     }
+    },
+    "assignments": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "target",
+       "scope",
+       "value"
+      ],
+      "properties": {
+       "target": {
+        "type": "string",
+        "minLength": 1
+       },
+       "scope": {
+        "type": "string",
+        "minLength": 1
+       },
+       "value": {
+        "oneOf": [
+         {
+          "type": "string",
+          "minLength": 1
+         },
+         {
+          "type": "number"
+         }
+        ]
+       }
+      }
+     }
+    },
+    "preserved_producer_scope": {
+     "type": "string",
+     "minLength": 1
+    },
+    "downstream_writer_guarantee": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "operator",
+      "family",
+      "phases",
+      "execution_scope",
+      "mutable_scope",
+      "writes",
+      "assignment",
+      "rent_write"
+     ],
+     "properties": {
+      "operator": {
+       "type": "string",
+       "minLength": 1
+      },
+      "family": {
+       "type": "string",
+       "minLength": 1
+      },
+      "phases": {
+       "type": "array",
+       "minItems": 1,
+       "uniqueItems": true,
+       "items": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "execution_scope": {
+       "type": "string",
+       "minLength": 1
+      },
+      "mutable_scope": {
+       "type": "string",
+       "minLength": 1
+      },
+      "writes": {
+       "type": "array",
+       "minItems": 1,
+       "uniqueItems": true,
+       "items": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "assignment": {
+       "type": "string",
+       "minLength": 1
+      },
+      "rent_write": {
+       "type": "boolean"
+      }
+     }
+    },
+    "sha256": {
+     "$ref": "defs.schema.json#/$defs/sha256"
+    }
+   }
+  },
   "puf_native_zero_output_universe": {
    "type": "object",
    "additionalProperties": false,

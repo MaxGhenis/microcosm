@@ -76,6 +76,77 @@ def test_reported_ssi_anchor_refuses_an_adult_universe_blank() -> None:
         module._reported_ssi_anchor(person, age=np.asarray([40.0]))
 
 
+def test_reported_ssi_simulation_input_preserves_source_universe_nulls() -> None:
+    person = pd.DataFrame(
+        {
+            "age": [40.0, 50.0, 10.0],
+            "SSI_VAL": [1_200.0, np.nan, np.nan],
+            "ssi_reported": [np.nan, 900.0, np.nan],
+        }
+    )
+    source = person.copy(deep=True)
+
+    values = module.materialize_us_reported_ssi_for_simulation(person)
+
+    np.testing.assert_array_equal(values, [1_200.0, 900.0, 0.0])
+    pd.testing.assert_frame_equal(person, source, check_exact=True)
+
+
+def test_reported_ssi_simulation_input_refuses_adult_blank() -> None:
+    person = pd.DataFrame(
+        {
+            "age": [40.0],
+            "SSI_VAL": [np.nan],
+            "ssi_reported": [np.nan],
+        }
+    )
+
+    with pytest.raises(ValueError, match="blank only below"):
+        module.materialize_us_reported_ssi_for_simulation(person)
+
+
+def test_reported_ssi_simulation_input_refuses_reporter_conflict() -> None:
+    person = pd.DataFrame(
+        {
+            "age": [40.0],
+            "SSI_VAL": [1_200.0],
+            "ssi_reported": [0.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="disagree on reporter status"):
+        module.materialize_us_reported_ssi_for_simulation(person)
+
+
+@pytest.mark.parametrize("invalid_amount", [-1.0, np.inf, "not-an-amount"])
+def test_reported_ssi_simulation_input_requires_valid_observed_amounts(
+    invalid_amount,
+) -> None:
+    person = pd.DataFrame(
+        {
+            "age": [40.0],
+            "SSI_VAL": [invalid_amount],
+            "ssi_reported": [np.nan],
+        }
+    )
+
+    with pytest.raises(ValueError, match="finite nonnegative amounts"):
+        module.materialize_us_reported_ssi_for_simulation(person)
+
+
+def test_reported_ssi_simulation_input_requires_equal_populated_amounts() -> None:
+    person = pd.DataFrame(
+        {
+            "age": [40.0],
+            "SSI_VAL": [1_200.0],
+            "ssi_reported": [1_100.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="exact amount"):
+        module.materialize_us_reported_ssi_for_simulation(person)
+
+
 def _source_row(
     ssuid: str,
     pnum: int,

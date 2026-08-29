@@ -115,6 +115,7 @@ from microcosm.build.us_runtime import (
     load_sipp_2023_tip_donor,
     load_sipp_2023_vehicle_donor,
     load_sipp_2023_voluntary_filing_donor,
+    materialize_us_reported_ssi_for_simulation,
     ssi_take_up_prior_basis_from_artifact,
     ssi_take_up_prior_basis_from_diagnostics,
     us_alimony_signal_gate,
@@ -3180,6 +3181,10 @@ def _aca_source_tax_unit_table_batched(
     batches = tuple(
         _household_position_batches(n_households, maximum_microsim_batch_size)
     )
+    simulation_dataset_authority = _simulation_dataset_authority(
+        frame,
+        boundary="ACA source simulation batches",
+    )
     if len(batches) > 1:
         print(
             "Materializing ACA source inputs in "
@@ -3200,6 +3205,7 @@ def _aca_source_tax_unit_table_batched(
                 dataset=_dataset_from_frame(
                     batch_frame,
                     assert_no_formula_owned_columns=False,
+                    simulation_dataset_authority=simulation_dataset_authority,
                 )
             )
             batch_tax_unit = _aca_source_tax_unit_table_from_simulation(
@@ -3321,6 +3327,8 @@ def _with_aca_marketplace_source_outputs(
         frame.schema,
         {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
         frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
     )
 
 
@@ -3380,6 +3388,7 @@ def _medicaid_person_eligibility(
     *,
     simulation=None,
     maximum_microsim_batch_size: int | None = DEFAULT_MAXIMUM_MICROSIM_BATCH_SIZE,
+    simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
 ) -> np.ndarray:
     """Engine-computed person-level ``is_medicaid_eligible``, batched like ACA."""
     if simulation is not None:
@@ -3395,6 +3404,11 @@ def _medicaid_person_eligibility(
     batches = tuple(
         _household_position_batches(n_households, maximum_microsim_batch_size)
     )
+    if simulation_dataset_authority is None:
+        simulation_dataset_authority = _simulation_dataset_authority(
+            frame,
+            boundary="Medicaid eligibility simulation batches",
+        )
     if len(batches) > 1:
         print(
             "Materializing Medicaid eligibility in "
@@ -3414,6 +3428,7 @@ def _medicaid_person_eligibility(
                 dataset=_dataset_from_frame(
                     batch_frame,
                     assert_no_formula_owned_columns=False,
+                    simulation_dataset_authority=simulation_dataset_authority,
                 )
             )
             batch_eligible = (
@@ -3443,6 +3458,7 @@ def _ssi_person_uncapped_amount(
     *,
     simulation=None,
     maximum_microsim_batch_size: int | None = DEFAULT_MAXIMUM_MICROSIM_BATCH_SIZE,
+    simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
 ) -> np.ndarray:
     """December person-level potential federal SSI, batched like Medicaid.
 
@@ -3482,6 +3498,11 @@ def _ssi_person_uncapped_amount(
     batches = tuple(
         _household_position_batches(n_households, maximum_microsim_batch_size)
     )
+    if simulation_dataset_authority is None:
+        simulation_dataset_authority = _simulation_dataset_authority(
+            frame,
+            boundary="SSI candidate simulation batches",
+        )
     if len(batches) > 1:
         print(
             "Materializing December SSI candidate amounts in "
@@ -3501,6 +3522,7 @@ def _ssi_person_uncapped_amount(
                 dataset=_dataset_from_frame(
                     batch_frame,
                     assert_no_formula_owned_columns=False,
+                    simulation_dataset_authority=simulation_dataset_authority,
                 )
             )
             batch_uncapped = calculate(batch_simulation)
@@ -3528,6 +3550,7 @@ def _with_medicaid_take_up_outputs(
     substitutions: Sequence[dict[str, object]] = (),
     simulation=None,
     maximum_microsim_batch_size: int | None = DEFAULT_MAXIMUM_MICROSIM_BATCH_SIZE,
+    simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
 ) -> tuple[Frame, dict[str, object]]:
     """Assign Medicaid take-up (microcosm #331) and return frame + diagnostics.
 
@@ -3548,6 +3571,7 @@ def _with_medicaid_take_up_outputs(
         frame,
         simulation=simulation,
         maximum_microsim_batch_size=maximum_microsim_batch_size,
+        simulation_dataset_authority=simulation_dataset_authority,
     )
     return with_us_medicaid_take_up(
         frame,
@@ -3566,6 +3590,7 @@ def _medicaid_diagnostics_for_existing_output(
     seed: int,
     substitutions: Sequence[dict[str, object]] = (),
     maximum_microsim_batch_size: int | None = DEFAULT_MAXIMUM_MICROSIM_BATCH_SIZE,
+    simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
 ) -> dict[str, object]:
     """Diagnose persisted Medicaid flags on actual release weights."""
 
@@ -3577,6 +3602,7 @@ def _medicaid_diagnostics_for_existing_output(
     eligibility = _medicaid_person_eligibility(
         frame,
         maximum_microsim_batch_size=maximum_microsim_batch_size,
+        simulation_dataset_authority=simulation_dataset_authority,
     )
     assigned = us_medicaid_source_person_table(
         frame,
@@ -3697,6 +3723,10 @@ def _snap_spm_unit_eligibility(
     batches = tuple(
         _household_position_batches(n_households, maximum_microsim_batch_size)
     )
+    simulation_dataset_authority = _simulation_dataset_authority(
+        frame,
+        boundary="SNAP eligibility simulation batches",
+    )
     if len(batches) > 1:
         print(
             "Materializing SNAP eligibility in "
@@ -3716,6 +3746,7 @@ def _snap_spm_unit_eligibility(
                 dataset=_dataset_from_frame(
                     batch_frame,
                     assert_no_formula_owned_columns=False,
+                    simulation_dataset_authority=simulation_dataset_authority,
                 )
             )
             batch_eligible = (
@@ -3796,12 +3827,302 @@ def _assert_no_formula_owned_columns(frame: Frame) -> None:
         )
 
 
+class _SimulationDatasetAuthority:
+    """Full-frame authority carried into household-selected engine batches."""
+
+    __slots__ = (
+        "housing_rent_absence_keys",
+        "housing_rent_receipt",
+        "housing_tenure_household_absence_keys",
+        "housing_tenure_spm_unit_absence_keys",
+        "housing_tenure_receipt",
+    )
+
+    def __init__(
+        self,
+        housing_rent_absence_keys: frozenset[tuple[int, int, str, int, int]],
+        housing_rent_receipt: Mapping[str, object] | None,
+        housing_tenure_household_absence_keys: frozenset[
+            tuple[int, str, int, int]
+        ] = frozenset(),
+        housing_tenure_spm_unit_absence_keys: frozenset[
+            tuple[int, str, int, int]
+        ] = frozenset(),
+        housing_tenure_receipt: Mapping[str, object] | None = None,
+    ) -> None:
+        self.housing_rent_absence_keys = housing_rent_absence_keys
+        self.housing_rent_receipt = housing_rent_receipt
+        self.housing_tenure_household_absence_keys = (
+            housing_tenure_household_absence_keys
+        )
+        self.housing_tenure_spm_unit_absence_keys = (
+            housing_tenure_spm_unit_absence_keys
+        )
+        self.housing_tenure_receipt = housing_tenure_receipt
+
+
+def _housing_rent_authority_keys(
+    person: pd.DataFrame,
+    mask: pd.Series,
+    *,
+    boundary: str,
+) -> frozenset[tuple[int, int, str, int, int]]:
+    """Return immutable person/linkage keys for an authorized rent universe."""
+
+    from microcosm.build.us_runtime.support_provenance import (
+        support_channel_column,
+        support_clone_index_column,
+        support_source_id_column,
+    )
+
+    if not mask.index.equals(person.index):
+        raise RuntimeError(f"{boundary}: rent-absence mask is not person-aligned.")
+    channel_column = support_channel_column("person")
+    clone_column = support_clone_index_column("person")
+    source_column = support_source_id_column("person")
+    required = {
+        "person_id",
+        "person_household_id",
+        channel_column,
+        clone_column,
+        source_column,
+    }
+    missing = sorted(required - set(person.columns))
+    if missing:
+        raise ValueError(
+            f"{boundary}: rent-absence authority needs person column(s) {missing}."
+        )
+    selected = person.loc[
+        mask,
+        [
+            "person_id",
+            "person_household_id",
+            channel_column,
+            clone_column,
+            source_column,
+        ],
+    ]
+    numeric_columns = (
+        "person_id",
+        "person_household_id",
+        clone_column,
+        source_column,
+    )
+    numeric: dict[str, list[int]] = {}
+    for column in numeric_columns:
+        values = pd.to_numeric(selected[column], errors="coerce")
+        integers: list[int] = []
+        for value in values:
+            try:
+                integer = int(value)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError(
+                    f"{boundary}: rent-absence authority column {column!r} "
+                    "must contain finite nonnegative integers."
+                ) from exc
+            if pd.isna(value) or integer < 0 or value != integer:
+                raise ValueError(
+                    f"{boundary}: rent-absence authority column {column!r} "
+                    "must contain finite nonnegative integers."
+                )
+            integers.append(integer)
+        numeric[column] = integers
+    channels = selected[channel_column]
+    invalid_channels = channels.isna() | ~channels.map(
+        lambda value: isinstance(value, str) and bool(value)
+    )
+    if invalid_channels.any():
+        raise ValueError(
+            f"{boundary}: rent-absence authority channel values are invalid."
+        )
+    keys = frozenset(
+        zip(
+            numeric["person_id"],
+            numeric["person_household_id"],
+            channels.astype(str).tolist(),
+            numeric[clone_column],
+            numeric[source_column],
+            strict=True,
+        )
+    )
+    if len(keys) != len(selected):
+        raise ValueError(f"{boundary}: rent-absence person/lineage keys collide.")
+    return keys
+
+
+def _housing_tenure_authority_keys(
+    table: pd.DataFrame,
+    mask: pd.Series,
+    *,
+    entity: str,
+    boundary: str,
+) -> frozenset[tuple[int, str, int, int]]:
+    """Bind one tenure absence universe to immutable entity lineage keys."""
+
+    from microcosm.build.us_runtime.support_provenance import (
+        support_channel_column,
+        support_clone_index_column,
+        support_source_id_column,
+    )
+
+    if entity not in {"household", "spm_unit"}:
+        raise ValueError(f"{boundary}: unsupported tenure entity {entity!r}.")
+    if not mask.index.equals(table.index):
+        raise RuntimeError(f"{boundary}: {entity} tenure mask is not aligned.")
+    id_column = f"{entity}_id"
+    channel_column = support_channel_column(entity)
+    clone_column = support_clone_index_column(entity)
+    source_column = support_source_id_column(entity)
+    required = {id_column, channel_column, clone_column, source_column}
+    missing = sorted(required - set(table))
+    if missing:
+        raise ValueError(
+            f"{boundary}: {entity} tenure authority needs column(s) {missing}."
+        )
+    selected = table.loc[
+        mask,
+        [id_column, channel_column, clone_column, source_column],
+    ]
+    numeric: dict[str, list[int]] = {}
+    for column in (id_column, clone_column, source_column):
+        values = pd.to_numeric(selected[column], errors="coerce")
+        integers: list[int] = []
+        for value in values:
+            try:
+                integer = int(value)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError(
+                    f"{boundary}: {entity} tenure authority column {column!r} "
+                    "must contain finite nonnegative integers."
+                ) from exc
+            if pd.isna(value) or integer < 0 or value != integer:
+                raise ValueError(
+                    f"{boundary}: {entity} tenure authority column {column!r} "
+                    "must contain finite nonnegative integers."
+                )
+            integers.append(integer)
+        numeric[column] = integers
+    channels = selected[channel_column]
+    invalid_channels = channels.isna() | ~channels.map(
+        lambda value: isinstance(value, str) and bool(value)
+    )
+    if invalid_channels.any():
+        raise ValueError(
+            f"{boundary}: {entity} tenure authority channel values are invalid."
+        )
+    keys = frozenset(
+        zip(
+            numeric[id_column],
+            channels.astype(str).tolist(),
+            numeric[clone_column],
+            numeric[source_column],
+            strict=True,
+        )
+    )
+    if len(keys) != len(selected):
+        raise ValueError(f"{boundary}: {entity} tenure lineage keys collide.")
+    return keys
+
+
+def _simulation_dataset_authority(
+    frame: Frame,
+    *,
+    boundary: str,
+) -> _SimulationDatasetAuthority:
+    """Authenticate structural-null membership once on the complete frame."""
+
+    person = frame.table("person")
+    household = frame.table("household")
+    spm_unit = frame.table("spm_unit")
+    rent_missing = (
+        "pre_subsidy_rent" in person and person["pre_subsidy_rent"].isna().any()
+    )
+    household_tenure_missing = (
+        "tenure_type" in household and household["tenure_type"].isna().any()
+    )
+    spm_tenure_missing = (
+        "spm_unit_tenure_type" in spm_unit
+        and spm_unit["spm_unit_tenure_type"].isna().any()
+    )
+    if not (rent_missing or household_tenure_missing or spm_tenure_missing):
+        return _SimulationDatasetAuthority(frozenset(), None)
+
+    from microcosm.build.us_runtime.stacked_spine import (
+        validated_stacked_housing_rent_absence,
+        validated_stacked_housing_tenure_absence,
+    )
+
+    tenure_masks: Mapping[str, pd.Series] = {}
+    tenure_receipt: Mapping[str, object] | None = None
+    if household_tenure_missing or spm_tenure_missing:
+        tenure_masks, tenure_receipt = validated_stacked_housing_tenure_absence(
+            frame,
+            boundary=boundary,
+        )
+    if rent_missing:
+        if tenure_masks:
+            allowed = tenure_masks["person"]
+            receipt = tenure_receipt
+        else:
+            allowed, receipt = validated_stacked_housing_rent_absence(
+                frame,
+                boundary=boundary,
+            )
+        if not allowed.index.equals(person.index):
+            raise RuntimeError(
+                f"{boundary}: stacked housing-rent absence mask is not "
+                "person-aligned."
+            )
+        missing = person["pre_subsidy_rent"].isna()
+        unauthorized = missing & ~allowed
+        if unauthorized.any():
+            raise ValueError(
+                "Release simulation person.pre_subsidy_rent is blank outside "
+                "the authenticated ACS group-quarters absence universe; "
+                f"rows={int(unauthorized.sum())}."
+            )
+        rent_keys = _housing_rent_authority_keys(
+            person,
+            allowed,
+            boundary=boundary,
+        )
+    else:
+        receipt = None
+        rent_keys = frozenset()
+    return _SimulationDatasetAuthority(
+        rent_keys,
+        None if receipt is None else dict(receipt),
+        (
+            _housing_tenure_authority_keys(
+                household,
+                tenure_masks["household"],
+                entity="household",
+                boundary=boundary,
+            )
+            if tenure_masks
+            else frozenset()
+        ),
+        (
+            _housing_tenure_authority_keys(
+                spm_unit,
+                tenure_masks["spm_unit"],
+                entity="spm_unit",
+                boundary=boundary,
+            )
+            if tenure_masks
+            else frozenset()
+        ),
+        None if tenure_receipt is None else dict(tenure_receipt),
+    )
+
+
 def _dataset_from_frame(
     frame: Frame,
     *,
     zero_variables: Iterable[str] = (),
     system=None,
     assert_no_formula_owned_columns: bool = True,
+    simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
 ):
     if assert_no_formula_owned_columns:
         _assert_no_formula_owned_columns(frame)
@@ -3809,6 +4130,70 @@ def _dataset_from_frame(
     from policyengine_us.data import USSingleYearDataset
 
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    person = tables["person"]
+    authority = simulation_dataset_authority
+    if "ssi_reported" in person:
+        person["ssi_reported"] = materialize_us_reported_ssi_for_simulation(person)
+    if "pre_subsidy_rent" in person and person["pre_subsidy_rent"].isna().any():
+        missing_rent = person["pre_subsidy_rent"].isna()
+        if authority is None:
+            authority = _simulation_dataset_authority(
+                frame,
+                boundary="release simulation dataset rent materialization",
+            )
+        missing_keys = _housing_rent_authority_keys(
+            person,
+            missing_rent,
+            boundary="release simulation dataset rent materialization",
+        )
+        unauthorized_keys = (
+            missing_keys - authority.housing_rent_absence_keys
+        )
+        if unauthorized_keys:
+            raise ValueError(
+                "Release simulation person.pre_subsidy_rent is blank outside "
+                "the authenticated ACS group-quarters absence universe; "
+                f"rows={len(unauthorized_keys)}."
+            )
+        person.loc[missing_rent, "pre_subsidy_rent"] = 0.0
+    tenure_specs = (
+        (
+            "household",
+            "tenure_type",
+            "NONE",
+            "housing_tenure_household_absence_keys",
+        ),
+        (
+            "spm_unit",
+            "spm_unit_tenure_type",
+            "RENTER",
+            "housing_tenure_spm_unit_absence_keys",
+        ),
+    )
+    for entity, column, materialized_value, authority_attribute in tenure_specs:
+        table = tables[entity]
+        if column not in table or not table[column].isna().any():
+            continue
+        if authority is None:
+            authority = _simulation_dataset_authority(
+                frame,
+                boundary="release simulation dataset tenure materialization",
+            )
+        missing_tenure = table[column].isna()
+        missing_keys = _housing_tenure_authority_keys(
+            table,
+            missing_tenure,
+            entity=entity,
+            boundary="release simulation dataset tenure materialization",
+        )
+        unauthorized_keys = missing_keys - getattr(authority, authority_attribute)
+        if unauthorized_keys:
+            raise ValueError(
+                f"Release simulation {entity}.{column} is blank outside the "
+                "authenticated ACS group-quarters absence universe; "
+                f"rows={len(unauthorized_keys)}."
+            )
+        table.loc[missing_tenure, column] = materialized_value
     for variable_name in zero_variables:
         if system is None:
             raise ValueError("system is required when zero_variables are provided.")
@@ -4016,11 +4401,16 @@ def _batched_reform_validation_simulate_factory_from_frame(
 
         microsimulation_cls = Microsimulation
     if dataset_from_frame is None:
+        simulation_dataset_authority = _simulation_dataset_authority(
+            frame,
+            boundary="reform validation simulation batches",
+        )
 
         def dataset_from_frame(batch_frame: Frame):
             return _dataset_from_frame(
                 batch_frame,
                 assert_no_formula_owned_columns=False,
+                simulation_dataset_authority=simulation_dataset_authority,
             )
 
     def simulate(reform):
@@ -4043,8 +4433,14 @@ def _reform_household_income_tax(
     microsimulation_cls,
     n_households: int,
     batch_size: int | None,
+    simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
 ) -> np.ndarray:
     _assert_no_formula_owned_columns(base_frame)
+    if simulation_dataset_authority is None:
+        simulation_dataset_authority = _simulation_dataset_authority(
+            base_frame,
+            boundary="reform target simulation batches",
+        )
     reform_income_tax = np.zeros(n_households, dtype=np.float64)
     reform = _make_zero_variable_reform(system, reform_spec.neutralized_variable)
     # microcosm#456: a reform simulation cannot reuse the engine's shared
@@ -4079,6 +4475,7 @@ def _reform_household_income_tax(
                 zero_variables=(reform_spec.neutralized_variable,),
                 system=system,
                 assert_no_formula_owned_columns=False,
+                simulation_dataset_authority=simulation_dataset_authority,
             )
             reformed = microsimulation_cls(
                 tax_benefit_system=reform_system,
@@ -4604,9 +5001,14 @@ def _materialize_target_frame(
         )
     _assert_supported_ledger_filter_metadata(target_specs)
     _assert_no_formula_owned_columns(base_frame)
+    simulation_dataset_authority = _simulation_dataset_authority(
+        base_frame,
+        boundary="fiscal target simulation batches",
+    )
     dataset = _dataset_from_frame(
         base_frame,
         assert_no_formula_owned_columns=False,
+        simulation_dataset_authority=simulation_dataset_authority,
     )
     simulation = Microsimulation(dataset=dataset)
     system = CountryTaxBenefitSystem()
@@ -4986,6 +5388,7 @@ def _materialize_target_frame(
                 microsimulation_cls=Microsimulation,
                 n_households=n_households,
                 batch_size=maximum_microsim_batch_size,
+                simulation_dataset_authority=simulation_dataset_authority,
             )
             if (
                 target_materialization_cache_dir is not None
@@ -10003,9 +10406,18 @@ def _main(argv: Sequence[str] | None = None) -> None:
     # frame's capacities or the delivered-weight basis resolved at startup
     # (microcosm#507/#508); the flags are frozen from here and the
     # enforced-band delivery is gated on release weights.
+    # Authenticate structural engine-copy materializations on the complete
+    # candidate support once.  The same immutable person/linkage authority
+    # must survive sparse household selection: rebuilding it from an export
+    # subset would fail the full-count provenance receipt by construction.
+    full_base_simulation_dataset_authority = _simulation_dataset_authority(
+        base_frame,
+        boundary="release full-base simulation authority",
+    )
     ssi_uncapped_amount = _ssi_person_uncapped_amount(
         base_frame,
         maximum_microsim_batch_size=args.maximum_microsim_batch_size,
+        simulation_dataset_authority=full_base_simulation_dataset_authority,
     )
     base_frame, ssi_take_up_stage_diagnostics = with_us_ssi_take_up(
         base_frame,
@@ -10291,6 +10703,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
         seed=args.seed,
         substitutions=medicaid_enrollment_substitutions,
         maximum_microsim_batch_size=args.maximum_microsim_batch_size,
+        simulation_dataset_authority=full_base_simulation_dataset_authority,
     )
     medicaid_take_up_gate = us_medicaid_take_up_gate(medicaid_take_up_diagnostics)
     if not medicaid_take_up_gate.passed:
@@ -10876,6 +11289,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
     final_uncapped_ssi = _ssi_person_uncapped_amount(
         export_frame,
         maximum_microsim_batch_size=args.maximum_microsim_batch_size,
+        simulation_dataset_authority=full_base_simulation_dataset_authority,
     )
     ssi_take_up_diagnostics = dict(
         us_ssi_take_up_diagnostics(
@@ -10960,6 +11374,9 @@ def _main(argv: Sequence[str] | None = None) -> None:
                     seed=args.seed,
                     substitutions=medicaid_enrollment_substitutions,
                     maximum_microsim_batch_size=args.maximum_microsim_batch_size,
+                    simulation_dataset_authority=(
+                        full_base_simulation_dataset_authority
+                    ),
                 )
             ),
         )

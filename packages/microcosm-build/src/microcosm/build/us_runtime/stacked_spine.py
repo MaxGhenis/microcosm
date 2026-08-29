@@ -175,6 +175,7 @@ from microcosm.build.us_runtime.puf_support import (
     PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
     PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS,
+    PUF_TAX_DETAIL_SECOND_HOME_NATIVE_ZERO_OUTPUTS,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
     US_PUF_SUPPORT_FIT_NAME,
     bind_puf_clone_attachment_tail_descendant,
@@ -216,6 +217,7 @@ from microcosm.build.us_runtime.us_late_producer_registry import (
     US_LATE_SOURCE_FINALIZER_STAGE,
     US_LATE_TRANSFER_MODEL_CONFIG_INPUT,
     US_LATE_TRANSFER_TARGET_BANK_INPUT,
+    TransferProducerGroup,
     us_late_producer_schedule_receipt,
 )
 from microcosm.fit import Regime
@@ -268,6 +270,8 @@ __all__ = [
     "transfer_stacked_post_puf_group",
     "us_puf_native_zero_rule_identity",
     "us_puf_s_corp_universe_zero_rule_identity",
+    "validated_stacked_housing_rent_absence",
+    "validated_stacked_housing_tenure_absence",
     "validate_stacked_late_producer_receipt",
     "validate_stacked_late_producer_transition_authority",
     "validate_stacked_gap_fill_receipt",
@@ -1704,11 +1708,12 @@ _GAP_FILL_ASEC_TO_ACS = "asec_survey_to_acs"
 _GAP_FILL_ASEC_HOUSING_TO_ACS = "asec_housing_to_acs"
 _GAP_FILL_HOUSING_FAMILY = "housing"
 _STACKED_AUTHORITY_ID = "us_stacked_spine_authority"
-# v11 binds the post-transfer two-part calibration policy. v10 bound the
+# v12 binds the post-gap housing identity reconciliation policy. v11 binds
+# the post-transfer two-part calibration policy. v10 bound the
 # primary-PUF whole-pool output-universe declaration. v9 bound the
 # content-hashed execution/transition-authority schema in addition to the
 # import-validated producer/input DAG.
-_STACKED_AUTHORITY_VERSION = 11
+_STACKED_AUTHORITY_VERSION = 12
 _CANONICAL_AUTHORITY_FORM = "CANONICAL"
 _NONCANONICAL_AUTHORITY_FORM = "NON-CANONICAL"
 _PRE_CLONE_PREPARATION_STAGE = "prepare_multispine_source_inputs_for_clone"
@@ -1719,6 +1724,14 @@ _ACS_GQ_RENT_ABSENCE_REASON = (
     "ACS TYPEHUGQ 2/3 rows have no observed housing unit; rent must remain "
     "structurally absent rather than be synthesized as zero or donor housing."
 )
+_HOUSING_POST_GAP_RECONCILIATION_POLICY_ID = (
+    "housing_source_identities_after_cross_origin_transfer"
+)
+_EDUCATION_LATE_RECONCILIATION_GROUP = (
+    "transfer:person/source_operator_education_inputs"
+)
+_WIC_LATE_RECONCILIATION_GROUP = "transfer:person/source_operator_wic_claim"
+_WIC_SOURCE_PRODUCER = "source:with_us_wic_claim_input"
 
 
 def _freeze_target_families(target_families: TargetFamilies) -> TargetFamilies:
@@ -1791,6 +1804,7 @@ class GapFillDirection:
     donor_channel: str
     target_families: TargetFamilies
     recipient_absence_rules: tuple[GapFillAbsenceRule, ...] = ()
+    post_reconciliation_policy: Mapping[str, object] | None = None
 
     def __post_init__(self) -> None:
         for label, value in (
@@ -1841,6 +1855,18 @@ class GapFillDirection:
                 f"rules; outside_targets={outside}, duplicate_targets={duplicates}."
             )
         object.__setattr__(self, "recipient_absence_rules", rules)
+        policy = self.post_reconciliation_policy
+        if policy is not None:
+            if not isinstance(policy, Mapping):
+                raise TypeError(
+                    "GapFillDirection post_reconciliation_policy must be a "
+                    "mapping or None."
+                )
+            object.__setattr__(
+                self,
+                "post_reconciliation_policy",
+                _freeze_authority_payload(policy),
+            )
 
 
 @dataclass(frozen=True)
@@ -1906,6 +1932,9 @@ def _build_stacked_gap_fill_plan(
                         selection=_ACS_GQ_RENT_ABSENCE_SELECTION,
                         reason=_ACS_GQ_RENT_ABSENCE_REASON,
                     ),
+                ),
+                post_reconciliation_policy=(
+                    _housing_post_gap_reconciliation_policy_identity()
                 ),
             )
         )
@@ -2185,6 +2214,11 @@ def _plan_payload(plan: Sequence[GapFillDirection]) -> list[dict[str, object]]:
                 }
                 for rule in direction.recipient_absence_rules
             ],
+            "post_reconciliation_policy": (
+                None
+                if direction.post_reconciliation_policy is None
+                else _json_ready(direction.post_reconciliation_policy)
+            ),
         }
         for direction in plan
     ]
@@ -2384,6 +2418,63 @@ def _canonical_sha256(value: object) -> str:
             allow_nan=False,
         ).encode("utf-8")
     ).hexdigest()
+
+
+def _housing_post_gap_reconciliation_policy_identity() -> dict[str, object]:
+    """Bind the exact housing identities restored after all early transfers."""
+
+    downstream = POOL_OPERATOR_CONTRACTS["impute_us_housing_assistance_to_puf_support"]
+    payload: dict[str, object] = {
+        "resource_kind": "stacked_post_gap_reconciliation_policy",
+        "schema_version": 1,
+        "policy_id": _HOUSING_POST_GAP_RECONCILIATION_POLICY_ID,
+        "stage": "after_all_gap_fill_directions_before_clone",
+        "dependencies": {
+            "person": [
+                "is_household_head",
+                "pre_subsidy_rent",
+                support_channel_column("person"),
+                support_clone_index_column("person"),
+            ],
+            "spm_unit": [
+                "receives_housing_assistance",
+                "takes_up_housing_assistance_if_eligible",
+                support_channel_column("spm_unit"),
+                support_clone_index_column("spm_unit"),
+            ],
+            "structural_rent_absence_rule": _ACS_GQ_RENT_ABSENCE_RULE_ID,
+        },
+        "assignments": [
+            {
+                "target": ("spm_unit.takes_up_housing_assistance_if_eligible"),
+                "scope": "acs_origin",
+                "value": "spm_unit.receives_housing_assistance",
+            },
+            {
+                "target": "person.pre_subsidy_rent",
+                "scope": (
+                    "acs_origin_non_household_head_excluding_authority_valid_"
+                    "group_quarters"
+                ),
+                "value": 0.0,
+            },
+        ],
+        "preserved_producer_scope": "asec_origin_bit_exact",
+        "downstream_writer_guarantee": {
+            "operator": "impute_us_housing_assistance_to_puf_support",
+            "family": downstream.family,
+            "phases": list(downstream.phases),
+            "execution_scope": downstream.execution_scope,
+            "mutable_scope": "puf_tax_detail_support_units_only",
+            "writes": [
+                "spm_unit.receives_housing_assistance",
+                "spm_unit.takes_up_housing_assistance_if_eligible",
+            ],
+            "assignment": "both_outputs_from_one_aligned_boolean_array",
+            "rent_write": False,
+        },
+    }
+    return {**payload, "sha256": _canonical_sha256(payload)}
 
 
 def _authority_live_digests(
@@ -4224,7 +4315,9 @@ def _validate_pregnancy_structural_receipt(
         or structural.get("status") != "verified"
     ):
         raise ValueError(f"{boundary}: pregnancy structural policy is invalid.")
-    counts = {field: structural.get(field) for field in _PREGNANCY_STRUCTURAL_COUNT_FIELDS}
+    counts = {
+        field: structural.get(field) for field in _PREGNANCY_STRUCTURAL_COUNT_FIELDS
+    }
     if any(
         not isinstance(value, int) or isinstance(value, bool) or value < 0
         for value in counts.values()
@@ -4254,9 +4347,7 @@ def _validate_pregnancy_structural_receipt(
             != row_counts["imputed_rows"]
         )
     ):
-        raise ValueError(
-            f"{boundary}: pregnancy structural accounting is invalid."
-        )
+        raise ValueError(f"{boundary}: pregnancy structural accounting is invalid.")
 
 
 def _acs_imputed_pattern_evidence(record: AcsImputedInput) -> dict[str, object]:
@@ -4597,6 +4688,20 @@ def validate_stacked_gap_fill_receipt(
             raise ValueError(
                 f"{boundary}: stacked gap-fill direction {name!r} is absent."
             )
+        reconciliation = direction_receipt.get("post_reconciliation")
+        if direction.post_reconciliation_policy is None:
+            if reconciliation is not None:
+                raise ValueError(
+                    f"{boundary}: stacked gap-fill direction {name!r} carries "
+                    "an undeclared post-reconciliation receipt."
+                )
+        else:
+            _validate_housing_post_gap_reconciliation_receipt(
+                reconciliation,
+                direction=direction,
+                boundary=f"{boundary} direction {name!r}",
+                frame=frame,
+            )
         targets = direction_receipt.get("targets")
         if not isinstance(targets, Mapping):
             raise ValueError(
@@ -4817,6 +4922,29 @@ def validate_stacked_post_puf_transfer_receipt(
             raise ValueError(
                 f"{boundary}: stacked post-PUF transfer group {name!r} is "
                 "misbound; production manifest emission is forbidden."
+            )
+        structural_reconciliations = group_receipt.get("structural_reconciliations")
+        if name in {
+            _EDUCATION_LATE_RECONCILIATION_GROUP,
+            _WIC_LATE_RECONCILIATION_GROUP,
+        }:
+            if not isinstance(structural_reconciliations, Mapping) or set(
+                structural_reconciliations
+            ) != {name}:
+                raise ValueError(
+                    f"{boundary}: stacked post-PUF transfer group {name!r} "
+                    "has no exact structural reconciliation receipt."
+                )
+            _validate_late_transfer_structural_reconciliation_receipt(
+                structural_reconciliations[name],
+                group=group,
+                boundary=f"{boundary} group {name!r}",
+                frame=frame,
+            )
+        elif structural_reconciliations is not None:
+            raise ValueError(
+                f"{boundary}: stacked post-PUF transfer group {name!r} carries "
+                "an undeclared structural reconciliation receipt."
             )
         group_targets = group_receipt.get("targets")
         if not isinstance(group_targets, Mapping):
@@ -5367,7 +5495,7 @@ def _late_resource_binding_schema_version(column: str) -> int:
         "primary_puf_execution_config": 5,
         "post_clone_source_execution_config": 3,
         "source_finalizer_execution_config": 2,
-        "late_transfer_model_config": 3,
+        "late_transfer_model_config": 4,
     }.get(kind, 1)
 
 
@@ -5680,6 +5808,7 @@ def _validate_late_resource_binding(
                 "donor_selection",
                 "donor_projection",
                 "transfer_execution_contract",
+                "structural_reconciliation_policy",
             }
         )
         group = next(
@@ -5728,6 +5857,15 @@ def _validate_late_resource_binding(
             )
         ):
             raise ValueError(f"{boundary}: late transfer execution contract changed.")
+        if binding.get("structural_reconciliation_policy") != (
+            _late_transfer_structural_reconciliation_policy_identity(
+                group_name=group.name,
+                entity=group.entity,
+                family=group.family,
+                targets=group.targets,
+            )
+        ):
+            raise ValueError(f"{boundary}: late transfer structural policy changed.")
         return
     if kind == "late_transfer_target_bank":
         mode = binding.get("mode")
@@ -6692,6 +6830,63 @@ def _late_acs_earnings_universe_resource_receipts() -> dict[str, dict[str, objec
     }
 
 
+def _late_transfer_structural_reconciliation_policy_identity(
+    *,
+    group_name: str,
+    entity: str,
+    family: str,
+    targets: Sequence[str],
+) -> dict[str, object] | None:
+    """Return a content-bound source identity for two special late groups."""
+
+    if group_name == _EDUCATION_LATE_RECONCILIATION_GROUP:
+        from microcosm.build.us_runtime.education_inputs import (
+            US_AOTC_ELIGIBILITY_OUTPUT_COLUMNS,
+        )
+
+        payload: dict[str, object] = {
+            "resource_kind": "late_transfer_structural_reconciliation_policy",
+            "schema_version": 1,
+            "policy_id": "aotc_flags_equal_positive_qualified_tuition",
+            "producer": group_name,
+            "entity": entity,
+            "family": family,
+            "ordered_group_targets": list(targets),
+            "dependencies": ["qualified_tuition_expenses"],
+            "outputs": list(US_AOTC_ELIGIBILITY_OUTPUT_COLUMNS),
+            "assignment": "each_output_equals_qualified_tuition_expenses_gt_zero",
+            "preserved_producer_scope": "asec_origin_bit_exact",
+            "source_stage": _late_source_stage_spec_binding("with_us_education_inputs"),
+        }
+    elif group_name == _WIC_LATE_RECONCILIATION_GROUP:
+        from microcosm.build.us_runtime.wic_claim import (
+            US_WIC_CLAIM_REQUIRED_SOURCE_COLUMNS,
+        )
+
+        payload = {
+            "resource_kind": "late_transfer_structural_reconciliation_policy",
+            "schema_version": 1,
+            "policy_id": "wic_claim_stable_source_person_redraw",
+            "producer": group_name,
+            "entity": entity,
+            "family": family,
+            "ordered_group_targets": list(targets),
+            "dependencies": [
+                *US_WIC_CLAIM_REQUIRED_SOURCE_COLUMNS,
+                "person_source_id",
+            ],
+            "outputs": ["takes_up_wic_if_eligible"],
+            "assignment": "source_stage_redraw_by_stable_person_source_id",
+            "seed_owner": "late_transfer_model_config.seed",
+            "time_period": POOL_TIME_PERIOD,
+            "preserved_producer_scope": "asec_origin_bit_exact",
+            "source_stage": _late_source_stage_spec_binding("with_us_wic_claim_input"),
+        }
+    else:
+        return None
+    return {**payload, "sha256": _canonical_sha256(payload)}
+
+
 def _late_transfer_model_config_binding(
     *,
     group_name: str,
@@ -6704,9 +6899,17 @@ def _late_transfer_model_config_binding(
 ) -> dict[str, object]:
     """Return every static model and donor-selection control for one group."""
 
+    structural_reconciliation = (
+        _late_transfer_structural_reconciliation_policy_identity(
+            group_name=group_name,
+            entity=entity,
+            family=family,
+            targets=targets,
+        )
+    )
     return {
         "resource_kind": "late_transfer_model_config",
-        "schema_version": 3,
+        "schema_version": 4,
         "producer": group_name,
         "entity": entity,
         "family": family,
@@ -6727,6 +6930,7 @@ def _late_transfer_model_config_binding(
                 derive_schedule_d=False,
             )
         ),
+        "structural_reconciliation_policy": structural_reconciliation,
     }
 
 
@@ -8289,13 +8493,51 @@ def validate_stacked_late_producer_receipt(
     }
     reconstructed_targets: dict[str, object] = {}
     for group in CANONICAL_US_LATE_TRANSFER_GROUPS:
-        row_receipt = execution_by_name[group.name]["producer_receipt"]
+        execution_row = execution_by_name[group.name]
+        row_receipt = execution_row["producer_receipt"]
         if _json_ready(row_receipt) != _json_ready(groups[group.name]):
             raise ValueError(
                 f"{boundary}: transfer execution receipt for {group.name!r} "
                 "differs from its aggregate group proof."
             )
         assert isinstance(row_receipt, Mapping)
+        structural_policy = _late_transfer_structural_reconciliation_policy_identity(
+            group_name=group.name,
+            entity=group.entity,
+            family=group.family,
+            targets=group.targets,
+        )
+        if structural_policy is not None:
+            available_inputs = execution_row["available_input_receipts"]
+            assert isinstance(available_inputs, Mapping)
+            model_key = f"{group.entity}.{US_LATE_TRANSFER_MODEL_CONFIG_INPUT}"
+            model_receipt = available_inputs[model_key]
+            assert isinstance(model_receipt, Mapping)
+            model_binding = model_receipt["binding"]
+            assert isinstance(model_binding, Mapping)
+            structural_receipts = row_receipt["structural_reconciliations"]
+            assert isinstance(structural_receipts, Mapping)
+            structural_receipt = structural_receipts[group.name]
+            assert isinstance(structural_receipt, Mapping)
+            if structural_receipt.get("seed") != model_binding.get("seed"):
+                raise ValueError(
+                    f"{boundary}: late transfer {group.name!r} structural "
+                    "reconciliation seed differs from its bound model seed."
+                )
+            if group.name == _WIC_LATE_RECONCILIATION_GROUP:
+                source_row = execution_by_name[_WIC_SOURCE_PRODUCER]
+                source_available_inputs = source_row["available_input_receipts"]
+                assert isinstance(source_available_inputs, Mapping)
+                source_config_key = f"person.{US_LATE_SOURCE_EXECUTION_CONFIG_INPUT}"
+                source_config_receipt = source_available_inputs[source_config_key]
+                assert isinstance(source_config_receipt, Mapping)
+                source_config_binding = source_config_receipt["binding"]
+                assert isinstance(source_config_binding, Mapping)
+                if model_binding.get("seed") != source_config_binding.get("seed"):
+                    raise ValueError(
+                        f"{boundary}: late transfer {group.name!r} model and "
+                        "structural seed differs from its bound WIC source seed."
+                    )
         group_targets = row_receipt.get("targets")
         assert isinstance(group_targets, Mapping)
         for target in group.targets:
@@ -9252,7 +9494,6 @@ def gap_fill_stacked_spine(
             f"max_targets_per_fit={DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT}; "
             f"got {max_targets_per_fit}."
         )
-
     return _gap_fill_stacked_spine_evaluate(
         frame,
         authority=_production_stacked_authority(),
@@ -9285,6 +9526,356 @@ def _gap_fill_stacked_spine_with_test_authority(
         max_targets_per_fit=max_targets_per_fit,
         target_banks=target_banks,
     )
+
+
+def _strict_housing_boolean_values(
+    series: pd.Series,
+    *,
+    boundary: str,
+) -> np.ndarray:
+    """Resolve one complete physical boolean column without truthy coercion."""
+
+    numeric = pd.to_numeric(series, errors="coerce").to_numpy(
+        dtype=np.float64,
+        na_value=np.nan,
+    )
+    valid = np.isfinite(numeric) & np.isin(numeric, (0.0, 1.0))
+    if not valid.all():
+        raise ValueError(
+            f"{boundary}: found {int((~valid).sum())} missing or non-boolean value(s)."
+        )
+    return numeric.astype(bool)
+
+
+def _housing_post_gap_output_binding(frame: Frame) -> dict[str, str]:
+    """Hash the exact persisted columns governed by the housing policy."""
+
+    return {
+        "person": _late_table_values_sha256(
+            frame.table("person").loc[
+                :,
+                [
+                    support_channel_column("person"),
+                    support_clone_index_column("person"),
+                    "is_household_head",
+                    "pre_subsidy_rent",
+                ],
+            ]
+        ),
+        "spm_unit": _late_table_values_sha256(
+            frame.table("spm_unit").loc[
+                :,
+                [
+                    support_channel_column("spm_unit"),
+                    support_clone_index_column("spm_unit"),
+                    "receives_housing_assistance",
+                    "takes_up_housing_assistance_if_eligible",
+                ],
+            ]
+        ),
+    }
+
+
+def _housing_post_gap_asec_binding(frame: Frame) -> dict[str, str]:
+    """Hash exact ASEC producer bytes that reconciliation must preserve."""
+
+    person = frame.table("person")
+    spm_unit = frame.table("spm_unit")
+    person_asec = (
+        person[support_channel_column("person")]
+        .astype(str)
+        .eq(BASE_ASEC_SUPPORT_CHANNEL)
+    )
+    spm_asec = (
+        spm_unit[support_channel_column("spm_unit")]
+        .astype(str)
+        .eq(BASE_ASEC_SUPPORT_CHANNEL)
+    )
+    return {
+        "person.pre_subsidy_rent": _late_table_values_sha256(
+            person.loc[person_asec, ["pre_subsidy_rent"]]
+        ),
+        "spm_unit.housing_assistance": _late_table_values_sha256(
+            spm_unit.loc[
+                spm_asec,
+                [
+                    "receives_housing_assistance",
+                    "takes_up_housing_assistance_if_eligible",
+                ],
+            ]
+        ),
+    }
+
+
+def _apply_housing_post_gap_reconciliation(
+    frame: Frame,
+    *,
+    direction: GapFillDirection,
+) -> tuple[Frame, dict[str, object]]:
+    """Restore source identities after independent cross-origin QRF draws."""
+
+    policy = direction.post_reconciliation_policy
+    expected_policy = _housing_post_gap_reconciliation_policy_identity()
+    if policy is None or _json_ready(policy) != expected_policy:
+        raise ValueError(
+            "Housing post-gap reconciliation requires the canonical "
+            "authority-bound policy."
+        )
+    rules = [
+        rule
+        for rule in direction.recipient_absence_rules
+        if rule.rule_id == _ACS_GQ_RENT_ABSENCE_RULE_ID
+    ]
+    if len(rules) != 1:
+        raise ValueError(
+            "Housing post-gap reconciliation requires exactly one structural "
+            "rent-absence rule."
+        )
+
+    person = frame.table("person")
+    spm_unit = frame.table("spm_unit")
+    required_person = {
+        "is_household_head",
+        "pre_subsidy_rent",
+        support_channel_column("person"),
+    }
+    required_spm = {
+        "receives_housing_assistance",
+        "takes_up_housing_assistance_if_eligible",
+        support_channel_column("spm_unit"),
+    }
+    missing_person = sorted(required_person - set(person))
+    missing_spm = sorted(required_spm - set(spm_unit))
+    if missing_person or missing_spm:
+        raise ValueError(
+            "Housing post-gap reconciliation lacks declared dependencies; "
+            f"missing_person={missing_person}, missing_spm_unit={missing_spm}."
+        )
+
+    structural_rent, structural_receipt = _gap_fill_absence_rule_mask(
+        frame,
+        direction=direction,
+        rule=rules[0],
+    )
+    rent = pd.to_numeric(person["pre_subsidy_rent"], errors="coerce").to_numpy(
+        dtype=np.float64,
+        na_value=np.nan,
+    )
+    structural = structural_rent.to_numpy(dtype=bool)
+    unexpected_nonfinite = ~np.isfinite(rent) & ~structural
+    materialized_structural = ~pd.isna(rent) & structural
+    if unexpected_nonfinite.any() or materialized_structural.any():
+        raise ValueError(
+            "Housing post-gap reconciliation received a rent surface outside "
+            "its structural-null contract; "
+            f"unexpected_nonfinite={int(unexpected_nonfinite.sum())}, "
+            f"materialized_structural={int(materialized_structural.sum())}."
+        )
+    head = _strict_housing_boolean_values(
+        person["is_household_head"],
+        boundary="housing post-gap household-head dependency",
+    )
+    receives = _strict_housing_boolean_values(
+        spm_unit["receives_housing_assistance"],
+        boundary="housing post-gap measured assistance dependency",
+    )
+    takes_up = _strict_housing_boolean_values(
+        spm_unit["takes_up_housing_assistance_if_eligible"],
+        boundary="housing post-gap take-up dependency",
+    )
+    person_acs = (
+        person[support_channel_column("person")]
+        .astype(str)
+        .eq(ACS_STACKED_SUPPORT_CHANNEL)
+        .to_numpy(dtype=bool)
+    )
+    spm_acs = (
+        spm_unit[support_channel_column("spm_unit")]
+        .astype(str)
+        .eq(ACS_STACKED_SUPPORT_CHANNEL)
+        .to_numpy(dtype=bool)
+    )
+    if np.any(takes_up[~spm_acs] != receives[~spm_acs]):
+        raise ValueError(
+            "Housing post-gap reconciliation refuses to rewrite an ASEC "
+            "assistance identity mismatch."
+        )
+
+    pre_output = _housing_post_gap_output_binding(frame)
+    pre_asec = _housing_post_gap_asec_binding(frame)
+    tables = {entity: frame.table(entity).copy(deep=True) for entity in frame.entities}
+    assistance_changes = spm_acs & (takes_up != receives)
+    tables["spm_unit"].loc[
+        assistance_changes,
+        "takes_up_housing_assistance_if_eligible",
+    ] = receives[assistance_changes]
+    rent_changes = person_acs & ~head & np.isfinite(rent) & (rent > 0.0) & ~structural
+    tables["person"].loc[rent_changes, "pre_subsidy_rent"] = 0.0
+    reconciled = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    post_asec = _housing_post_gap_asec_binding(reconciled)
+    if pre_asec != post_asec:
+        raise AssertionError(
+            "Housing post-gap reconciliation changed ASEC producer bytes."
+        )
+    reconciled_spm = reconciled.table("spm_unit")
+    final_receives = _strict_housing_boolean_values(
+        reconciled_spm["receives_housing_assistance"],
+        boundary="housing post-gap measured assistance output",
+    )
+    final_takeup = _strict_housing_boolean_values(
+        reconciled_spm["takes_up_housing_assistance_if_eligible"],
+        boundary="housing post-gap take-up output",
+    )
+    final_rent = pd.to_numeric(
+        reconciled.table("person")["pre_subsidy_rent"], errors="coerce"
+    ).to_numpy(dtype=np.float64, na_value=np.nan)
+    if not np.array_equal(final_receives, final_takeup) or np.any(
+        person_acs & ~head & np.isfinite(final_rent) & (final_rent > 0.0)
+    ):
+        raise AssertionError(
+            "Housing post-gap reconciliation did not restore its exact identities."
+        )
+
+    receipt: dict[str, object] = {
+        "policy_sha256": expected_policy["sha256"],
+        "status": "verified",
+        "pre_reconciliation_dependency_values_sha256": pre_output,
+        "output_values_sha256": _housing_post_gap_output_binding(reconciled),
+        "structural_rent_authority": structural_receipt,
+        "assistance_rows_changed": int(assistance_changes.sum()),
+        "positive_nonhead_rent_rows_zeroed": int(rent_changes.sum()),
+        "asec_producer_values_before_sha256": pre_asec,
+        "asec_producer_values_after_sha256": post_asec,
+        "asec_producer_values_preserved": True,
+    }
+    receipt["sha256"] = _canonical_sha256(receipt)
+    return reconciled, receipt
+
+
+def _validate_housing_post_gap_reconciliation_receipt(
+    receipt: object,
+    *,
+    direction: GapFillDirection,
+    boundary: str,
+    frame: Frame | None,
+) -> None:
+    """Authenticate the policy receipt and, when available, its live output."""
+
+    expected_policy = _housing_post_gap_reconciliation_policy_identity()
+    expected_keys = {
+        "policy_sha256",
+        "status",
+        "pre_reconciliation_dependency_values_sha256",
+        "output_values_sha256",
+        "structural_rent_authority",
+        "assistance_rows_changed",
+        "positive_nonhead_rent_rows_zeroed",
+        "asec_producer_values_before_sha256",
+        "asec_producer_values_after_sha256",
+        "asec_producer_values_preserved",
+        "sha256",
+    }
+    if not isinstance(receipt, Mapping) or set(receipt) != expected_keys:
+        raise ValueError(f"{boundary}: housing reconciliation receipt is malformed.")
+    unsigned = dict(receipt)
+    observed_sha256 = unsigned.pop("sha256")
+    if (
+        observed_sha256 != _canonical_sha256(unsigned)
+        or receipt.get("policy_sha256") != expected_policy["sha256"]
+        or receipt.get("status") != "verified"
+        or receipt.get("asec_producer_values_preserved") is not True
+        or receipt.get("asec_producer_values_before_sha256")
+        != receipt.get("asec_producer_values_after_sha256")
+    ):
+        raise ValueError(f"{boundary}: housing reconciliation receipt is invalid.")
+    housing_digest_map_keys = {
+        "pre_reconciliation_dependency_values_sha256": {"person", "spm_unit"},
+        "output_values_sha256": {"person", "spm_unit"},
+        "asec_producer_values_before_sha256": {
+            "person.pre_subsidy_rent",
+            "spm_unit.housing_assistance",
+        },
+        "asec_producer_values_after_sha256": {
+            "person.pre_subsidy_rent",
+            "spm_unit.housing_assistance",
+        },
+    }
+    for field_name, expected_map_keys in housing_digest_map_keys.items():
+        digest_map = receipt.get(field_name)
+        if not isinstance(digest_map, Mapping) or set(digest_map) != expected_map_keys:
+            raise ValueError(
+                f"{boundary}: housing reconciliation {field_name} is malformed."
+            )
+        for digest_key, digest in digest_map.items():
+            _validate_sha256(
+                digest,
+                boundary=(
+                    f"{boundary} housing reconciliation {field_name}.{digest_key}"
+                ),
+            )
+    for field_name in (
+        "assistance_rows_changed",
+        "positive_nonhead_rent_rows_zeroed",
+    ):
+        value = receipt.get(field_name)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(
+                f"{boundary}: housing reconciliation {field_name} is invalid."
+            )
+    if frame is None:
+        return
+    rules = [
+        rule
+        for rule in direction.recipient_absence_rules
+        if rule.rule_id == _ACS_GQ_RENT_ABSENCE_RULE_ID
+    ]
+    if len(rules) != 1:
+        raise ValueError(f"{boundary}: housing structural-rent rule is absent.")
+    structural, structural_receipt = _gap_fill_absence_rule_mask(
+        frame,
+        direction=direction,
+        rule=rules[0],
+    )
+    if _json_ready(receipt["structural_rent_authority"]) != structural_receipt:
+        raise ValueError(f"{boundary}: housing structural-rent authority is misbound.")
+    if receipt.get("output_values_sha256") != _housing_post_gap_output_binding(frame):
+        raise ValueError(f"{boundary}: housing live-output SHA-256 mismatch.")
+    person = frame.table("person")
+    spm_unit = frame.table("spm_unit")
+    receives = _strict_housing_boolean_values(
+        spm_unit["receives_housing_assistance"], boundary=boundary
+    )
+    takes_up = _strict_housing_boolean_values(
+        spm_unit["takes_up_housing_assistance_if_eligible"], boundary=boundary
+    )
+    head = _strict_housing_boolean_values(
+        person["is_household_head"], boundary=boundary
+    )
+    rent = pd.to_numeric(person["pre_subsidy_rent"], errors="coerce").to_numpy(
+        dtype=np.float64,
+        na_value=np.nan,
+    )
+    structural_mask = structural.to_numpy(dtype=bool)
+    person_acs = (
+        person[support_channel_column("person")]
+        .astype(str)
+        .eq(ACS_STACKED_SUPPORT_CHANNEL)
+        .to_numpy(dtype=bool)
+    )
+    if (
+        not np.array_equal(receives, takes_up)
+        or np.any(~np.isfinite(rent) & ~structural_mask)
+        or np.any(~pd.isna(rent) & structural_mask)
+        or np.any(person_acs & ~head & np.isfinite(rent) & (rent > 0.0))
+    ):
+        raise ValueError(f"{boundary}: housing live-output identities are invalid.")
 
 
 def _gap_fill_stacked_spine_evaluate(
@@ -9426,6 +10017,30 @@ def _gap_fill_stacked_spine_evaluate(
         }
         receipts[direction.name] = direction_receipt
 
+    reconciliation_directions = [
+        direction
+        for direction in directions
+        if direction.post_reconciliation_policy is not None
+    ]
+    if len(reconciliation_directions) > 1:
+        raise ValueError(
+            "Stacked gap-fill declares more than one post-direction "
+            "reconciliation policy."
+        )
+    if reconciliation_directions:
+        reconciliation_direction = reconciliation_directions[0]
+        current, reconciliation_receipt = _apply_housing_post_gap_reconciliation(
+            current,
+            direction=reconciliation_direction,
+        )
+        direction_receipt = receipts[reconciliation_direction.name]
+        assert isinstance(direction_receipt, dict)
+        direction_receipt["post_reconciliation"] = reconciliation_receipt
+        transfer_results[reconciliation_direction.name] = replace(
+            transfer_results[reconciliation_direction.name],
+            frame=current,
+        )
+
     validate_stacked_spine_frame(current, boundary="stacked gap-fill output")
     gap_fill_receipt = {"authority": authority_receipt, "directions": receipts}
     if production:
@@ -9545,6 +10160,181 @@ def _gap_fill_absence_rule_mask(
         "status": "exact_structural_absence",
         "rows": int(mask.sum()),
         "by_origin_role": by_origin_role,
+    }
+
+
+def validated_stacked_housing_rent_absence(
+    frame: Frame,
+    *,
+    boundary: str,
+) -> tuple[pd.Series, Mapping[str, object]]:
+    """Return the one authority-valid structural rent-null universe.
+
+    The returned mask covers every live ACS clone descended from a sampled
+    native ``TYPEHUGQ`` 2/3 household. It is derived from the assembly-bound
+    lineage receipt, not merely from the mutable raw classification column,
+    and therefore provides one shared authority for release gates and the
+    simulation-copy adapter. Callers may exclude these rows from a finite
+    input gate or materialize zero in an engine-only copy; they must not alter
+    the persisted :class:`Frame` values.
+    """
+
+    if not isinstance(boundary, str) or not boundary.strip():
+        raise ValueError(
+            "Stacked housing-rent absence validation requires a non-empty boundary."
+        )
+    authority = _production_stacked_authority()
+    authority_receipt = _authority_receipt(authority)
+    _validate_production_authority_receipt(
+        authority_receipt,
+        boundary=f"{boundary} authority",
+    )
+    validate_stacked_spine_frame(frame, boundary=boundary)
+    matches = [
+        (direction, rule)
+        for direction in authority.gap_fill_plan
+        for rule in direction.recipient_absence_rules
+        if (
+            rule.rule_id == _ACS_GQ_RENT_ABSENCE_RULE_ID
+            and rule.entity == "person"
+            and rule.column == "pre_subsidy_rent"
+        )
+    ]
+    if len(matches) != 1:
+        raise RuntimeError(
+            "Canonical stacked authority must declare exactly one ACS "
+            f"group-quarters rent-absence rule; found {len(matches)}."
+        )
+    direction, rule = matches[0]
+    mask, receipt = _gap_fill_absence_rule_mask(
+        frame,
+        direction=direction,
+        rule=rule,
+    )
+    return mask, {
+        **receipt,
+        "authority_sha256": authority_receipt["sha256"],
+        "gap_fill_plan_sha256": authority_receipt["components"]["gap_fill_plan"][
+            "sha256"
+        ],
+    }
+
+
+def validated_stacked_housing_tenure_absence(
+    frame: Frame,
+    *,
+    boundary: str,
+) -> tuple[Mapping[str, pd.Series], Mapping[str, object]]:
+    """Authenticate the household/SPM tenure blanks for live ACS GQ lineages.
+
+    ``TEN`` is structurally out of universe for ACS ``TYPEHUGQ`` 2/3 rows.
+    The persisted frame keeps those source nulls.  PolicyEngine requires enum
+    values at its dataset boundary, so callers may materialize ``NONE`` for
+    household tenure and ``RENTER`` for SPM tenure only on these masks and only
+    in a copied engine table.
+    """
+
+    person_mask, rent_receipt = validated_stacked_housing_rent_absence(
+        frame,
+        boundary=boundary,
+    )
+    person = frame.table("person")
+    household = frame.table("household")
+    spm_unit = frame.table("spm_unit")
+    required_person = {"person_household_id", "person_spm_unit_id"}
+    required_household = {"household_id", "tenure_type"}
+    required_spm = {"spm_unit_id", "spm_unit_tenure_type"}
+    missing_person = sorted(required_person - set(person))
+    missing_household = sorted(required_household - set(household))
+    missing_spm = sorted(required_spm - set(spm_unit))
+    if missing_person or missing_household or missing_spm:
+        raise ValueError(
+            f"{boundary}: ACS group-quarters tenure absence cannot be resolved; "
+            f"missing_person={missing_person}, "
+            f"missing_household={missing_household}, missing_spm={missing_spm}."
+        )
+
+    selected = person.loc[
+        person_mask,
+        ["person_household_id", "person_spm_unit_id"],
+    ]
+    household_ids = selected["person_household_id"]
+    spm_unit_ids = selected["person_spm_unit_id"]
+    if household_ids.duplicated().any() or spm_unit_ids.duplicated().any():
+        raise ValueError(
+            f"{boundary}: ACS group-quarters tenure authority requires one "
+            "household and one SPM unit per authenticated person lineage."
+        )
+    household_mask = household["household_id"].isin(household_ids)
+    spm_unit_mask = spm_unit["spm_unit_id"].isin(spm_unit_ids)
+    if int(household_mask.sum()) != len(selected) or int(spm_unit_mask.sum()) != len(
+        selected
+    ):
+        raise ValueError(
+            f"{boundary}: ACS group-quarters tenure entity IDs do not resolve "
+            "one-to-one from authenticated person lineages."
+        )
+
+    household_missing = household["tenure_type"].isna()
+    spm_unit_missing = spm_unit["spm_unit_tenure_type"].isna()
+    for entity, missing, allowed in (
+        ("household", household_missing, household_mask),
+        ("spm_unit", spm_unit_missing, spm_unit_mask),
+    ):
+        unauthorized = missing & ~allowed
+        populated_authorized = allowed & ~missing
+        if unauthorized.any() or populated_authorized.any():
+            raise ValueError(
+                f"{boundary}: {entity} tenure blanks do not exactly equal the "
+                "authenticated ACS group-quarters universe; "
+                f"unauthorized_nulls={int(unauthorized.sum())}, "
+                f"populated_authorized={int(populated_authorized.sum())}."
+            )
+
+    masks = {
+        "person": person_mask,
+        "household": household_mask,
+        "spm_unit": spm_unit_mask,
+    }
+    entity_receipts: dict[str, object] = {}
+    for entity, mask in (
+        ("household", household_mask),
+        ("spm_unit", spm_unit_mask),
+    ):
+        table = frame.table(entity)
+        channel = table[support_channel_column(entity)].astype(str)
+        clone = pd.to_numeric(
+            table[support_clone_index_column(entity)], errors="raise"
+        ).astype("int64")
+        by_origin_role = {
+            f"{origin}/clone_{int(role)}": int(count)
+            for (origin, role), count in (
+                pd.DataFrame(
+                    {
+                        "origin": channel.loc[mask],
+                        "clone": clone.loc[mask],
+                    }
+                )
+                .groupby(["origin", "clone"], sort=True)
+                .size()
+                .items()
+            )
+        }
+        entity_receipts[entity] = {
+            "rows": int(mask.sum()),
+            "by_origin_role": by_origin_role,
+        }
+    return masks, {
+        "rule_id": "acs_group_quarters_tenure_engine_copy_v1",
+        "status": "exact_structural_absence",
+        "source_rule_id": rent_receipt["rule_id"],
+        "authority_sha256": rent_receipt["authority_sha256"],
+        "gap_fill_plan_sha256": rent_receipt["gap_fill_plan_sha256"],
+        "materialized_values": {
+            "household.tenure_type": "NONE",
+            "spm_unit.spm_unit_tenure_type": "RENTER",
+        },
+        "entities": entity_receipts,
     }
 
 
@@ -10184,6 +10974,285 @@ def _transfer_stacked_post_puf_inputs_with_test_authority(
     )
 
 
+def _late_structural_reconciliation_groups(
+    surface: TargetFamilies,
+) -> tuple[TransferProducerGroup, ...]:
+    """Resolve special canonical groups fully contained in one transfer surface."""
+
+    surface_keys = {
+        (entity, family, target)
+        for entity, families in surface.items()
+        for family, targets in families.items()
+        for target in targets
+    }
+    special_names = {
+        _EDUCATION_LATE_RECONCILIATION_GROUP,
+        _WIC_LATE_RECONCILIATION_GROUP,
+    }
+    return tuple(
+        group
+        for group in CANONICAL_US_LATE_TRANSFER_GROUPS
+        if group.name in special_names
+        and {(group.entity, group.family, target) for target in group.targets}.issubset(
+            surface_keys
+        )
+    )
+
+
+def _late_structural_producer_binding(
+    frame: Frame,
+    *,
+    entity: str,
+    targets: Sequence[str],
+) -> str:
+    table = frame.table(entity)
+    producer = (
+        table[support_channel_column(entity)].astype(str).eq(BASE_ASEC_SUPPORT_CHANNEL)
+    )
+    return _late_table_values_sha256(table.loc[producer, list(targets)])
+
+
+def _apply_late_transfer_structural_reconciliation(
+    frame: Frame,
+    *,
+    group: TransferProducerGroup,
+    seed: int,
+    producer_snapshot: Mapping[tuple[str, str], pd.Series],
+) -> tuple[Frame, dict[str, object]]:
+    """Restore one source-owned identity after independent recipient draws."""
+
+    group_name = group.name
+    entity = group.entity
+    family = group.family
+    targets = group.targets
+    policy = _late_transfer_structural_reconciliation_policy_identity(
+        group_name=group_name,
+        entity=entity,
+        family=family,
+        targets=targets,
+    )
+    if policy is None:
+        raise ValueError(
+            f"Late transfer group {group_name!r} has no structural policy."
+        )
+    person = frame.table("person")
+    dependencies = tuple(policy["dependencies"])
+    missing_dependencies = sorted(set(dependencies) - set(person))
+    if missing_dependencies:
+        raise ValueError(
+            f"Late transfer group {group_name!r} structural reconciliation "
+            f"lacks dependency column(s) {missing_dependencies}."
+        )
+    dependency_binding = _late_table_values_sha256(person.loc[:, list(dependencies)])
+    output_columns = tuple(policy["outputs"])
+    pre_output_binding = _late_table_values_sha256(person.loc[:, list(output_columns)])
+    pre_producer_binding = _late_structural_producer_binding(
+        frame,
+        entity=entity,
+        targets=targets,
+    )
+
+    if group_name == _EDUCATION_LATE_RECONCILIATION_GROUP:
+        tuition = pd.to_numeric(
+            person["qualified_tuition_expenses"], errors="coerce"
+        ).to_numpy(dtype=np.float64, na_value=np.nan)
+        invalid = ~np.isfinite(tuition) | (tuition < 0.0)
+        if invalid.any():
+            raise ValueError(
+                "AOTC post-transfer reconciliation requires finite nonnegative "
+                f"qualified tuition; invalid_rows={int(invalid.sum())}."
+            )
+        expected = tuition > 0.0
+        tables = {
+            frame_entity: frame.table(frame_entity).copy(deep=True)
+            for frame_entity in frame.entities
+        }
+        for column in output_columns:
+            tables["person"][column] = expected
+        reconciled = Frame(
+            tables,
+            frame.schema,
+            {
+                weighted_entity: frame.weights_for(weighted_entity)
+                for weighted_entity in frame.weighted_entities
+            },
+            frame.strata,
+            mass_log=frame.mass_log,
+            metadata=frame.metadata,
+        )
+    elif group_name == _WIC_LATE_RECONCILIATION_GROUP:
+        from microcosm.build.us_runtime.wic_claim import with_us_wic_claim_input
+
+        reconciled = with_us_wic_claim_input(
+            frame,
+            seed=seed,
+            time_period=POOL_TIME_PERIOD,
+        )
+    else:  # pragma: no cover - group resolution rejects this first.
+        raise AssertionError(f"Unhandled structural group {group_name!r}.")
+
+    changed_rows = {
+        column: int(
+            (~frame.table(entity)[column].eq(reconciled.table(entity)[column])).sum()
+        )
+        for column in output_columns
+    }
+    producer_mask = (
+        reconciled.table(entity)[support_channel_column(entity)]
+        .astype(str)
+        .eq(BASE_ASEC_SUPPORT_CHANNEL)
+    )
+    for target in targets:
+        snapshot = producer_snapshot[(entity, target)]
+        after = reconciled.table(entity).loc[producer_mask, target]
+        if not snapshot.equals(after):
+            raise ValueError(
+                f"Late structural reconciliation {group_name!r} would change "
+                f"ASEC producer bytes for {entity}.{target}."
+            )
+    post_producer_binding = _late_structural_producer_binding(
+        reconciled,
+        entity=entity,
+        targets=targets,
+    )
+    if pre_producer_binding != post_producer_binding:
+        raise AssertionError(
+            f"Late structural reconciliation {group_name!r} changed producer bytes."
+        )
+    receipt: dict[str, object] = {
+        "policy_sha256": policy["sha256"],
+        "seed": seed,
+        "status": "verified",
+        "dependency_values_sha256": dependency_binding,
+        "pre_reconciliation_output_values_sha256": pre_output_binding,
+        "output_values_sha256": _late_table_values_sha256(
+            reconciled.table(entity).loc[:, list(output_columns)]
+        ),
+        "changed_rows": changed_rows,
+        "asec_producer_values_before_sha256": pre_producer_binding,
+        "asec_producer_values_after_sha256": post_producer_binding,
+        "asec_producer_values_preserved": True,
+    }
+    receipt["sha256"] = _canonical_sha256(receipt)
+    return reconciled, receipt
+
+
+def _validate_late_transfer_structural_reconciliation_receipt(
+    receipt: object,
+    *,
+    group: TransferProducerGroup,
+    boundary: str,
+    frame: Frame | None,
+) -> None:
+    """Validate one special late-transfer receipt and its live identity."""
+
+    group_name = group.name
+    entity = group.entity
+    family = group.family
+    targets = group.targets
+    policy = _late_transfer_structural_reconciliation_policy_identity(
+        group_name=group_name,
+        entity=entity,
+        family=family,
+        targets=targets,
+    )
+    if policy is None:
+        raise ValueError(f"{boundary}: group has no declared structural policy.")
+    expected_keys = {
+        "policy_sha256",
+        "seed",
+        "status",
+        "dependency_values_sha256",
+        "pre_reconciliation_output_values_sha256",
+        "output_values_sha256",
+        "changed_rows",
+        "asec_producer_values_before_sha256",
+        "asec_producer_values_after_sha256",
+        "asec_producer_values_preserved",
+        "sha256",
+    }
+    if not isinstance(receipt, Mapping) or set(receipt) != expected_keys:
+        raise ValueError(f"{boundary}: structural reconciliation is malformed.")
+    unsigned = dict(receipt)
+    observed_sha256 = unsigned.pop("sha256")
+    changed_rows = receipt.get("changed_rows")
+    if (
+        observed_sha256 != _canonical_sha256(unsigned)
+        or receipt.get("policy_sha256") != policy["sha256"]
+        or isinstance(receipt.get("seed"), bool)
+        or not isinstance(receipt.get("seed"), int)
+        or receipt["seed"] < 0
+        or receipt.get("status") != "verified"
+        or receipt.get("asec_producer_values_preserved") is not True
+        or receipt.get("asec_producer_values_before_sha256")
+        != receipt.get("asec_producer_values_after_sha256")
+        or not isinstance(changed_rows, Mapping)
+        or set(changed_rows) != set(policy["outputs"])
+        or any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
+            for value in changed_rows.values()
+        )
+    ):
+        raise ValueError(f"{boundary}: structural reconciliation is invalid.")
+    for field_name in (
+        "dependency_values_sha256",
+        "pre_reconciliation_output_values_sha256",
+        "output_values_sha256",
+        "asec_producer_values_before_sha256",
+        "asec_producer_values_after_sha256",
+    ):
+        _validate_sha256(
+            receipt.get(field_name),
+            boundary=f"{boundary} structural reconciliation {field_name}",
+        )
+    if frame is None:
+        return
+    person = frame.table("person")
+    dependency_columns = tuple(policy["dependencies"])
+    missing_dependencies = sorted(set(dependency_columns) - set(person))
+    if missing_dependencies:
+        raise ValueError(
+            f"{boundary}: structural live dependencies are absent: "
+            f"{missing_dependencies}."
+        )
+    if receipt.get("dependency_values_sha256") != _late_table_values_sha256(
+        person.loc[:, list(dependency_columns)]
+    ):
+        raise ValueError(f"{boundary}: structural live-dependency SHA-256 mismatch.")
+    output_columns = tuple(policy["outputs"])
+    if receipt.get("output_values_sha256") != _late_table_values_sha256(
+        person.loc[:, list(output_columns)]
+    ):
+        raise ValueError(f"{boundary}: structural live-output SHA-256 mismatch.")
+    if group_name == _EDUCATION_LATE_RECONCILIATION_GROUP:
+        tuition = pd.to_numeric(
+            person["qualified_tuition_expenses"], errors="coerce"
+        ).to_numpy(dtype=np.float64, na_value=np.nan)
+        if (~np.isfinite(tuition) | (tuition < 0.0)).any():
+            raise ValueError(f"{boundary}: qualified tuition dependency is invalid.")
+        expected = tuition > 0.0
+        if any(
+            not np.array_equal(
+                _strict_housing_boolean_values(person[column], boundary=boundary),
+                expected,
+            )
+            for column in output_columns
+        ):
+            raise ValueError(f"{boundary}: AOTC source identity is invalid.")
+    elif group_name == _WIC_LATE_RECONCILIATION_GROUP:
+        from microcosm.build.us_runtime.wic_claim import with_us_wic_claim_input
+
+        expected = with_us_wic_claim_input(
+            frame,
+            seed=int(receipt["seed"]),
+            time_period=POOL_TIME_PERIOD,
+        ).table("person")["takes_up_wic_if_eligible"]
+        if not person["takes_up_wic_if_eligible"].equals(expected):
+            raise ValueError(
+                f"{boundary}: WIC deterministic source identity is invalid."
+            )
+
+
 def _transfer_stacked_post_puf_inputs_evaluate(
     frame: Frame,
     *,
@@ -10306,32 +11375,45 @@ def _transfer_stacked_post_puf_inputs_evaluate(
         target_receipts,
         calibration_receipts,
     )
+    structural_reconciliations: dict[str, object] = {}
+    for group in _late_structural_reconciliation_groups(surface):
+        reconciled, reconciliation_receipt = (
+            _apply_late_transfer_structural_reconciliation(
+                transfer.frame,
+                group=group,
+                seed=seed,
+                producer_snapshot=producer_snapshot,
+            )
+        )
+        transfer = replace(transfer, frame=reconciled)
+        structural_reconciliations[group.name] = reconciliation_receipt
     validate_stacked_spine_frame(
         transfer.frame,
         boundary="stacked post-PUF transfer output",
     )
+    receipt: dict[str, object] = {
+        "authority": authority_receipt,
+        "donor_selection": "owner_projection_of_asec_origin_clone_1",
+        "donor_channel": BASE_ASEC_SUPPORT_CHANNEL,
+        "donor_clone_index": PUF_TAX_DETAIL_CLONE_INDEX,
+        "recipient_selection": ("target_specific_complement_of_declared_producer_rows"),
+        "resolved_donor_channel": transfer.resolved_donor_channel,
+        "targets": target_receipts,
+        "post_transfer_calibration": {
+            "policy_sha256": authority.post_transfer_calibration["sha256"],
+            "target_count": len(calibration_receipts),
+            "targets": sorted(calibration_receipts),
+        },
+        "fit_records": [
+            {"fit_name": record.fit_name, "weight_kind": record.weight_kind}
+            for record in transfer.fit_records
+        ],
+    }
+    if structural_reconciliations:
+        receipt["structural_reconciliations"] = structural_reconciliations
     return StackedPostPufTransferResult(
         frame=transfer.frame,
-        receipt={
-            "authority": authority_receipt,
-            "donor_selection": "owner_projection_of_asec_origin_clone_1",
-            "donor_channel": BASE_ASEC_SUPPORT_CHANNEL,
-            "donor_clone_index": PUF_TAX_DETAIL_CLONE_INDEX,
-            "recipient_selection": (
-                "target_specific_complement_of_declared_producer_rows"
-            ),
-            "resolved_donor_channel": transfer.resolved_donor_channel,
-            "targets": target_receipts,
-            "post_transfer_calibration": {
-                "policy_sha256": authority.post_transfer_calibration["sha256"],
-                "target_count": len(calibration_receipts),
-                "targets": sorted(calibration_receipts),
-            },
-            "fit_records": [
-                {"fit_name": record.fit_name, "weight_kind": record.weight_kind}
-                for record in transfer.fit_records
-            ],
-        },
+        receipt=receipt,
         transfer_result=transfer,
     )
 
@@ -11089,6 +12171,11 @@ def run_stacked_late_producer_dag(
             f"max_targets_per_fit={DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT}; "
             f"got {max_targets_per_fit}."
         )
+    if seed != POOL_RANDOM_SEED:
+        raise ValueError(
+            "Canonical US late-producer execution requires the shared source/"
+            f"transfer seed={POOL_RANDOM_SEED}; got {seed!r}."
+        )
     if not callable(primary_puf_producer):
         raise TypeError("US late-producer DAG requires a primary-PUF callback.")
     if not isinstance(primary_resource_receipts, Mapping):
@@ -11474,6 +12561,10 @@ def us_puf_native_zero_rule_identity(
             "US PUF native-zero rule requested an undeclared output: "
             f"{entity}.{column}."
         )
+    second_home_native_zero = (
+        entity,
+        column,
+    ) in PUF_TAX_DETAIL_SECOND_HOME_NATIVE_ZERO_OUTPUTS
     return {
         "rule_id": US_PUF_NATIVE_ZERO_RULE_ID,
         "schema_version": 1,
@@ -11481,8 +12572,11 @@ def us_puf_native_zero_rule_identity(
         "column": column,
         "coverage_scope": "whole_pool",
         "materialized_value": 0.0,
-        "source_semantics": (
-            "puf_tax_detail_available_only_on_clone_positive_support"
+        "source_semantics": "puf_tax_detail_available_only_on_clone_positive_support",
+        "authority_kind": (
+            "policyengine_schema_default_native_zero"
+            if second_home_native_zero
+            else "strict_release_gate_native_zero"
         ),
         "puf_clone_precondition": "finite_preserve_bit_exact",
         "native_precondition": "all_null",
@@ -11559,9 +12653,9 @@ def _materialize_us_puf_native_role_zeros(
                 "US PUF native-zero materialization requires the primary-QRF "
                 f"output column {entity}.{column}."
             )
-        clone_values = pd.to_numeric(
-            table[clone_column], errors="coerce"
-        ).to_numpy(dtype=np.float64, na_value=np.nan)
+        clone_values = pd.to_numeric(table[clone_column], errors="coerce").to_numpy(
+            dtype=np.float64, na_value=np.nan
+        )
         invalid_roles = (
             ~np.isfinite(clone_values)
             | (clone_values < 0.0)
@@ -11619,9 +12713,7 @@ def _materialize_us_puf_native_role_zeros(
                 f"finite whole-pool {entity}.{column} with exact native zeros."
             )
         if (
-            _late_table_values_sha256(
-                table.loc[produced, [clone_column, column]]
-            )
+            _late_table_values_sha256(table.loc[produced, [clone_column, column]])
             != produced_values_sha256
         ):
             raise AssertionError(
@@ -12208,9 +13300,7 @@ def _run_stacked_puf_pass_evaluate(
         for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
         if column
         in (
-            declared_person_outputs
-            if entity == "person"
-            else declared_tax_unit_outputs
+            declared_person_outputs if entity == "person" else declared_tax_unit_outputs
         )
     )
     materialized_native_zero_outputs = tuple(

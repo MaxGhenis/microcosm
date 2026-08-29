@@ -2407,8 +2407,21 @@
      "type": "object",
      "additionalProperties": false,
      "properties": {
-      "head_carry_output": {
-       "type": "string"
+      "head_carry_outputs": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "real_estate_taxes": {
+         "type": "string"
+        },
+        "rent": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "real_estate_taxes",
+        "rent"
+       ]
       },
       "kind": {
        "const": "fit_weighted_acs_rent_qrf"
@@ -2440,8 +2453,11 @@
         "type": "string"
        }
       },
-      "target": {
-       "type": "string"
+      "targets": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
       },
       "target_allocation_flags": {
        "type": "object",
@@ -2467,7 +2483,7 @@
       }
      },
      "required": [
-      "head_carry_output",
+      "head_carry_outputs",
       "kind",
       "max_train_samples",
       "n_estimators",
@@ -2476,7 +2492,7 @@
       "sample_fill_salt",
       "seed_from_build_config",
       "shared_sample_targets",
-      "target",
+      "targets",
       "target_allocation_flags",
       "training_seed_name",
       "weight"
@@ -4353,8 +4369,21 @@
      "type": "object",
      "additionalProperties": false,
      "properties": {
-      "allocation_flag": {
-       "type": "string"
+      "allocation_flags": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "real_estate_taxes": {
+         "type": "string"
+        },
+        "rent": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "real_estate_taxes",
+        "rent"
+       ]
       },
       "household_head_only": {
        "type": "boolean"
@@ -4371,18 +4400,21 @@
       "table": {
        "type": "string"
       },
-      "target": {
-       "type": "string"
+      "targets": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
       }
      },
      "required": [
-      "allocation_flag",
+      "allocation_flags",
       "household_head_only",
       "kind",
       "source_already_annualized",
       "source_unit",
       "table",
-      "target"
+      "targets"
      ]
     },
     {

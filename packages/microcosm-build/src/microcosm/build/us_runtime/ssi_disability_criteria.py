@@ -80,6 +80,7 @@ __all__ = [
     "fetch_sipp_2023_ssi_disability_donor",
     "impute_us_ssi_disability_criteria",
     "load_sipp_2023_ssi_disability_donor",
+    "materialize_us_reported_ssi_for_simulation",
     "us_ssi_disability_criteria_signal_gate",
     "us_ssi_disability_criteria_stage_spec",
     "us_ssi_disability_criteria_summary",
@@ -811,6 +812,65 @@ def _reported_ssi_anchor(person: pd.DataFrame, *, age: np.ndarray) -> np.ndarray
             "below the ACS age-15 universe."
         )
     return combined.fillna(0.0).to_numpy(dtype=np.float64)
+
+
+def materialize_us_reported_ssi_for_simulation(
+    person: pd.DataFrame,
+) -> np.ndarray:
+    """Return the complete reported-SSI leaf required by PolicyEngine.
+
+    Stacked source frames deliberately preserve two origin-specific source
+    representations: ASEC ``SSI_VAL`` and ACS ``ssi_reported``.  The latter is
+    genuinely blank below the ACS age-15 amount universe.  PolicyEngine's
+    dataset boundary cannot carry those structural nulls, so internal
+    simulation callers materialize the already-reviewed reporter anchor in a
+    copied person table.  The source frame itself remains untouched.
+
+    This engine-copy boundary is stricter than the archived ``> 0`` predicate:
+    every observed amount must be finite and nonnegative, and if both source
+    representations are populated they must agree exactly.  Only a below-age-15
+    blank is interpreted as zero.
+    """
+
+    if "age" not in person:
+        raise ValueError(
+            "US reported-SSI simulation materialization requires person.age."
+        )
+    numeric: dict[str, pd.Series] = {}
+    for column in ("SSI_VAL", "ssi_reported"):
+        if column not in person:
+            continue
+        raw = person[column]
+        values = pd.to_numeric(raw, errors="coerce")
+        observed = raw.notna()
+        observed_values = values.loc[observed].to_numpy(dtype=np.float64)
+        if (
+            values.loc[observed].isna().any()
+            or not np.isfinite(observed_values).all()
+            or (observed_values < 0.0).any()
+        ):
+            raise ValueError(
+                "US reported-SSI simulation source "
+                f"{column!r} must contain finite nonnegative amounts."
+            )
+        numeric[column] = values
+    if "SSI_VAL" in numeric and "ssi_reported" in numeric:
+        both = numeric["SSI_VAL"].notna() & numeric["ssi_reported"].notna()
+        if (
+            numeric["SSI_VAL"].loc[both].to_numpy(dtype=np.float64)
+            != numeric["ssi_reported"].loc[both].to_numpy(dtype=np.float64)
+        ).any():
+            raise ValueError(
+                "US reported-SSI simulation SSI_VAL and ssi_reported disagree "
+                "on reporter status or exact amount."
+            )
+    age = pd.to_numeric(person["age"], errors="coerce").to_numpy(dtype=np.float64)
+    materialized = _reported_ssi_anchor(person, age=age)
+    if not np.isfinite(materialized).all() or (materialized < 0.0).any():
+        raise RuntimeError(
+            "US reported-SSI simulation materialization produced an invalid amount."
+        )
+    return materialized
 
 
 def _person_ssi_disability_predictors(frame: Frame) -> pd.DataFrame:

@@ -44,6 +44,10 @@ from microcosm.build.us_runtime.h5_io import (
     us_multispine_pool_release_receipt,
     write_nullable_us_h5,
 )
+from microcosm.build.us_runtime.puf_support import (
+    PUF_CLONE_ATTACHMENT_MANIFEST_KEY,
+    validate_puf_clone_attachment,
+)
 from microcosm.build.us_runtime.support_provenance import (
     SPINE_ASSEMBLY_MANIFEST_KEY,
     spine_assembly_manifest,
@@ -144,9 +148,7 @@ def _pool_frame_with_object_strings_on_every_entity(
     metadata = (
         spine_assembly_manifest(
             {
-                entity: table.loc[
-                    table[support_clone_index_column(entity)].eq(0)
-                ]
+                entity: table.loc[table[support_clone_index_column(entity)].eq(0)]
                 for entity, table in tables.items()
             },
             channels=("asec", "acs"),
@@ -154,10 +156,33 @@ def _pool_frame_with_object_strings_on_every_entity(
         if stacked
         else frame.metadata
     )
+    weights = {entity: frame.weights_for(entity) for entity in frame.weighted_entities}
+    if stacked:
+        # One of two native households receives a clone-1 detail arm. Keep its
+        # pair weights exact so the loader can validate the frozen attachment.
+        weights["household"] = Weights(
+            np.asarray([2.0, 3.0, 3.0]),
+            WeightKind.IMPORTANCE,
+        )
+        metadata = {
+            **metadata,
+            PUF_CLONE_ATTACHMENT_MANIFEST_KEY: {
+                "version": 1,
+                "clone_attachment_fraction": 0.5,
+                "clone_attachment_seed": 578,
+                "eligible_household_count": 2,
+                "requested_household_count": 1,
+                "realized_household_count": 1,
+                "exact_count_rule": "floor(fraction * eligible)",
+                "selected_household_source_ids_sha256": hashlib.sha256(
+                    json.dumps([20], separators=(",", ":")).encode("utf-8")
+                ).hexdigest(),
+            },
+        }
     return Frame(
         tables,
         frame.schema,
-        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        weights,
         frame.strata,
         mass_log=frame.mass_log,
         metadata=metadata,
@@ -761,7 +786,17 @@ def _write_ready_pool(
         },
     }
     if stacked:
-        dag = _canonical_stacked_late_dag_receipt()
+        clone_attachment_receipt = pool_frame.metadata[
+            PUF_CLONE_ATTACHMENT_MANIFEST_KEY
+        ]
+        dag = _canonical_stacked_late_dag_receipt(
+            clone_attachment_fraction=float(
+                clone_attachment_receipt["clone_attachment_fraction"]
+            ),
+            clone_attachment_seed=int(
+                clone_attachment_receipt["clone_attachment_seed"]
+            ),
+        )
         assert geography_assignment is not None
         sampling, stack_manifest = _fixture_stacked_sampling(sample_fraction)
         transition_authority = (
@@ -773,6 +808,10 @@ def _write_ready_pool(
                 "random_seed": 0,
                 "sampling": sampling,
                 "stack_manifest": stack_manifest,
+                "clone_attachment": {
+                    "fraction": clone_attachment_receipt["clone_attachment_fraction"],
+                    "seed": clone_attachment_receipt["clone_attachment_seed"],
+                },
                 "assembly_receipt": stacked_spine_module._json_ready(
                     pool_frame.metadata[SPINE_ASSEMBLY_MANIFEST_KEY]
                 ),
@@ -796,6 +835,11 @@ def _write_ready_pool(
                 "stage_receipts": {
                     "geography_assignment": geography_assignment,
                     "impute": {
+                        "stacked_puf_pass": {
+                            "clone_attachment": stacked_spine_module._json_ready(
+                                clone_attachment_receipt
+                            ),
+                        },
                         "source_operator_chain": {
                             "late_dag_completion": dag["source_completion"],
                         },
@@ -938,7 +982,40 @@ def _canonical_pregnancy_structural_receipt() -> dict[str, object]:
     }
 
 
-def _canonical_stacked_late_dag_receipt() -> dict[str, object]:
+def _canonical_late_structural_reconciliation_receipt(
+    group: stacked_spine_module.TransferProducerGroup,
+) -> dict[str, object] | None:
+    """Build the signed fixture proof required by special late groups."""
+
+    policy = stacked_spine_module._late_transfer_structural_reconciliation_policy_identity(
+        group_name=group.name,
+        entity=group.entity,
+        family=group.family,
+        targets=group.targets,
+    )
+    if policy is None:
+        return None
+    receipt: dict[str, object] = {
+        "policy_sha256": policy["sha256"],
+        "seed": 0,
+        "status": "verified",
+        "dependency_values_sha256": "6" * 64,
+        "pre_reconciliation_output_values_sha256": "7" * 64,
+        "output_values_sha256": "8" * 64,
+        "changed_rows": {column: 0 for column in policy["outputs"]},
+        "asec_producer_values_before_sha256": "9" * 64,
+        "asec_producer_values_after_sha256": "9" * 64,
+        "asec_producer_values_preserved": True,
+    }
+    receipt["sha256"] = stacked_spine_module._canonical_sha256(receipt)
+    return receipt
+
+
+def _canonical_stacked_late_dag_receipt(
+    *,
+    clone_attachment_fraction: float = 0.5,
+    clone_attachment_seed: int = 578,
+) -> dict[str, object]:
     """Build a signed fixture receipt over the live canonical contracts."""
 
     schedule = stacked_spine_module.CANONICAL_US_LATE_PRODUCER_SCHEDULE
@@ -1009,7 +1086,7 @@ def _canonical_stacked_late_dag_receipt() -> dict[str, object]:
             group_targets[key]["post_transfer_calibration"] = (
                 _canonical_late_calibration_owner_receipt(late_specs[key])
             )
-        group_receipts[group.name] = {
+        group_receipt: dict[str, object] = {
             "producer": group.name,
             "entity": group.entity,
             "family": group.family,
@@ -1021,6 +1098,12 @@ def _canonical_stacked_late_dag_receipt() -> dict[str, object]:
                 "targets": calibrated_keys,
             },
         }
+        structural_receipt = _canonical_late_structural_reconciliation_receipt(group)
+        if structural_receipt is not None:
+            group_receipt["structural_reconciliations"] = {
+                group.name: structural_receipt
+            }
+        group_receipts[group.name] = group_receipt
     group_by_name = {
         group.name: group
         for group in stacked_spine_module.CANONICAL_US_LATE_TRANSFER_GROUPS
@@ -1077,8 +1160,8 @@ def _canonical_stacked_late_dag_receipt() -> dict[str, object]:
             available = stacked_spine_module.stacked_late_primary_resource_receipts(
                 pd.DataFrame({"fixture_donor": [1.0]}),
                 primary_qrf_checkpoint_identity_sha256="5" * 64,
-                clone_attachment_fraction=1.0,
-                clone_attachment_seed=578,
+                clone_attachment_fraction=clone_attachment_fraction,
+                clone_attachment_seed=clone_attachment_seed,
                 seed=0,
                 n_estimators=100,
                 fit_records_enabled=True,
@@ -1470,18 +1553,74 @@ def test_ready_stacked_pool_loader_binds_terminal_gate_aliases(
         transition_authority["sha256"]
         == manifest["late_producer_transition_authority_sha256"]
     )
-    assert stacked_spine_module._json_ready(
-        frame.metadata[stacked_spine_module.STACKED_SPINE_MANIFEST_KEY]
-    ) == (
-        manifest["stack_manifest"]
+    assert (
+        stacked_spine_module._json_ready(
+            frame.metadata[stacked_spine_module.STACKED_SPINE_MANIFEST_KEY]
+        )
+        == (manifest["stack_manifest"])
     )
-    assert stacked_spine_module._json_ready(
-        frame.metadata[SPINE_ASSEMBLY_MANIFEST_KEY]
-    ) == manifest["assembly_receipt"]
-    assert validate_assembly_provenance(
+    assert (
+        stacked_spine_module._json_ready(frame.metadata[SPINE_ASSEMBLY_MANIFEST_KEY])
+        == manifest["assembly_receipt"]
+    )
+    assert (
+        validate_assembly_provenance(
+            frame,
+            boundary="stacked loader regression",
+        )
+        is frame.metadata[SPINE_ASSEMBLY_MANIFEST_KEY]
+    )
+    clone_attachment = frame.metadata[PUF_CLONE_ATTACHMENT_MANIFEST_KEY]
+    assert (
+        stacked_spine_module._json_ready(clone_attachment)
+        == manifest["stage_receipts"]["impute"]["stacked_puf_pass"]["clone_attachment"]
+    )
+    assert (
+        validate_puf_clone_attachment(
+            frame,
+            boundary="stacked loader regression",
+            expected_fraction=manifest["clone_attachment"]["fraction"],
+            expected_seed=manifest["clone_attachment"]["seed"],
+        )
+        is clone_attachment
+    )
+    # This is the clone-lifecycle validation reached by the housing structural-
+    # rent authority. A loaded partial/tail clone must not look unreceipted.
+    stacked_spine_module._validate_stacked_clone_role_lifecycle(
         frame,
-        boundary="stacked loader regression",
-    ) is frame.metadata[SPINE_ASSEMBLY_MANIFEST_KEY]
+        boundary="housing input signal structural-rent authority",
+    )
+
+
+def test_ready_stacked_pool_loader_requires_clone_attachment_receipt(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("tables")
+    manifest_path = _write_ready_pool(tmp_path, stacked=True)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["stage_receipts"]["impute"]["stacked_puf_pass"]["clone_attachment"]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match=r"stacked_puf_pass\.clone_attachment must be an object",
+    ):
+        load_simulation_ready_us_multispine_pool(manifest_path)
+
+
+def test_ready_stacked_pool_loader_validates_clone_attachment_against_h5(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("tables")
+    manifest_path = _write_ready_pool(tmp_path, stacked=True)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["stage_receipts"]["impute"]["stacked_puf_pass"]["clone_attachment"][
+        "eligible_household_count"
+    ] += 1
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="live eligible household count"):
+        load_simulation_ready_us_multispine_pool(manifest_path)
 
 
 def test_ready_stacked_pool_loader_requires_assembly_receipt(
@@ -1493,7 +1632,9 @@ def test_ready_stacked_pool_loader_requires_assembly_receipt(
     del manifest["assembly_receipt"]
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="ambiguous stacked envelope.*assembly_receipt"):
+    with pytest.raises(
+        ValueError, match="ambiguous stacked envelope.*assembly_receipt"
+    ):
         load_simulation_ready_us_multispine_pool(manifest_path)
 
 
@@ -1522,12 +1663,10 @@ def test_ready_stacked_pool_loader_restores_sampled_rung_manifest(
 
     frame, manifest, _ = load_simulation_ready_us_multispine_pool(manifest_path)
 
-    stack_manifest = frame.metadata[
-        stacked_spine_module.STACKED_SPINE_MANIFEST_KEY
-    ]
-    assert stacked_spine_module._json_ready(stack_manifest) == manifest[
-        "stack_manifest"
-    ]
+    stack_manifest = frame.metadata[stacked_spine_module.STACKED_SPINE_MANIFEST_KEY]
+    assert (
+        stacked_spine_module._json_ready(stack_manifest) == manifest["stack_manifest"]
+    )
     assert stack_manifest["version"] == 4
     assert stack_manifest["sample_fraction"] == 0.25
 

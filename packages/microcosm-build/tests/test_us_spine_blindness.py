@@ -179,6 +179,7 @@ _SPINE_BLIND_OPERATOR_MODULES = (
 _GATE_SOURCE_CHANNEL_ACCESSOR = "support_gate_source_channel_series"
 _GATE_SOURCE_CHANNEL_CALLERS = {
     "alimony.py": frozenset({"us_alimony_signal_gate"}),
+    "housing_inputs.py": frozenset({"us_housing_inputs_summary"}),
     "medicare_take_up.py": frozenset({"_asec_source_mask"}),
     "retirement_contributions.py": frozenset({"_asec_source_mask"}),
     "retirement_distributions.py": frozenset({"_asec_source_mask"}),
@@ -253,6 +254,8 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         "pregnancy.py",
         # Pinned-archive sidecar restore (PAW_TYP); no population treatment.
         "public_assistance_type_source.py",
+        # Pinned-archive measured coverage sidecar; no population treatment.
+        "reported_coverage_source.py",
         "puf_aggregate_records.py",
         "puf_capital_gains_tail.py",
         "puf_donor_io.py",  # Bounded donor artifact I/O; no population treatment.
@@ -3393,8 +3396,8 @@ def test_pool_build_tool_import_graph_is_source_spine_blind() -> None:
 
     for tool in _SPINE_BLIND_BUILD_TOOLS:
         runtime_graph, missing_modules = _us_runtime_import_graph(tool)
-        assert len(runtime_graph) == 69, (
-            f"{tool.name} must reach the pinned 69-module runtime graph; "
+        assert len(runtime_graph) == 70, (
+            f"{tool.name} must reach the pinned 70-module runtime graph; "
             f"reached {len(runtime_graph)}"
         )
         assert not missing_modules, (

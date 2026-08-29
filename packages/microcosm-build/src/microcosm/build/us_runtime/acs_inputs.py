@@ -20,9 +20,18 @@ import pandas as pd
 
 from microcosm.frame import US_SCHEMA, Frame
 
-__all__ = ["AcsNativeInputResult", "map_acs_native_inputs"]
+__all__ = [
+    "ACS_REAL_ESTATE_TAX_SOURCE_DOMAIN_VERSION",
+    "ACS_REAL_ESTATE_TAX_STRUCTURAL_ZERO_RULE",
+    "AcsNativeInputResult",
+    "map_acs_native_inputs",
+]
 
 _INFLATION_FACTOR_DENOMINATOR = 1_000_000.0
+ACS_REAL_ESTATE_TAX_SOURCE_DOMAIN_VERSION = 1
+ACS_REAL_ESTATE_TAX_STRUCTURAL_ZERO_RULE = (
+    "TAXAMT blank-or-zero outside owner-occupied housing; owner blank refused"
+)
 
 _HOUSEHOLD_TENURE = {
     1: "OWNED_WITH_MORTGAGE",
@@ -263,17 +272,35 @@ def _map_housing_amounts(
     ):
         if source not in household:
             continue
-        values = _adjusted_dollars(household[source], household, factor="ADJHSG")
+        if source == "TAXAMT":
+            values, source_domain = _adjusted_real_estate_taxes(household)
+            source_columns = (source, "ADJHSG", "TEN", "TYPEHUGQ")
+            transformation = (
+                "TAXAMT * ADJHSG / 1_000_000; TEN/TYPEHUGQ "
+                "structural-zero domain"
+            )
+        else:
+            values = _adjusted_dollars(
+                household[source], household, factor="ADJHSG"
+            )
+            source_domain = None
+            source_columns = (source, "ADJHSG")
+            transformation = f"{source} * ADJHSG / 1_000_000"
         adjusted[source] = values
         _add_native(
             household,
             output,
             values,
             entity="household",
-            source_columns=(source, "ADJHSG"),
-            transformation=f"{source} * ADJHSG / 1_000_000",
+            source_columns=source_columns,
+            transformation=transformation,
             register=register,
         )
+        if source_domain is not None:
+            register[output] = {
+                **register[output],
+                "source_domain": source_domain,
+            }
 
     if "is_household_head" not in person:
         return
@@ -285,10 +312,94 @@ def _map_housing_amounts(
             "real_estate_taxes",
             placed,
             entity="person",
-            source_columns=("TAXAMT", "ADJHSG", "RELSHIPP"),
-            transformation=("TAXAMT * ADJHSG / 1_000_000; reference-person carry"),
+            source_columns=("TAXAMT", "ADJHSG", "TEN", "TYPEHUGQ", "RELSHIPP"),
+            transformation=(
+                "TAXAMT * ADJHSG / 1_000_000; TEN/TYPEHUGQ structural-zero "
+                "domain; reference-person carry"
+            ),
             register=register,
         )
+        register["real_estate_taxes"] = {
+            **register["real_estate_taxes"],
+            "source_domain": register["acs_annual_property_tax"]["source_domain"],
+        }
+
+
+def _adjusted_real_estate_taxes(
+    household: pd.DataFrame,
+) -> tuple[np.ndarray, Mapping[str, object]]:
+    """Validate ACS TAXAMT's universe and materialize only structural zeros.
+
+    TAXAMT is observed for owner-occupied housing units. Its blank on a renter,
+    no-rent housing unit, or group-quarters placeholder means the concept is
+    outside that source universe and is exactly zero. A blank for an owner is
+    missing source content and must fail rather than silently weaken property
+    tax amounts.
+    """
+
+    required = ("TAXAMT", "TEN", "TYPEHUGQ")
+    missing = [column for column in required if column not in household]
+    if missing:
+        raise ValueError(
+            "ACS real-estate-tax source-domain validation requires household "
+            f"column(s): {missing}."
+        )
+    type_hugq = pd.to_numeric(household["TYPEHUGQ"], errors="coerce")
+    invalid_type = type_hugq.isna() | ~type_hugq.isin((1, 2, 3))
+    if invalid_type.any():
+        raise ValueError(
+            "ACS real-estate-tax source-domain TYPEHUGQ must contain only "
+            "housing-unit/group-quarters codes 1, 2, or 3."
+        )
+    tenure = pd.to_numeric(household["TEN"], errors="coerce")
+    housing_unit = type_hugq.eq(1)
+    invalid_housing_tenure = housing_unit & (tenure.isna() | ~tenure.isin((1, 2, 3, 4)))
+    if invalid_housing_tenure.any():
+        raise ValueError(
+            "ACS real-estate-tax source-domain housing units require TEN code "
+            "1, 2, 3, or 4."
+        )
+    owner = housing_unit & tenure.isin((1, 2))
+    renter_or_no_rent = housing_unit & tenure.isin((3, 4))
+    group_quarters = type_hugq.isin((2, 3))
+    structural_zero = renter_or_no_rent | group_quarters
+    if not np.array_equal((owner | structural_zero).to_numpy(), np.ones(len(household), dtype=bool)):
+        raise RuntimeError(
+            "ACS real-estate-tax source-domain masks do not partition households."
+        )
+
+    raw = pd.to_numeric(household["TAXAMT"], errors="coerce")
+    owner_blank = owner & raw.isna()
+    if owner_blank.any():
+        raise ValueError(
+            "ACS owner-housing TAXAMT must be observed; blank owner rows="
+            f"{int(owner_blank.sum())}."
+        )
+    invalid_observed = raw.notna() & (~np.isfinite(raw) | (raw < 0.0))
+    if invalid_observed.any():
+        raise ValueError("ACS TAXAMT must be finite and nonnegative when observed.")
+    incompatible = structural_zero & raw.notna() & raw.ne(0.0)
+    if incompatible.any():
+        raise ValueError(
+            "ACS renter/group-quarters TAXAMT must be blank or zero; "
+            f"incompatible rows={int(incompatible.sum())}."
+        )
+
+    adjusted = _adjusted_dollars(household["TAXAMT"], household, factor="ADJHSG")
+    adjusted[structural_zero.to_numpy()] = 0.0
+    if not np.isfinite(adjusted).all() or (adjusted < 0.0).any():
+        raise RuntimeError(
+            "ACS real-estate-tax source-domain materialization produced invalid values."
+        )
+    source_domain = {
+        "version": ACS_REAL_ESTATE_TAX_SOURCE_DOMAIN_VERSION,
+        "owner_housing_rows": int(owner.sum()),
+        "owner_observed_rows": int((owner & raw.notna()).sum()),
+        "renter_or_no_rent_structural_zero_rows": int(renter_or_no_rent.sum()),
+        "group_quarters_structural_zero_rows": int(group_quarters.sum()),
+        "structural_zero_rule": ACS_REAL_ESTATE_TAX_STRUCTURAL_ZERO_RULE,
+    }
+    return adjusted, source_domain
 
 
 def _head_place(

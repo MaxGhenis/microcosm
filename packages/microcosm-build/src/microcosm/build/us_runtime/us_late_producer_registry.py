@@ -100,7 +100,10 @@ __all__ = [
     "us_late_producer_schedule_receipt",
 ]
 
-# v17 declares the seven gate-backed PUF-only monetary leaves as whole-pool
+# v18 binds the whole-pool qualified-tuition and pregnancy outputs consumed by
+# the education and WIC post-transfer structural reconciliations to their
+# actual late-transfer producers. v17 declares the seven gate-backed PUF-only
+# monetary leaves as whole-pool
 # primary-PUF outputs and removes them from predictive late-transfer ownership.
 # v16 declares person.s_corp_income as a whole-pool primary-PUF output: its
 # certified combined-source semantics are carried by partnership_income, while
@@ -126,7 +129,7 @@ __all__ = [
 # cardinalities across each execution row, binds source-receipt outputs to the
 # callback receipt, and requires the primary callback to report the exact
 # resources it consumed. Receipt v2 introduced exact virtual-resource payloads.
-US_LATE_PRODUCER_REGISTRY_SCHEMA_VERSION = 17
+US_LATE_PRODUCER_REGISTRY_SCHEMA_VERSION = 18
 US_LATE_PRODUCER_RECEIPT_SCHEMA_VERSION = 3
 US_LATE_PRODUCER_TRANSITION_AUTHORITY_VERSION = 1
 US_LATE_PRODUCER_TRANSITION_AUTHORITY_KEY = "us_late_producer_transition_authority"
@@ -1198,6 +1201,29 @@ def _transfer_input_inventory(group: TransferProducerGroup) -> SourceInputInvent
                 _ADULT_CARE_ROLE_INPUT,
             )
         )
+    elif group.name == transfer_producer_name("person", "source_operator_wic_claim"):
+        post_transfer_structure.extend(
+            (
+                _single(
+                    "wic_own_children",
+                    "person",
+                    "own_children_in_household",
+                    value_kind="finite_numeric",
+                ),
+                _single(
+                    "wic_family_identity",
+                    "person",
+                    "person_family_id",
+                    value_kind="finite_numeric",
+                ),
+                _single(
+                    "wic_stable_person_identity",
+                    "person",
+                    "person_source_id",
+                    value_kind="finite_numeric",
+                ),
+            )
+        )
     return _inventory(
         group.name,
         *structural,
@@ -1948,6 +1974,35 @@ def _build_registry() -> dict[str, ProducerContract]:
                 ),
             )
         )
+        reconciliation_dependency: tuple[str, str] | None = None
+        if group.name == transfer_producer_name(
+            "person", "source_operator_education_inputs"
+        ):
+            reconciliation_dependency = ("person", _QUALIFIED_TUITION)
+        elif group.name == transfer_producer_name(
+            "person", "source_operator_wic_claim"
+        ):
+            reconciliation_dependency = ("person", _PREGNANCY_OUTPUT)
+        if reconciliation_dependency is not None:
+            dependency_entity, dependency_column = reconciliation_dependency
+            dependency_producer = group_by_target[reconciliation_dependency]
+            inputs.append(
+                ProducerInput(
+                    dependency_entity,
+                    dependency_column,
+                    _WHOLE_POOL_SCOPE,
+                    dependency_producer.name,
+                    alternatives=(
+                        (
+                            ProducerInputColumn(
+                                dependency_entity,
+                                dependency_column,
+                                _late_target_value_kind(dependency_column),
+                            ),
+                        ),
+                    ),
+                )
+            )
         direct_dependency_keys = {
             (item.entity, item.column)
             for item in inputs

@@ -2457,8 +2457,14 @@
         {
           "kind": "read_acs_rent_donor",
           "table": "acs_2022_arrays",
-          "target": "rent",
-          "allocation_flag": "rent_is_allocated",
+          "targets": [
+            "rent",
+            "real_estate_taxes"
+          ],
+          "allocation_flags": {
+            "rent": "rent_is_allocated",
+            "real_estate_taxes": "real_estate_taxes_is_allocated"
+          },
           "source_unit": "annual_usd",
           "source_already_annualized": true,
           "household_head_only": true
@@ -2477,7 +2483,10 @@
             "state_code_str",
             "household_size"
           ],
-          "target": "rent",
+          "targets": [
+            "rent",
+            "real_estate_taxes"
+          ],
           "shared_sample_targets": [
             "rent",
             "real_estate_taxes"
@@ -2493,7 +2502,10 @@
           "n_estimators": 100,
           "training_seed_name": "legacy_acs_rent_training_sample",
           "seed_from_build_config": true,
-          "head_carry_output": "pre_subsidy_rent"
+          "head_carry_outputs": {
+            "rent": "pre_subsidy_rent",
+            "real_estate_taxes": "real_estate_taxes"
+          }
         },
         {
           "kind": "impute_housing_assistance_to_puf_support",
@@ -2519,15 +2531,17 @@
       ],
       "outputs": [
         "pre_subsidy_rent",
+        "real_estate_taxes",
         "receives_housing_assistance",
         "takes_up_housing_assistance_if_eligible",
         "spm_unit_tenure_type",
         "tenure_type"
       ],
       "nonnegative_outputs": [
-        "pre_subsidy_rent"
+        "pre_subsidy_rent",
+        "real_estate_taxes"
       ],
-      "notes": "Exact CPS H_TENURE and SPM carries plus the archived 10-predictor ACS rent QRF. receives_housing_assistance receives the retired second-stage CPS-to-PUF QRF, and takes_up_housing_assistance_if_eligible is kept exactly equal to that measured/imputed receipt anchor. Archived cps.py lines 664-682 preserved reporters before adding eligible nonreporters from a 0.50 draw; parameters/take_up/housing_assistance.yaml lines 12-15 say 0.50 was an ad hoc eCPS benchmark adjustment pending fuller calibration. Archived db/etl_housing_assistance.py lines 35-169 use a live HUD workbook to produce household-grain state counts, not SPM-unit recipient identities; that workbook is not pinned in the hermetic build and allocating its counts to SPM units would synthesize recipients. Microcosm never turns a reporter off and does not add unobserved take-up. Rent and both tenure enums are cloned unchanged."
+      "notes": "Exact CPS H_TENURE and SPM carries plus the archived 10-predictor ACS rent/real-estate-tax QRFs over their one authored joint target sample. Both amounts are carried once on the household head. receives_housing_assistance receives the retired second-stage CPS-to-PUF QRF, and takes_up_housing_assistance_if_eligible is kept exactly equal to that measured/imputed receipt anchor. Archived cps.py lines 664-682 preserved reporters before adding eligible nonreporters from a 0.50 draw; parameters/take_up/housing_assistance.yaml lines 12-15 say 0.50 was an ad hoc eCPS benchmark adjustment pending fuller calibration. Archived db/etl_housing_assistance.py lines 35-169 use a live HUD workbook to produce household-grain state counts, not SPM-unit recipient identities; that workbook is not pinned in the hermetic build and allocating its counts to SPM units would synthesize recipients. Microcosm never turns a reporter off and does not add unobserved take-up. Housing amounts and both tenure enums are cloned unchanged."
     },
     {
       "stage": "vehicle_assets",

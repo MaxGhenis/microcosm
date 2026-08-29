@@ -758,6 +758,26 @@ def _project_gap_fill_plan(
             raise RuntimeError(
                 f"Gap-fill direction {name!r} has inconsistent channels."
             )
+        policy_value = direction["post_reconciliation_policy"]
+        if policy_value is None:
+            post_reconciliation_policy = None
+        else:
+            post_reconciliation_policy = deepcopy(
+                dict(
+                    _mapping_like(
+                        policy_value,
+                        f"gap-fill direction {name!r} post-reconciliation policy",
+                    )
+                )
+            )
+            declared_sha256 = post_reconciliation_policy.pop("sha256", None)
+            projected_sha256 = _canonical_sha256(post_reconciliation_policy)
+            if declared_sha256 != projected_sha256:
+                raise RuntimeError(
+                    f"Gap-fill direction {name!r} post-reconciliation policy "
+                    "SHA-256 differs from its typed payload."
+                )
+            post_reconciliation_policy["sha256"] = projected_sha256
         target_families: dict[str, dict[str, list[str]]] = {}
         absence_rules: list[object] = []
         seen_absence_rules: set[str] = set()
@@ -785,6 +805,7 @@ def _project_gap_fill_plan(
                 "recipient_channel": recipient_channels.pop(),
                 "target_families": target_families,
                 "recipient_absence_rules": absence_rules,
+                "post_reconciliation_policy": post_reconciliation_policy,
             }
         )
     return result

@@ -789,8 +789,7 @@ def test_puf_native_zero_materializes_every_declared_leaf_and_preserves_payload(
     assert receipt["rule_id"] == stacked_spine_module.US_PUF_NATIVE_ZERO_RULE_ID
     assert receipt["status"] == "materialized"
     assert set(receipt["targets"]) == {
-        f"{entity}.{column}"
-        for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+        f"{entity}.{column}" for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
     }
     for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS:
         table = materialized.table(entity)
@@ -962,8 +961,7 @@ def test_stacked_primary_completes_all_puf_only_native_zero_outputs(
     zero_receipt = result.receipt["native_role_zero_outputs"]
     assert zero_receipt["status"] == "materialized"
     assert set(zero_receipt["targets"]) == {
-        f"{entity}.{column}"
-        for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+        f"{entity}.{column}" for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
     }
     for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS:
         table = result.frame.table(entity)
@@ -1989,6 +1987,8 @@ def test_canonical_metric_registry_covers_the_declared_134_target_split() -> Non
     assert len(post_puf_targets) == 63
     assert len(puf_producer_targets) == 36
     assert len(source_producer_targets) == 29
+    # The 134-target diagnostic surface excludes the three second-home inputs,
+    # even though the primary PUF owner now completes their whole-pool values.
     assert len(primary_native_zero_targets) == 7
     assert len(puf_producer_targets & source_producer_targets) == 2
     assert puf_producer_targets | source_producer_targets == post_puf_targets
@@ -2669,6 +2669,84 @@ def test_acs_clone_person_cannot_substitute_group_quarters_parent() -> None:
         )
 
 
+def test_stacked_housing_tenure_absence_binds_every_live_group_quarters_clone() -> (
+    None
+):
+    attached = clone_us_frame_for_puf_support(
+        _stacked_gap_fixture(),
+        clone_attachment_fraction=1.0,
+        clone_attachment_seed=578,
+    )
+    household = attached.table("household")
+    person = attached.table("person")
+    spm_unit = attached.table("spm_unit").copy()
+    group_quarters_households = household.loc[
+        pd.to_numeric(household["TYPEHUGQ"], errors="coerce").isin((2, 3)),
+        "household_id",
+    ]
+    group_quarters_spm_units = person.loc[
+        person["person_household_id"].isin(group_quarters_households),
+        "person_spm_unit_id",
+    ]
+    spm_unit["spm_unit_tenure_type"] = "RENTER"
+    spm_unit.loc[
+        spm_unit["spm_unit_id"].isin(group_quarters_spm_units),
+        "spm_unit_tenure_type",
+    ] = np.nan
+    tables = {entity: attached.table(entity) for entity in attached.entities}
+    tables["spm_unit"] = spm_unit
+    structural = Frame(
+        tables,
+        attached.schema,
+        {entity: attached.weights_for(entity) for entity in attached.weighted_entities},
+        attached.strata,
+        mass_log=attached.mass_log,
+        metadata=attached.metadata,
+    )
+
+    masks, receipt = stacked_spine_module.validated_stacked_housing_tenure_absence(
+        structural,
+        boundary="tenure structural-null fixture",
+    )
+
+    assert int(masks["person"].sum()) == 2
+    assert int(masks["household"].sum()) == 2
+    assert int(masks["spm_unit"].sum()) == 2
+    assert receipt["status"] == "exact_structural_absence"
+    assert receipt["entities"]["household"]["by_origin_role"] == {
+        "acs/clone_0": 1,
+        "acs/clone_1": 1,
+    }
+    assert receipt["entities"]["spm_unit"]["by_origin_role"] == {
+        "acs/clone_0": 1,
+        "acs/clone_1": 1,
+    }
+
+    damaged_spm = structural.table("spm_unit").copy()
+    unexpected = damaged_spm.index[~masks["spm_unit"]][0]
+    damaged_spm.loc[unexpected, "spm_unit_tenure_type"] = np.nan
+    damaged_tables = {
+        entity: structural.table(entity) for entity in structural.entities
+    }
+    damaged_tables["spm_unit"] = damaged_spm
+    damaged = Frame(
+        damaged_tables,
+        structural.schema,
+        {
+            entity: structural.weights_for(entity)
+            for entity in structural.weighted_entities
+        },
+        structural.strata,
+        mass_log=structural.mass_log,
+        metadata=structural.metadata,
+    )
+    with pytest.raises(ValueError, match=r"spm_unit tenure blanks.*unauthorized_nulls=1"):
+        stacked_spine_module.validated_stacked_housing_tenure_absence(
+            damaged,
+            boundary="damaged tenure structural-null fixture",
+        )
+
+
 def test_gap_fill_plan_covers_declared_families_exactly() -> None:
     plan = stacked_gap_fill_plan()
     assert [direction.name for direction in plan] == [
@@ -2719,6 +2797,8 @@ def test_gap_fill_plan_covers_declared_families_exactly() -> None:
         if (key[0], key[2]) in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
     }
     assert early_keys.isdisjoint(late_keys)
+    # The transfer declaration excludes the three second-home inputs owned
+    # wholly by the primary PUF stage.
     assert len(primary_native_zero_keys) == 7
     assert primary_native_zero_keys.isdisjoint(early_keys | late_keys)
     assert early_keys | late_keys | primary_native_zero_keys == full_keys
@@ -2825,7 +2905,7 @@ def _canonical_gap_fill_calibration_receipt() -> dict[str, object]:
                 },
                 "calibration": calibration,
             }
-        directions[direction.name] = {
+        direction_receipt: dict[str, object] = {
             "targets": target_receipts,
             "post_transfer_calibration": {
                 "policy_sha256": policy["sha256"],
@@ -2833,6 +2913,36 @@ def _canonical_gap_fill_calibration_receipt() -> dict[str, object]:
                 "targets": calibrated_keys,
             },
         }
+        if direction.post_reconciliation_policy is not None:
+            reconciliation: dict[str, object] = {
+                "policy_sha256": direction.post_reconciliation_policy["sha256"],
+                "status": "verified",
+                "pre_reconciliation_dependency_values_sha256": {
+                    "person": "0" * 64,
+                    "spm_unit": "1" * 64,
+                },
+                "output_values_sha256": {
+                    "person": "2" * 64,
+                    "spm_unit": "3" * 64,
+                },
+                "structural_rent_authority": {},
+                "assistance_rows_changed": 0,
+                "positive_nonhead_rent_rows_zeroed": 0,
+                "asec_producer_values_before_sha256": {
+                    "person.pre_subsidy_rent": "4" * 64,
+                    "spm_unit.housing_assistance": "5" * 64,
+                },
+                "asec_producer_values_after_sha256": {
+                    "person.pre_subsidy_rent": "4" * 64,
+                    "spm_unit.housing_assistance": "5" * 64,
+                },
+                "asec_producer_values_preserved": True,
+            }
+            reconciliation["sha256"] = stacked_spine_module._canonical_sha256(
+                reconciliation
+            )
+            direction_receipt["post_reconciliation"] = reconciliation
+        directions[direction.name] = direction_receipt
     return {
         "authority": stacked_spine_module.stacked_spine_authority_receipt(),
         "directions": directions,
@@ -3754,6 +3864,267 @@ def _post_puf_transfer_fixture() -> Frame:
         mass_log=attached.mass_log,
         metadata=attached.metadata,
     )
+
+
+def test_housing_post_gap_reconciliation_restores_final_source_identities() -> None:
+    frame = _stacked_gap_fixture()
+    direction = next(
+        item
+        for item in stacked_spine_module.CANONICAL_STACKED_GAP_FILL_PLAN
+        if item.post_reconciliation_policy is not None
+    )
+    rule = direction.recipient_absence_rules[0]
+    structural, _receipt = stacked_spine_module._gap_fill_absence_rule_mask(
+        frame,
+        direction=direction,
+        rule=rule,
+    )
+    tables = {entity: frame.table(entity).copy(deep=True) for entity in frame.entities}
+    person = tables["person"]
+    person_acs = person[support_channel_column("person")].eq("acs")
+    person.loc[person_acs, "pre_subsidy_rent"] = 1_200.0
+    person.loc[structural, "pre_subsidy_rent"] = np.nan
+    person["real_estate_taxes"] = 0.0
+    spm_unit = tables["spm_unit"]
+    receives = np.arange(len(spm_unit)) % 3 == 0
+    spm_unit["receives_housing_assistance"] = receives
+    spm_unit["takes_up_housing_assistance_if_eligible"] = receives
+    spm_unit["spm_unit_tenure_type"] = np.resize(
+        np.asarray(
+            [
+                "OWNER_WITH_MORTGAGE",
+                "OWNER_WITHOUT_MORTGAGE",
+                "RENTER",
+            ],
+            dtype=object,
+        ),
+        len(spm_unit),
+    )
+    acs_spm = spm_unit[support_channel_column("spm_unit")].eq("acs")
+    mismatch_row = spm_unit.index[acs_spm][0]
+    spm_unit.loc[mismatch_row, "takes_up_housing_assistance_if_eligible"] = not bool(
+        spm_unit.loc[mismatch_row, "receives_housing_assistance"]
+    )
+    discordant = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    asec_rent_before = discordant.table("person").loc[~person_acs, "pre_subsidy_rent"]
+
+    reconciled, receipt = stacked_spine_module._apply_housing_post_gap_reconciliation(
+        discordant,
+        direction=direction,
+    )
+
+    output_person = reconciled.table("person")
+    output_spm = reconciled.table("spm_unit")
+    assert output_spm["takes_up_housing_assistance_if_eligible"].equals(
+        output_spm["receives_housing_assistance"]
+    )
+    assert not (
+        output_person[support_channel_column("person")].eq("acs")
+        & ~output_person["is_household_head"].astype(bool)
+        & output_person["pre_subsidy_rent"].gt(0.0)
+    ).any()
+    assert output_person.loc[structural, "pre_subsidy_rent"].isna().all()
+    pd.testing.assert_series_equal(
+        output_person.loc[~person_acs, "pre_subsidy_rent"],
+        asec_rent_before,
+    )
+    assert receipt["assistance_rows_changed"] == 1
+    assert receipt["positive_nonhead_rent_rows_zeroed"] > 0
+    stacked_spine_module._validate_housing_post_gap_reconciliation_receipt(
+        receipt,
+        direction=direction,
+        boundary="housing reconciliation regression",
+        frame=reconciled,
+    )
+
+    forged = deepcopy(receipt)
+    forged["output_values_sha256"]["person"] = "0" * 64
+    forged["sha256"] = stacked_spine_module._canonical_sha256(
+        {key: value for key, value in forged.items() if key != "sha256"}
+    )
+    with pytest.raises(ValueError, match="live-output SHA-256"):
+        stacked_spine_module._validate_housing_post_gap_reconciliation_receipt(
+            forged,
+            direction=direction,
+            boundary="forged housing reconciliation",
+            frame=reconciled,
+        )
+
+    from microcosm.build.us_runtime.housing_inputs import (
+        us_housing_inputs_signal_gate,
+        us_housing_inputs_summary,
+    )
+
+    structural_row = output_person.index[structural][0]
+    for nonnull_nonfinite in (-np.inf, np.inf):
+        tampered_tables = {
+            entity: reconciled.table(entity).copy(deep=True)
+            for entity in reconciled.entities
+        }
+        tampered_tables["person"].loc[structural_row, "pre_subsidy_rent"] = (
+            nonnull_nonfinite
+        )
+        tampered = Frame(
+            tampered_tables,
+            reconciled.schema,
+            {
+                entity: reconciled.weights_for(entity)
+                for entity in reconciled.weighted_entities
+            },
+            reconciled.strata,
+            mass_log=reconciled.mass_log,
+            metadata=reconciled.metadata,
+        )
+        summary = us_housing_inputs_summary(tampered)
+        assert summary["authorized_structural_rent_materialized"] == 1
+        assert summary["unexpected_nonfinite_rent"] == 0
+        gate = us_housing_inputs_signal_gate(tampered)
+        assert any(
+            "group-quarters rows with materialized pre_subsidy_rent" in failure
+            for failure in gate.failures
+        )
+
+
+def _late_structural_fixture(
+    group_name: str,
+) -> tuple[Frame, object, dict[tuple[str, str], pd.Series]]:
+    frame = _post_puf_transfer_fixture()
+    group = next(
+        item
+        for item in stacked_spine_module.CANONICAL_US_LATE_TRANSFER_GROUPS
+        if item.name == group_name
+    )
+    person = frame.table("person").copy(deep=True)
+    asec = person[support_channel_column("person")].eq("asec")
+    if group_name == stacked_spine_module._EDUCATION_LATE_RECONCILIATION_GROUP:
+        tuition = np.where(np.arange(len(person)) % 3 == 0, 250.0, 0.0)
+        person["qualified_tuition_expenses"] = tuition
+        person["educational_assistance"] = np.arange(len(person), dtype=float)
+        expected = tuition > 0.0
+        for column in group.targets:
+            if column != "educational_assistance":
+                person[column] = expected
+                person.loc[~asec, column] = ~expected[~asec.to_numpy()]
+    else:
+        from microcosm.build.us_runtime.wic_claim import with_us_wic_claim_input
+
+        person["age"] = np.floor(pd.to_numeric(person["age"], errors="raise")).astype(
+            float
+        )
+        person["own_children_in_household"] = np.zeros(len(person), dtype=float)
+        person["is_pregnant"] = person["is_female"].astype(bool) & person[
+            "age"
+        ].between(15, 44, inclusive="both")
+        tables = {entity: frame.table(entity) for entity in frame.entities}
+        tables["person"] = person
+        prepared = Frame(
+            tables,
+            frame.schema,
+            {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+            frame.strata,
+            mass_log=frame.mass_log,
+            metadata=frame.metadata,
+        )
+        frame = with_us_wic_claim_input(prepared, seed=578, time_period=2022)
+        person = frame.table("person").copy(deep=True)
+        asec = person[support_channel_column("person")].eq("asec")
+        person.loc[~asec, "takes_up_wic_if_eligible"] = ~person.loc[
+            ~asec, "takes_up_wic_if_eligible"
+        ].astype(bool)
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    tables["person"] = person
+    discordant = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    producer_snapshot = {
+        (group.entity, target): discordant.table(group.entity)
+        .loc[asec, target]
+        .copy(deep=True)
+        for target in group.targets
+    }
+    return discordant, group, producer_snapshot
+
+
+@pytest.mark.parametrize(
+    "group_name",
+    (
+        stacked_spine_module._EDUCATION_LATE_RECONCILIATION_GROUP,
+        stacked_spine_module._WIC_LATE_RECONCILIATION_GROUP,
+    ),
+)
+def test_late_structural_reconciliation_restores_source_identity(
+    group_name: str,
+) -> None:
+    frame, group, producer_snapshot = _late_structural_fixture(group_name)
+
+    reconciled, receipt = (
+        stacked_spine_module._apply_late_transfer_structural_reconciliation(
+            frame,
+            group=group,
+            seed=578,
+            producer_snapshot=producer_snapshot,
+        )
+    )
+
+    assert any(receipt["changed_rows"].values())
+    assert receipt["asec_producer_values_preserved"]
+    stacked_spine_module._validate_late_transfer_structural_reconciliation_receipt(
+        receipt,
+        group=group,
+        boundary=f"{group_name} reconciliation regression",
+        frame=reconciled,
+    )
+    if group_name == stacked_spine_module._EDUCATION_LATE_RECONCILIATION_GROUP:
+        person = reconciled.table("person")
+        expected = person["qualified_tuition_expenses"].gt(0.0).to_numpy()
+        for column in receipt["changed_rows"]:
+            assert np.array_equal(person[column].astype(bool).to_numpy(), expected)
+    else:
+        person = reconciled.table("person")
+        assert (
+            person.groupby("person_source_id", sort=False)["takes_up_wic_if_eligible"]
+            .nunique()
+            .eq(1)
+            .all()
+        )
+
+    forged_dependency = deepcopy(receipt)
+    forged_dependency["dependency_values_sha256"] = "0" * 64
+    forged_dependency["sha256"] = stacked_spine_module._canonical_sha256(
+        {key: value for key, value in forged_dependency.items() if key != "sha256"}
+    )
+    with pytest.raises(ValueError, match="live-dependency SHA-256"):
+        stacked_spine_module._validate_late_transfer_structural_reconciliation_receipt(
+            forged_dependency,
+            group=group,
+            boundary=f"forged {group_name} dependency binding",
+            frame=reconciled,
+        )
+
+    forged = deepcopy(receipt)
+    forged["output_values_sha256"] = "0" * 64
+    forged["sha256"] = stacked_spine_module._canonical_sha256(
+        {key: value for key, value in forged.items() if key != "sha256"}
+    )
+    with pytest.raises(ValueError, match="live-output SHA-256"):
+        stacked_spine_module._validate_late_transfer_structural_reconciliation_receipt(
+            forged,
+            group=group,
+            boundary=f"forged {group_name} reconciliation",
+            frame=reconciled,
+        )
 
 
 def test_bounded_transfer_group_remaps_canonical_producer_roles() -> None:
@@ -4842,7 +5213,8 @@ def test_late_transfer_resources_bind_all_callback_controls() -> None:
         "support_channel": stacked_spine_module.BASE_ASEC_SUPPORT_CHANNEL,
         "support_clone_index": stacked_spine_module.PUF_TAX_DETAIL_CLONE_INDEX,
     }
-    assert model["schema_version"] == 3
+    assert model["schema_version"] == 4
+    assert model["structural_reconciliation_policy"] is None
     assert model["transfer_execution_contract"] == (
         acs_transfer_module.acs_transfer_execution_contract_identity(
             targets=group.targets,
@@ -5384,6 +5756,7 @@ def _run_real_late_executor_fixture(
     bank_identity_sha256: str | None = None,
     bound_clone_attachment_seed: int = 578,
     asec_earnings_delta: float = 0.0,
+    late_seed: int = 0,
 ) -> tuple[stacked_spine_module.StackedLateProducerResult, tuple[str, ...], int]:
     registry = stacked_spine_module.CANONICAL_US_LATE_PRODUCER_REGISTRY
     initial = _late_universe_entry_fixture()
@@ -5466,6 +5839,29 @@ def _run_real_late_executor_fixture(
             index=completed_person.index,
             dtype="string",
         )
+        from microcosm.build.us_runtime.education_inputs import (
+            US_AOTC_ELIGIBILITY_OUTPUT_COLUMNS,
+        )
+        from microcosm.build.us_runtime.wic_claim import with_us_wic_claim_input
+
+        completed_person["age"] = np.floor(
+            pd.to_numeric(completed_person["age"], errors="raise")
+        ).astype(float)
+        completed_person["own_children_in_household"] = np.zeros(
+            len(completed_person),
+            dtype=float,
+        )
+        completed_person["is_pregnant"] = completed_person["is_female"].astype(
+            bool
+        ) & completed_person["age"].between(15, 44, inclusive="both")
+        has_qualified_tuition = pd.to_numeric(
+            completed_person["qualified_tuition_expenses"],
+            errors="raise",
+        ).gt(0.0)
+        for column in US_AOTC_ELIGIBILITY_OUTPUT_COLUMNS:
+            completed_person[column] = has_qualified_tuition.to_numpy(dtype=bool)
+        completed = with_us_wic_claim_input(completed, seed=0, time_period=2022)
+        completed_person = completed.table("person")
         adult_recipient = completed_person[support_channel_column("person")].eq(
             "acs"
         ) & completed_person[support_clone_index_column("person")].eq(0)
@@ -5544,6 +5940,15 @@ def _run_real_late_executor_fixture(
             for item in stacked_spine_module.CANONICAL_US_LATE_TRANSFER_GROUPS
             if item.name == group_name
         )
+        producer_rows = frame.table(group.entity)[
+            support_channel_column(group.entity)
+        ].eq("asec")
+        producer_snapshot = {
+            (group.entity, target): frame.table(group.entity)
+            .loc[producer_rows, target]
+            .copy(deep=True)
+            for target in group.targets
+        }
         assert execution_contract == (
             acs_transfer_module.acs_transfer_execution_contract_identity(
                 targets=group.targets,
@@ -5617,9 +6022,9 @@ def _run_real_late_executor_fixture(
                 "residual_null_rows": 0,
             }
             if target == "is_pregnant":
-                pregnancy_policy = execution_contract[
-                    "structural_target_policies"
-                ]["is_pregnant"]
+                pregnancy_policy = execution_contract["structural_target_policies"][
+                    "is_pregnant"
+                ]
                 target_receipt["structural_policy"] = {
                     "policy_sha256": pregnancy_policy["sha256"],
                     "source_person_key": "person_source_id",
@@ -5751,18 +6156,35 @@ def _run_real_late_executor_fixture(
             if spec.special_constraint == ("adult_care_qualifying_one_per_tax_unit"):
                 owner["post_reconciliation"] = {"status": "verified_no_op"}
             target_receipts[key]["post_transfer_calibration"] = owner
+        structural_reconciliations: dict[str, object] = {}
+        if group.name in {
+            stacked_spine_module._EDUCATION_LATE_RECONCILIATION_GROUP,
+            stacked_spine_module._WIC_LATE_RECONCILIATION_GROUP,
+        }:
+            frame, structural_receipt = (
+                stacked_spine_module._apply_late_transfer_structural_reconciliation(
+                    frame,
+                    group=group,
+                    seed=0,
+                    producer_snapshot=producer_snapshot,
+                )
+            )
+            structural_reconciliations[group.name] = structural_receipt
+        group_receipt: dict[str, object] = {
+            "producer": group.name,
+            "ordered_targets": list(group.targets),
+            "targets": target_receipts,
+            "post_transfer_calibration": {
+                "policy_sha256": policy_sha256,
+                "target_count": len(calibrated_keys),
+                "targets": calibrated_keys,
+            },
+        }
+        if structural_reconciliations:
+            group_receipt["structural_reconciliations"] = structural_reconciliations
         return stacked_spine_module.StackedPostPufTransferResult(
             frame,
-            {
-                "producer": group.name,
-                "ordered_targets": list(group.targets),
-                "targets": target_receipts,
-                "post_transfer_calibration": {
-                    "policy_sha256": policy_sha256,
-                    "target_count": len(calibrated_keys),
-                    "targets": calibrated_keys,
-                },
-            },
+            group_receipt,
             replace(transfer_result, frame=frame),
         )
 
@@ -5811,6 +6233,7 @@ def _run_real_late_executor_fixture(
         initial,
         primary_puf_producer=primary,
         primary_resource_receipts=resources,
+        seed=late_seed,
         target_banks=target_banks,
     )
 
@@ -5939,6 +6362,102 @@ def test_late_executor_signature_rejects_generation_only_calibration_tampering(
             frame=result.frame,
             expected_transition_authority_sha256=(result.transition_authority_sha256),
         )
+
+
+def test_late_executor_binds_structural_reconciliation_seed_to_model_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result, _events, _finalizer_calls = _run_real_late_executor_fixture(monkeypatch)
+    forged = deepcopy(dict(result.receipt))
+    group_name = stacked_spine_module._WIC_LATE_RECONCILIATION_GROUP
+    execution_row = next(
+        row for row in forged["execution"] if row["producer"] == group_name
+    )
+    execution_group = execution_row["producer_receipt"]
+    structural = execution_group["structural_reconciliations"][group_name]
+    structural["seed"] = 1
+    structural["sha256"] = stacked_spine_module._canonical_sha256(
+        {key: value for key, value in structural.items() if key != "sha256"}
+    )
+    aggregate_group = forged["post_puf_transfer"]["groups"][group_name]
+    aggregate_group["structural_reconciliations"] = deepcopy(
+        execution_group["structural_reconciliations"]
+    )
+    execution_row["producer_receipt_sha256"] = stacked_spine_module._canonical_sha256(
+        execution_group
+    )
+    _rehash_late_receipt_after_fixture_mutation(forged)
+
+    with pytest.raises(ValueError, match="differs from its bound model seed"):
+        stacked_spine_module.validate_stacked_late_producer_receipt(
+            forged,
+            boundary="forged WIC structural seed",
+        )
+
+
+def test_late_executor_binds_wic_redraw_seed_to_source_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result, _events, _finalizer_calls = _run_real_late_executor_fixture(monkeypatch)
+    forged = deepcopy(dict(result.receipt))
+    group_name = stacked_spine_module._WIC_LATE_RECONCILIATION_GROUP
+    execution_row = next(
+        row for row in forged["execution"] if row["producer"] == group_name
+    )
+    execution_group = execution_row["producer_receipt"]
+    structural = execution_group["structural_reconciliations"][group_name]
+    structural["seed"] = 1
+    structural["sha256"] = stacked_spine_module._canonical_sha256(
+        {key: value for key, value in structural.items() if key != "sha256"}
+    )
+    forged["post_puf_transfer"]["groups"][group_name]["structural_reconciliations"] = (
+        deepcopy(execution_group["structural_reconciliations"])
+    )
+    execution_row["producer_receipt_sha256"] = stacked_spine_module._canonical_sha256(
+        execution_group
+    )
+
+    model_key = f"person.{stacked_spine_module.US_LATE_TRANSFER_MODEL_CONFIG_INPUT}"
+    model_receipt = execution_row["available_input_receipts"][model_key]
+    model_receipt["binding"]["seed"] = 1
+    model_receipt["binding_sha256"] = stacked_spine_module._canonical_sha256(
+        model_receipt["binding"]
+    )
+    for declared_input in execution_row["declared_inputs"]:
+        evidence = declared_input["evidence"]
+        matching_columns = [
+            column
+            for alternative in evidence["alternatives"]
+            for column in alternative
+            if column["column"]
+            == stacked_spine_module.US_LATE_TRANSFER_MODEL_CONFIG_INPUT
+        ]
+        if not matching_columns:
+            continue
+        assert len(matching_columns) == 1
+        matching_columns[0]["content_sha256"] = stacked_spine_module._canonical_sha256(
+            model_receipt
+        )
+        evidence["sha256"] = stacked_spine_module._canonical_sha256(
+            {"alternatives": evidence["alternatives"]}
+        )
+    _rehash_late_receipt_after_fixture_mutation(forged)
+
+    with pytest.raises(ValueError, match="differs from its bound WIC source seed"):
+        stacked_spine_module.validate_stacked_late_producer_receipt(
+            forged,
+            boundary="forged WIC source/model seed",
+        )
+
+
+def test_late_executor_rejects_noncanonical_shared_source_transfer_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match="shared source/transfer seed=0; got 1",
+    ):
+        _run_real_late_executor_fixture(monkeypatch, late_seed=1)
 
 
 @pytest.mark.parametrize("mutation", ("carrier", "amount"))
@@ -6531,7 +7050,9 @@ def test_post_puf_transfer_preserves_complete_asec_source_producers() -> None:
     )
 
 
-def test_complete_pregnancy_surface_retains_zero_imputation_structural_receipt() -> None:
+def test_complete_pregnancy_surface_retains_zero_imputation_structural_receipt() -> (
+    None
+):
     frame = _post_puf_transfer_fixture()
     person = frame.table("person").copy()
     recipient_rows = person[support_channel_column("person")].astype(str).eq("acs")
@@ -6560,9 +7081,7 @@ def test_complete_pregnancy_surface_retains_zero_imputation_structural_receipt()
         n_estimators=10,
     )
 
-    receipt = result.receipt["targets"][
-        "person/model_required_boolean/is_pregnant"
-    ]
+    receipt = result.receipt["targets"]["person/model_required_boolean/is_pregnant"]
     assert receipt["authorized_null_rows"] == 0
     assert receipt["imputed_rows"] == 0
     assert receipt["structural_policy"]["status"] == "verified"
@@ -6583,9 +7102,7 @@ def test_post_puf_transfer_refuses_invalid_pregnancy_source_producer() -> None:
         person["is_female"].astype(bool)
         & person["age"].between(15, 44, inclusive="both")
     )
-    donor_ineligible = ineligible & person[
-        support_clone_index_column("person")
-    ].eq(1)
+    donor_ineligible = ineligible & person[support_clone_index_column("person")].eq(1)
     person.loc[person.index[donor_ineligible][0], "is_pregnant"] = True
     tables = {entity: frame.table(entity) for entity in frame.entities}
     tables["person"] = person
@@ -6796,9 +7313,7 @@ def test_post_puf_transfer_rejects_incomplete_modeled_puf_clone_producer() -> No
     corrupted_rows = person[support_channel_column("person")].astype(str).eq(
         "acs"
     ) & person[support_clone_index_column("person")].eq(1)
-    person.loc[
-        person.index[corrupted_rows][0], "qualified_tuition_expenses"
-    ] = np.nan
+    person.loc[person.index[corrupted_rows][0], "qualified_tuition_expenses"] = np.nan
     tables = {entity: frame.table(entity) for entity in frame.entities}
     tables["person"] = person
     incomplete = Frame(
@@ -8426,7 +8941,7 @@ def test_self_consistent_stale_stacked_authority_versions_are_rejected(
     )
     stale_receipt = stacked_spine_module._authority_receipt(stale)
 
-    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 11
+    assert stacked_spine_module.stacked_spine_authority_receipt()["version"] == 12
     assert stale_receipt["version"] == stale_version
     assert stale_receipt["integrity_valid"] is True
     assert stale_receipt["digest_matches_declared"] is True
@@ -8445,7 +8960,7 @@ def test_stacked_authority_binds_import_validated_late_producer_schedule() -> No
     receipt = stacked_spine_module.stacked_spine_authority_receipt()
     component = receipt["components"]["late_producer_schedule"]
 
-    assert receipt["version"] == 11
+    assert receipt["version"] == 12
     assert component["producer_count"] == 37
     assert component["schedule_sha256"] == (
         stacked_spine_module.CANONICAL_US_LATE_PRODUCER_SCHEDULE.sha256

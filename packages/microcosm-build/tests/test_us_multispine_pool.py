@@ -28,6 +28,9 @@ from microcosm.build.us_runtime.acs_income_universe import (
 from microcosm.build.us_runtime.acs_transfer import (
     declared_acs_transfer_target_families,
 )
+from microcosm.build.us_runtime.cps_carried import (
+    US_REPORTED_COVERAGE_PERSON_INPUTS,
+)
 from microcosm.build.us_runtime.multispine_pool import (
     POOL_CHECKPOINT_STAGE_ORDER,
     POOL_DEFERRED_TRANSFER_INPUTS,
@@ -84,6 +87,9 @@ from microcosm.build.us_runtime.qbi_inputs import (
     us_qbi_reconciliation_change_receipt,
     with_us_qbi_input_reconciliation,
 )
+from microcosm.build.us_runtime.reported_coverage_source import (
+    ASEC_REPORTED_COVERAGE_RAW_COLUMNS,
+)
 from microcosm.build.us_runtime.spine_agreement import (
     SpineAgreementSpec,
     default_spine_agreement_registry,
@@ -94,6 +100,7 @@ from microcosm.build.us_runtime.spine_assembly import assemble_spines
 from microcosm.build.us_runtime.support_provenance import (
     support_clone_index_column,
     support_source_id_column,
+    us_reported_coverage_vintage_signal_gate,
 )
 from microcosm.build.us_runtime.take_up_contract import load_take_up_contract
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
@@ -545,9 +552,12 @@ def _rent_donor() -> pd.DataFrame:
 
 
 class _RowSensitiveRentFitted:
+    def __init__(self, target: str) -> None:
+        self.target = target
+
     def predict(self, test: pd.DataFrame, **_kwargs: object) -> pd.DataFrame:
         return pd.DataFrame(
-            {"rent": 1_000.0 + np.arange(len(test), dtype=np.float64)},
+            {self.target: 1_000.0 + np.arange(len(test), dtype=np.float64)},
             index=test.index,
         )
 
@@ -556,8 +566,10 @@ class _RowSensitiveRentQRF:
     def __init__(self, **_kwargs: object) -> None:
         pass
 
-    def fit(self, *_args: object, **_kwargs: object) -> _RowSensitiveRentFitted:
-        return _RowSensitiveRentFitted()
+    def fit(self, *_args: object, **kwargs: object) -> _RowSensitiveRentFitted:
+        targets = kwargs["targets"]
+        assert isinstance(targets, list) and len(targets) == 1
+        return _RowSensitiveRentFitted(targets[0])
 
 
 def _replace_person(
@@ -1196,13 +1208,23 @@ def test_pool_transfer_plan_partitions_at_the_declared_producer_boundary() -> No
         (entity, "puf_tax_itemization", target)
         for entity, target in puf_support_module.PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
     }
+    second_home_native_zero = {
+        (entity, "puf_tax_itemization", target)
+        for entity, target in (
+            puf_support_module.PUF_TAX_DETAIL_SECOND_HOME_NATIVE_ZERO_OUTPUTS
+        )
+    }
+    transfer_native_zero = primary_native_zero - second_home_native_zero
 
     assert len(early) == 48
     assert len(late) == 63
-    assert len(primary_native_zero) == 7
+    assert len(primary_native_zero) == 10
+    assert len(transfer_native_zero) == 7
+    assert len(second_home_native_zero) == 3
     assert early.isdisjoint(late)
     assert primary_native_zero.isdisjoint(early | late)
-    assert early | late | primary_native_zero == full
+    assert second_home_native_zero.isdisjoint(full)
+    assert early | late | transfer_native_zero == full
     assert len(puf_producers) == 36
     assert len(source_producers) == 29
     assert len(puf_producers & source_producers) == 2
@@ -3661,6 +3683,80 @@ def test_predictor_prep_fills_cps_rows_without_overwriting_acs_native() -> None:
         True,
     ]
     assert result.receipt["operator_order"] == ["derive_us_cps_carried_inputs"]
+
+
+def test_schema4_reported_coverage_survives_cps_source_path_by_vintage() -> None:
+    asec = _source_frame()
+    asec_tables = {entity: asec.table(entity).copy() for entity in asec.entities}
+    asec_person = asec_tables["person"]
+    asec_person["source_year"] = [2022, 2023]
+    asec_person["PERIDNUM"] = [f"{value:022d}" for value in (1, 2)]
+    asec_person["OI_VAL"] = 0.0
+    asec_person["OI_OFF"] = 0
+    asec_person["NOW_GRP"] = 1
+    asec_person["NOW_MRK"] = 1
+    for column in ASEC_REPORTED_COVERAGE_RAW_COLUMNS:
+        asec_person[column] = 1
+    asec = Frame(
+        asec_tables,
+        asec.schema,
+        {"household": asec.weights_for("household")},
+        asec.strata,
+    )
+
+    acs = _source_frame()
+    acs_tables = {entity: acs.table(entity).copy() for entity in acs.entities}
+    acs_person = acs_tables["person"]
+    acs_person["source_year"] = [2022, 2023]
+    for column in US_REPORTED_COVERAGE_PERSON_INPUTS:
+        acs_person[column] = True
+    acs = Frame(
+        acs_tables,
+        acs.schema,
+        {"household": acs.weights_for("household")},
+        acs.strata,
+    )
+    assembled = assemble_spines(
+        {"asec": asec, "acs": acs},
+        household_mass_shares={"asec": 0.5, "acs": 0.5},
+    )
+
+    prepared = prepare_multispine_puf_predictors(assembled)
+    gate = us_reported_coverage_vintage_signal_gate(
+        prepared.frame,
+        min_vintage_rows=1,
+    )
+
+    assert prepared.receipt["operator_order"] == ["derive_us_cps_carried_inputs"]
+    assert gate.passed
+    assert set(gate.details["vintages"]) == {
+        "acs/2022",
+        "acs/2023",
+        "asec/2022",
+        "asec/2023",
+    }
+    for vintage in gate.details["vintages"].values():
+        assert set(vintage["reporter_counts"].values()) == {1}
+
+    person = prepared.frame.table("person").copy()
+    asec_2022 = person["person_support_channel"].eq("asec") & person["source_year"].eq(
+        2022
+    )
+    medicaid = "has_medicaid_health_coverage_at_interview"
+    person.loc[asec_2022, medicaid] = False
+    broken = _replace_person(prepared.frame, person)
+
+    broken_gate = us_reported_coverage_vintage_signal_gate(
+        broken,
+        min_vintage_rows=1,
+    )
+
+    assert broken_gate.failures == (
+        f"{medicaid}: vintage asec/2022 has 0 reporters over 1 person rows "
+        "(consistent with a source input lacking the at-interview recode, "
+        "microcosm #720).",
+    )
+    assert broken_gate.details["vintages"]["acs/2022"]["reporter_counts"][medicaid] == 1
 
 
 def test_schedule_d_derivation_preserves_existing_values_and_receipt() -> None:

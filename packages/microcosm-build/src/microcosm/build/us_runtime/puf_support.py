@@ -65,6 +65,7 @@ __all__ = [
     "PUF_TAX_DETAIL_CLONE_INDEX",
     "PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS",
     "PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS",
+    "PUF_TAX_DETAIL_SECOND_HOME_NATIVE_ZERO_OUTPUTS",
     "PUF_TAX_DETAIL_SUPPORT_CHANNEL",
     "PUF_DONOR_SOURCE_ADJUSTED_GROSS_INCOME_COLUMN",
     "US_PUF_DONOR_MORTGAGE_QUARANTINE_FIELDS",
@@ -283,10 +284,21 @@ PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS: tuple[str, ...] = (
 #: from the broader default-output inventory is important: other PUF outputs
 #: intentionally have measured native values or reviewed late native models.
 #:
-#: Every member is backed by a strict release gate that rejects a nonzero
-#: native-role value.  The primary materializer and post-PUF transfer planner
-#: consume this same declaration, so ownership cannot silently diverge from
-#: the gate contract again.
+#: The first seven members are backed by strict release gates that reject a
+#: nonzero native-role value.  The three second-home members likewise have no
+#: native ASEC/ACS source and therefore take PolicyEngine's zero default on
+#: clone zero, but their PUF clone payload is genuine source content and may be
+#: nonzero.  The primary materializer and post-PUF transfer planner consume
+#: this same declaration, so ownership cannot silently diverge from either
+#: source contract again.
+PUF_TAX_DETAIL_SECOND_HOME_NATIVE_ZERO_OUTPUTS: tuple[
+    tuple[str, str], ...
+] = (
+    ("tax_unit", "second_home_mortgage_balance"),
+    ("tax_unit", "second_home_mortgage_interest"),
+    ("tax_unit", "second_home_mortgage_origination_year"),
+)
+
 PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS: tuple[tuple[str, str], ...] = (
     ("person", "long_term_capital_gains_on_collectibles"),
     ("person", "salt_refund_income"),
@@ -295,6 +307,7 @@ PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS: tuple[tuple[str, str], ...] = (
     ("person", "farm_rent_income"),
     ("tax_unit", "domestic_production_ald"),
     ("tax_unit", "unrecaptured_section_1250_gain"),
+    *PUF_TAX_DETAIL_SECOND_HOME_NATIVE_ZERO_OUTPUTS,
 )
 
 _PUF_TAX_DETAIL_DISCRETE_TAX_UNIT_OUTPUTS = frozenset(

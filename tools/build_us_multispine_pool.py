@@ -284,6 +284,9 @@ POOL_STAGE_CHECKPOINT_SCHEMA_VERSION = 1
 # 7: Stacked primary-PUF output universes are explicit. Earlier envelopes can
 #    contain nulls outside the PUF clone for an output declared over the whole
 #    pool and therefore cannot resume safely even when their bank is reusable.
+# 8: The authenticated primary-PUF native-zero universe includes all three
+#    second-home mortgage leaves. Earlier envelopes can leave their clone-zero
+#    rows null even though PolicyEngine requires the declared default zero.
 #
 # Bump this version whenever any producer above changes a stage output without
 # changing one of the explicit identity fields below. In particular, adding,
@@ -298,7 +301,7 @@ POOL_STAGE_CHECKPOINT_SCHEMA_VERSION = 1
 # normalizes that logical view in memory. Moving between those encodings does
 # not change a producer's scalar output and therefore does not advance this
 # ledger; changing string values or the canonical logical dtype policy does.
-POOL_STAGE_CHECKPOINT_MATERIALIZER_VERSION = 7
+POOL_STAGE_CHECKPOINT_MATERIALIZER_VERSION = 8
 
 _PRIMARY_QRF_N_ESTIMATORS = 100
 _ACS_TRANSFER_N_ESTIMATORS = 100
