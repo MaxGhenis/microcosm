@@ -6,6 +6,42 @@ Branch: `stacked-dense-gate-sweep`
 
 Lane base: `7d44c0b5`
 
+## Continuation: post-farm fail-fast adjudication
+
+### State
+
+In progress on 2026-08-29 from clean continuation base `2422669e`. This pass
+will reproduce the release builder's actual `base_frame` at each post-farm
+gate, record exact emitted failures for the five known candidate reds,
+reconcile the rung-aware prior-year floor, and adjudicate the six archived-
+model producer gates after the merged ACS predictor join. The immutable
+candidate-25 pool and release evidence remain read-only; no pool/release
+artifact, publication surface, or remote will be modified.
+
+### Done
+
+- Re-read `CLAUDE.md`, confirmed the PR-CI/certification boundary and the
+  root-journal history convention, and verified a clean
+  `stacked-dense-gate-sweep` worktree at `2422669e` before this continuation.
+- Re-read the GitNexus debugging workflow. The prior committed sweep already
+  records that this repository has no local GitNexus index or query resources;
+  no unrelated index state will be generated. Source, tests, immutable HDF,
+  and builder-stage replay will provide the call/dataflow receipts.
+- Reconfirmed the standing constraints: commit every coherent step, maintain
+  this journal from the start, do not modify pool/release artifacts, do not
+  push, and make `out.md` the final report with the required first line.
+
+### Next
+
+Trace `_main` preprocessing and call order, build a read-only replay harness
+for the exact stage frames, then classify and disposition every requested
+gate before deciding whether this lane needs any additional code change.
+
+---
+
+> **Historical sweep state below.** It was complete at `2422669e`; the
+> continuation state above is current for this lane.
+
 ## State
 
 Complete on 2026-08-29. The immutable candidate-25 evidence proves that the
