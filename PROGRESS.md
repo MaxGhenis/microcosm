@@ -67,12 +67,32 @@ artifact, publication surface, or remote will be modified.
   Their focused regressions carry a production-like rung receipt through each
   constructor. The two focused tests pass and focused Ruff/diff checks are
   green. No authored prior-year band or threshold changed.
+- Found and repaired the next actual-stage blocker before the six archived
+  models. The schema-9 manifest authenticates a version-1
+  `assembly_receipt`, but the H5 loader restored only the stack/rung and late-
+  producer receipts. Consequently `join_acs_release_predictors` aborted with
+  `ACS release predictor join: receipt-validated support provenance has no
+  assembly manifest 'us_spine_assembly_manifest'.` The loader now requires the
+  receipt on a stacked envelope, restores it verbatim, and validates its native
+  channel counts and all live cross-grain links. Legacy schema-4 compatibility
+  remains unchanged (a legacy receipt is restored and checked when present).
+  The 36-case stacked/scoring/release loader corridor passes, including
+  missing-receipt and live-count-tamper refusals; focused Ruff/diff checks are
+  green.
+- The faithful archived replay also exposed a previously hidden release skip:
+  the multispine projection deliberately omits `person.weeks_worked`, but the
+  release calls the hours-worked reconstruction only on the non-pool path.
+  The true line-9480 gate therefore emits `person columns missing:
+  ['weeks_worked'].`, and ORG would later refuse the same missing predictor.
+  This is independent of the seven-leaf rebuild. The release-side repair is
+  being tested before it is committed.
 
 ### Next
 
-Finish the remaining read-only numeric replays at their exact stage boundaries,
-classify and disposition every requested gate, and determine whether any other
-dense-blocking root fix is both authorized and locally achievable.
+Finish the remaining read-only numeric replays at their exact stage boundaries;
+repair the confirmed hours skip and bounded housing/education/WIC writer/gate
+defects; disposition the measured-vintage source deficiency; then complete the
+verdict report and repository-wide verification.
 
 ---
 

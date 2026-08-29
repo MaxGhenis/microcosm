@@ -45,8 +45,12 @@ from microcosm.build.us_runtime.h5_io import (
     write_nullable_us_h5,
 )
 from microcosm.build.us_runtime.support_provenance import (
+    SPINE_ASSEMBLY_MANIFEST_KEY,
+    spine_assembly_manifest,
+    support_channel_column,
     support_clone_index_column,
     support_source_id_column,
+    validate_assembly_provenance,
 )
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
 
@@ -119,6 +123,16 @@ def _pool_frame_with_object_strings_on_every_entity(
         )
         tables[entity] = table
     if stacked:
+        for entity in frame.entities:
+            table = tables[entity].copy()
+            table[support_channel_column(entity)] = ["asec", "acs", "acs"]
+            table[support_source_id_column(entity)] = np.asarray(
+                [10, 20, 20], dtype=np.int64
+            )
+            table[support_clone_index_column(entity)] = np.asarray(
+                [0, 0, 1], dtype=np.int64
+            )
+            tables[entity] = table
         household = tables["household"].copy()
         household["puma"] = ["0600101", "0600102", "0600102"]
         household["congressional_district_geoid"] = np.asarray(
@@ -126,20 +140,27 @@ def _pool_frame_with_object_strings_on_every_entity(
             dtype=np.int64,
         )
         household["county_fips"] = ["06001", "06001", "06001"]
-        household[support_source_id_column("household")] = np.asarray(
-            [10, 20, 20], dtype=np.int64
-        )
-        household[support_clone_index_column("household")] = np.asarray(
-            [0, 0, 1], dtype=np.int64
-        )
         tables["household"] = household
+    metadata = (
+        spine_assembly_manifest(
+            {
+                entity: table.loc[
+                    table[support_clone_index_column(entity)].eq(0)
+                ]
+                for entity, table in tables.items()
+            },
+            channels=("asec", "acs"),
+        )
+        if stacked
+        else frame.metadata
+    )
     return Frame(
         tables,
         frame.schema,
         {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
         frame.strata,
         mass_log=frame.mass_log,
-        metadata=frame.metadata,
+        metadata=metadata,
     )
 
 
@@ -752,6 +773,9 @@ def _write_ready_pool(
                 "random_seed": 0,
                 "sampling": sampling,
                 "stack_manifest": stack_manifest,
+                "assembly_receipt": stacked_spine_module._json_ready(
+                    pool_frame.metadata[SPINE_ASSEMBLY_MANIFEST_KEY]
+                ),
                 "geography_assignment": geography_assignment,
                 "provenance_pins": {
                     role: {
@@ -1451,6 +1475,39 @@ def test_ready_stacked_pool_loader_binds_terminal_gate_aliases(
     ) == (
         manifest["stack_manifest"]
     )
+    assert stacked_spine_module._json_ready(
+        frame.metadata[SPINE_ASSEMBLY_MANIFEST_KEY]
+    ) == manifest["assembly_receipt"]
+    assert validate_assembly_provenance(
+        frame,
+        boundary="stacked loader regression",
+    ) is frame.metadata[SPINE_ASSEMBLY_MANIFEST_KEY]
+
+
+def test_ready_stacked_pool_loader_requires_assembly_receipt(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("tables")
+    manifest_path = _write_ready_pool(tmp_path, stacked=True)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["assembly_receipt"]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ambiguous stacked envelope.*assembly_receipt"):
+        load_simulation_ready_us_multispine_pool(manifest_path)
+
+
+def test_ready_stacked_pool_loader_validates_assembly_receipt_against_h5(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("tables")
+    manifest_path = _write_ready_pool(tmp_path, stacked=True)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["assembly_receipt"]["native_row_counts"]["person"]["acs"] += 1
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="live 'person' native row counts drifted"):
+        load_simulation_ready_us_multispine_pool(manifest_path)
 
 
 def test_ready_stacked_pool_loader_restores_sampled_rung_manifest(

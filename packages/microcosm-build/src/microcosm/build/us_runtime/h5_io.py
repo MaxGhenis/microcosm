@@ -36,8 +36,10 @@ from microcosm.build.us_runtime.congressional_district_vintage import (
     CURRENT_CONGRESSIONAL_DISTRICT_VINTAGE,
 )
 from microcosm.build.us_runtime.support_provenance import (
+    SPINE_ASSEMBLY_MANIFEST_KEY,
     support_clone_index_column,
     support_source_id_column,
+    validate_assembly_provenance,
 )
 from microcosm.frame import (
     Frame,
@@ -151,6 +153,7 @@ _REQUIRED_STACKED_MANIFEST_FIELDS = frozenset(
         "operator_order",
         "sampling",
         "stack_manifest",
+        "assembly_receipt",
         "geography_assignment",
         "stage_receipts",
     }
@@ -1747,6 +1750,13 @@ def _load_us_multispine_pool(
         manifest_path=manifest_path,
     )
     frame_metadata: dict[str, object] = {}
+    assembly_receipt: Mapping[str, object] | None = None
+    if "assembly_receipt" in manifest:
+        assembly_receipt = _mapping(
+            manifest.get("assembly_receipt"),
+            label=f"US multispine pool manifest {manifest_path}.assembly_receipt",
+        )
+        frame_metadata[SPINE_ASSEMBLY_MANIFEST_KEY] = deepcopy(assembly_receipt)
     stack_manifest = _validated_stacked_sampling_manifest_binding(
         manifest,
         manifest_path=manifest_path,
@@ -1775,6 +1785,11 @@ def _load_us_multispine_pool(
         },
         metadata=frame_metadata,
     )
+    if assembly_receipt is not None:
+        validate_assembly_provenance(
+            frame,
+            boundary=f"US multispine pool H5 {pool_path}",
+        )
     if late_transition is not None:
         dag, _transition_authority, transition_authority_sha256 = late_transition
         from microcosm.build.us_runtime.stacked_spine import (
