@@ -1192,12 +1192,18 @@ def test_pool_transfer_plan_partitions_at_the_declared_producer_boundary() -> No
     late = keys(pool_post_puf_transfer_target_families())
     puf_producers = keys(pool_post_puf_puf_producer_target_families())
     source_producers = keys(pool_post_puf_source_producer_target_families())
+    primary_native_zero = {
+        (entity, "puf_tax_itemization", target)
+        for entity, target in puf_support_module.PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+    }
 
     assert len(early) == 48
-    assert len(late) == 70
+    assert len(late) == 63
+    assert len(primary_native_zero) == 7
     assert early.isdisjoint(late)
-    assert early | late == full
-    assert len(puf_producers) == 43
+    assert primary_native_zero.isdisjoint(early | late)
+    assert early | late | primary_native_zero == full
+    assert len(puf_producers) == 36
     assert len(source_producers) == 29
     assert len(puf_producers & source_producers) == 2
     assert puf_producers | source_producers == late

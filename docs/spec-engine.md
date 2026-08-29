@@ -17,9 +17,9 @@ Review provenance:
 - Round 2 on v2: **both returned request-changes.**
   - sol (`_698-SOL-REVIEW-R2.md`): 11 of 20 r1 findings RESOLVED, 6
     partial, 3 renamed-not-resolved; 9 new MAJORs (N1–N9). Every
-    spot-checked claim held again (5 batches/37 targets; 13 contract
-    programs with no wic/social_security; YAML banned by the package
-    test).
+    spot-checked claim held again at that review snapshot (5 batches/37
+    targets; 13 contract programs with no wic/social_security; YAML banned by
+    the package test).
   - Pro (`_698-PRO-REVIEW-R2.md`): 3 of 15 adopted-correctly, 11
     mutated, 1 LOST (the versioning triad); fusion adjudication +
     11 fresh MAJORs.
@@ -30,11 +30,17 @@ Review provenance:
     conflates dimensions; the producer graph is not yet lossless; the
     equivalence vector stops too early; the deletion checklist is not
     machine-decidable.
-- v2 factual errors corrected here: `puf_tax_itemization` is **five**
-  batches / **37** targets (19 bounded groups / 70 targets across the
-  registry), not 4/32; `wic` and `social_security` are not contract
-  programs; `takes_up_eitc`/`takes_up_dc_ptc` break the suffix naming
-  rule (column mapping must come from an engine ABI projection).
+- Historical v2 factual errors corrected at that review snapshot:
+  `puf_tax_itemization` was **five** batches / **37** targets (19 bounded
+  groups / 70 targets across the registry), not 4/32; `wic` and
+  `social_security` are not contract programs; `takes_up_eitc`/
+  `takes_up_dc_ptc` break the suffix naming rule (column mapping must come
+  from an engine ABI projection). Those split counts are retained here as
+  review provenance, not as the live contract. The current registry has 18
+  bounded groups / 63 late-transfer targets and four 8-target
+  `puf_tax_itemization` batches / 32 targets. Seven PUF-only leaves moved to
+  whole-pool primary-PUF ownership, where native clone-zero rows are completed
+  by explicit, gate-backed structural zeros instead of predictive transfer.
 
 ## The ruling this implements
 
@@ -335,14 +341,14 @@ ownership matrix**). The v3 contract:
   schedule/ownership payloads before the flip.
 
 **The frozen split ledger, corrected**: at the flip, the entire current
-ordered split structure — **19 bounded groups / 70 targets overall;
-five batches / 37 targets for `puf_tax_itemization`** — is declared
+ordered split structure — **18 bounded groups / 63 targets overall;
+four batches / 32 targets for `puf_tax_itemization`** — is declared
 explicitly with a reason per split, compiled back against both greedy
 splitter implementations and every literal batch-name consumer
 (ownership constants included), after which the two splitters and
 `DEFAULT_ACS_TRANSFER_MAX_TARGETS_PER_FIT = 8` die at F2. The F3
 re-unification is scoped honestly: it changes the donor complete-case
-population (intersection across 37 targets), family-label-derived
+population (intersection across 32 targets), family-label-derived
 seeds, shared-RNG consumption order, cross-boundary chained predictors,
 overlap-owner references, and bank identities — fresh node/bank
 identities, cold caches, OOS/statistical gates.
@@ -538,7 +544,7 @@ branch gets reworked, not merged as-is.
 
 As in v2 (declared order, `splits: declared_only`,
 `release_after_draw`, keep-together pairs) with the corrected frozen
-ledger (five/37; 19/70) declared explicitly at the flip and the
+ledger (four/32; 18/63) declared explicitly at the flip and the
 per-target `requires_concepts` blocks from the concept registry.
 
 ### take_up.yaml — see the orthogonal schema above; 17 committed rows.
@@ -612,7 +618,7 @@ stay reproducible-or-rejected.
 **F3 — intentional-change train.** Each lands as a bundle diff with
 authority-version bumps, fresh node/bank identities, cold caches, and
 statistical/OOS gates: block-first + ASEC complement (as the
-coordinated migration above), the 37-target chain re-unification (full
+coordinated migration above), the 32-target chain re-unification (full
 scope), `derived-v2` seed streams, then the remaining calibration
 stages.
 

@@ -250,7 +250,7 @@ by_origin_battery
    materializer uses version 7.
    The outer base identity binds primary-QRF version 6, the ACS universe and
    QBI reconciliation contracts, the tail schema and support contract, and
-   late-producer registry schema version 16, including the signed static and
+   late-producer registry schema version 17, including the signed static and
    derivation-mode semantics of every virtual DAG resource. The companion pool
    manifest uses schema version 9.
    Older outer authority or materializer payloads are stale; primary-QRF
@@ -265,12 +265,13 @@ by_origin_battery
    43,260 ASEC-origin clone-0 nulls and raises. It does not encounter 43,260
    ACS-origin rows; that origin description is contradicted by the checkpoint.
    The former driver called all post-clone source completion before the late
-   transfer. The declared batch-5-to-adult-care edge below therefore derives
-   the repair from data dependency rather than installing another manual
-   ordering exception.
+   transfer. The declared itemization-to-adult-care edge therefore derives the
+   repair from data dependency rather than installing another manual ordering
+   exception. It was batch 5 at the time of the failure and is batch 4 after
+   the current itemization regrouping.
 6. One declared late-producer DAG schedules the ACS earnings-universe
    materializer, primary PUF/tail pass, all 16 post-clone source operators,
-   their once-only finalizer, and all 19 bounded transfer groups. Each node
+   their once-only finalizer, and all 18 bounded transfer groups. Each node
    declares every effective input and output. A callback cannot run until each
    input is filled on its required scope or has the exact counted
    declared-absence receipt which that input contract tolerates. Import
@@ -278,7 +279,7 @@ by_origin_battery
    targets, and cycles, naming a deterministic cycle path. Lexical Kahn waves
    make the order independent of registry iteration. The universe node is the
    unique first wave, the primary PUF pass is the unique second wave, and later
-   waves interleave source and transfer work. In particular, PUF batch 5 transfers
+   waves interleave source and transfer work. In particular, PUF batch 4 transfers
    `sstb_self_employment_income_before_lsr` before adult care consumes it, PUF
    batch 2 transfers `qualified_tuition_expenses` before education consumes it,
    pregnancy precedes WIC, and childcare precedes adult care. This order is
@@ -294,13 +295,23 @@ by_origin_battery
    filled from QRF predictions. No blanket null-to-zero synthesis occurs,
    every producer cell stays byte-identical, and zero residual nulls are
    required.
-7. The transferred checkpoint records the early gap-fill banks, 19 distinct
-   late-transfer banks, the primary-QRF bank, the complete 38-node DAG receipt,
+   Seven PUF-only leaves have no native ASEC or ACS analogue and therefore do
+   not belong to predictive late-transfer ownership:
+   person `educator_expense`, `farm_rent_income`,
+   `investment_income_elected_form_4952`,
+   `long_term_capital_gains_on_collectibles`, and `salt_refund_income`; and
+   tax-unit `domestic_production_ald` and `unrecaptured_section_1250_gain`.
+   The primary PUF node owns each one over the whole pool: it preserves the
+   finite clone-positive PUF payload bit-exactly and completes native
+   clone-zero rows with an explicit structural zero. Per-variable release
+   gates still reject a genuinely nonzero native value.
+7. The transferred checkpoint records the early gap-fill banks, 18 distinct
+   late-transfer banks, the primary-QRF bank, the complete 37-node DAG receipt,
    tail manifest and its per-status support receipt, weights audit,
    stack-manifest digest, fraction/seed, clone controls, and the channel-aware
-   producer-precedence schedule. The DAG receipt binds all 71 edges, all input
+   producer-precedence schedule. The DAG receipt binds all 69 edges, all input
    inventories, six derived waves, exact execution rows, the once-only source
-   finalizer, and the 19-group/70-target aggregate. Every row hashes the live
+   finalizer, and the 18-group/63-target aggregate. Every row hashes the live
    content of every declared alternative and output, the callback receipt, and
    the preceding row. The top receipt hashes the entry/output frames and chain
    terminus. Its digest is anchored in immutable Frame metadata and carried
@@ -379,9 +390,9 @@ by_origin_battery
 ### Late producer/input DAG
 
 The late stage is a declared producer/input graph, not a fixed source loop
-followed by a fixed transfer loop. Its registry contains 38 producers: the ACS
+followed by a fixed transfer loop. Its registry contains 37 producers: the ACS
 earnings-universe producer, the primary PUF/tail producer, 16 post-clone source
-producers, their explicit once-only finalizer, and 19 bounded late-transfer
+producers, their explicit once-only finalizer, and 18 bounded late-transfer
 producers. Import derives
 and validates the schedule. Unknown
 producers, duplicate ownership, uncovered transfer targets, and cycles fail at
@@ -709,13 +720,13 @@ T(E) = F(p.age) + F(p.is_female) + p.@weight + E.@weight
         | F(h.H_TENURE)) ?R
 ```
 
-Every one of the 19 transfer nodes also requires direct primary-PUF evidence
+Every one of the 18 transfer nodes also requires direct primary-PUF evidence
 for every primary-owned physical alternative in `V + T(E)`, including
 `p.tax_exempt_interest_income` and `p.estate_income`, plus direct producer
 evidence for every target listed below. A target shown in both producer columns
 requires both scopes; that is the two-target PUF/source overlap. Thus the table
 is the complete per-node producer delta over `V + T(E)`, as well as the exact
-70-target partition. Transfer rows abbreviate the registry's leading
+63-target partition. Transfer rows abbreviate the registry's leading
 `transfer:`; source names in these tables abbreviate the leading `source:`.
 
 For every transfer, schema-v3 `@late_transfer_model_config` binds that node's
@@ -737,11 +748,10 @@ finalizer applies the same rule to each of its sixteen source-receipt inputs.
 |---|---|---|---|
 | `person/adult_care` | `is_incapable_of_self_care`, `pre_subsidy_care_expenses` | — | both from `with_us_adult_care_inputs` |
 | `person/model_required_boolean` | `is_pregnant` | — | from `with_us_pregnancy_inputs` |
-| `person/puf_tax_itemization__batch_1` | `tax_exempt_interest_income`, `long_term_capital_gains_on_collectibles`, `non_sch_d_capital_gains`, `alimony_expense`, `salt_refund_income`, `charitable_cash_donations`, `charitable_non_cash_donations`, `home_mortgage_interest` | all targets | — |
-| `person/puf_tax_itemization__batch_2` | `investment_interest_expense`, `investment_income_elected_form_4952`, `student_loan_interest`, `educator_expense`, `qualified_tuition_expenses`, `casualty_loss`, `unreimbursed_business_employee_expenses`, `traditional_ira_contributions_desired` | all targets | `traditional_ira_contributions_desired` from `with_us_retirement_contribution_inputs` |
-| `person/puf_tax_itemization__batch_3` | `self_employed_pension_contributions_desired`, `estate_income`, `farm_income`, `farm_rent_income`, `partnership_income`, `partnership_self_employment_net_earnings`, `estate_income_would_be_qualified`, `farm_operations_income_would_be_qualified` | all targets | `self_employed_pension_contributions_desired` from `with_us_retirement_contribution_inputs` |
-| `person/puf_tax_itemization__batch_4` | `farm_rent_income_would_be_qualified`, `partnership_s_corp_income_would_be_qualified`, `rental_income_would_be_qualified`, `self_employment_income_would_be_qualified`, `sstb_self_employment_income_would_be_qualified`, `business_is_sstb`, `qualified_bdc_income`, `qualified_reit_and_ptp_income` | all targets | — |
-| `person/puf_tax_itemization__batch_5` | `sstb_self_employment_income_before_lsr`, `sstb_unadjusted_basis_qualified_property`, `sstb_w2_wages_from_qualified_business`, `unadjusted_basis_qualified_property`, `w2_wages_from_qualified_business` | all targets | — |
+| `person/puf_tax_itemization__batch_1` | `tax_exempt_interest_income`, `non_sch_d_capital_gains`, `alimony_expense`, `charitable_cash_donations`, `charitable_non_cash_donations`, `home_mortgage_interest`, `investment_interest_expense`, `student_loan_interest` | all targets | — |
+| `person/puf_tax_itemization__batch_2` | `qualified_tuition_expenses`, `casualty_loss`, `unreimbursed_business_employee_expenses`, `traditional_ira_contributions_desired`, `self_employed_pension_contributions_desired`, `estate_income`, `farm_income`, `partnership_income` | all targets | `traditional_ira_contributions_desired` and `self_employed_pension_contributions_desired` from `with_us_retirement_contribution_inputs` |
+| `person/puf_tax_itemization__batch_3` | `partnership_self_employment_net_earnings`, `estate_income_would_be_qualified`, `farm_operations_income_would_be_qualified`, `farm_rent_income_would_be_qualified`, `partnership_s_corp_income_would_be_qualified`, `rental_income_would_be_qualified`, `self_employment_income_would_be_qualified`, `sstb_self_employment_income_would_be_qualified` | all targets | — |
+| `person/puf_tax_itemization__batch_4` | `business_is_sstb`, `qualified_bdc_income`, `qualified_reit_and_ptp_income`, `sstb_self_employment_income_before_lsr`, `sstb_unadjusted_basis_qualified_property`, `sstb_w2_wages_from_qualified_business`, `unadjusted_basis_qualified_property`, `w2_wages_from_qualified_business` | all targets | — |
 | `person/source_operator_child_support` | `child_support_expense`, `child_support_received` | — | both from `with_us_child_support_inputs` |
 | `person/source_operator_disability_benefits` | `disability_benefits` | — | from `with_us_disability_benefits` |
 | `person/source_operator_education_inputs` | `attends_eligible_educational_institution_for_american_opportunity_credit`, `educational_assistance`, `has_american_opportunity_credit_1098_t_or_exception`, `has_american_opportunity_credit_institution_ein`, `is_enrolled_at_least_half_time_for_american_opportunity_credit`, `is_pursuing_credential_for_american_opportunity_credit` | — | all from `with_us_education_inputs` |
@@ -752,7 +762,7 @@ finalizer applies the same rule to each of its sixteen source-receipt inputs.
 | `person/source_operator_weeks_unemployed` | `weeks_unemployed` | — | from `with_us_weeks_unemployed` |
 | `person/source_operator_wic_claim` | `takes_up_wic_if_eligible` | — | from `with_us_wic_claim_input` |
 | `person/source_operator_workers_compensation` | `workers_compensation` | — | from `with_us_workers_compensation` |
-| `tax_unit/puf_tax_itemization` | `domestic_production_ald`, `unrecaptured_section_1250_gain`, `first_home_mortgage_balance`, `first_home_mortgage_interest`, `first_home_mortgage_origination_year`, `health_savings_account_ald` | all targets | — |
+| `tax_unit/puf_tax_itemization` | `first_home_mortgage_balance`, `first_home_mortgage_interest`, `first_home_mortgage_origination_year`, `health_savings_account_ald` | all targets | — |
 | `spm_unit/source_operator_energy_subsidy` | `spm_unit_energy_subsidy` | — | from `with_us_energy_subsidy_input` |
 
 The resulting executable transfer contracts contain 92–100 inputs; 46 is the
@@ -766,7 +776,6 @@ common logical inventory, not the complete contract count:
 | `person/puf_tax_itemization__batch_2` | 100 |
 | `person/puf_tax_itemization__batch_3` | 99 |
 | `person/puf_tax_itemization__batch_4` | 99 |
-| `person/puf_tax_itemization__batch_5` | 96 |
 | `person/source_operator_child_support` | 93 |
 | `person/source_operator_disability_benefits` | 92 |
 | `person/source_operator_education_inputs` | 97 |
@@ -778,11 +787,11 @@ common logical inventory, not the complete contract count:
 | `person/source_operator_wic_claim` | 92 |
 | `person/source_operator_workers_compensation` | 92 |
 | `spm_unit/source_operator_energy_subsidy` | 93 |
-| `tax_unit/puf_tax_itemization` | 98 |
+| `tax_unit/puf_tax_itemization` | 96 |
 
 #### Complete dependency edges
 
-The following grouped tables enumerate all 71 unique producer-to-consumer edges.
+The following grouped tables enumerate all 69 unique producer-to-consumer edges.
 Multiple values on one row are the input reasons carried by that edge. Bare
 source names carry the registry prefix `source:` and transfer paths carry
 `transfer:`.
@@ -824,7 +833,7 @@ primary-PUF-to-source edges:
 | `with_us_wic_claim_input` | — |
 | `with_us_workers_compensation` | person support channel; employment; self-employment; four Social Security components |
 
-There are also 19 primary-PUF-to-transfer edges: one to every row of the
+There are also 18 primary-PUF-to-transfer edges: one to every row of the
 transfer table above. `B(E)` is the exact set of primary-owned physical
 alternatives in the published `V + T(E)` inventory plus the shared PUF-clone
 predictors `tax_exempt_interest_income` and `estate_income`. `B(person)` has 45
@@ -832,9 +841,9 @@ inputs; `B(tax_unit)` and `B(spm_unit)` each have 46 because their target
 weight is distinct from the person weight. Every primary-to-transfer edge
 carries `B(E)` plus each PUF-owned target in that row which is not already in
 `B(E)`. The transfer target table and its contract counts therefore enumerate
-the complete input reasons for all 19 edges.
+the complete input reasons for all 18 edges.
 
-The remaining 19 edges are:
+The remaining 18 edges are:
 
 | Producer | Consumer | Input reason |
 |---|---|---|
@@ -848,48 +857,47 @@ The remaining 19 edges are:
 | `with_us_medicare_take_up_input` | `transfer:person/source_operator_medicare_take_up` | `takes_up_medicare_if_eligible` |
 | `with_us_pregnancy_inputs` | `with_us_wic_claim_input` | `is_pregnant` |
 | `with_us_pregnancy_inputs` | `transfer:person/model_required_boolean` | `is_pregnant` |
-| `with_us_retirement_contribution_inputs` | `transfer:person/puf_tax_itemization__batch_2` | `traditional_ira_contributions_desired` source scope |
-| `with_us_retirement_contribution_inputs` | `transfer:person/puf_tax_itemization__batch_3` | `self_employed_pension_contributions_desired` source scope |
+| `with_us_retirement_contribution_inputs` | `transfer:person/puf_tax_itemization__batch_2` | `traditional_ira_contributions_desired` and `self_employed_pension_contributions_desired` source scopes |
 | `with_us_retirement_contribution_inputs` | `transfer:person/source_operator_retirement_contributions` | three contribution outputs listed above |
 | `with_us_retirement_distribution_inputs` | `transfer:person/source_operator_retirement_distributions` | five distribution outputs listed above |
 | `with_us_weeks_unemployed` | `transfer:person/source_operator_weeks_unemployed` | `weeks_unemployed` |
 | `with_us_wic_claim_input` | `transfer:person/source_operator_wic_claim` | `takes_up_wic_if_eligible` |
 | `with_us_workers_compensation` | `transfer:person/source_operator_workers_compensation` | `workers_compensation` |
 | `transfer:person/puf_tax_itemization__batch_2` | `with_us_education_inputs` | `qualified_tuition_expenses` |
-| `transfer:person/puf_tax_itemization__batch_5` | `with_us_adult_care_inputs` | `sstb_self_employment_income_before_lsr` |
+| `transfer:person/puf_tax_itemization__batch_4` | `with_us_adult_care_inputs` | `sstb_self_employment_income_before_lsr` |
 
 Finally, there are 16 source-to-finalizer edges: each of the 16 source
 producers in the source-input table has one edge to `source_finalizer`, carried
 by its exact `p.@source_receipt:<operator>` resource. Thus the exhaustive count
-is 1 universe-to-primary + 16 primary-to-source + 19 primary-to-transfer + 19
-cross/source-to-transfer + 16 source-to-finalizer = 71.
+is 1 universe-to-primary + 16 primary-to-source + 18 primary-to-transfer + 18
+cross/source-to-transfer + 16 source-to-finalizer = 69.
 
-The lexically canonical waves have sizes `(1, 1, 17, 14, 3, 2)`:
+The lexically canonical waves have sizes `(1, 1, 17, 13, 3, 2)`:
 
 1. `acs_pums_earnings_universe`.
 2. `primary_puf_qrf`.
 3. Housing assistance; child support; childcare; disability; energy;
    immigration; Medicare; pregnancy; prior-year income; retirement
    contributions; retirement distributions; weeks unemployed; workers'
-   compensation; person PUF batches 1, 4, and 5; tax-unit PUF transfer.
-4. Adult care; WIC; pregnancy transfer; person PUF batches 2 and 3; child
+   compensation; person PUF batches 1, 3, and 4; tax-unit PUF transfer.
+4. Adult care; WIC; pregnancy transfer; person PUF batch 2; child
    support, disability, immigration, Medicare, retirement-contribution,
    retirement-distribution, weeks-unemployed, workers'-compensation, and
    SPM-energy transfers.
 5. Education; adult-care transfer; WIC transfer.
 6. `source_finalizer` and education transfer.
 
-Registry schema version 13 and execution-receipt schema version 3 bind the
+Registry schema version 17 and execution-receipt schema version 3 bind the
 canonical input declarations, outputs, edges, waves, exact kind-specific
 virtual-resource bindings, content-hashed execution-row schema, and immutable
 transition authority. The schedule SHA-256 is
-`dbae9f945966a58592915780be78137e011d060271af6c933870a55db297baab`;
+`61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809`;
 the full payload SHA-256 is
-`95ee19cd1b4d1cf321a32910c234ebc460aa47f9cc30e03fa8560ea6ae5e2eb8`.
+`493f35c7f90f50642797c8e84b1b58627705bc43402de768ff3e29b3b02e4896`.
 Reversing registry iteration produces those same bytes.
 
 The virtual-resource payload ledger is independently versioned: ACS-universe
-config v2, primary execution config v3, source execution config v3, source
+config v2, primary execution config v5, source execution config v3, source
 finalizer config v2, and transfer model config v3. Donor content,
 primary-checkpoint routing, source callback receipts, and transfer-bank routing
 remain v1. The outer all-producer resource-semantics receipt is v1 and binds
@@ -911,10 +919,10 @@ and valid. Neither receipt authorizes an upstream null.
 | PUF raw predictor sources | Every filing-status, count, and income component is observed in its declared source universe. Raw WAGP/SEMP authority is present and agrees with mapped leaves; a cross-grain source collision is rejected. A null on any eligible member fails before coercion. | Structure supplies status/count; ACS-native or ASEC-carried earnings supply earnings; early transfer supplies interest, dividends, and gains. | No. ACS under-15 WAGP/SEMP blanks are an exact source-universe state, not transfer starvation; all other source nulls fail. |
 | PUF tax-unit features | Every clone-1 recipient has a finite feature vector. Post-aggregation NaN, `+inf`, and `-inf` are counted by named predictor and rejected before fitting; none is coerced or snapped to zero. | Universe-aware person sums plus tax-unit structural inputs. | No. Eligible member values must be complete; the only special case is an all-child unit whose numeric-zero predictor is explicitly owned and counted by the named universe-zero rule. |
 | Primary QRF banks and chain | Donor/recipient banks are immutable; target order and RNG prefix are contiguous; all targets complete; live recipient identity, source-universe receipt, and feature digest match before finalization. | The processed full PUF donor and strict recipient checkpoint initialized above. | No. Mutation or missing receipt invalidates the bank; it cannot resume under legacy semantics. |
-| Outer pool checkpoint identity and resume | Primary-QRF schema v6, tail-manifest schema v2, late-registry schema v14/receipt schema v3, outer stacked materializer v10/authority v9, stacked pool-stage materializer v5, pool manifest schema v7, and the ACS-universe, QBI-mutation, tail-support, late-DAG, and signed virtual-resource-semantics identities must match exactly before any cached stage is discovered. The retiring legacy envelope remains manifest schema v4/materializer v3. | Fresh input pins, live stack receipt, scale controls, code identity, and all semantic contract identities. | No. An older stacked materializer or authority payload is stale; a self-consistent old receipt cannot reopen a checkpoint. Primary-QRF v6 remains current. |
+| Outer pool checkpoint identity and resume | Primary-QRF schema v6, tail-manifest schema v2, late-registry schema v17/receipt schema v3, outer stacked materializer v12/authority v11, stacked pool-stage materializer v7, pool manifest schema v9, and the ACS-universe, QBI-mutation, tail-support, late-DAG, and signed virtual-resource-semantics identities must match exactly before any cached stage is discovered. The retiring legacy envelope remains manifest schema v4/materializer v3. | Fresh input pins, live stack receipt, scale controls, code identity, and all semantic contract identities. | No. An older stacked materializer or authority payload is stale; a self-consistent old receipt cannot reopen a checkpoint. Primary-QRF v6 remains current. |
 | Clone-2 capital-gains tail | Each filing status requires as many eligible recipient households as selected q99.5 donors. Eligibility requires unique single-tax-unit PUF-detail lineage and half-weight capacity for the global maximum assigned donor weight. An adequate status assigns every selected donor once; a thin status skips as a whole with a named, counted `insufficient_support` receipt. | Completed clone-1 QRF output and full PUF tail donors. At 1%, `SINGLE` and `HEAD_OF_HOUSEHOLD` attach, `JOINT` and `SEPARATE` skip, and zero-requirement `SURVIVING_SPOUSE` is `not_applicable`. | No widening or partial attachment is permitted. All 22 AGI bands provide nearest-first fallback only inside a status. Universe-aware PUF recipients remain eligible, including explicitly receipted empty-universe tax units. |
-| Late producer DAG | Before any callback, all declared inputs are filled on their required scopes or carry an input-specific counted absence receipt; numeric inputs are finite. The exact derived order, readiness rows, once-only source finalizer, and bounded transfer receipts must validate. | ACS earnings-universe materialization, primary PUF/tail, 16 source producers, and 19 bounded transfer groups execute in six derived waves. | No. The refusing producer names the unfilled input and its declared producing stage. A cycle fails at import with its path. |
-| Late transfer completion | Every declared PUF-clone or ASEC source-producer cell is nonnull; all complementary recipients are filled; the allowed count for both unmodeled and residual rows is zero. | Forty-three PUF and 29 source targets, with two overlaps, supply the 70-target late surface. | No. A missing producer or recipient value is terminal at this boundary. |
+| Late producer DAG | Before any callback, all declared inputs are filled on their required scopes or carry an input-specific counted absence receipt; numeric inputs are finite. The exact derived order, readiness rows, once-only source finalizer, and bounded transfer receipts must validate. | ACS earnings-universe materialization, primary PUF/tail, 16 source producers, and 18 bounded transfer groups execute in six derived waves. | No. The refusing producer names the unfilled input and its declared producing stage. A cycle fails at import with its path. |
+| Late transfer completion | Every declared PUF-clone or ASEC source-producer cell is nonnull; all complementary recipients are filled; the allowed count for both unmodeled and residual rows is zero. | Thirty-six PUF and 29 source targets, with two overlaps, supply the 63-target late-transfer surface. The seven PUF-only native-zero leaves are completed separately by their whole-pool primary owner. | No. A missing producer or recipient value is terminal at this boundary. |
 | Fit-weight audit | Every primary and post-PUF QRF fit receipts its resolved entity weight kind, and the collected fit records pass the weights audit before a transferred checkpoint can exist. | Calibrated household weights mapped by the frame to each modeled entity. | No. A missing, inconsistent, or manually substituted weight declaration fails before checkpoint emission. |
 | Tail preservation | Tail manifest, support decisions, attached descendants, IDs, weights, provenance, joint vector, and non-tail QRF cells remain exact after completion, transfer, derive, seed, and simulation. | The schema-v2 tail manifest and support receipt bound during the PUF pass and projected into both terminal gates. | A support receipt cannot authorize mutation. Any byte or identity change in an attached status, any descendant for a skipped status, or any receipt change fails. |
 | Schedule-D derive | Both transferred parent columns are finite for every person and align to every tax unit. Bounded late-transfer groups do not write this leaf; the whole-pool tax-unit derive is its sole canonical owner. | Completed late transfer plus tail replacements. | No. A residual would fail late transfer first and derive again by name. |
@@ -922,7 +930,7 @@ and valid. Neither receipt authorizes an upstream null.
 | Take-up seed | Every administratively seeded variable completes; transfer-owned take-up cannot use a default; only explicitly non-transfer-owned inputs may use receipted engine defaults. | Seed kernels, the complete transfer surface, and declared defaults. | Transfer-owned residuals fail. A declared default is a separate modeled state, not an insufficient-support receipt. |
 | SSI simulation projection | Every nullable engine input has a declared default on the disposable projection; the engine returns exactly one SSI value per person. | The persistent derived/seeded pool plus separately receipted ephemeral defaults. | A projection default can enable simulation but cannot cure the persistent pool; terminal evaluation returns to the original inputs plus SSI. |
 | Simulated checkpoint pair and resume | The persistent input-only frame and temporary evaluation frame must share exact assembly provenance; SSI exists only on the evaluation half. The live QBI receipt must authenticate the persistent frame at emission, durable write/load, and resume. | Derived/seeded persistent inputs plus the separately materialized SSI evaluation output. | No. A forged QBI receipt, altered persistent value, invalid SSI binding, or mismatched pair invalidates the simulated checkpoint and falls back only to an independently valid earlier stage. |
-| Terminal completeness | All 134 registered targets exist; every positive-weight value is metric-valid; a null needs exact source/role authority, and post-PUF targets forbid absence authority. | The 48 early targets, 70 late targets, derived leaves, take-up inputs, and SSI output. | No. Only the canonical group-quarters rent rule reaches this gate as null; base WAGP/SEMP leaves are outside the 134-target terminal surface. |
+| Terminal completeness | All 134 registered targets exist; every positive-weight value is metric-valid; a null needs exact source/role authority, and post-PUF targets forbid absence authority. | The 48 early targets, 63 late-transfer targets, seven primary-owned native-zero leaves, derived leaves, take-up inputs, and SSI output. | No. Only the canonical group-quarters rent rule reaches this gate as null; base WAGP/SEMP leaves are outside the 134-target terminal surface. |
 | By-origin battery | All 134 clone-0 comparison surfaces are complete and valid before support is measured. | The terminal simulation frame, comparing ASEC and ACS native origins. | No. `insufficient_support` is assigned only after null and validity checks, so it cannot hide an upstream missing value. |
 | Manifest construction and canonical publication closure | Legacy and stacked builders reauthenticate QBI live output, canonical stacked authority, terminal-gate receipts, H5/diagnostics run IDs, and artifact digests before readiness can be asserted. | The validated persistent pool, immutable stage receipts, terminal gate snapshot, and atomically staged publication files. | No. Construction rejects forged or wrong-route receipts; publication begins with a non-ready tombstone, and only one fully authenticated run can replace it with a ready manifest. |
 
@@ -1075,10 +1083,10 @@ source ingestion and faithful schema harmonization
     -> uniformly sample both survey arms and assemble one stack
     -> prepare native predictors
     -> banked cross-origin gap-fill
-    -> derived 38-node late producer DAG:
+    -> derived 37-node late producer DAG:
        ACS earnings-universe materialization
        -> PUF QRF plus clone-2 capital-gains tail
-       -> interleaved source completion and 19 bounded transfer groups
+       -> interleaved source completion and 18 bounded transfer groups
        -> exact source finalization and transfer aggregation
     -> derive
     -> seed take-up and other stochastic inputs

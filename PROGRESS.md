@@ -153,10 +153,20 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
 - The full field-usage, inventory, coverage-tool, and country-bundle focused
   corridor passes; the coverage generator `--check`, the multispine adapter
   identity case, and focused Ruff all pass.
+- A reverse-pin sweep found the remaining downstream fixture and plan-lock
+  counts before the restarted full suite reached them. Updated typed closure,
+  plan-lock, HDF/publication receipts, and the live-producer fixture to the
+  37-node / 18-group / 63-target graph.
+- Strengthened the transfer partition test around the new ownership boundary:
+  48 early transfer targets + 63 late transfer targets + 7 primary-owned
+  native-zero outputs exactly equal the unchanged 118-target full declaration;
+  the late surface remains 36 PUF-produced + 29 source-produced - 2 overlaps.
+  Focused typed/plan/DAG, partition, tool-entrypoint, and HDF tests pass.
 
 ## Next
 
-1. Commit the complete derived-identity recut.
+1. Commit the downstream identity fixtures, ownership-partition proof, and
+   current schedule documentation.
 2. Restart full `uv run pytest` from zero and rerun `uv run ruff check .`.
 3. Write the complete receipt, roster, history, changed-files, and verification
    report to `out.md`, update this journal, and commit the final handoff.

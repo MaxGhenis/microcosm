@@ -92,7 +92,7 @@ def test_unfilled_late_input_refuses_before_producer_runs() -> None:
         entity="person",
         column="late_input",
         required_scope="cps_projection",
-        producing_stage="transfer:person/puf_tax_itemization__batch_5",
+        producing_stage="transfer:person/puf_tax_itemization__batch_4",
     )
     consumer = ProducerContract(
         name="with_fixture_consumer",
@@ -110,7 +110,7 @@ def test_unfilled_late_input_refuses_before_producer_runs() -> None:
         ValueError,
         match=(
             r"(?s)with_fixture_consumer.*person\.late_input.*1 unfilled.*"
-            r"cps_projection.*transfer:person/puf_tax_itemization__batch_5"
+            r"cps_projection.*transfer:person/puf_tax_itemization__batch_4"
         ),
     ):
         run_producer_when_ready(

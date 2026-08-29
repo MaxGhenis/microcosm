@@ -1333,8 +1333,8 @@ def _canonical_late_transfer_receipt(
         "targets": targets,
         "completion": {
             "status": "complete",
-            "group_count": 19,
-            "target_count": 70,
+            "group_count": 18,
+            "target_count": 63,
             "residual_null_rows": 0,
         },
     }
@@ -2248,8 +2248,8 @@ def test_stacked_tool_entrypoint_fixture_e2e_emits_one_logbook_row_at_every_term
         published_transfer = published_dag["post_puf_transfer"]
         assert published_transfer["completion"] == {
             "status": "complete",
-            "group_count": 19,
-            "target_count": 70,
+            "group_count": 18,
+            "target_count": 63,
             "residual_null_rows": 0,
         }
         calibrated = [

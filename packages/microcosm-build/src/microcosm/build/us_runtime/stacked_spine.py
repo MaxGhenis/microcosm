@@ -4797,8 +4797,8 @@ def validate_stacked_post_puf_transfer_receipt(
     if not isinstance(groups, Mapping) or set(groups) != set(expected_groups):
         raise ValueError(
             f"{boundary}: stacked post-PUF transfer group surface is not the "
-            "canonical 19-group partition; production manifest emission is "
-            "forbidden."
+            f"canonical {len(expected_groups)}-group partition; production "
+            "manifest emission is forbidden."
         )
     validated_calibration_keys: set[str] = set()
     canonical_family = {
