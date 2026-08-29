@@ -21,8 +21,9 @@ validate clone-positive payloads, exclude those whole-pool-complete leaves
 from predictive late transfer, and leave every gate threshold intact. That
 root repair and an executable complete gate ledger are now implemented. The
 seven writer surfaces and all six affected gate modules have focused stacked
-regressions; the remaining work is repository-wide verification and the final
-receipt report.
+regressions. A first full-suite pass exposed and the lane has now recut every
+closed compiler-coverage identity affected by the smaller producer graph; the
+remaining work is a clean full-suite rerun and the final receipt report.
 
 The pool, sibling manifests/gates, and release logs under
 `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
@@ -134,12 +135,29 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
 - The executable roster test passes. The six gate files pass together (120
   cases), focused Ruff passes, and `tools/ci_test_groups.py --verify` reports
   all 313 tracked flat test files assigned with `verification=ok`.
+- Ran the full suite until it exposed the complete first red cluster, then
+  stopped at 852 passed / 3 failed / 6 errors to repair it before restarting.
+  Every failure was a stale closed identity derived from the intentional
+  producer-graph contraction: field-usage totals/pointer claims, the
+  generation-0 inventory vector, the committed coverage report, and the BE/UK
+  envelopes that share the source-attested `legacy-v1` seed protocol.
+- Re-derived all affected identities from the compiled bundle. The coverage
+  ledger now proves 41,347/41,347 fields consumed (31,583 authored + 9,764
+  resolved), and the inventory proves 41/41 items over 37 producer nodes, 69
+  edges, 220 compiled outputs, 18 late groups, and 63 late targets. The
+  committed coverage report is regenerated rather than hand-edited.
+- Re-pinned BE and UK to their new resolved envelope hashes. Their authored
+  resources are unchanged; the only moving resolved binding is the shared
+  seed protocol, whose attested kernel inventory includes the changed
+  `puf_support` source. Also refreshed the constants-adapter US spec binding.
+- The full field-usage, inventory, coverage-tool, and country-bundle focused
+  corridor passes; the coverage generator `--check`, the multispine adapter
+  identity case, and focused Ruff all pass.
 
 ## Next
 
-1. Commit the executable roster and stacked gate regressions.
-2. Run full `uv run pytest` and `uv run ruff check .`; repair any regressions
-   without weakening the ownership or gate contracts.
+1. Commit the complete derived-identity recut.
+2. Restart full `uv run pytest` from zero and rerun `uv run ruff check .`.
 3. Write the complete receipt, roster, history, changed-files, and verification
    report to `out.md`, update this journal, and commit the final handoff.
 

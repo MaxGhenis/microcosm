@@ -211,14 +211,13 @@ EXPECTED_PRODUCER_ORDER = (
     "source:with_us_weeks_unemployed",
     "source:with_us_workers_compensation",
     "transfer:person/puf_tax_itemization__batch_1",
+    "transfer:person/puf_tax_itemization__batch_3",
     "transfer:person/puf_tax_itemization__batch_4",
-    "transfer:person/puf_tax_itemization__batch_5",
     "transfer:tax_unit/puf_tax_itemization",
     "source:with_us_adult_care_inputs",
     "source:with_us_wic_claim_input",
     "transfer:person/model_required_boolean",
     "transfer:person/puf_tax_itemization__batch_2",
-    "transfer:person/puf_tax_itemization__batch_3",
     "transfer:person/source_operator_child_support",
     "transfer:person/source_operator_disability_benefits",
     "transfer:person/source_operator_immigration",
@@ -348,19 +347,19 @@ EXPECTED_LEGACY_RELEASE_REGEX = EXPECTED_RELEASE_REGEX.replace(
 EXPECTED_HASHES = {
     "acs_group_predictors": "a927bb7ecf3e84f54c93583ab79318654514ac546aefafba67da5285615fbd60",
     "acs_person_predictors": "878c788a6f037d7aca12b3586ea034eff04f3034ffa11935a736493042551f25",
-    "authority": "e660a8ce42b69a39d29c5f0ec37264bc69d61b03f27adc386336ec8889531bb2",
+    "authority": "bfa60231e7b5c4bbc82f507bd3ab113132917b4de6f68c296cc674990b88c119",
     "early_families": "4aa9f736fd76e83955477ad1667e58f48f264783f05bdc7f0102cd32d61323bd",
-    "full_checkpoint": "b88f2d9c0f6f92c6cd81eb14d6b126afe59577b8bb392b394b2c6fbbafd195c5",
+    "full_checkpoint": "a76010ad1296d5f61cab511b9a18ad727fd4b8991813a74c265931b6d53ce310",
     "gap_fill_schedule": "1c31f9868f7884347cc19cf1ff65da43f950b9114941a715bab168246db414a7",
-    "graph_nodes": "271a7bb8d0b3f97ff344e0b7e68184fa74738a6585c24fc8781793db669f388b",
+    "graph_nodes": "2cd88e59a502ce574ccea40efa130807cfeb513bbef2d48baf72cd836076a704",
     "geography_assignment": "f49425ca8734ac559c73cf44f6458d86d3162a48956b98a27e6e758959361585",
-    "late_families": "d91f9ff0eb52f43e7b6eed3d5c58c37abe1620c3a11021da15dae9c10e16d382",
-    "late_resource_semantics": "afebb6725373abf5b8dd4fdb77bf2814cb6fcc569cb606c0c30963a8f65c0bab",
-    "late_schedule": "e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f",
-    "ownership": "5f64f0aac49e2313177564f71876bffc8c81b3ded4df701e70930e60e9c98356",
+    "late_families": "0b5134e544c218ba079bcfb1a789e1cd1ff27d4706709163c7e78de52dd1f580",
+    "late_resource_semantics": "f77e5badbf8191d13ff91812285122479b0f32afd5fd24728a0390132fb77dac",
+    "late_schedule": "61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809",
+    "ownership": "c154604b6b0e8adaccb3cdea8542836d42d3d52f8fd0e2c3e5c63f0696cb8b1c",
     "primary_tuples": "987b501c695e31f45521c4a178528f75ab3df22c09bc407b182213b2de99ee57",
-    "seed_map": "271c23eca777b63bbfecc5b0bdbfffee634e13f79dd37273172f5fadda4afefb",
-    "seed_protocol": "870f9b43766d4c11f6dc1538bf97e360c6a85dd0d4a4a68c149595dfc0902f0a",
+    "seed_map": "0c0528231b7b5f6fe6cd1e52de8627b8000ab47d46f43c96d6c039fa167f5a84",
+    "seed_protocol": "af40954eb19aa1be7237821f19998917cabc1e95f8bef4825d2ba2776bf3a873",
     "source_manifest": "cd5ba8924d64da5425ee14cca82a774e3f4b2bb5aabe06df291cc3cc457287a9",
     "take_up": "fa186daea0f8dd641cc470e41d1a2953f887d45282ec990201298f47bedf8d4d",
     "tail": "ac92829c88a1a4fb6460d61190918d5d99c6c377fc8dd8f62f02b332d09bf59c",
@@ -419,23 +418,23 @@ EXPECTED_INVENTORY_COUNTS: Mapping[str, int] = {
     "authority_components": 9,
     "early_families": 13,
     "early_targets": 48,
-    "itemization_batches": 5,
-    "itemization_targets": 37,
-    "late_groups": 19,
-    "late_targets": 70,
+    "itemization_batches": 4,
+    "itemization_targets": 32,
+    "late_groups": 18,
+    "late_targets": 63,
     "ownership_rows": 18,
     "primary_effective_predictor_tuples": 65,
     "primary_families": 1,
     "primary_targets": 65,
     "producer_authored_outputs": 92,
-    "producer_compiled_outputs": 227,
-    "producer_inputs": 2_744,
-    "producer_nodes": 38,
-    "producer_virtual_resources": 75,
+    "producer_compiled_outputs": 220,
+    "producer_inputs": 2_646,
+    "producer_nodes": 37,
+    "producer_virtual_resources": 73,
     "release_rungs": 5,
-    "resolved_references": 334,
-    "seed_owner_bindings": 112,
-    "seed_owner_rows": 54,
+    "resolved_references": 333,
+    "seed_owner_bindings": 109,
+    "seed_owner_rows": 53,
     "seed_sites": 53,
     "seed_streams": 14,
     "source_operators": 16,
@@ -446,7 +445,7 @@ EXPECTED_INVENTORY_COUNTS: Mapping[str, int] = {
     "tail_control_fields": 934,
     "take_up_pipeline_steps": 28,
     "take_up_programs": 17,
-    "typed_artifacts": 84,
+    "typed_artifacts": 83,
     "typed_columns": 176,
     "typed_entities": 8,
     "typed_scopes": 7,
@@ -874,8 +873,8 @@ def build_inventory_coverage(
     add(
         "late_split_ledger_exact",
         clauses={
-            "late group count differs": len(late) == 19,
-            "late target count differs": late_targets == 70,
+            "late group count differs": len(late) == 18,
+            "late target count differs": late_targets == 63,
             "late family digest differs": sha256_json(late)
             == EXPECTED_HASHES["late_families"],
             "legacy late schedule differs": _json_equal(
@@ -890,8 +889,8 @@ def build_inventory_coverage(
             "sha256": sha256_json(late),
         },
         expected={
-            "groups": 19,
-            "targets": 70,
+            "groups": 18,
+            "targets": 63,
             "sha256": EXPECTED_HASHES["late_families"],
         },
     )
@@ -904,10 +903,10 @@ def build_inventory_coverage(
             "itemization batch ids differ": [row["id"] for row in itemization]
             == [
                 f"late/person/puf_tax_itemization__batch_{index}"
-                for index in range(1, 6)
+                for index in range(1, 5)
             ],
-            "itemization batch sizes differ": itemization_sizes == [8, 8, 8, 8, 5],
-            "itemization target count differs": sum(itemization_sizes) == 37,
+            "itemization batch sizes differ": itemization_sizes == [8, 8, 8, 8],
+            "itemization target count differs": sum(itemization_sizes) == 32,
             "legacy late schedule differs": _json_equal(
                 late_schedule, expected_late_schedule
             ),
@@ -918,7 +917,7 @@ def build_inventory_coverage(
             "ids": [row["id"] for row in itemization],
             "batch_sizes": itemization_sizes,
         },
-        expected={"batches": 5, "targets": 37, "batch_sizes": [8, 8, 8, 8, 5]},
+        expected={"batches": 4, "targets": 32, "batch_sizes": [8, 8, 8, 8]},
     )
 
     source_node_by_id = {str(row["id"]): row for row in source_nodes}
@@ -930,14 +929,14 @@ def build_inventory_coverage(
         "producer_registry_exact",
         clauses={
             "producer ids or source objects differ": node_sources_exact,
-            "producer count differs": len(source_nodes) == 38,
+            "producer count differs": len(source_nodes) == 37,
             "producer source digest differs": sha256_json(source_nodes)
             == EXPECTED_HASHES["graph_nodes"],
         },
         homes=("/imputation/producer_graph/nodes",),
         consumers=("compiler_ir.producer_graph.nodes", "compiler_ir.node_slices"),
         observed={"nodes": len(source_nodes), "sha256": sha256_json(source_nodes)},
-        expected={"nodes": 38, "sha256": EXPECTED_HASHES["graph_nodes"]},
+        expected={"nodes": 37, "sha256": EXPECTED_HASHES["graph_nodes"]},
     )
     graph_relation = {
         "edges": [list(edge) for edge in compiled.producer_graph.edges],
@@ -954,7 +953,7 @@ def build_inventory_coverage(
         clauses={
             "producer order differs": compiled.producer_graph.order
             == EXPECTED_PRODUCER_ORDER,
-            "edge count differs": len(compiled.producer_graph.edges) == 71,
+            "edge count differs": len(compiled.producer_graph.edges) == 69,
             "wave count differs": len(compiled.producer_graph.waves) == 6,
             "stage DAG differs": (
                 compiled.stage_dag.edges == compiled.producer_graph.edges
@@ -984,8 +983,8 @@ def build_inventory_coverage(
             "schedule_sha256": compiled.producer_graph.schedule_sha256,
         },
         expected={
-            "nodes": 38,
-            "edges": 71,
+            "nodes": 37,
+            "edges": 69,
             "waves": 6,
             "schedule_sha256": EXPECTED_HASHES["late_schedule"],
         },
@@ -1005,7 +1004,7 @@ def build_inventory_coverage(
         "producer_inputs_exact",
         clauses={
             "producer input rows differ": inputs_exact,
-            "input row count differs": input_count == 2744,
+            "input row count differs": input_count == 2646,
         },
         homes=("/imputation/producer_graph/nodes/*/inputs",),
         consumers=(
@@ -1013,7 +1012,7 @@ def build_inventory_coverage(
             "compiler_ir.node_slices",
         ),
         observed={"rows": input_count},
-        expected={"rows": 2744, "relation": "source rows preserved exactly"},
+        expected={"rows": 2646, "relation": "source rows preserved exactly"},
     )
     outputs_exact = set(expected_outputs) == set(compiled_by_id) and all(
         _json_equal(
@@ -1031,7 +1030,7 @@ def build_inventory_coverage(
             "compiled outputs differ from typed closure": outputs_exact,
             "authored output count differs": authored_output_count == 92,
             "compiled output count differs": compiled.producer_graph.compiled_output_count
-            == 227,
+            == 220,
         },
         homes=(
             "/imputation/producer_graph/nodes/*/outputs",
@@ -1047,7 +1046,7 @@ def build_inventory_coverage(
         },
         expected={
             "authored_rows": 92,
-            "compiled_rows": 227,
+            "compiled_rows": 220,
             "relation": "typed closure exact",
         },
     )
@@ -1066,7 +1065,7 @@ def build_inventory_coverage(
         "producer_virtual_resources_exact",
         clauses={
             "virtual resources differ": virtual_exact,
-            "virtual resource count differs": virtual_count == 75,
+            "virtual resource count differs": virtual_count == 73,
         },
         homes=("/imputation/producer_graph/nodes/*/virtual_resources",),
         consumers=(
@@ -1074,7 +1073,7 @@ def build_inventory_coverage(
             "legacy_adapter.imputation.late_producer_resource_semantics",
         ),
         observed={"rows": virtual_count},
-        expected={"rows": 75, "relation": "source node slices preserve full bindings"},
+        expected={"rows": 73, "relation": "source node slices preserve full bindings"},
     )
     resource_semantics = _mapping(
         actual_imputation.get("late_producer_resource_semantics"), "resource semantics"
@@ -1102,7 +1101,7 @@ def build_inventory_coverage(
         },
         expected={
             "sha256": EXPECTED_HASHES["late_resource_semantics"],
-            "producer_count": 38,
+            "producer_count": 37,
         },
     )
     execution_contract = graph.get("execution_receipt_contract")
@@ -1796,7 +1795,7 @@ def build_inventory_coverage(
             "owner binding count differs": sum(
                 len(site.owners) for site in compiled_sites.values()
             )
-            == 112,
+            == 109,
             "one or more sites have no owner": all(
                 site.owners for site in compiled_sites.values()
             ),
@@ -1806,7 +1805,7 @@ def build_inventory_coverage(
         observed={
             "bindings": sum(len(site.owners) for site in compiled_sites.values())
         },
-        expected={"bindings": 112, "coverage": "all 53 sites"},
+        expected={"bindings": 109, "coverage": "all 53 sites"},
     )
     expected_owner_sites: dict[tuple[str, str], list[str]] = {}
     for site in protocol.sites:
@@ -1830,13 +1829,13 @@ def build_inventory_coverage(
             "seed owner rows differ": _json_equal(
                 compiled_owner_rows, expected_owner_rows
             ),
-            "seed owner row count differs": len(compiled_owner_rows) == 54,
+            "seed owner row count differs": len(compiled_owner_rows) == 53,
         },
         homes=("/spine/seed_site_bindings", "/bundle/seed_protocol"),
         consumers=("compiler_ir.seed_stream_map.owners",),
         observed={"owner_rows": len(compiled_owner_rows)},
         expected={
-            "owner_rows": 54,
+            "owner_rows": 53,
             "relation": "site-order-preserving owner aggregation",
         },
     )
