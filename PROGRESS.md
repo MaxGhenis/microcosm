@@ -84,15 +84,22 @@ artifact, publication surface, or remote will be modified.
   release calls the hours-worked reconstruction only on the non-pool path.
   The true line-9480 gate therefore emits `person columns missing:
   ['weeks_worked'].`, and ORG would later refuse the same missing predictor.
-  This is independent of the seven-leaf rebuild. The release-side repair is
-  being tested before it is committed.
+  This is independent of the seven-leaf rebuild. Unconditionally invoking the
+  legacy source writer is not a valid repair: the ASEC raw columns are null on
+  physical ACS rows, so it erases their transferred weekly/last-week hours,
+  makes all three ACS hours surfaces zero, and the gate instead emits `worked
+  share 0.263 outside plausibility band [0.35, 0.62].` A release fix therefore
+  requires an owner ruling on the stacked period-scoped `weeks_worked`
+  semantics (native ACS weeks, ASEC-model transfer, or formula ownership). No
+  modeling choice or gate weakening will be made in this lane without that
+  ruling.
 
 ### Next
 
 Finish the remaining read-only numeric replays at their exact stage boundaries;
-repair the confirmed hours skip and bounded housing/education/WIC writer/gate
-defects; disposition the measured-vintage source deficiency; then complete the
-verdict report and repository-wide verification.
+repair the bounded housing/education/WIC writer/gate defects and measured-
+vintage source deficiency; record the hours/ORG owner-ruling blocker precisely;
+then complete the verdict report and repository-wide verification.
 
 ---
 
