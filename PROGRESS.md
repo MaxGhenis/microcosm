@@ -162,12 +162,18 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
   native-zero outputs exactly equal the unchanged 118-target full declaration;
   the late surface remains 36 PUF-produced + 29 source-produced - 2 overlaps.
   Focused typed/plan/DAG, partition, tool-entrypoint, and HDF tests pass.
+- The next full run passed 894 cases before finding one final static owner-count
+  assertion: the `acs_qrf_fit_draw` seed site has 19 owners after removal of
+  batch 5, not 20. Replaced the numeric assertion with an exact typed owner-set
+  proof derived from the canonical transfer-group registry (one pipeline owner
+  plus every live transfer producer). The full identity-contract file and Ruff
+  pass.
 
 ## Next
 
-1. Commit the downstream identity fixtures, ownership-partition proof, and
-   current schedule documentation.
-2. Restart full `uv run pytest` from zero and rerun `uv run ruff check .`.
+1. Commit the exact seed-owner regression.
+2. Restart full `uv run pytest` from zero; the latest full `uv run ruff check .`
+   is green and will be rerun after any further edit.
 3. Write the complete receipt, roster, history, changed-files, and verification
    report to `out.md`, update this journal, and commit the final handoff.
 

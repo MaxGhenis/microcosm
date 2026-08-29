@@ -129,11 +129,16 @@ def test_all_53_seed_sites_resolve_to_typed_real_owners(
         site.id for site in LEGACY_V1_PROTOCOL.sites
     ]
     by_site = {binding.site: binding for binding in bindings}
-    assert len(by_site["acs_qrf_fit_draw"].owners) == 20
-    assert {owner.kind for owner in by_site["acs_qrf_fit_draw"].owners} == {
-        SeedSiteOwnerKind.PRODUCER_NODE,
-        SeedSiteOwnerKind.PIPELINE_OPERATION,
+    expected_acs_qrf_owners = {
+        (SeedSiteOwnerKind.PIPELINE_OPERATION, "gap_fill_stacked_spine")
+    } | {
+        (SeedSiteOwnerKind.PRODUCER_NODE, group.name)
+        for group in CANONICAL_US_LATE_TRANSFER_GROUPS
     }
+    assert {
+        (owner.kind, owner.id)
+        for owner in by_site["acs_qrf_fit_draw"].owners
+    } == expected_acs_qrf_owners
     assert by_site["primary_qrf_fit_draw"].owners[0].id == "primary_puf_qrf"
     assert by_site["puf_clone_attachment"].owners[0].id == (
         "prepare_multispine_source_inputs_for_clone"
