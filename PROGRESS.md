@@ -32,9 +32,9 @@ handoff are in `out.md`.
 
 The pool, sibling manifests/gates, and release logs under
 `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
-only: they will not be modified or rebuilt. No pool/release artifact, launchd
-job, publication path, push, or PR is in scope. The required final report will
-be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
+only: they were not modified or rebuilt. No pool/release artifact, launchd job,
+publication, push, or PR was performed. The completed final handoff is
+`out.md`, beginning with `SWEEP-COMPLETE`.
 
 ## Done
 
