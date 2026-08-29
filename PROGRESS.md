@@ -8,26 +8,27 @@ Lane base: `7d44c0b5`
 
 ## State
 
-In progress. The immutable candidate-25 evidence proves that the farm-rent
-failure is a writer defect, not channel-attribution drift, clone fan-out, or a
-gate defect. The stacked primary PUF producer correctly owns clone-positive
-PUF-support rows, but the generic post-PUF late producer treats every clone-0
-row as an authorized recipient and predicts `farm_rent_income` over both
-physical ACS and ASEC native rows. The same ownership mismatch affects six
-other source-unobserved PUF-detail leaves and would trip the next strict gate
-one build at a time. The repair makes the primary PUF stage explicitly
-materialize structural zero on native rows for all seven leaves, retain and
-validate clone-positive payloads, exclude those whole-pool-complete leaves
-from predictive late transfer, and leave every gate threshold intact. That
-root repair and an executable complete gate ledger are now implemented. The
-seven writer surfaces and all six affected gate modules have focused stacked
-regressions. A first full-suite pass exposed and the lane has now recut every
-closed compiler-coverage identity affected by the smaller producer graph. The
-latest restart reached 922 passing cases before exposing the loader's one
-resolved-seed-protocol semantic-hash golden. That exact vector is now recut
-and its full loader/schema corridor passes. The clean repository-wide suite,
-Ruff, and CI test-file partition checks are now green. Only the final receipt
-report and clean committed handoff remain.
+Complete on 2026-08-29. The immutable candidate-25 evidence proves that the
+farm-rent failure is a writer defect, not channel-attribution drift, clone
+fan-out, or a gate defect. The stacked primary PUF producer correctly owns
+clone-positive PUF-support rows, but the generic post-PUF late producer treats
+every clone-0 row as an authorized recipient and predicts
+`farm_rent_income` over both physical ACS and ASEC native rows. The same
+ownership mismatch affects six other source-unobserved PUF-detail leaves and
+would trip the next strict gate one build at a time. The repair makes the
+primary PUF stage explicitly materialize structural zero on native rows for
+all seven leaves, retain and validate clone-positive payloads, exclude those
+whole-pool-complete leaves from predictive late transfer, and leave every gate
+threshold intact. That root repair and an executable complete gate ledger are
+now implemented. The seven writer surfaces and all six affected gate modules
+have focused stacked regressions. A first full-suite pass exposed and the lane
+has now recut every closed compiler-coverage identity affected by the smaller
+producer graph. The latest restart reached 922 passing cases before exposing
+the loader's one resolved-seed-protocol semantic-hash golden. That exact
+vector is now recut and its full loader/schema corridor passes. The clean
+repository-wide suite, Ruff, and CI test-file partition checks are green. The
+complete receipts, roster, history, changed-file inventory, and verification
+handoff are in `out.md`.
 
 The pool, sibling manifests/gates, and release logs under
 `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
@@ -189,13 +190,14 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
 - Final `uv run ruff check .` reports `All checks passed!`.
 - Final `tools/ci_test_groups.py --verify` reports 313 tracked test files and
   `verification=ok`.
+- Wrote the final handoff to `out.md`; its literal first line is
+  `SWEEP-COMPLETE`, and it includes the immutable receipts, full gate roster,
+  #794 miss analysis, changed files, and test evidence.
 
 ## Next
 
-1. Write the complete receipt, roster, history, changed-files, and verification
-   report to `out.md`.
-2. Mark this journal complete, commit the final handoff, and leave the worktree
-   clean without pushing or opening a PR.
+No lane work remains. The dispatcher can review and push the committed branch;
+this lane did not push or open a PR.
 
 ---
 
