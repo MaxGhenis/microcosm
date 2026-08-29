@@ -193,6 +193,19 @@ artifact, publication surface, or remote will be modified.
   implementation will validate the full frame once, bind every authorized
   person/household/source lineage, and let a selected batch materialize zero
   only in its engine-copy when every blank row matches that prevalidated set.
+- After both bounded adapters cleared the first SSI batch, PolicyEngine exposed
+  the next exact dense blocker: `Unable to set value for variable
+  "real_estate_taxes", as the input contains NaN values.` This is not another
+  safe blanket-zero case. The candidate has 350,656 nulls, all on clone 0:
+  every 108,073 ASEC native person (42,213 heads / 65,860 nonheads) and 242,583
+  ACS native people (90,030 heads / 152,553 nonheads); every clone-positive
+  value is finite. The producing `acs_rent` manifest already declares the
+  archived joint `rent` + `real_estate_taxes` target sample, but the runtime
+  fits and writes rent only. ASEC heads therefore genuinely lack their intended
+  QRF output, while ACS `TAXAMT` structural absences need exact source-universe
+  zeros and observed owner values must remain measured. The no-weakening root
+  repair is in progress at that housing producer/native mapper; the engine-copy
+  adapter will not guess or zero this mixed universe.
 
 ### Next
 
