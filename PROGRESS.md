@@ -206,13 +206,56 @@ artifact, publication surface, or remote will be modified.
   zeros and observed owner values must remain measured. The no-weakening root
   repair is in progress at that housing producer/native mapper; the engine-copy
   adapter will not guess or zero this mixed universe.
+- Implemented the three requested post-transfer identity repairs without
+  changing a signal band. The housing gap-fill authority now reconciles final
+  physical-ACS assistance take-up to measured receipt, zeros positive finite
+  rent only on ACS nonheads outside the authenticated group-quarters absence
+  universe, preserves ASEC bytes, and hashes both dependencies and live
+  outputs. The housing gate consumes that same lineage authority: only true
+  `NaN` on ACS `TYPEHUGQ` 2/3 remains an allowed structural absence; infinity
+  and materialized group-quarters rent still fail, and tenure categories are
+  checked against the exact ASEC three-category and ACS four-category source
+  domains. The focused housing/stacked/spine-blindness corridor is green.
+- The late-producer registry now carries explicit whole-pool dependencies from
+  final qualified tuition to the AOTC group and from final pregnancy to the
+  WIC group. After independent recipient transfer, the AOTC operator restores
+  all five source facts to exactly `qualified_tuition_expenses > 0`; the WIC
+  operator reruns the pinned source derivation by stable person identity. Both
+  preserve ASEC producer bytes and bind dependency/output digests. WIC's
+  structural seed is cross-bound to the model seed and the source callback's
+  canonical `POOL_RANDOM_SEED=0`; a noncanonical aggregate or execution seed
+  fails closed. Registry v18 has 71 explicit edges. Focused verification is
+  277 stacked-spine cases, 55 late-DAG/housing cases, and both reviewed
+  spine-blindness checks, all green with focused Ruff.
+- Completed a full exact null census of the PolicyEngine dataset input surface
+  after the bounded SSI/rent adapters. Besides the separately adjudicated
+  property-tax surface, only group-quarters tenure and the three legacy
+  second-home inputs remain. Each second-home leaf has exactly 582,318 clone-0
+  null tax units and 597,546 clone-positive values; every clone-positive value
+  is bit/value zero. PolicyEngine declares each input's default as zero and a
+  direct dataset probe raises `Unable to set value for variable
+  "second_home_mortgage_balance", as the input contains NaN values.` The root
+  source contract is therefore the existing primary-PUF rule: preserve the
+  authenticated finite clone payload bit-exact and write exact zero on native
+  clone 0, expanding that independently justified contract from seven to ten
+  leaves while keeping the three all-default targets out of late QRF transfer.
+- The 91,032 blank household tenure rows and 91,032 blank SPM-unit tenure rows
+  are exactly the same ACS `TYPEHUGQ` 2/3 lineage universe as structural rent:
+  45,510 clone-0, 45,510 clone-1, and 12 clone-2 rows, with no nonblank GQ
+  tenure. Their source absence must remain intact. PolicyEngine owns the
+  simulation defaults (`tenure_type=NONE`,
+  `spm_unit_tenure_type=RENTER`) but refuses the `NaN` inputs. The bounded
+  repair is therefore engine-copy-only under the already authenticated full-
+  frame GQ lineage authority, including exact household/SPM identity sets
+  carried into sparse batches; no source cell or persisted frame is rewritten.
 
 ### Next
 
-Finish the actual post-producer health replay; complete and review the bounded
-housing/education/WIC coherence repairs plus the engine-copy SSI/rent adapter;
-then write the verdict report and run repository-wide verification. The
-stacked `weeks_worked`/ORG ownership ruling remains an explicit dense blocker.
+Finish the property-tax and native-zero source repairs, the bounded
+SSI/rent/tenure simulation-copy adapter, independent integration review, and
+the actual post-producer health replay; then write the verdict report and run
+repository-wide verification. The stacked `weeks_worked`/ORG ownership ruling
+remains an explicit dense blocker.
 
 ---
 
