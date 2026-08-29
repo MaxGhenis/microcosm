@@ -1,3 +1,62 @@
+# Stacked dense-release gate sweep: farm-rent and remaining single-spine gates
+
+Date: 2026-08-29
+
+Branch: `stacked-dense-gate-sweep`
+
+Lane base: `7d44c0b5`
+
+## State
+
+In progress. The immutable candidate-25 stacked pool sealed successfully but
+the DENSE release stopped in `us_farm_business_income_signal_gate` because
+`farm_rent_income` appeared nonzero on rows that the gate classified as the
+base ASEC support channel. This lane will establish row- and producer-level
+provenance from the supplied pool, enumerate every release-path gate that
+depends on support channel/source/single-spine row semantics, repair each
+genuine assumption at its root without weakening any threshold or skipping a
+stacked frame, and add stacked plus contamination regressions.
+
+The pool, sibling manifests/gates, and release logs under
+`/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
+only: they will not be modified or rebuilt. No pool/release artifact, launchd
+job, publication path, push, or PR is in scope. The required final report will
+be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
+
+## Done
+
+- Read `CLAUDE.md`; recorded the flat-test rule, PR-CI/certification boundary,
+  required full-suite and Ruff commands, and root-journal history convention.
+- Read the GitNexus debugging and CLI workflows. The local CLI reports that
+  this repository is not indexed; no index was generated because doing so
+  would create unrelated repository/global state. The execution and producer
+  trace will instead be proved directly from source, tests, HDF data, and the
+  authenticated manifest receipts.
+- Confirmed a clean `stacked-dense-gate-sweep` worktree at lane base
+  `7d44c0b5` before starting.
+- Identified the inherited `PROGRESS.md`, `FINAL_REPORT.md`, and `out.md` as
+  historical lane journals; this section is the current lane state.
+
+## Next
+
+1. Inventory the candidate HDF schema and manifest producer/transfer receipts,
+   then measure every nonzero `farm_rent_income` row classified as base ASEC:
+   counts, weights, source/channel/clone lineage, and final producer.
+2. Enumerate the complete dense/sparse release gate call roster and every
+   imported support-channel/source-presence/single-spine predicate; execute or
+   reproduce each verdict against the real candidate pool.
+3. Diagnose why the #794 roster sweep omitted this gate, repair all root
+   assumptions found, and add stacked-semantics plus true-contamination tests.
+4. Keep `tools/ci_test_groups.py --verify`, full `uv run pytest`, and
+   `uv run ruff check .` green; update this journal after each coherent commit.
+5. Write the complete receipt, roster, history, changed-files, and verification
+   report to `out.md` and commit the final handoff.
+
+---
+
+> **Historical material below.** The remaining sections predate this lane and
+> must not be read as current state.
+
 # ACS predictor release join
 
 > **Historical note (2026-08-28).** This journal describes the
