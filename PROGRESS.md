@@ -122,6 +122,29 @@ artifact, publication surface, or remote will be modified.
   person members contain every missing measured recode with complete unique
   `PERIDNUM` keys and no null values, so the bounded repair is an exact,
   authenticated `(source_year, PERIDNUM)` sidecar join—never imputation.
+- Completed the six archived-model reconciliation with the candidate's
+  original transferred hours preserved and only the authenticated assembly
+  receipt restored so the merged #805 join could execute. Five producer/gate
+  pairs are green with empty failure lists: SCF wealth (bank/stock/bond
+  weighted nonzero shares 0.387899/0.112850/0.011718), SSI disability (true
+  share 0.073720; zero anchor mismatches), SCF auto loans (interest share
+  0.271253), SIPP vehicles (owned/value shares 0.835794/0.838655), and SIPP
+  tips (tip/tipped-occupation shares 0.003864/0.078835). Thus #805 does
+  populate the ACS predictors before those actual producers; the seven farm
+  leaves are irrelevant.
+- Isolated ORG in a separate counterfactual only after deliberately running
+  the invalid CPS-only hours writer. The #805-dependent carried bands all turn
+  green (`cps_race` 1.0; Hispanic 0.194239; detailed occupation 0.819802;
+  never-worked 0.256790; military 0.002039; computer science 0.019799;
+  education 0.289775; farmer 0.003423), directly rebutting the old null-ACS
+  predictor prognosis. But the writer's zeroed ACS hours make ORG emit
+  `hourly_wage: weighted nonzero share 0.2483 outside [0.4, 0.7].` and
+  `is_paid_hourly: weighted nonzero share 0.1222 outside [0.15, 0.4].` This is
+  not an actual-stage ORG verdict; actual execution stops on missing
+  `weeks_worked`. The evidence-favored ruling is an origin-aware, source-
+  direct ACS `WKWN` mapping carried ephemerally by the release join while ASEC
+  retains measured `WKSWORK`, but authorizing that formula-owned release
+  materialization remains outside this lane.
 
 ### Next
 
