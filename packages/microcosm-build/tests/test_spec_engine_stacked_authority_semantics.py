@@ -73,7 +73,7 @@ def test_authority_projection_is_field_and_byte_identical_to_live_generation_zer
     assert projected == live
     assert stacked_identity_bytes(projected) == _canonical_bytes(live)
     assert projected["sha256"] == (
-        "e660a8ce42b69a39d29c5f0ec37264bc69d61b03f27adc386336ec8889531bb2"
+        "bfa60231e7b5c4bbc82f507bd3ab113132917b4de6f68c296cc674990b88c119"
     )
     assert {
         name: component["sha256"] for name, component in projected["components"].items()
@@ -88,13 +88,13 @@ def test_authority_projection_is_field_and_byte_identical_to_live_generation_zer
             "cacc6c11e114dbae3aaa2761cc6b3fcb1191cd9b689b1c2bd096614c51ebff8b"
         ),
         "late_producer_schedule": (
-            "1b81157b0e21e4763884620ec27b5c4e6e36cc28237273c24eeccdef05a7fbca"
+            "cc85c714f2ae054186d42d6af147a66c29f80c690f08ce0390c2e4d31a9b012c"
         ),
         "metric_registry": (
             "d75cb9b29f8b0a9a085471a11f4c19c32ba04cbe5419053df94ea81cbe6125a9"
         ),
         "post_puf_transfer_surface": (
-            "a31e8a9512ec829c98745ed9ca2177e66d529bdc4b096ecfa2b4452f7bd41d73"
+            "93f991249113f1a620f4ed75334bc60b41d79f73e253840893d57ade6e541fef"
         ),
         "post_transfer_calibration": (
             "141519684c72ab84a077ae0f5716a0416f1e19da57262948e459633cbe560576"
@@ -191,7 +191,7 @@ def test_checkpoint_projection_is_field_and_byte_identical_to_live_oracle(
     ]
     assert (
         projected["pool_code"]["late_producer_schedule"]["schedule_sha256"]
-        == "e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f"
+        == "61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809"
     )
 
 

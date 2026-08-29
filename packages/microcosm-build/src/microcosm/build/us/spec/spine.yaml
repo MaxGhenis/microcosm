@@ -185,8 +185,6 @@ seed_site_bindings:
   - kind: producer_node
     id: transfer:person/puf_tax_itemization__batch_4
   - kind: producer_node
-    id: transfer:person/puf_tax_itemization__batch_5
-  - kind: producer_node
     id: transfer:person/source_operator_child_support
   - kind: producer_node
     id: transfer:person/source_operator_disability_benefits
@@ -226,8 +224,6 @@ seed_site_bindings:
     id: transfer:person/puf_tax_itemization__batch_3
   - kind: producer_node
     id: transfer:person/puf_tax_itemization__batch_4
-  - kind: producer_node
-    id: transfer:person/puf_tax_itemization__batch_5
   - kind: producer_node
     id: transfer:person/source_operator_child_support
   - kind: producer_node
@@ -272,8 +268,6 @@ seed_site_bindings:
     id: transfer:person/puf_tax_itemization__batch_3
   - kind: producer_node
     id: transfer:person/puf_tax_itemization__batch_4
-  - kind: producer_node
-    id: transfer:person/puf_tax_itemization__batch_5
   - kind: producer_node
     id: transfer:person/source_operator_child_support
   - kind: producer_node

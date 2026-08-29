@@ -73,7 +73,10 @@ from microcosm.build.us_runtime.prior_year_income import (
     with_us_prior_year_income_inputs,
 )
 from microcosm.build.us_runtime.puf_qrf_chain import PRIMARY_QRF_TARGET_ORDER
-from microcosm.build.us_runtime.puf_support import clone_us_frame_for_puf_support
+from microcosm.build.us_runtime.puf_support import (
+    PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS,
+    clone_us_frame_for_puf_support,
+)
 from microcosm.build.us_runtime.qbi_inputs import (
     US_QBI_RECONCILED_PERSON_COLUMNS,
     bind_us_qbi_reconciliation_transition_authority,
@@ -786,12 +789,29 @@ def pool_pre_clone_gap_fill_target_families() -> TargetFamilies:
 
 
 def pool_post_puf_transfer_target_families() -> TargetFamilies:
-    """Return targets first available after PUF and source completion."""
+    """Return targets first available after PUF and source completion.
+
+    Source-unobserved PUF-detail leaves are already whole-pool complete at the
+    primary owner boundary: clone-positive rows retain the PUF payload and
+    clone-zero rows receive an explicit, receipted structural zero.  They must
+    never enter the predictive late-transfer surface.
+    """
 
     _early, late = _partition_pool_transfer_target_families(
         pool_transfer_target_families()
     )
-    return late
+    native_zero_outputs = frozenset(PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS)
+    filtered: dict[str, dict[str, tuple[str, ...]]] = {}
+    for entity, families in late.items():
+        for family, targets in families.items():
+            retained = tuple(
+                target
+                for target in targets
+                if (entity, target) not in native_zero_outputs
+            )
+            if retained:
+                filtered.setdefault(entity, {})[family] = retained
+    return filtered
 
 
 def _filter_target_families_by_outputs(

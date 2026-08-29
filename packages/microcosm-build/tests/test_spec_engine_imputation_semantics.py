@@ -98,10 +98,10 @@ def test_imputation_projector_matches_live_plans_and_graph_receipts(
     for key, expected in live.items():
         assert canonical_json_bytes(projected[key]) == canonical_json_bytes(expected)
     assert projected["late_producer_schedule_receipt"]["schedule_sha256"] == (
-        "e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f"
+        "61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809"
     )
     assert projected["overlap_ownership"]["sha256"] == (
-        "5f64f0aac49e2313177564f71876bffc8c81b3ded4df701e70930e60e9c98356"
+        "c154604b6b0e8adaccb3cdea8542836d42d3d52f8fd0e2c3e5c63f0696cb8b1c"
     )
 
 
@@ -173,7 +173,7 @@ def test_imputation_projector_matches_live_transfer_contracts(
         )
     live_resources = projected["late_producer_resource_semantics"]
     by_producer = {row["producer"]: row for row in live_resources["producers"]}
-    assert len(contracts["late"]) == len(CANONICAL_US_LATE_TRANSFER_GROUPS) == 19
+    assert len(contracts["late"]) == len(CANONICAL_US_LATE_TRANSFER_GROUPS) == 18
     for row, group in zip(
         contracts["late"], CANONICAL_US_LATE_TRANSFER_GROUPS, strict=True
     ):

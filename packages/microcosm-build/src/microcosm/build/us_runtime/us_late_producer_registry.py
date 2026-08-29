@@ -1,7 +1,7 @@
 """Canonical producer-input DAG for the US stacked late stage.
 
 This module is the data-only production declaration that binds the primary
-PUF pass, the sixteen post-clone source operators, and the nineteen bounded
+PUF pass, the sixteen post-clone source operators, and the eighteen bounded
 late-transfer groups.  It deliberately separates two kinds of input data:
 
 * :class:`ProducerInput` values are the role-scoped dependencies which can
@@ -57,6 +57,7 @@ from microcosm.build.us_runtime.puf_capital_gains_tail import (
 from microcosm.build.us_runtime.puf_support import (
     PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
+    PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS,
 )
 from microcosm.build.us_runtime.us_late_overlap_ownership import (
     US_LATE_OVERLAP_OWNERSHIP_TARGETS,
@@ -99,6 +100,8 @@ __all__ = [
     "us_late_producer_schedule_receipt",
 ]
 
+# v17 declares the seven gate-backed PUF-only monetary leaves as whole-pool
+# primary-PUF outputs and removes them from predictive late-transfer ownership.
 # v16 declares person.s_corp_income as a whole-pool primary-PUF output: its
 # certified combined-source semantics are carried by partnership_income, while
 # the separate S-corporation leaf is an exact-zero universe. v15 content-binds
@@ -123,7 +126,7 @@ __all__ = [
 # cardinalities across each execution row, binds source-receipt outputs to the
 # callback receipt, and requires the primary callback to report the exact
 # resources it consumed. Receipt v2 introduced exact virtual-resource payloads.
-US_LATE_PRODUCER_REGISTRY_SCHEMA_VERSION = 16
+US_LATE_PRODUCER_REGISTRY_SCHEMA_VERSION = 17
 US_LATE_PRODUCER_RECEIPT_SCHEMA_VERSION = 3
 US_LATE_PRODUCER_TRANSITION_AUTHORITY_VERSION = 1
 US_LATE_PRODUCER_TRANSITION_AUTHORITY_KEY = "us_late_producer_transition_authority"
@@ -1408,12 +1411,12 @@ CANONICAL_US_LATE_TRANSFER_GROUPS = _bounded_transfer_groups(
     max_targets_per_fit=_DEFAULT_MAX_TARGETS_PER_FIT,
 )
 if (
-    len(CANONICAL_US_LATE_TRANSFER_GROUPS) != 19
-    or sum(len(group.targets) for group in CANONICAL_US_LATE_TRANSFER_GROUPS) != 70
+    len(CANONICAL_US_LATE_TRANSFER_GROUPS) != 18
+    or sum(len(group.targets) for group in CANONICAL_US_LATE_TRANSFER_GROUPS) != 63
 ):
     raise RuntimeError(
-        "Canonical US late transfer must contain exactly 19 bounded groups "
-        "and 70 ordered targets."
+        "Canonical US late transfer must contain exactly 18 bounded groups "
+        "and 63 ordered targets."
     )
 _canonical_late_targets = {
     target for group in CANONICAL_US_LATE_TRANSFER_GROUPS for target in group.targets
@@ -1422,11 +1425,11 @@ if (
     len(_BOOLEAN_LATE_TARGETS) != 17
     or len(_STRING_LATE_TARGETS) != 2
     or not (_BOOLEAN_LATE_TARGETS | _STRING_LATE_TARGETS) <= _canonical_late_targets
-    or len(_canonical_late_targets - _BOOLEAN_LATE_TARGETS - _STRING_LATE_TARGETS) != 51
+    or len(_canonical_late_targets - _BOOLEAN_LATE_TARGETS - _STRING_LATE_TARGETS) != 44
 ):
     raise RuntimeError(
-        "Canonical US late target kinds must partition 70 targets into "
-        "51 numeric, 17 boolean, and 2 string inputs."
+        "Canonical US late target kinds must partition 63 targets into "
+        "44 numeric, 17 boolean, and 2 string inputs."
     )
 US_LATE_TRANSFER_INPUT_INVENTORIES: Mapping[str, SourceInputInventory] = (
     MappingProxyType(
@@ -1611,13 +1614,17 @@ def _build_registry() -> dict[str, ProducerContract]:
     late_surface = pool_post_puf_transfer_target_families()
     late_keys = _target_key_rows(late_surface)
     puf_keys = _target_key_rows(pool_post_puf_puf_producer_target_families())
+    whole_pool_primary_outputs = {
+        ("person", "s_corp_income"),
+        *PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS,
+    }
     declared_primary_outputs = tuple(
         ProducerOutput(
             entity,
             column,
             (
                 _WHOLE_POOL_SCOPE
-                if (entity, column) == ("person", "s_corp_income")
+                if (entity, column) in whole_pool_primary_outputs
                 else _PUF_CLONE_SCOPE
             ),
         )
@@ -2076,7 +2083,7 @@ def us_late_producer_schedule_payload() -> dict[str, object]:
             ),
             "top_binding": (
                 "entry_and_output_frame_sha256_execution_chain_source_"
-                "completion_and_nineteen_transfer_groups"
+                "completion_and_eighteen_transfer_groups"
             ),
             "transition_authority": {
                 "authority_id": US_LATE_PRODUCER_TRANSITION_AUTHORITY_ID,

@@ -1129,14 +1129,15 @@ def _inflate_virtual_resource(
             doctrines["whole_pool_output_universes"],
             "primary PUF whole-pool output universes",
         )
-        s_corp = _mapping_like(
-            output_universes["person.s_corp_income"],
-            "primary PUF person.s_corp_income doctrine",
-        )
-        s_corp["materialized_value"] = _legacy_float(  # type: ignore[index]
-            s_corp["materialized_value"],
-            location="primary PUF person.s_corp_income materialized_value",
-        )
+        for output_id, raw_output_universe in output_universes.items():
+            output_universe = _mapping_like(
+                raw_output_universe,
+                f"primary PUF {output_id} doctrine",
+            )
+            output_universe["materialized_value"] = _legacy_float(  # type: ignore[index]
+                output_universe["materialized_value"],
+                location=f"primary PUF {output_id} materialized_value",
+            )
         binding["qrf"] = qrf
         binding["capital_gains_tail"] = tail
     elif resource_kind == "late_transfer_target_bank":

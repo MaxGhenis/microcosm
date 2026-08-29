@@ -18,7 +18,10 @@ other source-unobserved PUF-detail leaves and would trip the next strict gate
 one build at a time. The repair will make the primary PUF stage explicitly
 materialize structural zero on native rows for all seven leaves, retain and
 validate clone-positive payloads, exclude those whole-pool-complete leaves
-from predictive late transfer, and leave every gate threshold intact.
+from predictive late transfer, and leave every gate threshold intact. That
+root repair is now implemented and focused contract/spec tests are green; the
+remaining work is the executable gate ledger, full regression inventory, and
+repository-wide verification.
 
 The pool, sibling manifests/gates, and release logs under
 `/Users/maxghenis/PolicyEngine/_buildo-runtime/out/candidate-25/` are evidence
@@ -90,21 +93,43 @@ be written to `out.md`, beginning with `SWEEP-COMPLETE` or `BLOCKED:`.
   executable roster-to-test ledger. The new sweep will bind the actual release
   call roster to a reviewed semantic ledger and real-pool verdict for every
   classified gate.
+- Declared the exact seven PUF-only/native-zero outputs once in `puf_support`.
+  The primary stacked PUF stage now refuses pre-materialized native cells,
+  proves every clone-positive value finite, records the payload digest, writes
+  exact zero only to clone-0 rows, verifies clone-positive bytes unchanged,
+  and emits a target-level receipt for both person and tax-unit grains.
+- Promoted those seven primary outputs from `puf_clone` to `whole_pool`
+  ownership, removed them from post-PUF predictive transfer, and advanced the
+  late registry to schema 17 and primary execution config to schema 5. The
+  bounded late schedule is now 18 groups / 63 targets; the primary output
+  inventory remains 65 and the terminal 134-variable diagnostic surface is
+  unchanged.
+- Regenerated and validated the typed US bundle at spec SHA-256
+  `94153c2d9bb5ebb6b2b604cc7a514d11a8f41ed1a1b8dbdaf24ca77ac973569f`.
+  Its schema carries the seven new universe doctrines, and its generator pins
+  the 37-node / 69-edge / 220-compiled-output graph plus the exact schedule,
+  overlap-ownership, surface, and authority digests.
+- Added writer regressions that cover every declared leaf, prove native-zero
+  materialization and bit-exact PUF payload preservation, refuse preexisting
+  native contamination leaf by leaf, and exercise the integrated primary-PUF
+  callback. The prior educator-expense test that required predictive native
+  transfer now uses `qualified_tuition_expenses`, an intentionally modeled
+  late leaf, so it no longer enshrines the defect.
+- Focused writer/DAG tests pass through the full stacked executor, and focused
+  bundle/compiler/legacy-adapter tests pass after source-derived identity
+  regeneration. Focused Ruff is green.
 
 ## Next
 
-1. Commit the reviewed complete release-gate ledger and add an executable
+1. Add and commit the reviewed complete release-gate ledger and an executable
    inventory contract so future direct support/source-sensitive gate calls
    cannot remain prose-only or untested.
-2. Implement a receipted primary-PUF native-zero materializer for the exact
-   seven source-unobserved leaves, mark their ownership whole-pool, and remove
-   them from the predictive post-PUF transfer surface.
-3. Add stacked ACS+ASEC clone regressions for each fixed leaf and prove every
+2. Commit the stacked ACS+ASEC clone regressions for each fixed leaf and prove every
    gate still refuses a truly misplaced native nonzero value.
-4. Run focused tests, `tools/ci_test_groups.py --verify`, full
+3. Run focused tests, `tools/ci_test_groups.py --verify`, full
    `uv run pytest`, and `uv run ruff check .`; update this journal after each
    coherent commit.
-5. Write the complete receipt, roster, history, changed-files, and verification
+4. Write the complete receipt, roster, history, changed-files, and verification
    report to `out.md` and commit the final handoff.
 
 ---

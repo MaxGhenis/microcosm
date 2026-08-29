@@ -38,6 +38,7 @@ from microcosm.build.us_runtime.puf_capital_gains_tail import (
 from microcosm.build.us_runtime.puf_support import (
     PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
+    PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS,
 )
 from microcosm.build.us_runtime.us_late_overlap_ownership import (
     US_LATE_OVERLAP_OWNERSHIP_TARGETS,
@@ -343,9 +344,9 @@ def test_canonical_us_late_registry_has_exact_producer_surface() -> None:
     registry = CANONICAL_US_LATE_PRODUCER_REGISTRY
     groups = CANONICAL_US_LATE_TRANSFER_GROUPS
 
-    assert len(registry) == 38
-    assert len(groups) == 19
-    assert sum(len(group.targets) for group in groups) == 70
+    assert len(registry) == 37
+    assert len(groups) == 18
+    assert sum(len(group.targets) for group in groups) == 63
     assert {contract.kind for contract in registry.values()} == {
         "primary_puf",
         "acs_earnings_universe",
@@ -356,9 +357,9 @@ def test_canonical_us_late_registry_has_exact_producer_surface() -> None:
     assert len(registry[US_LATE_PRIMARY_PUF_STAGE].inputs) == 119
     primary_outputs = registry[US_LATE_PRIMARY_PUF_STAGE].outputs
     assert len(primary_outputs) == 100
-    assert sum(output.coverage_scope == "puf_clone" for output in primary_outputs) == 64
+    assert sum(output.coverage_scope == "puf_clone" for output in primary_outputs) == 57
     assert (
-        sum(output.coverage_scope == "whole_pool" for output in primary_outputs) == 35
+        sum(output.coverage_scope == "whole_pool" for output in primary_outputs) == 42
     )
     assert sum(output.coverage_scope == "acs_source" for output in primary_outputs) == 1
     assert {
@@ -376,7 +377,17 @@ def test_canonical_us_late_registry_has_exact_producer_surface() -> None:
         ("person", "person_support_clone_index", "whole_pool"),
         ("person", "s_corp_income", "whole_pool"),
         ("frame", "@us_puf_clone_attachment_manifest", "whole_pool"),
+        *{
+            (entity, column, "whole_pool")
+            for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+        },
     }
+    late_targets = {
+        (group.entity, target)
+        for group in groups
+        for target in group.targets
+    }
+    assert not (late_targets & set(PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS))
     assert all(contract.inputs for contract in registry.values())
     assert {
         name
@@ -437,7 +448,7 @@ def test_late_overlap_ownership_exhausts_every_permitted_dual_write() -> None:
     assert len(primary) == 65
     assert len(source_writes) == 35
     assert len(source_writes & transfer) == 29
-    assert len(transfer) == 70
+    assert len(transfer) == 63
     assert len(recipient_owned) == 60
     assert (
         callback_passthroughs
@@ -514,9 +525,7 @@ def test_late_overlap_ownership_exhausts_every_permitted_dual_write() -> None:
             )
         assert owner_by_cell[(target, "acs", 0)] == transfer_producer_name(
             "person",
-            "puf_tax_itemization__batch_2"
-            if target == "traditional_ira_contributions_desired"
-            else "puf_tax_itemization__batch_3",
+            "puf_tax_itemization__batch_2",
         )
         for clone_index in (1, 2):
             assert owner_by_cell[(target, "acs", clone_index)] == (
@@ -626,7 +635,7 @@ def test_primary_puf_inventory_declares_exact_read_before_write_surface() -> Non
 def test_canonical_us_late_registry_declares_required_cross_producer_edges() -> None:
     edges = set(CANONICAL_US_LATE_PRODUCER_SCHEDULE.edges)
 
-    assert len(edges) == 71
+    assert len(edges) == 69
     assert (
         US_LATE_ACS_EARNINGS_UNIVERSE_STAGE,
         US_LATE_PRIMARY_PUF_STAGE,
@@ -640,7 +649,7 @@ def test_canonical_us_late_registry_declares_required_cross_producer_edges() -> 
         source_producer_name("with_us_adult_care_inputs"),
     ) in edges
     assert (
-        transfer_producer_name("person", "puf_tax_itemization__batch_5"),
+        transfer_producer_name("person", "puf_tax_itemization__batch_4"),
         source_producer_name("with_us_adult_care_inputs"),
     ) in edges
     assert (
@@ -703,7 +712,7 @@ def test_production_adult_care_contract_refuses_missing_sstb_before_callback() -
         for item in contract.inputs
         if item.column == "sstb_self_employment_income_before_lsr"
         and item.producing_stage
-        == transfer_producer_name("person", "puf_tax_itemization__batch_5")
+        == transfer_producer_name("person", "puf_tax_itemization__batch_4")
     )
     invoked = False
 
@@ -716,7 +725,7 @@ def test_production_adult_care_contract_refuses_missing_sstb_before_callback() -
         match=(
             r"(?s)source:with_us_adult_care_inputs.*"
             r"person\.sstb_self_employment_income_before_lsr.*43260 unfilled.*"
-            r"asec_source.*transfer:person/puf_tax_itemization__batch_5"
+            r"asec_source.*transfer:person/puf_tax_itemization__batch_4"
         ),
     ):
         run_producer_when_ready(
@@ -784,7 +793,7 @@ def test_canonical_us_late_schedule_is_import_validated_and_byte_stable() -> Non
 
     assert reconstructed == CANONICAL_US_LATE_PRODUCER_SCHEDULE
     receipt = us_late_producer_schedule_receipt()
-    assert receipt["schema_version"] == 16
+    assert receipt["schema_version"] == 17
     assert receipt["execution_receipt_contract"] == {
         "version": 3,
         "row_binding": (
@@ -794,7 +803,7 @@ def test_canonical_us_late_schedule_is_import_validated_and_byte_stable() -> Non
         "virtual_resource_binding": ("exact_kind_specific_semantic_payload_and_sha256"),
         "top_binding": (
             "entry_and_output_frame_sha256_execution_chain_source_"
-            "completion_and_nineteen_transfer_groups"
+            "completion_and_eighteen_transfer_groups"
         ),
         "transition_authority": {
             "authority_id": "us_stacked_late_producer_transition",
@@ -805,10 +814,10 @@ def test_canonical_us_late_schedule_is_import_validated_and_byte_stable() -> Non
     }
     assert receipt["status"] == "derived_and_import_validated"
     assert receipt["schedule_sha256"] == reconstructed.sha256
-    assert receipt["producer_count"] == 38
+    assert receipt["producer_count"] == 37
     assert receipt["source_producer_count"] == 16
-    assert receipt["transfer_group_count"] == 19
-    assert receipt["transfer_target_count"] == 70
+    assert receipt["transfer_group_count"] == 18
+    assert receipt["transfer_target_count"] == 63
     assert receipt["order"][:2] == [
         US_LATE_ACS_EARNINGS_UNIVERSE_STAGE,
         US_LATE_PRIMARY_PUF_STAGE,
@@ -1016,7 +1025,7 @@ def test_every_origin_exclusive_raw_input_has_its_native_scope() -> None:
         ("household", "H_TENURE"): "asec_source",
     }
     expected_counts = {
-        ("household", "TYPEHUGQ"): 39,
+        ("household", "TYPEHUGQ"): 37,
         ("person", "MCARE"): 2,
         ("person", "PERIDNUM"): 18,
         ("person", "SEMP"): 2,
@@ -1055,8 +1064,8 @@ def test_every_origin_exclusive_raw_input_has_its_native_scope() -> None:
     assert observed == Counter(
         {(*key, required_scope[key]): count for key, count in expected_counts.items()}
     )
-    assert sum(observed.values()) == 101
-    assert sum(count for key, count in observed.items() if key[2] == "acs_source") == 43
+    assert sum(observed.values()) == 99
+    assert sum(count for key, count in observed.items() if key[2] == "acs_source") == 41
     assert (
         sum(count for key, count in observed.items() if key[2] == "asec_source") == 58
     )
@@ -1324,7 +1333,7 @@ def test_source_numeric_input_audit_is_fully_executable() -> None:
         } == {"finite_numeric"}
 
 
-def test_late_target_dependency_kinds_partition_51_numeric_17_boolean_2_string() -> (
+def test_late_target_dependency_kinds_partition_44_numeric_17_boolean_2_string() -> (
     None
 ):
     string_targets = {"ssn_card_type", "immigration_status_str"}
@@ -1361,7 +1370,7 @@ def test_late_target_dependency_kinds_partition_51_numeric_17_boolean_2_string()
             }
     numeric_targets = set(observed) - boolean_targets - string_targets
     assert (len(numeric_targets), len(boolean_targets), len(string_targets)) == (
-        51,
+        44,
         17,
         2,
     )

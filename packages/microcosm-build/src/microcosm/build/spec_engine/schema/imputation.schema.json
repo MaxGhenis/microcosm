@@ -849,6 +849,54 @@
   }
  },
  "$defs": {
+  "puf_native_zero_output_universe": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "assignment": {
+     "type": "string"
+    },
+    "column": {
+     "type": "string"
+    },
+    "coverage_scope": {
+     "type": "string"
+    },
+    "entity": {
+     "type": "string"
+    },
+    "materialized_value": {
+     "type": "number"
+    },
+    "native_precondition": {
+     "type": "string"
+    },
+    "puf_clone_precondition": {
+     "type": "string"
+    },
+    "rule_id": {
+     "type": "string"
+    },
+    "schema_version": {
+     "type": "integer"
+    },
+    "source_semantics": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "assignment",
+    "column",
+    "coverage_scope",
+    "entity",
+    "materialized_value",
+    "native_precondition",
+    "puf_clone_precondition",
+    "rule_id",
+    "schema_version",
+    "source_semantics"
+   ]
+  },
   "regime_gated_qrf_model": {
    "type": "object",
    "additionalProperties": false,
@@ -3225,10 +3273,38 @@
                     "schema_version",
                     "source_semantics"
                    ]
+                  },
+                  "person.long_term_capital_gains_on_collectibles": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "person.salt_refund_income": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "person.investment_income_elected_form_4952": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "person.educator_expense": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "person.farm_rent_income": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "tax_unit.domestic_production_ald": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "tax_unit.unrecaptured_section_1250_gain": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
                   }
                  },
                  "required": [
-                  "person.s_corp_income"
+                  "person.s_corp_income",
+                  "person.long_term_capital_gains_on_collectibles",
+                  "person.salt_refund_income",
+                  "person.investment_income_elected_form_4952",
+                  "person.educator_expense",
+                  "person.farm_rent_income",
+                  "tax_unit.domestic_production_ald",
+                  "tax_unit.unrecaptured_section_1250_gain"
                  ]
                 }
                },

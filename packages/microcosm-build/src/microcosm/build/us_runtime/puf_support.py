@@ -64,6 +64,7 @@ __all__ = [
     "PUF_CLONE_ATTACHMENT_MANIFEST_KEY",
     "PUF_TAX_DETAIL_CLONE_INDEX",
     "PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS",
+    "PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS",
     "PUF_TAX_DETAIL_SUPPORT_CHANNEL",
     "PUF_DONOR_SOURCE_ADJUSTED_GROSS_INCOME_COLUMN",
     "US_PUF_DONOR_MORTGAGE_QUARANTINE_FIELDS",
@@ -273,6 +274,27 @@ PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS: tuple[str, ...] = (
     "first_home_mortgage_origination_year",
     "second_home_mortgage_origination_year",
     "health_savings_account_ald",
+)
+
+#: PUF tax-detail leaves whose source instrument has no native ASEC or ACS
+#: analogue.  The primary PUF owner supplies their observed/predicted payload
+#: only on clone-positive PUF support and must explicitly complete clone-zero
+#: native rows with structural zero.  Keeping this source contract separate
+#: from the broader default-output inventory is important: other PUF outputs
+#: intentionally have measured native values or reviewed late native models.
+#:
+#: Every member is backed by a strict release gate that rejects a nonzero
+#: native-role value.  The primary materializer and post-PUF transfer planner
+#: consume this same declaration, so ownership cannot silently diverge from
+#: the gate contract again.
+PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS: tuple[tuple[str, str], ...] = (
+    ("person", "long_term_capital_gains_on_collectibles"),
+    ("person", "salt_refund_income"),
+    ("person", "investment_income_elected_form_4952"),
+    ("person", "educator_expense"),
+    ("person", "farm_rent_income"),
+    ("tax_unit", "domestic_production_ald"),
+    ("tax_unit", "unrecaptured_section_1250_gain"),
 )
 
 _PUF_TAX_DETAIL_DISCRETE_TAX_UNIT_OUTPUTS = frozenset(

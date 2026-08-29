@@ -23,7 +23,7 @@ from microcosm.build.spec_engine.model import (
 from microcosm.build.spec_engine.resolver import F0_CONTRACT_ONLY_KERNEL_IDS
 
 US_SCHEDULE_SHA256 = (
-    "e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f"
+    "61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809"
 )
 
 
@@ -63,13 +63,13 @@ def test_us_compiles_exact_stage_dag_and_lossless_producer_graph(
 ) -> None:
     graph = compiled_us.producer_graph
     assert graph.present
-    assert len(graph.nodes) == 38
-    assert len(graph.edges) == 71
+    assert len(graph.nodes) == 37
+    assert len(graph.edges) == 69
     assert len(graph.waves) == 6
-    assert len(graph.order) == 38
-    assert len(set(graph.order)) == 38
+    assert len(graph.order) == 37
+    assert len(set(graph.order)) == 37
     assert len(graph.ownership_matrix) == 18
-    assert graph.compiled_output_count == 227
+    assert graph.compiled_output_count == 220
     assert graph.schedule_sha256 == US_SCHEDULE_SHA256
     assert sha256_json(graph.schedule_wire()) == US_SCHEDULE_SHA256
 
@@ -99,8 +99,8 @@ def test_us_ownership_matrix_is_cell_closed(compiled_us: CompiledSpecIR) -> None
         ]
         assert final == [row["final_owner"]]
     policy = compiled_us.producer_graph.incomparable_node_policy
-    assert policy["incomparable_pair_count"] == 587
-    assert policy["disjoint_write_pair_count"] == 587
+    assert policy["incomparable_pair_count"] == 553
+    assert policy["disjoint_write_pair_count"] == 553
 
 
 def test_us_seed_stream_map_is_complete_and_owner_typed(
@@ -110,8 +110,8 @@ def test_us_seed_stream_map_is_complete_and_owner_typed(
     seed_map = compiled_us.seed_stream_map
     assert seed_map.protocol_id == "legacy-v1"
     assert len(seed_map.sites) == 53
-    assert len(seed_map.owners) == 54
-    assert sum(len(site.owners) for site in seed_map.sites) == 112
+    assert len(seed_map.owners) == 53
+    assert sum(len(site.owners) for site in seed_map.sites) == 109
     assert {site.id for site in seed_map.sites} == {
         site.id for site in resolved_us.seed_protocol.sites
     }
@@ -129,8 +129,8 @@ def test_us_seed_stream_map_is_complete_and_owner_typed(
 def test_us_node_slices_are_transitive_and_content_attested(
     compiled_us: CompiledSpecIR,
 ) -> None:
-    assert len(compiled_us.nodes) == 38
-    assert len({node.node_key for node in compiled_us.nodes}) == 38
+    assert len(compiled_us.nodes) == 37
+    assert len({node.node_key for node in compiled_us.nodes}) == 37
     for node in compiled_us.nodes:
         assert sha256_json(node.node_slice_wire()) == node.node_slice_sha256
         transitive_ids = {row.id for row in node.transitive_nodes}
@@ -143,9 +143,9 @@ def test_ir_retains_all_typed_resolution_products(compiled_us: CompiledSpecIR) -
     inventory = compiled_us.typed_inventory
     assert len(inventory["entities"]) == 8
     assert len(inventory["columns"]) == 176
-    assert len(inventory["artifacts"]) == 84
+    assert len(inventory["artifacts"]) == 83
     assert len(inventory["scopes"]) == 7
-    assert len(inventory["references"]) == 334
+    assert len(inventory["references"]) == 333
     assert "engine_abi_lock" in compiled_us.generated_authorities
     assert "records" in compiled_us.vintage_authorities
     assert set(compiled_us.surfaces) == {

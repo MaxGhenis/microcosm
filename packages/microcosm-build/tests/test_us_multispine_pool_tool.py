@@ -3584,7 +3584,7 @@ def test_stacked_checkpoint_identity_binds_v12_semantic_contracts(
     assert resource_semantics_sha256 == stacked_spine_module._canonical_sha256(
         unsigned_resource_semantics
     )
-    assert resource_semantics["producer_count"] == 38
+    assert resource_semantics["producer_count"] == 37
     resource_rows = {
         row["producer"]: row["resources"] for row in resource_semantics["producers"]
     }

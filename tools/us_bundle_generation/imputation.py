@@ -2044,15 +2044,15 @@ def _split_after() -> list[dict[str, object]]:
         if group.entity == "person"
         and group.family.startswith("puf_tax_itemization__batch_")
     ]
-    if [len(group.targets) for group in late_batches] != [8, 8, 8, 8, 5]:
-        raise RuntimeError("Late PUF itemization is no longer the reviewed 5x37 split.")
+    if [len(group.targets) for group in late_batches] != [8, 8, 8, 8]:
+        raise RuntimeError("Late PUF itemization is no longer the reviewed 4x32 split.")
     result = [
         {
             "family": f"late/{group.entity}/{group.family}",
             "after_target": group.targets[-1],
             "reason": (
                 "Declared production memory boundary preserving the canonical "
-                "five-batch late PUF itemization partition."
+                "four-batch late PUF itemization partition."
             ),
         }
         for group in late_batches[:-1]
@@ -2093,12 +2093,12 @@ def _assert_invariants(
     expected = {
         "gap_fill_stacked_spine": (13, 48),
         "primary_puf_qrf": (1, 65),
-        "late_producer_dag": (19, 70),
+        "late_producer_dag": (18, 63),
     }
     expected_dtypes = {
         "gap_fill_stacked_spine": {"bool": 20, "float": 27, "int": 1},
         "primary_puf_qrf": {"bool": 8, "float": 55, "int": 2},
-        "late_producer_dag": {"bool": 17, "float": 50, "int": 1, "str": 2},
+        "late_producer_dag": {"bool": 17, "float": 43, "int": 1, "str": 2},
     }
     for stage, (family_count, target_count) in expected.items():
         rows = by_stage.get(stage, [])
@@ -2124,7 +2124,7 @@ def _assert_invariants(
         len(compiled_schedule["edges"]),
         len(compiled_schedule["waves"]),
         len(graph["ownership_matrix"]),
-    ) != (38, 71, 6, 18):
+    ) != (37, 69, 6, 18):
         raise RuntimeError("US producer graph count invariant changed.")
     input_count = sum(len(node["inputs"]) for node in graph["nodes"])
     authored_output_count = sum(len(node["outputs"]) for node in graph["nodes"])
@@ -2152,7 +2152,7 @@ def _assert_invariants(
         late_authored_output_count,
         len(tolerated_receipts),
     )
-    expected_graph_counts = (2744, 92, 227, 35, 0, 213)
+    expected_graph_counts = (2646, 92, 220, 35, 0, 206)
     if graph_counts != expected_graph_counts:
         raise RuntimeError(
             "US producer graph input/output/absence counts changed: "
@@ -2278,7 +2278,7 @@ def _assert_invariants(
     execution_contracts = projected["transfer_execution_contract_identities"]
     if (len(execution_contracts["early"]), len(execution_contracts["late"])) != (
         2,
-        19,
+        18,
     ):
         raise RuntimeError("US transfer execution-contract coverage changed.")
     expected_with_resources = {

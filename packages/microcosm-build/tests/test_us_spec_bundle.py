@@ -307,19 +307,19 @@ def test_constant_derived_domain_counts_are_complete(
     assert family_counts == {
         "gap_fill_stacked_spine": 13,
         "primary_puf_qrf": 1,
-        "late_producer_dag": 19,
+        "late_producer_dag": 18,
     }
     assert target_counts == {
         "gap_fill_stacked_spine": 48,
         "primary_puf_qrf": 65,
-        "late_producer_dag": 70,
+        "late_producer_dag": 63,
     }
     assert "primary_effective_predictor_tuples" not in imputation["chaining"]
     assert len(derive_primary_effective_predictor_tuples(imputation)) == 65
     itemization_batches = [
         family for family in families if "puf_tax_itemization__batch_" in family["id"]
     ]
-    assert [len(family["targets"]) for family in itemization_batches] == [8, 8, 8, 8, 5]
+    assert [len(family["targets"]) for family in itemization_batches] == [8, 8, 8, 8]
     modeled_output_scopes = {
         stage: Counter(
             target["output_coverage_scope"]
@@ -330,8 +330,8 @@ def test_constant_derived_domain_counts_are_complete(
         for stage in ("primary_puf_qrf", "late_producer_dag")
     }
     assert modeled_output_scopes == {
-        "primary_puf_qrf": {"puf_clone": 64, "whole_pool": 1},
-        "late_producer_dag": {"whole_pool": 70},
+        "primary_puf_qrf": {"puf_clone": 57, "whole_pool": 8},
+        "late_producer_dag": {"whole_pool": 63},
     }
     assert all(
         "output_coverage_scope" not in target
@@ -341,7 +341,7 @@ def test_constant_derived_domain_counts_are_complete(
     )
 
     producer_graph = imputation["producer_graph"]
-    assert len(producer_graph["nodes"]) == 38
+    assert len(producer_graph["nodes"]) == 37
     assert len(producer_graph["ownership_matrix"]) == 18
     assert (
         not {
@@ -378,15 +378,15 @@ def test_constant_derived_domain_counts_are_complete(
         spine_document=spine,
         bundle_document=bundle,
     )["late_producer_schedule_receipt"]
-    assert len(compiled_schedule["edges"]) == 71
+    assert len(compiled_schedule["edges"]) == 69
     assert len(compiled_schedule["waves"]) == 6
     assert (
         compiled_schedule["schedule_sha256"]
-        == "e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f"
+        == "61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809"
     )
     assert (
         compiled_schedule["payload_sha256"]
-        == "02e618cc656eb39990ed99dca2b30a52794e01e2b06a3c2df87ca4a7d85ab086"
+        == "493f35c7f90f50642797c8e84b1b58627705bc43402de768ff3e29b3b02e4896"
     )
 
     assert len(take_up["programs"]) == 17
@@ -475,7 +475,7 @@ def test_constant_derived_domain_counts_are_complete(
     assert len(catalogs["columns"]) == 176
     assert len(resolved_us_spec.columns) == 176
     assert Counter(artifact.kind for artifact in resolved_us_spec.artifacts) == {
-        "producer_node": 38,
+        "producer_node": 37,
         "virtual_output": 18,
         "virtual_resource_binding": 28,
     }
@@ -696,11 +696,11 @@ def test_typed_imputation_reconstructs_all_constants_authority_components(
         "primary_qrf",
         "transfer_execution_contract_identities",
     }
-    assert payloads["late_producer_resource_semantics"]["producer_count"] == 38
+    assert payloads["late_producer_resource_semantics"]["producer_count"] == 37
     assert len(payloads["overlap_ownership"]["ownership"]) == 18
     assert (
         payloads["overlap_ownership"]["sha256"]
-        == "5f64f0aac49e2313177564f71876bffc8c81b3ded4df701e70930e60e9c98356"
+        == "c154604b6b0e8adaccb3cdea8542836d42d3d52f8fd0e2c3e5c63f0696cb8b1c"
     )
 
 
@@ -776,7 +776,7 @@ def test_authored_imputation_sha256_fields_are_assets_or_policy_identity(
         for resource in node["virtual_resources"]
         if resource["binding"]["resource_kind"] == "late_transfer_target_bank"
     ]
-    assert len(late_target_derivations) == 19
+    assert len(late_target_derivations) == 18
     assert all(
         set(derivation) == {"base", "producer"}
         for derivation in late_target_derivations

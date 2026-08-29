@@ -174,6 +174,7 @@ from microcosm.build.us_runtime.puf_support import (
     PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
+    PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
     US_PUF_SUPPORT_FIT_NAME,
     bind_puf_clone_attachment_tail_descendant,
@@ -236,6 +237,7 @@ __all__ = [
     "STACKED_PILOT_ACS_SAMPLE_FRACTION",
     "STACKED_PILOT_ACS_SAMPLE_SEED",
     "STACKED_SPINE_MANIFEST_KEY",
+    "US_PUF_NATIVE_ZERO_RULE_ID",
     "US_PUF_S_CORP_UNIVERSE_ZERO_RULE_ID",
     "US_LATE_PRODUCER_TRANSITION_AUTHORITY_KEY",
     "AbsenceProof",
@@ -264,6 +266,7 @@ __all__ = [
     "stacked_spine_authority_receipt",
     "transfer_stacked_post_puf_inputs",
     "transfer_stacked_post_puf_group",
+    "us_puf_native_zero_rule_identity",
     "us_puf_s_corp_universe_zero_rule_identity",
     "validate_stacked_late_producer_receipt",
     "validate_stacked_late_producer_transition_authority",
@@ -284,6 +287,7 @@ DEFAULT_STACKED_HOUSEHOLD_MASS_SHARES: Mapping[str, float] = {
 }
 
 STACKED_SPINE_MANIFEST_KEY = "us_stacked_spine_manifest"
+US_PUF_NATIVE_ZERO_RULE_ID = "puf_tax_detail_native_role_zero_v1"
 US_PUF_S_CORP_UNIVERSE_ZERO_RULE_ID = "puf_tax_detail_s_corp_income_universe_zero_v1"
 _LEGACY_STACKED_SPINE_MANIFEST_VERSION = 1
 _STACKED_SPINE_MANIFEST_VERSION = 4
@@ -5022,7 +5026,7 @@ def validate_stacked_post_puf_transfer_receipt(
     if not isinstance(targets, Mapping) or set(targets) != expected_target_labels:
         raise ValueError(
             f"{boundary}: stacked post-PUF transfer target surface is not the "
-            "canonical 70-target surface; production manifest emission is "
+            "canonical 63-target surface; production manifest emission is "
             "forbidden."
         )
     for name, group in expected_groups.items():
@@ -5054,8 +5058,8 @@ def validate_stacked_post_puf_transfer_receipt(
     completion = receipt.get("completion")
     if completion != {
         "status": "complete",
-        "group_count": 19,
-        "target_count": 70,
+        "group_count": 18,
+        "target_count": 63,
         "residual_null_rows": 0,
     }:
         raise ValueError(
@@ -5360,7 +5364,7 @@ def _late_resource_binding_schema_version(column: str) -> int:
     kind = _late_virtual_resource_kind(column)
     return {
         "acs_pums_earnings_universe_execution_config": 2,
-        "primary_puf_execution_config": 4,
+        "primary_puf_execution_config": 5,
         "post_clone_source_execution_config": 3,
         "source_finalizer_execution_config": 2,
         "late_transfer_model_config": 3,
@@ -5596,9 +5600,9 @@ def _validate_late_resource_binding(
         if doctrines != {
             "require_complete_recipient_predictors": True,
             "absent_cells": PUF_ABSENT_CELLS_PRESERVE_NULLS,
-            "whole_pool_output_universes": {
-                "person.s_corp_income": (us_puf_s_corp_universe_zero_rule_identity()),
-            },
+            "whole_pool_output_universes": (
+                _us_puf_whole_pool_output_universes_identity()
+            ),
         }:
             raise ValueError(f"{boundary}: late primary-PUF doctrines changed.")
         if audit_sinks != {
@@ -6017,7 +6021,7 @@ def _late_primary_execution_config_binding(
     )
     return {
         "resource_kind": "primary_puf_execution_config",
-        "schema_version": 4,
+        "schema_version": 5,
         "clone_attachment": {
             "fraction": float(clone_attachment_fraction),
             "seed": clone_attachment_seed,
@@ -6050,9 +6054,9 @@ def _late_primary_execution_config_binding(
         "doctrines": {
             "require_complete_recipient_predictors": True,
             "absent_cells": PUF_ABSENT_CELLS_PRESERVE_NULLS,
-            "whole_pool_output_universes": {
-                "person.s_corp_income": (us_puf_s_corp_universe_zero_rule_identity()),
-            },
+            "whole_pool_output_universes": (
+                _us_puf_whole_pool_output_universes_identity()
+            ),
         },
         "capital_gains_tail": {
             "enabled": True,
@@ -8303,7 +8307,7 @@ def validate_stacked_late_producer_receipt(
     if _json_ready(transfer["targets"]) != _json_ready(reconstructed_targets):
         raise ValueError(
             f"{boundary}: aggregate late-transfer targets are not reconstructed "
-            "from the nineteen producer receipts."
+            "from the eighteen producer receipts."
         )
 
     unsigned = dict(receipt)
@@ -8776,19 +8780,31 @@ _canonical_late_source_producer_keys = set(
 _canonical_full_transfer_keys = set(
     _surface_target_keys(_freeze_target_families(pool_transfer_target_families()))
 )
+_canonical_primary_native_zero_keys = {
+    key
+    for key in _canonical_full_transfer_keys
+    if (key[0], key[2]) in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+}
 if (
     len(_canonical_surface_keys) != 134
     or len(set(_canonical_surface_keys)) != 134
     or len(_canonical_early_transfer_keys) != 48
-    or len(_canonical_late_transfer_keys) != 70
-    or len(_canonical_late_puf_producer_keys) != 43
+    or len(_canonical_late_transfer_keys) != 63
+    or len(_canonical_late_puf_producer_keys) != 36
     or len(_canonical_late_source_producer_keys) != 29
     or len(_canonical_late_puf_producer_keys & _canonical_late_source_producer_keys)
     != 2
     or _canonical_late_puf_producer_keys | _canonical_late_source_producer_keys
     != _canonical_late_transfer_keys
     or _canonical_early_transfer_keys & _canonical_late_transfer_keys
-    or _canonical_early_transfer_keys | _canonical_late_transfer_keys
+    or len(_canonical_primary_native_zero_keys) != 7
+    or _canonical_primary_native_zero_keys & _canonical_early_transfer_keys
+    or _canonical_primary_native_zero_keys & _canonical_late_transfer_keys
+    or (
+        _canonical_early_transfer_keys
+        | _canonical_late_transfer_keys
+        | _canonical_primary_native_zero_keys
+    )
     != _canonical_full_transfer_keys
     or len(_canonical_full_transfer_keys) != 118
     or set(_plan_target_keys(_CANONICAL_STACKED_GAP_FILL_PLAN_ANCHOR))
@@ -8811,9 +8827,10 @@ if (
 ):
     raise RuntimeError(
         "Canonical stacked authority must partition the exact 118-target "
-        "transfer surface into 48 early gap-fill and 70 post-PUF targets "
+        "legacy transfer declaration into 48 early gap-fill, 63 post-PUF "
+        "transfer, and seven primary native-zero targets "
         "inside an exact 134-target terminal surface and metric registry; "
-        "the late surface must be exactly covered by 43 PUF-clone and 29 "
+        "the late surface must be exactly covered by 36 PUF-clone and 29 "
         "ASEC-source producer targets with their declared two-target overlap."
     )
 
@@ -10935,7 +10952,7 @@ def _aggregate_late_transfer_result(
     ],
     execution_order: Sequence[str],
 ) -> StackedPostPufTransferResult:
-    """Bind all bounded group outcomes into the canonical 70-target receipt."""
+    """Bind all bounded group outcomes into the canonical 63-target receipt."""
 
     expected_groups = tuple(group.name for group in CANONICAL_US_LATE_TRANSFER_GROUPS)
     if set(group_results) != set(expected_groups):
@@ -11446,6 +11463,33 @@ def run_stacked_late_producer_dag(
 # ---------------------------------------------------------------------------
 
 
+def us_puf_native_zero_rule_identity(
+    entity: str,
+    column: str,
+) -> dict[str, object]:
+    """Return one declared PUF-only/native-zero whole-pool contract."""
+
+    if (entity, column) not in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS:
+        raise ValueError(
+            "US PUF native-zero rule requested an undeclared output: "
+            f"{entity}.{column}."
+        )
+    return {
+        "rule_id": US_PUF_NATIVE_ZERO_RULE_ID,
+        "schema_version": 1,
+        "entity": entity,
+        "column": column,
+        "coverage_scope": "whole_pool",
+        "materialized_value": 0.0,
+        "source_semantics": (
+            "puf_tax_detail_available_only_on_clone_positive_support"
+        ),
+        "puf_clone_precondition": "finite_preserve_bit_exact",
+        "native_precondition": "all_null",
+        "assignment": "explicit_native_array_assignment",
+    }
+
+
 def us_puf_s_corp_universe_zero_rule_identity() -> dict[str, object]:
     """Return the declared whole-pool meaning of the PUF S-corp leaf."""
 
@@ -11464,6 +11508,165 @@ def us_puf_s_corp_universe_zero_rule_identity() -> dict[str, object]:
         "native_precondition": "all_null",
         "assignment": "explicit_array_assignment",
     }
+
+
+def _us_puf_whole_pool_output_universes_identity() -> dict[str, object]:
+    """Return every primary-PUF output whose owner completes the whole pool."""
+
+    return {
+        "person.s_corp_income": us_puf_s_corp_universe_zero_rule_identity(),
+        **{
+            f"{entity}.{column}": us_puf_native_zero_rule_identity(entity, column)
+            for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+        },
+    }
+
+
+def _materialize_us_puf_native_role_zeros(
+    frame: Frame,
+    outputs: Sequence[tuple[str, str]],
+) -> tuple[Frame, dict[str, object]]:
+    """Complete declared PUF-only leaves with structural native-role zeros.
+
+    The primary QRF (plus the capital-gains tail where applicable) owns every
+    clone-positive value.  ASEC- and ACS-origin clone-zero rows are outside the
+    PUF tax-detail source universe, so their value is an explicit zero rather
+    than a predictive transfer.  This boundary fails closed if a native cell
+    was already populated and verifies that every clone-positive payload stays
+    finite and bit-exact across the assignment.
+    """
+
+    requested = tuple(outputs)
+    requested_set = set(requested)
+    canonical_requested = tuple(
+        output
+        for output in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+        if output in requested_set
+    )
+    if len(requested_set) != len(requested) or requested != canonical_requested:
+        raise ValueError(
+            "US PUF native-zero materialization requires a unique canonical "
+            f"output subsequence; received={requested!r}."
+        )
+
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    targets: dict[str, object] = {}
+    for entity, column in requested:
+        table = tables[entity].copy(deep=True)
+        clone_column = support_clone_index_column(entity)
+        if column not in table:
+            raise ValueError(
+                "US PUF native-zero materialization requires the primary-QRF "
+                f"output column {entity}.{column}."
+            )
+        clone_values = pd.to_numeric(
+            table[clone_column], errors="coerce"
+        ).to_numpy(dtype=np.float64, na_value=np.nan)
+        invalid_roles = (
+            ~np.isfinite(clone_values)
+            | (clone_values < 0.0)
+            | (clone_values != np.floor(clone_values))
+        )
+        if invalid_roles.any():
+            raise ValueError(
+                "US PUF native-zero materialization found "
+                f"{int(invalid_roles.sum())} invalid {entity} clone role(s)."
+            )
+        native = clone_values == 0.0
+        produced = clone_values > 0.0
+        preexisting_native = int(table.loc[native, column].notna().sum())
+        if preexisting_native:
+            raise ValueError(
+                "US PUF native-zero precondition failed for "
+                f"{entity}.{column}: {preexisting_native} native cell(s) were "
+                "already materialized."
+            )
+
+        produced_values = pd.to_numeric(
+            table.loc[produced, column], errors="coerce"
+        ).to_numpy(dtype=np.float64, na_value=np.nan)
+        produced_nonfinite = int((~np.isfinite(produced_values)).sum())
+        if produced_nonfinite:
+            raise ValueError(
+                "US PUF native-zero clone precondition failed for "
+                f"{entity}.{column}: {produced_nonfinite} nonfinite "
+                "clone/tail value(s)."
+            )
+        produced_values_sha256 = _late_table_values_sha256(
+            table.loc[produced, [clone_column, column]]
+        )
+
+        output_values = pd.to_numeric(table[column], errors="coerce").to_numpy(
+            dtype=np.float64,
+            na_value=np.nan,
+            copy=True,
+        )
+        output_values[native] = 0.0
+        if not np.array_equal(
+            output_values[produced].view(np.uint64),
+            produced_values.view(np.uint64),
+        ):
+            raise AssertionError(
+                "US PUF native-zero assignment changed the clone-positive "
+                f"payload for {entity}.{column}."
+            )
+        table[column] = output_values
+        post_nonfinite = int((~np.isfinite(output_values)).sum())
+        post_native_nonzero = int((output_values[native] != 0.0).sum())
+        if post_nonfinite or post_native_nonzero:
+            raise AssertionError(
+                "US PUF native-zero explicit assignment did not produce a "
+                f"finite whole-pool {entity}.{column} with exact native zeros."
+            )
+        if (
+            _late_table_values_sha256(
+                table.loc[produced, [clone_column, column]]
+            )
+            != produced_values_sha256
+        ):
+            raise AssertionError(
+                "US PUF native-zero receipt detected changed clone-positive "
+                f"bytes for {entity}.{column}."
+            )
+
+        tables[entity] = table
+        role_counts = {
+            str(int(role)): int((clone_values == role).sum())
+            for role in sorted(set(clone_values))
+        }
+        key = f"{entity}.{column}"
+        targets[key] = {
+            "rule": us_puf_native_zero_rule_identity(entity, column),
+            "native_rows_materialized": int(native.sum()),
+            "produced_rows_verified": int(produced.sum()),
+            "entity_rows": len(table),
+            "rows_by_clone_role": role_counts,
+            "preexisting_native_rows": preexisting_native,
+            "post_materialization_nonfinite_rows": post_nonfinite,
+            "post_materialization_native_nonzero_rows": post_native_nonzero,
+            "produced_payload_preserved": True,
+            "produced_values_sha256": produced_values_sha256,
+            "whole_entity_values_sha256": _late_table_values_sha256(
+                table.loc[:, [clone_column, column]]
+            ),
+        }
+
+    materialized = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    receipt: dict[str, object] = {
+        "rule_id": US_PUF_NATIVE_ZERO_RULE_ID,
+        "schema_version": 1,
+        "status": "materialized" if requested else "output_not_requested",
+        "targets": targets,
+    }
+    receipt["sha256"] = _canonical_sha256(receipt)
+    return materialized, receipt
 
 
 def _materialize_us_puf_s_corp_universe_zero(
@@ -11977,6 +12180,11 @@ def _run_stacked_puf_pass_evaluate(
         if person_outputs is None
         else tuple(person_outputs)
     )
+    declared_tax_unit_outputs = (
+        tuple(PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS)
+        if tax_unit_outputs is None
+        else tuple(tax_unit_outputs)
+    )
     s_corp_rule_requested = "s_corp_income" in declared_person_outputs
     if s_corp_rule_requested and (
         apply_capital_gains_tail or person_outputs is not None
@@ -11994,6 +12202,41 @@ def _run_stacked_puf_pass_evaluate(
             ),
         }
         s_corp_universe_receipt["sha256"] = _canonical_sha256(s_corp_universe_receipt)
+
+    declared_native_zero_outputs = tuple(
+        (entity, column)
+        for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+        if column
+        in (
+            declared_person_outputs
+            if entity == "person"
+            else declared_tax_unit_outputs
+        )
+    )
+    materialized_native_zero_outputs = tuple(
+        (entity, column)
+        for entity, column in declared_native_zero_outputs
+        if apply_capital_gains_tail
+        or (entity == "person" and person_outputs is not None)
+        or (entity == "tax_unit" and tax_unit_outputs is not None)
+    )
+    if materialized_native_zero_outputs:
+        output, native_zero_receipt = _materialize_us_puf_native_role_zeros(
+            output,
+            materialized_native_zero_outputs,
+        )
+    else:
+        native_zero_receipt = {
+            "rule_id": US_PUF_NATIVE_ZERO_RULE_ID,
+            "schema_version": 1,
+            "status": (
+                "fixture_only_skipped"
+                if declared_native_zero_outputs
+                else "output_not_requested"
+            ),
+            "targets": {},
+        }
+        native_zero_receipt["sha256"] = _canonical_sha256(native_zero_receipt)
     validate_stacked_spine_frame(output, boundary="stacked PUF pass output")
 
     person = output.table("person")
@@ -12009,12 +12252,13 @@ def _run_stacked_puf_pass_evaluate(
         "doctrines": {
             "require_complete_recipient_predictors": True,
             "absent_cells": PUF_ABSENT_CELLS_PRESERVE_NULLS,
-            "whole_pool_output_universes": {
-                "person.s_corp_income": (us_puf_s_corp_universe_zero_rule_identity()),
-            },
+            "whole_pool_output_universes": (
+                _us_puf_whole_pool_output_universes_identity()
+            ),
         },
         "primary_puf_qrf": primary_qrf_receipt,
         "puf_capital_gains_tail_transfer": tail_receipt,
+        "native_role_zero_outputs": native_zero_receipt,
         "s_corp_income_universe_zero": s_corp_universe_receipt,
         "tail_status": tail_status,
         "recipient_person_rows_by_origin": recipients_by_origin,

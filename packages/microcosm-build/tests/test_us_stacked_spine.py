@@ -64,6 +64,7 @@ from microcosm.build.us_runtime.puf_support import (
     PUF_ABSENT_CELLS_PRESERVE_NULLS,
     PUF_CLONE_ATTACHMENT_MANIFEST_KEY,
     PUF_DONOR_SOURCE_ADJUSTED_GROSS_INCOME_COLUMN,
+    PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS,
     clone_us_frame_for_puf_support,
     finalize_us_puf_tax_detail_predictions,
     prepare_us_puf_tax_detail_chain_inputs,
@@ -742,6 +743,101 @@ def test_s_corp_universe_zero_fails_closed(
         stacked_spine_module._materialize_us_puf_s_corp_universe_zero(frame, donor)
 
 
+def _puf_native_zero_fixture() -> Frame:
+    cloned = _cloned_stacked_fixture()
+    tables = {entity: cloned.table(entity) for entity in cloned.entities}
+    for entity in {item[0] for item in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS}:
+        table = tables[entity].copy(deep=True)
+        clone_index = pd.to_numeric(
+            table[support_clone_index_column(entity)], errors="raise"
+        )
+        produced = clone_index.gt(0)
+        for output_entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS:
+            if output_entity != entity:
+                continue
+            table[column] = np.nan
+            table.loc[produced, column] = np.arange(
+                1,
+                int(produced.sum()) + 1,
+                dtype=np.float64,
+            )
+        tables[entity] = table
+    return Frame(
+        tables,
+        cloned.schema,
+        {entity: cloned.weights_for(entity) for entity in cloned.weighted_entities},
+        cloned.strata,
+        mass_log=cloned.mass_log,
+        metadata=cloned.metadata,
+    )
+
+
+def test_puf_native_zero_materializes_every_declared_leaf_and_preserves_payload() -> (
+    None
+):
+    frame = _puf_native_zero_fixture()
+    before = {
+        (entity, column): frame.table(entity)[column].copy(deep=True)
+        for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+    }
+
+    materialized, receipt = stacked_spine_module._materialize_us_puf_native_role_zeros(
+        frame,
+        PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS,
+    )
+
+    assert receipt["rule_id"] == stacked_spine_module.US_PUF_NATIVE_ZERO_RULE_ID
+    assert receipt["status"] == "materialized"
+    assert set(receipt["targets"]) == {
+        f"{entity}.{column}"
+        for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+    }
+    for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS:
+        table = materialized.table(entity)
+        clone_index = pd.to_numeric(
+            table[support_clone_index_column(entity)], errors="raise"
+        )
+        native = clone_index.eq(0)
+        produced = clone_index.gt(0)
+        assert table.loc[native, column].eq(0.0).all()
+        np.testing.assert_array_equal(
+            table.loc[produced, column].to_numpy(dtype=np.float64).view(np.uint64),
+            before[(entity, column)]
+            .loc[produced]
+            .to_numpy(dtype=np.float64)
+            .view(np.uint64),
+        )
+        target = receipt["targets"][f"{entity}.{column}"]
+        assert target["native_rows_materialized"] == int(native.sum())
+        assert target["produced_rows_verified"] == int(produced.sum())
+        assert target["preexisting_native_rows"] == 0
+        assert target["post_materialization_native_nonzero_rows"] == 0
+        assert target["produced_payload_preserved"] is True
+        assert target["rule"] == (
+            stacked_spine_module.us_puf_native_zero_rule_identity(entity, column)
+        )
+
+
+@pytest.mark.parametrize(("entity", "column"), PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS)
+def test_puf_native_zero_refuses_preexisting_native_contamination(
+    entity: str,
+    column: str,
+) -> None:
+    frame = _puf_native_zero_fixture()
+    table = frame.table(entity)
+    native = table[support_clone_index_column(entity)].eq(0)
+    table.loc[table.index[native][0], column] = 1.0
+
+    with pytest.raises(
+        ValueError,
+        match=rf"{entity}\.{column}: 1 native cell\(s\) were already materialized",
+    ):
+        stacked_spine_module._materialize_us_puf_native_role_zeros(
+            frame,
+            ((entity, column),),
+        )
+
+
 def test_stacked_primary_applies_s_corp_universe_rule_after_qrf(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -799,11 +895,81 @@ def test_stacked_primary_applies_s_corp_universe_rule_after_qrf(
     assert events == ["primary_qrf", "s_corp_universe_zero"]
     assert result.frame.table("person")["s_corp_income"].eq(0.0).all()
     assert result.receipt["s_corp_income_universe_zero"]["status"] == "materialized"
-    assert result.receipt["doctrines"]["whole_pool_output_universes"] == {
-        "person.s_corp_income": (
-            stacked_spine_module.us_puf_s_corp_universe_zero_rule_identity()
+    assert result.receipt["doctrines"]["whole_pool_output_universes"] == (
+        stacked_spine_module._us_puf_whole_pool_output_universes_identity()
+    )
+
+
+def test_stacked_primary_completes_all_puf_only_native_zero_outputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def impute(frame: Frame, *_args: object, **kwargs: object) -> Frame:
+        receipts = kwargs["predictor_universe_receipts"]
+        assert isinstance(receipts, list)
+        receipts.append({"fixture": "recipient-universe"})
+        tables = {entity: frame.table(entity) for entity in frame.entities}
+        for entity in {item[0] for item in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS}:
+            table = tables[entity].copy(deep=True)
+            clone_index = pd.to_numeric(
+                table[support_clone_index_column(entity)], errors="raise"
+            )
+            produced = clone_index.gt(0)
+            for output_entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS:
+                if output_entity != entity:
+                    continue
+                table[column] = np.nan
+                table.loc[produced, column] = np.arange(
+                    1,
+                    int(produced.sum()) + 1,
+                    dtype=np.float64,
+                )
+            tables[entity] = table
+        return Frame(
+            tables,
+            frame.schema,
+            {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+            frame.strata,
+            mass_log=frame.mass_log,
+            metadata=frame.metadata,
         )
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "impute_us_puf_tax_detail_support",
+        impute,
+    )
+    person_outputs = tuple(
+        column
+        for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+        if entity == "person"
+    )
+    tax_unit_outputs = tuple(
+        column
+        for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+        if entity == "tax_unit"
+    )
+
+    result = stacked_spine_module._run_stacked_puf_pass_without_tail_for_test(
+        _late_primary_entry(_stacked_gap_fixture()),
+        pd.DataFrame(),
+        clone_attachment_fraction=1.0,
+        clone_attachment_seed=578,
+        predictors=(),
+        person_outputs=person_outputs,
+        tax_unit_outputs=tax_unit_outputs,
+    )
+
+    zero_receipt = result.receipt["native_role_zero_outputs"]
+    assert zero_receipt["status"] == "materialized"
+    assert set(zero_receipt["targets"]) == {
+        f"{entity}.{column}"
+        for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
     }
+    for entity, column in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS:
+        table = result.frame.table(entity)
+        native = table[support_clone_index_column(entity)].eq(0)
+        assert table.loc[native, column].eq(0.0).all()
+        assert table.loc[~native, column].gt(0.0).all()
 
 
 def test_finalize_preserve_nulls_keeps_unowned_cells_null() -> None:
@@ -1814,15 +1980,24 @@ def test_canonical_metric_registry_covers_the_declared_134_target_split() -> Non
         for family, targets in families.items()
         for target in targets
     }
+    primary_native_zero_targets = {
+        target
+        for target in surface_targets
+        if (target[0], target[2]) in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+    }
     assert len(gap_targets) == 48
-    assert len(post_puf_targets) == 70
-    assert len(puf_producer_targets) == 43
+    assert len(post_puf_targets) == 63
+    assert len(puf_producer_targets) == 36
     assert len(source_producer_targets) == 29
+    assert len(primary_native_zero_targets) == 7
     assert len(puf_producer_targets & source_producer_targets) == 2
     assert puf_producer_targets | source_producer_targets == post_puf_targets
     assert gap_targets.isdisjoint(post_puf_targets)
-    assert len(gap_targets | post_puf_targets) == 118
-    assert gap_targets | post_puf_targets < surface_targets
+    assert primary_native_zero_targets.isdisjoint(gap_targets | post_puf_targets)
+    assert (
+        gap_targets | post_puf_targets | primary_native_zero_targets
+    ) < surface_targets
+    assert len(gap_targets | post_puf_targets | primary_native_zero_targets) == 118
     assert not {
         "bank_account_assets",
         "bond_assets",
@@ -2130,11 +2305,11 @@ def test_registry_drives_every_late_callback_dtype_family_check() -> None:
         for output in contract.outputs
         if (key := (output.entity, output.column)) in by_column
     ]
-    assert len(registered_occurrences) == 163
+    assert len(registered_occurrences) == 156
     assert Counter(
         metric for _producer, _entity, _column, metric in registered_occurrences
     ) == {
-        "monetary_sign_separated": 120,
+        "monetary_sign_separated": 113,
         "boolean_incidence": 37,
         "categorical_tvd": 6,
     }
@@ -2538,8 +2713,15 @@ def test_gap_fill_plan_covers_declared_families_exactly() -> None:
         for family, targets in families.items()
         for target in targets
     }
+    primary_native_zero_keys = {
+        key
+        for key in full_keys
+        if (key[0], key[2]) in PUF_TAX_DETAIL_NATIVE_ZERO_OUTPUTS
+    }
     assert early_keys.isdisjoint(late_keys)
-    assert early_keys | late_keys == full_keys
+    assert len(primary_native_zero_keys) == 7
+    assert primary_native_zero_keys.isdisjoint(early_keys | late_keys)
+    assert early_keys | late_keys | primary_native_zero_keys == full_keys
 
 
 def _canonical_gap_fill_calibration_receipt() -> dict[str, object]:
@@ -3594,7 +3776,10 @@ def test_bounded_transfer_group_remaps_canonical_producer_roles() -> None:
     assert "traditional_ira_contributions_desired" in puf_roles["person"][group.family]
     assert source_roles == {
         "person": {
-            group.family: ("traditional_ira_contributions_desired",),
+            group.family: (
+                "traditional_ira_contributions_desired",
+                "self_employed_pension_contributions_desired",
+            ),
         }
     }
 
@@ -4238,7 +4423,7 @@ def test_late_primary_resources_bind_donor_content_and_execution_config(
         "tax_unit_outputs": "canonical_default",
     }
     execution = baseline["tax_unit.@primary_puf_execution_config"]["binding"]
-    assert execution["schema_version"] == 4
+    assert execution["schema_version"] == 5
     assert execution["clone_attachment"]["support_channels"] == [
         stacked_spine_module.BASE_ASEC_SUPPORT_CHANNEL,
         stacked_spine_module.PUF_TAX_DETAIL_SUPPORT_CHANNEL,
@@ -4249,23 +4434,9 @@ def test_late_primary_resources_bind_donor_content_and_execution_config(
     assert execution["qrf"]["tail_bound_quantiles"] == {
         "non_sch_d_capital_gains": 0.999
     }
-    assert execution["doctrines"]["whole_pool_output_universes"] == {
-        "person.s_corp_income": {
-            "rule_id": "puf_tax_detail_s_corp_income_universe_zero_v1",
-            "schema_version": 1,
-            "entity": "person",
-            "column": "s_corp_income",
-            "coverage_scope": "whole_pool",
-            "materialized_value": 0.0,
-            "source_semantics": (
-                "puf_combined_partnership_s_corp_carried_by_partnership_income"
-            ),
-            "donor_precondition": "finite_exact_zero",
-            "puf_clone_precondition": "finite_exact_zero",
-            "native_precondition": "all_null",
-            "assignment": "explicit_array_assignment",
-        }
-    }
+    assert execution["doctrines"]["whole_pool_output_universes"] == (
+        stacked_spine_module._us_puf_whole_pool_output_universes_identity()
+    )
     worker = execution["qrf"]["worker_execution"]
     assert worker["module"] == "microcosm.build.us_runtime.puf_qrf_worker"
     assert worker["argv_template"] == [
@@ -5675,7 +5846,7 @@ def test_real_late_executor_follows_canonical_order_and_finalizes_sources_once(
         .all()
         .all()
     )
-    assert events.index("transfer:person/puf_tax_itemization__batch_5") < events.index(
+    assert events.index("transfer:person/puf_tax_itemization__batch_4") < events.index(
         "source:with_us_adult_care_inputs"
     )
     assert (
@@ -5905,7 +6076,7 @@ def test_late_executor_authority_binds_every_transfer_bank_identity(
     transfer_rows = [
         row for row in first.receipt["execution"] if row["kind"] == "late_transfer"
     ]
-    assert len(transfer_rows) == 19
+    assert len(transfer_rows) == 18
     for row in transfer_rows:
         available = row["available_input_receipts"]
         assert len(available) == 2
@@ -6563,8 +6734,8 @@ def _post_puf_puf_producer_fixture() -> Frame:
         errors="raise",
     )
     producer_rows = clone_index.gt(0)
-    person["educator_expense"] = np.nan
-    person.loc[producer_rows, "educator_expense"] = 10.0 * np.arange(
+    person["qualified_tuition_expenses"] = np.nan
+    person.loc[producer_rows, "qualified_tuition_expenses"] = 10.0 * np.arange(
         1,
         int(producer_rows.sum()) + 1,
     )
@@ -6580,15 +6751,17 @@ def _post_puf_puf_producer_fixture() -> Frame:
     )
 
 
-def test_post_puf_transfer_preserves_every_live_puf_clone_producer() -> None:
+def test_post_puf_transfer_preserves_an_intentionally_modeled_puf_clone_output() -> (
+    None
+):
     frame = _post_puf_puf_producer_fixture()
-    surface = {"person": {"puf_tax_itemization": ("educator_expense",)}}
+    surface = {"person": {"puf_tax_itemization": ("qualified_tuition_expenses",)}}
     authority = stacked_spine_module._make_test_stacked_authority(
         declared_surface=surface,
         gap_fill_plan=(),
         post_puf_transfer_surface=surface,
     )
-    before = frame.table("person")["educator_expense"].copy(deep=True)
+    before = frame.table("person")["qualified_tuition_expenses"].copy(deep=True)
 
     result = stacked_spine_module._transfer_stacked_post_puf_inputs_with_test_authority(
         frame,
@@ -6601,12 +6774,14 @@ def test_post_puf_transfer_preserves_every_live_puf_clone_producer() -> None:
     producer_rows = pd.to_numeric(
         person[support_clone_index_column("person")], errors="raise"
     ).gt(0)
-    assert person["educator_expense"].notna().all()
+    assert person["qualified_tuition_expenses"].notna().all()
     pd.testing.assert_series_equal(
-        person.loc[producer_rows, "educator_expense"],
+        person.loc[producer_rows, "qualified_tuition_expenses"],
         before.loc[producer_rows],
     )
-    receipt = result.receipt["targets"]["person/puf_tax_itemization/educator_expense"]
+    receipt = result.receipt["targets"][
+        "person/puf_tax_itemization/qualified_tuition_expenses"
+    ]
     assert receipt["producer_roles"] == ["puf_clone"]
     assert receipt["producer_rows"] == int(producer_rows.sum())
     assert receipt["authorized_null_rows"] == int((~producer_rows).sum())
@@ -6615,13 +6790,15 @@ def test_post_puf_transfer_preserves_every_live_puf_clone_producer() -> None:
     assert receipt["residual_null_rows"] == 0
 
 
-def test_post_puf_transfer_rejects_incomplete_acs_puf_clone_producer() -> None:
+def test_post_puf_transfer_rejects_incomplete_modeled_puf_clone_producer() -> None:
     frame = _post_puf_puf_producer_fixture()
     person = frame.table("person").copy()
     corrupted_rows = person[support_channel_column("person")].astype(str).eq(
         "acs"
     ) & person[support_clone_index_column("person")].eq(1)
-    person.loc[person.index[corrupted_rows][0], "educator_expense"] = np.nan
+    person.loc[
+        person.index[corrupted_rows][0], "qualified_tuition_expenses"
+    ] = np.nan
     tables = {entity: frame.table(entity) for entity in frame.entities}
     tables["person"] = person
     incomplete = Frame(
@@ -6632,7 +6809,7 @@ def test_post_puf_transfer_rejects_incomplete_acs_puf_clone_producer() -> None:
         mass_log=frame.mass_log,
         metadata=frame.metadata,
     )
-    surface = {"person": {"puf_tax_itemization": ("educator_expense",)}}
+    surface = {"person": {"puf_tax_itemization": ("qualified_tuition_expenses",)}}
     authority = stacked_spine_module._make_test_stacked_authority(
         declared_surface=surface,
         gap_fill_plan=(),
@@ -6641,7 +6818,7 @@ def test_post_puf_transfer_rejects_incomplete_acs_puf_clone_producer() -> None:
 
     with pytest.raises(
         ValueError,
-        match=r"post_puf_transfer/person/puf_tax_itemization/educator_expense:.*"
+        match=r"post_puf_transfer/person/puf_tax_itemization/qualified_tuition_expenses:.*"
         r"upstream producers must observe every producer-owned target",
     ):
         stacked_spine_module._transfer_stacked_post_puf_inputs_with_test_authority(
@@ -8269,7 +8446,7 @@ def test_stacked_authority_binds_import_validated_late_producer_schedule() -> No
     component = receipt["components"]["late_producer_schedule"]
 
     assert receipt["version"] == 11
-    assert component["producer_count"] == 38
+    assert component["producer_count"] == 37
     assert component["schedule_sha256"] == (
         stacked_spine_module.CANONICAL_US_LATE_PRODUCER_SCHEDULE.sha256
     )

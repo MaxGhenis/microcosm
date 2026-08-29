@@ -198,20 +198,16 @@ chaining:
     after_target: social_security_retirement
     reason: Declared eight-target QRF memory boundary matching the constants-era ACS transfer maximum.
   - family: late/person/puf_tax_itemization__batch_1
-    after_target: home_mortgage_interest
-    reason: Declared production memory boundary preserving the canonical five-batch late PUF itemization
+    after_target: student_loan_interest
+    reason: Declared production memory boundary preserving the canonical four-batch late PUF itemization
       partition.
   - family: late/person/puf_tax_itemization__batch_2
-    after_target: traditional_ira_contributions_desired
-    reason: Declared production memory boundary preserving the canonical five-batch late PUF itemization
+    after_target: partnership_income
+    reason: Declared production memory boundary preserving the canonical four-batch late PUF itemization
       partition.
   - family: late/person/puf_tax_itemization__batch_3
-    after_target: farm_operations_income_would_be_qualified
-    reason: Declared production memory boundary preserving the canonical five-batch late PUF itemization
-      partition.
-  - family: late/person/puf_tax_itemization__batch_4
-    after_target: qualified_reit_and_ptp_income
-    reason: Declared production memory boundary preserving the canonical five-batch late PUF itemization
+    after_target: sstb_self_employment_income_would_be_qualified
+    reason: Declared production memory boundary preserving the canonical four-batch late PUF itemization
       partition.
   memory_policy: release_after_draw
   keep_together:
@@ -1431,7 +1427,7 @@ families:
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: non_sch_d_capital_gains
     entity: person
     value_kind: amount
@@ -1501,7 +1497,7 @@ families:
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: charitable_cash_donations
     entity: person
     value_kind: amount
@@ -1543,7 +1539,7 @@ families:
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: student_loan_interest
     entity: person
     value_kind: amount
@@ -1557,7 +1553,7 @@ families:
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: qualified_tuition_expenses
     entity: person
     value_kind: amount
@@ -1627,7 +1623,7 @@ families:
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: miscellaneous_income
     entity: person
     value_kind: amount
@@ -1767,14 +1763,14 @@ families:
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: unrecaptured_section_1250_gain
     entity: tax_unit
     value_kind: amount
     dtype: float
     period: year
     requires_concepts: []
-    output_coverage_scope: puf_clone
+    output_coverage_scope: whole_pool
   - name: first_home_mortgage_balance
     entity: tax_unit
     value_kind: amount
@@ -1924,13 +1920,6 @@ families:
     period: year
     requires_concepts: []
     output_coverage_scope: whole_pool
-  - name: long_term_capital_gains_on_collectibles
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
   - name: non_sch_d_capital_gains
     entity: person
     value_kind: amount
@@ -1939,13 +1928,6 @@ families:
     requires_concepts: []
     output_coverage_scope: whole_pool
   - name: alimony_expense
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: salt_refund_income
     entity: person
     value_kind: amount
     dtype: float
@@ -1967,6 +1949,20 @@ families:
     requires_concepts: []
     output_coverage_scope: whole_pool
   - name: home_mortgage_interest
+    entity: person
+    value_kind: amount
+    dtype: float
+    period: year
+    requires_concepts: []
+    output_coverage_scope: whole_pool
+  - name: investment_interest_expense
+    entity: person
+    value_kind: amount
+    dtype: float
+    period: year
+    requires_concepts: []
+    output_coverage_scope: whole_pool
+  - name: student_loan_interest
     entity: person
     value_kind: amount
     dtype: float
@@ -1997,34 +1993,6 @@ families:
   max_targets_per_fit: 8
   execution_contract: acs_transfer_default
   targets:
-  - name: investment_interest_expense
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: investment_income_elected_form_4952
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: student_loan_interest
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: educator_expense
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
   - name: qualified_tuition_expenses
     entity: person
     value_kind: amount
@@ -2047,6 +2015,34 @@ families:
     requires_concepts: []
     output_coverage_scope: whole_pool
   - name: traditional_ira_contributions_desired
+    entity: person
+    value_kind: amount
+    dtype: float
+    period: year
+    requires_concepts: []
+    output_coverage_scope: whole_pool
+  - name: self_employed_pension_contributions_desired
+    entity: person
+    value_kind: amount
+    dtype: float
+    period: year
+    requires_concepts: []
+    output_coverage_scope: whole_pool
+  - name: estate_income
+    entity: person
+    value_kind: amount
+    dtype: float
+    period: year
+    requires_concepts: []
+    output_coverage_scope: whole_pool
+  - name: farm_income
+    entity: person
+    value_kind: amount
+    dtype: float
+    period: year
+    requires_concepts: []
+    output_coverage_scope: whole_pool
+  - name: partnership_income
     entity: person
     value_kind: amount
     dtype: float
@@ -2077,41 +2073,6 @@ families:
   max_targets_per_fit: 8
   execution_contract: acs_transfer_default
   targets:
-  - name: self_employed_pension_contributions_desired
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: estate_income
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: farm_income
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: farm_rent_income
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: partnership_income
-    entity: person
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
   - name: partnership_self_employment_net_earnings
     entity: person
     value_kind: amount
@@ -2133,30 +2094,6 @@ families:
     period: year
     requires_concepts: []
     output_coverage_scope: whole_pool
-- id: late/person/puf_tax_itemization__batch_4
-  stage: late_producer_dag
-  entities:
-  - person
-  runtime_name: transfer:person/puf_tax_itemization__batch_4
-  donor:
-    channel: asec
-  donor_contract:
-    spine: asec_puf
-    resource_binding_channel: null
-    selection: all_rows_from_post_puf_asec_origin_projection
-    projection:
-      support_channel: asec
-      support_clone_index: 1
-  recipient_contract:
-    selection: target_specific_complement_of_declared_producer_rows
-  model: regime_gated_qrf
-  predictors:
-  - acs_person_required
-  - acs_person_optional_income
-  - acs_person_optional_structure
-  max_targets_per_fit: 8
-  execution_contract: acs_transfer_default
-  targets:
   - name: farm_rent_income_would_be_qualified
     entity: person
     value_kind: flag
@@ -2192,6 +2129,30 @@ families:
     period: year
     requires_concepts: []
     output_coverage_scope: whole_pool
+- id: late/person/puf_tax_itemization__batch_4
+  stage: late_producer_dag
+  entities:
+  - person
+  runtime_name: transfer:person/puf_tax_itemization__batch_4
+  donor:
+    channel: asec
+  donor_contract:
+    spine: asec_puf
+    resource_binding_channel: null
+    selection: all_rows_from_post_puf_asec_origin_projection
+    projection:
+      support_channel: asec
+      support_clone_index: 1
+  recipient_contract:
+    selection: target_specific_complement_of_declared_producer_rows
+  model: regime_gated_qrf
+  predictors:
+  - acs_person_required
+  - acs_person_optional_income
+  - acs_person_optional_structure
+  max_targets_per_fit: 8
+  execution_contract: acs_transfer_default
+  targets:
   - name: business_is_sstb
     entity: person
     value_kind: flag
@@ -2213,30 +2174,6 @@ families:
     period: year
     requires_concepts: []
     output_coverage_scope: whole_pool
-- id: late/person/puf_tax_itemization__batch_5
-  stage: late_producer_dag
-  entities:
-  - person
-  runtime_name: transfer:person/puf_tax_itemization__batch_5
-  donor:
-    channel: asec
-  donor_contract:
-    spine: asec_puf
-    resource_binding_channel: null
-    selection: all_rows_from_post_puf_asec_origin_projection
-    projection:
-      support_channel: asec
-      support_clone_index: 1
-  recipient_contract:
-    selection: target_specific_complement_of_declared_producer_rows
-  model: regime_gated_qrf
-  predictors:
-  - acs_person_required
-  - acs_person_optional_income
-  - acs_person_optional_structure
-  max_targets_per_fit: 8
-  execution_contract: acs_transfer_default
-  targets:
   - name: sstb_self_employment_income_before_lsr
     entity: person
     value_kind: amount
@@ -2702,20 +2639,6 @@ families:
   max_targets_per_fit: 8
   execution_contract: acs_transfer_default
   targets:
-  - name: domestic_production_ald
-    entity: tax_unit
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
-  - name: unrecaptured_section_1250_gain
-    entity: tax_unit
-    value_kind: amount
-    dtype: float
-    period: year
-    requires_concepts: []
-    output_coverage_scope: whole_pool
   - name: first_home_mortgage_balance
     entity: tax_unit
     value_kind: amount
@@ -2776,7 +2699,7 @@ families:
     output_coverage_scope: whole_pool
 producer_graph:
   graph_schema_version: 2
-  schedule_payload_schema_version: 16
+  schedule_payload_schema_version: 17
   external_stages:
   - post_clone_input_surface
   scope_coverage:
@@ -4397,7 +4320,7 @@ producer_graph:
       resolution: static_exact
       binding:
         resource_kind: primary_puf_execution_config
-        schema_version: 4
+        schema_version: 5
         qrf:
           invocation_mode:
             predictors: canonical_default
@@ -4471,6 +4394,83 @@ producer_graph:
               puf_clone_precondition: finite_exact_zero
               native_precondition: all_null
               assignment: explicit_array_assignment
+            person.long_term_capital_gains_on_collectibles:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: person
+              column: long_term_capital_gains_on_collectibles
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            person.salt_refund_income:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: person
+              column: salt_refund_income
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            person.investment_income_elected_form_4952:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: person
+              column: investment_income_elected_form_4952
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            person.educator_expense:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: person
+              column: educator_expense
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            person.farm_rent_income:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: person
+              column: farm_rent_income
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            tax_unit.domestic_production_ald:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: tax_unit
+              column: domestic_production_ald
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
+            tax_unit.unrecaptured_section_1250_gain:
+              rule_id: puf_tax_detail_native_role_zero_v1
+              schema_version: 1
+              entity: tax_unit
+              column: unrecaptured_section_1250_gain
+              coverage_scope: whole_pool
+              materialized_value: 0.0
+              source_semantics: puf_tax_detail_available_only_on_clone_positive_support
+              puf_clone_precondition: finite_preserve_bit_exact
+              native_precondition: all_null
+              assignment: explicit_native_array_assignment
         capital_gains_tail:
           enabled: true
           spec:
@@ -6415,7 +6415,7 @@ producer_graph:
           value_kind: finite_numeric
       column: sstb_self_employment_income_before_lsr
       entity: person
-      producing_stage: transfer:person/puf_tax_itemization__batch_5
+      producing_stage: transfer:person/puf_tax_itemization__batch_4
       required_scope: asec_source
       tolerated_absence_receipts: []
     - alternatives:
@@ -17225,10 +17225,10 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: long_term_capital_gains_on_collectibles
+      - - column: investment_interest_expense
           entity: person
           value_kind: finite_numeric
-      column: long_term_capital_gains_on_collectibles
+      column: investment_interest_expense
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -17360,15 +17360,6 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: salt_refund_income
-          entity: person
-          value_kind: finite_numeric
-      column: salt_refund_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
       - - column: self_employment_income_before_lsr
           entity: person
           value_kind: finite_numeric
@@ -17409,6 +17400,15 @@ producer_graph:
           entity: person
           value_kind: finite_numeric
       column: social_security_survivors
+      entity: person
+      producing_stage: primary_puf_qrf
+      required_scope: puf_clone
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: student_loan_interest
+          entity: person
+          value_kind: finite_numeric
+      column: student_loan_interest
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -17582,13 +17582,13 @@ producer_graph:
             family: puf_tax_itemization__batch_1
             ordered_targets:
             - tax_exempt_interest_income
-            - long_term_capital_gains_on_collectibles
             - non_sch_d_capital_gains
             - alimony_expense
-            - salt_refund_income
             - charitable_cash_donations
             - charitable_non_cash_donations
             - home_mortgage_interest
+            - investment_interest_expense
+            - student_loan_interest
   - id: transfer:person/puf_tax_itemization__batch_2
     name: transfer:person/puf_tax_itemization__batch_2
     kind: late_transfer
@@ -18199,15 +18199,6 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: educator_expense
-          entity: person
-          value_kind: finite_numeric
-      column: educator_expense
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
       - - column: employment_income_before_lsr
           entity: person
           value_kind: finite_numeric
@@ -18226,19 +18217,10 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: investment_income_elected_form_4952
+      - - column: farm_income
           entity: person
           value_kind: finite_numeric
-      column: investment_income_elected_form_4952
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: investment_interest_expense
-          entity: person
-          value_kind: finite_numeric
-      column: investment_interest_expense
+      column: farm_income
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -18248,6 +18230,15 @@ producer_graph:
           entity: person
           value_kind: finite_numeric
       column: non_qualified_dividend_income
+      entity: person
+      producing_stage: primary_puf_qrf
+      required_scope: puf_clone
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: partnership_income
+          entity: person
+          value_kind: finite_numeric
+      column: partnership_income
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -18370,6 +18361,24 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
+      - - column: self_employed_pension_contributions_desired
+          entity: person
+          value_kind: finite_numeric
+      column: self_employed_pension_contributions_desired
+      entity: person
+      producing_stage: source:with_us_retirement_contribution_inputs
+      required_scope: asec_source
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: self_employed_pension_contributions_desired
+          entity: person
+          value_kind: finite_numeric
+      column: self_employed_pension_contributions_desired
+      entity: person
+      producing_stage: primary_puf_qrf
+      required_scope: puf_clone
+      tolerated_absence_receipts: []
+    - alternatives:
       - - column: self_employment_income_before_lsr
           entity: person
           value_kind: finite_numeric
@@ -18410,15 +18419,6 @@ producer_graph:
           entity: person
           value_kind: finite_numeric
       column: social_security_survivors
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: student_loan_interest
-          entity: person
-          value_kind: finite_numeric
-      column: student_loan_interest
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -18618,14 +18618,14 @@ producer_graph:
             entity: person
             family: puf_tax_itemization__batch_2
             ordered_targets:
-            - investment_interest_expense
-            - investment_income_elected_form_4952
-            - student_loan_interest
-            - educator_expense
             - qualified_tuition_expenses
             - casualty_loss
             - unreimbursed_business_employee_expenses
             - traditional_ira_contributions_desired
+            - self_employed_pension_contributions_desired
+            - estate_income
+            - farm_income
+            - partnership_income
   - id: transfer:person/puf_tax_itemization__batch_3
     name: transfer:person/puf_tax_itemization__batch_3
     kind: late_transfer
@@ -19254,15 +19254,6 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: farm_income
-          entity: person
-          value_kind: finite_numeric
-      column: farm_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
       - - column: farm_operations_income_would_be_qualified
           entity: person
           value_kind: non_null
@@ -19272,10 +19263,10 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: farm_rent_income
+      - - column: farm_rent_income_would_be_qualified
           entity: person
-          value_kind: finite_numeric
-      column: farm_rent_income
+          value_kind: non_null
+      column: farm_rent_income_would_be_qualified
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -19290,10 +19281,10 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: partnership_income
+      - - column: partnership_s_corp_income_would_be_qualified
           entity: person
-          value_kind: finite_numeric
-      column: partnership_income
+          value_kind: non_null
+      column: partnership_s_corp_income_would_be_qualified
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -19416,19 +19407,10 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: self_employed_pension_contributions_desired
+      - - column: rental_income_would_be_qualified
           entity: person
-          value_kind: finite_numeric
-      column: self_employed_pension_contributions_desired
-      entity: person
-      producing_stage: source:with_us_retirement_contribution_inputs
-      required_scope: asec_source
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: self_employed_pension_contributions_desired
-          entity: person
-          value_kind: finite_numeric
-      column: self_employed_pension_contributions_desired
+          value_kind: non_null
+      column: rental_income_would_be_qualified
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -19438,6 +19420,15 @@ producer_graph:
           entity: person
           value_kind: finite_numeric
       column: self_employment_income_before_lsr
+      entity: person
+      producing_stage: primary_puf_qrf
+      required_scope: puf_clone
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: self_employment_income_would_be_qualified
+          entity: person
+          value_kind: non_null
+      column: self_employment_income_would_be_qualified
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -19474,6 +19465,15 @@ producer_graph:
           entity: person
           value_kind: finite_numeric
       column: social_security_survivors
+      entity: person
+      producing_stage: primary_puf_qrf
+      required_scope: puf_clone
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: sstb_self_employment_income_would_be_qualified
+          entity: person
+          value_kind: non_null
+      column: sstb_self_employment_income_would_be_qualified
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -19646,14 +19646,14 @@ producer_graph:
             entity: person
             family: puf_tax_itemization__batch_3
             ordered_targets:
-            - self_employed_pension_contributions_desired
-            - estate_income
-            - farm_income
-            - farm_rent_income
-            - partnership_income
             - partnership_self_employment_net_earnings
             - estate_income_would_be_qualified
             - farm_operations_income_would_be_qualified
+            - farm_rent_income_would_be_qualified
+            - partnership_s_corp_income_would_be_qualified
+            - rental_income_would_be_qualified
+            - self_employment_income_would_be_qualified
+            - sstb_self_employment_income_would_be_qualified
   - id: transfer:person/puf_tax_itemization__batch_4
     name: transfer:person/puf_tax_itemization__batch_4
     kind: late_transfer
@@ -20282,28 +20282,10 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: farm_rent_income_would_be_qualified
-          entity: person
-          value_kind: non_null
-      column: farm_rent_income_would_be_qualified
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
       - - column: non_qualified_dividend_income
           entity: person
           value_kind: finite_numeric
       column: non_qualified_dividend_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: partnership_s_corp_income_would_be_qualified
-          entity: person
-          value_kind: non_null
-      column: partnership_s_corp_income_would_be_qualified
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -20421,989 +20403,6 @@ producer_graph:
           entity: person
           value_kind: finite_numeric
       column: qualified_reit_and_ptp_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: rental_income
-          entity: person
-          value_kind: finite_numeric
-      column: rental_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: rental_income_would_be_qualified
-          entity: person
-          value_kind: non_null
-      column: rental_income_would_be_qualified
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: self_employment_income_before_lsr
-          entity: person
-          value_kind: finite_numeric
-      column: self_employment_income_before_lsr
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: self_employment_income_would_be_qualified
-          entity: person
-          value_kind: non_null
-      column: self_employment_income_would_be_qualified
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: social_security_dependents
-          entity: person
-          value_kind: finite_numeric
-      column: social_security_dependents
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: social_security_disability
-          entity: person
-          value_kind: finite_numeric
-      column: social_security_disability
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: social_security_retirement
-          entity: person
-          value_kind: finite_numeric
-      column: social_security_retirement
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: social_security_survivors
-          entity: person
-          value_kind: finite_numeric
-      column: social_security_survivors
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: sstb_self_employment_income_would_be_qualified
-          entity: person
-          value_kind: non_null
-      column: sstb_self_employment_income_would_be_qualified
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: tax_exempt_interest_income
-          entity: person
-          value_kind: finite_numeric
-      column: tax_exempt_interest_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: taxable_interest_income
-          entity: person
-          value_kind: finite_numeric
-      column: taxable_interest_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: taxable_ira_distributions
-          entity: person
-          value_kind: finite_numeric
-      column: taxable_ira_distributions
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: taxable_private_pension_income
-          entity: person
-          value_kind: finite_numeric
-      column: taxable_private_pension_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: spm_unit_id
-          entity: spm_unit
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:spm_unit_id'
-      entity: spm_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: spm_unit_support_channel
-          entity: spm_unit
-          value_kind: non_null
-      column: '@effective:validated_structure:spm_unit_support_channel'
-      entity: spm_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: spm_unit_support_clone_index
-          entity: spm_unit
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:spm_unit_support_clone_index'
-      entity: spm_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: spm_unit_id
-          entity: spm_unit
-          value_kind: finite_numeric
-      column: spm_unit_id
-      entity: spm_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: spm_unit_support_channel
-          entity: spm_unit
-          value_kind: non_null
-      column: spm_unit_support_channel
-      entity: spm_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: spm_unit_support_clone_index
-          entity: spm_unit
-          value_kind: finite_numeric
-      column: spm_unit_support_clone_index
-      entity: spm_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: tax_unit_id
-          entity: tax_unit
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:tax_unit_id'
-      entity: tax_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: tax_unit_support_channel
-          entity: tax_unit
-          value_kind: non_null
-      column: '@effective:validated_structure:tax_unit_support_channel'
-      entity: tax_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: tax_unit_support_clone_index
-          entity: tax_unit
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:tax_unit_support_clone_index'
-      entity: tax_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: tax_unit_id
-          entity: tax_unit
-          value_kind: finite_numeric
-      column: tax_unit_id
-      entity: tax_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: tax_unit_support_channel
-          entity: tax_unit
-          value_kind: non_null
-      column: tax_unit_support_channel
-      entity: tax_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: tax_unit_support_clone_index
-          entity: tax_unit
-          value_kind: finite_numeric
-      column: tax_unit_support_clone_index
-      entity: tax_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    outputs: []
-    virtual_resources:
-    - id: person.@late_transfer_model_config
-      kind: execution_config
-      resolution: static_exact
-      binding:
-        resource_kind: late_transfer_model_config
-        schema_version: 3
-    - id: person.@late_transfer_target_bank
-      kind: target_bank
-      resolution: transferred_stage_identity_derived
-      binding:
-        resource_kind: late_transfer_target_bank
-        schema_version: 1
-        mode: identity_bound_checkpoint
-      dynamic_field:
-        name: identity_sha256
-        derivation:
-          base: transferred_pool_checkpoint_stage_identity
-          producer:
-            name: transfer:person/puf_tax_itemization__batch_4
-            entity: person
-            family: puf_tax_itemization__batch_4
-            ordered_targets:
-            - farm_rent_income_would_be_qualified
-            - partnership_s_corp_income_would_be_qualified
-            - rental_income_would_be_qualified
-            - self_employment_income_would_be_qualified
-            - sstb_self_employment_income_would_be_qualified
-            - business_is_sstb
-            - qualified_bdc_income
-            - qualified_reit_and_ptp_income
-  - id: transfer:person/puf_tax_itemization__batch_5
-    name: transfer:person/puf_tax_itemization__batch_5
-    kind: late_transfer
-    kernel: kernel:acs_transfer
-    capabilities:
-      determinism: seeded
-      numeric_reproducibility: tolerance_bound
-      effects:
-      - none
-      structural_delta: none
-      retry_safety: idempotent
-    mutations:
-      entity_keys:
-        operation: preserve
-        precondition: entity_keys_valid
-        postcondition: entity_keys_unchanged
-      cardinality:
-        operation: preserve
-        precondition: entity_cardinality_valid
-        postcondition: entity_cardinality_unchanged
-      links:
-        operation: preserve
-        precondition: links_valid
-        postcondition: links_unchanged
-      memberships:
-        operation: preserve
-        precondition: memberships_valid
-        postcondition: memberships_unchanged
-      order:
-        operation: preserve
-        precondition: entity_order_valid
-        postcondition: entity_order_unchanged
-      weights:
-        operation: preserve
-        precondition: weights_valid
-        postcondition: weights_unchanged
-      mass_history:
-        operation: preserve
-        precondition: mass_history_valid
-        postcondition: mass_history_unchanged
-    inputs:
-    - alternatives:
-      - - column: family_id
-          entity: family
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:family_id'
-      entity: family
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: family_support_channel
-          entity: family
-          value_kind: non_null
-      column: '@effective:validated_structure:family_support_channel'
-      entity: family
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: family_support_clone_index
-          entity: family
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:family_support_clone_index'
-      entity: family
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: family_id
-          entity: family
-          value_kind: finite_numeric
-      column: family_id
-      entity: family
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: family_support_channel
-          entity: family
-          value_kind: non_null
-      column: family_support_channel
-      entity: family
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: family_support_clone_index
-          entity: family
-          value_kind: finite_numeric
-      column: family_support_clone_index
-      entity: family
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@us_spine_assembly_manifest'
-          entity: frame
-          value_kind: non_null
-      column: '@effective:validated_structure:assembly_manifest'
-      entity: frame
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@us_puf_clone_attachment_manifest'
-          entity: frame
-          value_kind: non_null
-      column: '@effective:validated_structure:puf_attachment_manifest'
-      entity: frame
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@us_stacked_spine_manifest'
-          entity: frame
-          value_kind: non_null
-      column: '@effective:validated_structure:stacked_manifest'
-      entity: frame
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@us_puf_clone_attachment_manifest'
-          entity: frame
-          value_kind: non_null
-      column: '@us_puf_clone_attachment_manifest'
-      entity: frame
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_id
-          entity: household
-          value_kind: finite_numeric
-        - column: state_fips
-          entity: household
-          value_kind: finite_numeric
-        - column: person_household_id
-          entity: person
-          value_kind: finite_numeric
-      - - column: state_fips
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:state_fips'
-      entity: household
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: TYPEHUGQ
-          entity: household
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:TYPEHUGQ'
-      entity: household
-      producing_stage: post_clone_input_surface
-      required_scope: acs_source
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_id
-          entity: household
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:household_id'
-      entity: household
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_source_id
-          entity: household
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:household_source_id'
-      entity: household
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_spine_source_id
-          entity: household
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:household_spine_source_id'
-      entity: household
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_support_channel
-          entity: household
-          value_kind: non_null
-      column: '@effective:validated_structure:household_support_channel'
-      entity: household
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_support_clone_index
-          entity: household
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:household_support_clone_index'
-      entity: household
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@resolved_weight'
-          entity: household
-          value_kind: non_null
-      column: '@effective:validated_structure:resolved_household_weight'
-      entity: household
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@resolved_weight'
-          entity: household
-          value_kind: non_null
-      column: '@resolved_weight'
-      entity: household
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: TYPEHUGQ
-          entity: household
-          value_kind: finite_numeric
-      column: TYPEHUGQ
-      entity: household
-      producing_stage: primary_puf_qrf
-      required_scope: acs_source
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_id
-          entity: household
-          value_kind: finite_numeric
-      column: household_id
-      entity: household
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_source_id
-          entity: household
-          value_kind: finite_numeric
-      column: household_source_id
-      entity: household
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_spine_source_id
-          entity: household
-          value_kind: finite_numeric
-      column: household_spine_source_id
-      entity: household
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_support_channel
-          entity: household
-          value_kind: non_null
-      column: household_support_channel
-      entity: household
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: household_support_clone_index
-          entity: household
-          value_kind: finite_numeric
-      column: household_support_clone_index
-      entity: household
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: marital_unit_id
-          entity: marital_unit
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:marital_unit_id'
-      entity: marital_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: marital_unit_support_channel
-          entity: marital_unit
-          value_kind: non_null
-      column: '@effective:validated_structure:marital_unit_support_channel'
-      entity: marital_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: marital_unit_support_clone_index
-          entity: marital_unit
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:marital_unit_support_clone_index'
-      entity: marital_unit
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: marital_unit_id
-          entity: marital_unit
-          value_kind: finite_numeric
-      column: marital_unit_id
-      entity: marital_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: marital_unit_support_channel
-          entity: marital_unit
-          value_kind: non_null
-      column: marital_unit_support_channel
-      entity: marital_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: marital_unit_support_clone_index
-          entity: marital_unit
-          value_kind: finite_numeric
-      column: marital_unit_support_clone_index
-      entity: marital_unit
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: age
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:age'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: is_female
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:is_female'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@late_transfer_model_config'
-          entity: person
-          value_kind: non_null
-      column: '@effective:late_transfer_model_config'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@late_transfer_target_bank'
-          entity: person
-          value_kind: non_null
-      column: '@effective:late_transfer_target_bank'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: employment_income_before_lsr
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:optional_employment_income'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts:
-      - optional_input:transfer:person/puf_tax_itemization__batch_5:optional_employment_income
-    - alternatives:
-      - - column: A_EXPRRP
-          entity: person
-          value_kind: finite_numeric
-      - - column: A_LINENO
-          entity: person
-          value_kind: finite_numeric
-      - - column: is_household_head
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:optional_household_head'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts:
-      - optional_input:transfer:person/puf_tax_itemization__batch_5:optional_household_head
-    - alternatives:
-      - - column: acs_interest_dividend_rental_income
-          entity: person
-          value_kind: finite_numeric
-      - - column: estate_income
-          entity: person
-          value_kind: finite_numeric
-        - column: non_qualified_dividend_income
-          entity: person
-          value_kind: finite_numeric
-        - column: qualified_dividend_income
-          entity: person
-          value_kind: finite_numeric
-        - column: rental_income
-          entity: person
-          value_kind: finite_numeric
-        - column: tax_exempt_interest_income
-          entity: person
-          value_kind: finite_numeric
-        - column: taxable_interest_income
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:optional_investment_income'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts:
-      - optional_input:transfer:person/puf_tax_itemization__batch_5:optional_investment_income
-    - alternatives:
-      - - column: acs_retirement_income
-          entity: person
-          value_kind: finite_numeric
-      - - column: tax_exempt_private_pension_income
-          entity: person
-          value_kind: finite_numeric
-        - column: taxable_ira_distributions
-          entity: person
-          value_kind: finite_numeric
-        - column: taxable_private_pension_income
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:optional_retirement_income'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts:
-      - optional_input:transfer:person/puf_tax_itemization__batch_5:optional_retirement_income
-    - alternatives:
-      - - column: self_employment_income_before_lsr
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:optional_self_employment_income'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts:
-      - optional_input:transfer:person/puf_tax_itemization__batch_5:optional_self_employment_income
-    - alternatives:
-      - - column: acs_social_security_income
-          entity: person
-          value_kind: finite_numeric
-      - - column: social_security_dependents
-          entity: person
-          value_kind: finite_numeric
-        - column: social_security_disability
-          entity: person
-          value_kind: finite_numeric
-        - column: social_security_retirement
-          entity: person
-          value_kind: finite_numeric
-        - column: social_security_survivors
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:optional_social_security_income'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts:
-      - optional_input:transfer:person/puf_tax_itemization__batch_5:optional_social_security_income
-    - alternatives:
-      - - column: tenure_type
-          entity: person
-          value_kind: non_null
-      - - column: spm_unit_tenure_type
-          entity: spm_unit
-          value_kind: non_null
-      column: '@effective:optional_tenure'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts:
-      - optional_input:transfer:person/puf_tax_itemization__batch_5:optional_tenure
-    - alternatives:
-      - - column: '@resolved_weight'
-          entity: person
-          value_kind: non_null
-      column: '@effective:resolved_person_weight'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@resolved_weight'
-          entity: person
-          value_kind: non_null
-      column: '@effective:resolved_target_weight'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_family_id
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_family_id'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_household_id
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_household_id'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_id
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_id'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_marital_unit_id
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_marital_unit_id'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_source_id
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_source_id'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_spine_source_id
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_spine_source_id'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_spm_unit_id
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_spm_unit_id'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_support_channel
-          entity: person
-          value_kind: non_null
-      column: '@effective:validated_structure:person_support_channel'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_support_clone_index
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_support_clone_index'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_tax_unit_id
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:validated_structure:person_tax_unit_id'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: '@resolved_weight'
-          entity: person
-          value_kind: non_null
-      column: '@resolved_weight'
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: employment_income_before_lsr
-          entity: person
-          value_kind: finite_numeric
-      column: employment_income_before_lsr
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: estate_income
-          entity: person
-          value_kind: finite_numeric
-      column: estate_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: non_qualified_dividend_income
-          entity: person
-          value_kind: finite_numeric
-      column: non_qualified_dividend_income
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_family_id
-          entity: person
-          value_kind: finite_numeric
-      column: person_family_id
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_household_id
-          entity: person
-          value_kind: finite_numeric
-      column: person_household_id
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_id
-          entity: person
-          value_kind: finite_numeric
-      column: person_id
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_marital_unit_id
-          entity: person
-          value_kind: finite_numeric
-      column: person_marital_unit_id
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_source_id
-          entity: person
-          value_kind: finite_numeric
-      column: person_source_id
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_spine_source_id
-          entity: person
-          value_kind: finite_numeric
-      column: person_spine_source_id
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_spm_unit_id
-          entity: person
-          value_kind: finite_numeric
-      column: person_spm_unit_id
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_support_channel
-          entity: person
-          value_kind: non_null
-      column: person_support_channel
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_support_clone_index
-          entity: person
-          value_kind: finite_numeric
-      column: person_support_clone_index
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: person_tax_unit_id
-          entity: person
-          value_kind: finite_numeric
-      column: person_tax_unit_id
-      entity: person
-      producing_stage: primary_puf_qrf
-      required_scope: whole_pool
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: qualified_dividend_income
-          entity: person
-          value_kind: finite_numeric
-      column: qualified_dividend_income
       entity: person
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -21671,10 +20670,13 @@ producer_graph:
         derivation:
           base: transferred_pool_checkpoint_stage_identity
           producer:
-            name: transfer:person/puf_tax_itemization__batch_5
+            name: transfer:person/puf_tax_itemization__batch_4
             entity: person
-            family: puf_tax_itemization__batch_5
+            family: puf_tax_itemization__batch_4
             ordered_targets:
+            - business_is_sstb
+            - qualified_bdc_income
+            - qualified_reit_and_ptp_income
             - sstb_self_employment_income_before_lsr
             - sstb_unadjusted_basis_qualified_property
             - sstb_w2_wages_from_qualified_business
@@ -33264,15 +32266,6 @@ producer_graph:
       required_scope: whole_pool
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: domestic_production_ald
-          entity: tax_unit
-          value_kind: finite_numeric
-      column: domestic_production_ald
-      entity: tax_unit
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
-    - alternatives:
       - - column: first_home_mortgage_balance
           entity: tax_unit
           value_kind: finite_numeric
@@ -33335,15 +32328,6 @@ producer_graph:
       producing_stage: primary_puf_qrf
       required_scope: whole_pool
       tolerated_absence_receipts: []
-    - alternatives:
-      - - column: unrecaptured_section_1250_gain
-          entity: tax_unit
-          value_kind: finite_numeric
-      column: unrecaptured_section_1250_gain
-      entity: tax_unit
-      producing_stage: primary_puf_qrf
-      required_scope: puf_clone
-      tolerated_absence_receipts: []
     outputs: []
     virtual_resources:
     - id: tax_unit.@late_transfer_model_config
@@ -33368,8 +32352,6 @@ producer_graph:
             entity: tax_unit
             family: puf_tax_itemization
             ordered_targets:
-            - domestic_production_ald
-            - unrecaptured_section_1250_gain
             - first_home_mortgage_balance
             - first_home_mortgage_interest
             - first_home_mortgage_origination_year
@@ -33378,7 +32360,7 @@ producer_graph:
     version: 3
     row_binding: declared_globally_reconciled_input_and_scope_exact_output_source_and_primary_callback_resource_receipt_and_previous_execution_sha256
     virtual_resource_binding: exact_kind_specific_semantic_payload_and_sha256
-    top_binding: entry_and_output_frame_sha256_execution_chain_source_completion_and_nineteen_transfer_groups
+    top_binding: entry_and_output_frame_sha256_execution_chain_source_completion_and_eighteen_transfer_groups
     transition_authority:
       authority_id: us_stacked_late_producer_transition
       metadata_key: us_late_producer_transition_authority
@@ -33599,7 +32581,7 @@ producer_graph:
     - producer: source:with_us_retirement_contribution_inputs
       owns_final: true
       action: final_write
-    - producer: transfer:person/puf_tax_itemization__batch_3
+    - producer: transfer:person/puf_tax_itemization__batch_2
       owns_final: false
       action: producer_masked_byte_exact_noop
   - entity: person
@@ -33615,7 +32597,7 @@ producer_graph:
     - producer: source:with_us_retirement_contribution_inputs
       owns_final: true
       action: final_write
-    - producer: transfer:person/puf_tax_itemization__batch_3
+    - producer: transfer:person/puf_tax_itemization__batch_2
       owns_final: false
       action: producer_masked_byte_exact_noop
   - entity: person
@@ -33631,14 +32613,14 @@ producer_graph:
     - producer: source:with_us_retirement_contribution_inputs
       owns_final: true
       action: byte_exact_clone_1_mirror
-    - producer: transfer:person/puf_tax_itemization__batch_3
+    - producer: transfer:person/puf_tax_itemization__batch_2
       owns_final: false
       action: producer_masked_byte_exact_noop
   - entity: person
     target: self_employed_pension_contributions_desired
     origin: acs
     clone_index: 0
-    final_owner: transfer:person/puf_tax_itemization__batch_3
+    final_owner: transfer:person/puf_tax_itemization__batch_2
     finalization: late_transfer_owner_last
     producer_actions:
     - producer: primary_puf_qrf
@@ -33647,7 +32629,7 @@ producer_graph:
     - producer: source:with_us_retirement_contribution_inputs
       owns_final: false
       action: origin_projection_masked_noop
-    - producer: transfer:person/puf_tax_itemization__batch_3
+    - producer: transfer:person/puf_tax_itemization__batch_2
       owns_final: true
       action: final_write
   - entity: person
@@ -33663,7 +32645,7 @@ producer_graph:
     - producer: source:with_us_retirement_contribution_inputs
       owns_final: false
       action: origin_projection_masked_noop
-    - producer: transfer:person/puf_tax_itemization__batch_3
+    - producer: transfer:person/puf_tax_itemization__batch_2
       owns_final: false
       action: producer_masked_byte_exact_noop
   - entity: person
@@ -33679,7 +32661,7 @@ producer_graph:
     - producer: source:with_us_retirement_contribution_inputs
       owns_final: false
       action: origin_projection_masked_noop
-    - producer: transfer:person/puf_tax_itemization__batch_3
+    - producer: transfer:person/puf_tax_itemization__batch_2
       owns_final: false
       action: producer_masked_byte_exact_noop
   resource_semantics:
