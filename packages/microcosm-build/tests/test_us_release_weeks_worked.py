@@ -568,6 +568,42 @@ def test_gate_rejects_coherent_all_clone_value_tamper(
     assert any("source-value receipt" in failure for failure in gate.failures)
 
 
+def test_gate_rejects_coherent_registered_operation_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    before = _stacked_frame()
+    original = module.derive_us_release_weeks_worked_from_manifest
+
+    def coherently_swapped_operation(frame, operation, context):
+        output = original(frame, operation, context)
+        channel_column = support_channel_column("person")
+        acs = output[channel_column].eq("acs")
+        by_source = output.loc[acs].groupby("person_source_id")["weeks_worked"].first()
+        nonzero = by_source.loc[by_source.gt(0)]
+        left_source, right_source = nonzero.index[:2]
+        left_value, right_value = nonzero.iloc[:2]
+        output.loc[
+            acs & output["person_source_id"].eq(left_source), "weeks_worked"
+        ] = right_value
+        output.loc[
+            acs & output["person_source_id"].eq(right_source), "weeks_worked"
+        ] = left_value
+        return output
+
+    monkeypatch.setattr(
+        module,
+        "derive_us_release_weeks_worked_from_manifest",
+        coherently_swapped_operation,
+    )
+    result = _weeks(before, tmp_path, monkeypatch)
+
+    gate = us_release_weeks_worked_gate(before, result)
+
+    assert not gate.passed
+    assert any("source-value receipt" in failure for failure in gate.failures)
+
+
 def test_allocation_swap_with_unchanged_marginals_is_rejected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -599,6 +635,61 @@ def test_gate_rejects_joint_crosstab_tamper_even_with_fresh_digest(
     gate = us_release_weeks_worked_gate(before, tampered)
     assert not gate.passed
     assert any("joint receipt changed" in failure for failure in gate.failures)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "failure_text"),
+    [
+        ("asec_domain", "live ASEC raw-domain counts"),
+        ("asec_source_year", "live ASEC source-year rows"),
+        ("acs_source_people", "live ACS source-person counts"),
+        ("acs_support_rows", "live ACS support-row count"),
+        ("acs_clone_counts", "live ACS clone-role counts"),
+        ("acs_semantic_key", "live ACS semantic keys"),
+    ],
+)
+def test_gate_rejects_rehashed_receipt_that_contradicts_live_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    failure_text: str,
+) -> None:
+    before = _stacked_frame()
+    result = _weeks(before, tmp_path, monkeypatch)
+    receipt = copy.deepcopy(result.receipt)
+    if mutation == "asec_domain":
+        receipt["raw_domains"]["asec_WKSWORK"]["minimum"] = 1
+    elif mutation == "asec_source_year":
+        receipt["period_identity"]["asec_source_year_rows"] = {"1900": 2}
+    elif mutation == "acs_source_people":
+        receipt["join"]["acs_source_people"] = 1
+        receipt["join"]["selected_raw_person_rows"] = 1
+        receipt["join"]["matched_pool_source_people"] = 1
+    elif mutation == "acs_support_rows":
+        receipt["join"]["acs_support_rows"] = 8
+        receipt["join"]["acs_support_rows_by_clone_index"] = {
+            "0": 4,
+            "1": 3,
+            "2": 1,
+        }
+    elif mutation == "acs_clone_counts":
+        receipt["join"]["acs_support_rows_by_clone_index"] = {
+            "0": 2,
+            "1": 4,
+            "2": 1,
+        }
+    else:
+        assert mutation == "acs_semantic_key"
+        receipt["join"]["semantic_key_sha256"] = "0" * 64
+    receipt["sha256"] = module._canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "sha256"}
+    )
+    tampered = ReleaseWeeksWorkedResult(frame=result.frame, receipt=receipt)
+
+    gate = us_release_weeks_worked_gate(before, tampered)
+
+    assert not gate.passed
+    assert any(failure_text in failure for failure in gate.failures)
 
 
 def test_direct_2025_materialization_is_rejected() -> None:

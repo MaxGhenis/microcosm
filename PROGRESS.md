@@ -118,6 +118,24 @@ push, or PR. Candidate-25 remains read-only evidence.
   the stale-checkpoint regression to prove v12 refusal; the same digest
   transitively invalidates reform-vector caches. Both focused checkpoint tests
   pass and focused Ruff is green.
+- The same audit demonstrated a coherent ACS operation-drift attack: swapping
+  two valid nonzero `WKWN` values across source identities, fanning each to all
+  clones, and refreshing the post-output digest passed the gate. The canonical
+  expected-value digest is now derived independently from authenticated staged
+  `WKSWORK`/joined `WKWN` before the registered operation runs, so the gate
+  detects coherent mapping drift as well as post-receipt tampering. Added the
+  executable swap regression.
+- A second fresh-digest attack showed that internally coherent but false ASEC
+  row/year counts and ACS source/support/clone/key counts were schema-valid but
+  not compared with the live frame. The gate now re-derives the live ASEC
+  domain and source-year table, the canonical ACS source set and semantic-key
+  digest, the ACS support/clone counts, and requires exact global clone roles
+  0/1/2. Six separately rehashed contradictory receipts cover every check.
+  The hardened weeks suite passes 31/31 with focused Ruff green. The registered
+  kernel/spec corridor passes 75/75; the US generator remains byte-current at
+  `e9ea75c7cc5a1613f0fde007f1061ad23dbf8e2d3c4574523c5469f77b8209ed`,
+  and coverage remains 41,558/41,558 fields plus 41/41 inventory checks. The
+  final independent v3 audit reports no remaining material plan deviation.
 
 ## Next
 

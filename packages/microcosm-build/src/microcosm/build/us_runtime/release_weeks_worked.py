@@ -331,6 +331,11 @@ def with_us_release_weeks_worked(
     stage_person[_STAGE_ACS_ALLOCATION] = np.nan
     stage_person.loc[acs_mask, _STAGE_ACS_WEEKS] = weeks.to_numpy()
     stage_person.loc[acs_mask, _STAGE_ACS_ALLOCATION] = allocation.to_numpy()
+    # Compute the expected mapping receipt from authenticated measured inputs,
+    # before the registered operation runs.  This deliberately does not trust
+    # the operation output: the additive gate must catch a coherent mapping
+    # regression even when every clone receives the same valid-domain value.
+    expected_source_value_sha256 = _expected_source_value_sha256(stage_person)
     output = run_source_stage(
         us_release_weeks_worked_stage_spec(),
         tables={"person": stage_person},
@@ -355,15 +360,7 @@ def with_us_release_weeks_worked(
         metadata=frame.metadata,
     )
 
-    semantic_keys = canonical.loc[:, ["SERIALNO", "SPORDER"]].sort_values(
-        ["SERIALNO", "SPORDER"], kind="stable"
-    )
-    semantic_key_sha256 = hashlib.sha256(
-        "".join(
-            f"{serial}:{int(sporder)}\n"
-            for serial, sporder in semantic_keys.itertuples(index=False, name=None)
-        ).encode()
-    ).hexdigest()
+    semantic_key_sha256 = _acs_semantic_key_sha256(canonical)
     asec_mask = person[channel_column].eq(_ASEC_CHANNEL)
     asec_values = _required_integral_domain(
         person.loc[asec_mask, _ASEC_SOURCE],
@@ -434,7 +431,7 @@ def with_us_release_weeks_worked(
                 "recoded_support_rows": blank_support_rows,
             },
             "conflicting_preexisting_values": 0,
-            "canonical_source_value_sha256": _source_value_sha256(output),
+            "canonical_source_value_sha256": expected_source_value_sha256,
         },
     }
     receipt["sha256"] = _canonical_sha256(receipt)
@@ -494,6 +491,40 @@ def us_release_weeks_worked_gate(
             raise ValueError(
                 "US release weeks-worked live ASEC values differ from WKSWORK."
             )
+        raw_domains_receipt = _mapping(
+            result.receipt["raw_domains"], label="raw domains"
+        )
+        asec_domain_receipt = _mapping(
+            raw_domains_receipt.get("asec_WKSWORK"), label="ASEC raw domain"
+        )
+        live_asec_domain = {
+            "rows": int(len(asec_source)),
+            "minimum": int(asec_source.min()),
+            "maximum": int(asec_source.max()),
+        }
+        receipted_asec_domain = {
+            field: asec_domain_receipt.get(field) for field in live_asec_domain
+        }
+        details["live_asec_raw_domain"] = live_asec_domain
+        if live_asec_domain != receipted_asec_domain:
+            raise ValueError(
+                "US release weeks-worked live ASEC raw-domain counts differ "
+                "from the source receipt."
+            )
+        period_receipt = _mapping(
+            result.receipt["period_identity"], label="period identity"
+        )
+        live_asec_source_year_rows = _source_year_counts(
+            person.loc[asec_mask]
+        )
+        details["live_asec_source_year_rows"] = live_asec_source_year_rows
+        if live_asec_source_year_rows != period_receipt.get(
+            "asec_source_year_rows"
+        ):
+            raise ValueError(
+                "US release weeks-worked live ASEC source-year rows differ "
+                "from the source receipt."
+            )
         recode_receipt = _mapping(
             mapping_receipt.get("acs_blank_recode"),
             label="ACS blank recode",
@@ -515,10 +546,10 @@ def us_release_weeks_worked_gate(
         person_provenance = provenance["person"]
         observed_roles = set(person_provenance["by_clone_index"])
         allowed_roles = {str(index) for index in _ALLOWED_CLONE_INDICES}
-        if not observed_roles <= allowed_roles:
+        if observed_roles != allowed_roles:
             raise ValueError(
-                "US release weeks-worked gate found unsupported clone role(s): "
-                f"{sorted(observed_roles - allowed_roles)}."
+                "US release weeks-worked gate requires exact clone roles "
+                f"{sorted(allowed_roles)}; got {sorted(observed_roles)}."
             )
         joint = {
             channel: {
@@ -532,6 +563,53 @@ def us_release_weeks_worked_gate(
             for channel in (_ASEC_CHANNEL, _ACS_CHANNEL)
         }
         details["by_source_channel_and_clone_index"] = joint
+
+        canonical_acs, live_acs_support_rows, live_acs_clone_counts = (
+            _canonical_acs_source_people(after)
+        )
+        join_receipt = _mapping(result.receipt["join"], label="join")
+        live_acs_source_people = int(len(canonical_acs))
+        live_semantic_key_sha256 = _acs_semantic_key_sha256(canonical_acs)
+        details["live_acs_join"] = {
+            "source_people": live_acs_source_people,
+            "support_rows": live_acs_support_rows,
+            "support_rows_by_clone_index": live_acs_clone_counts,
+            "semantic_key_sha256": live_semantic_key_sha256,
+        }
+        if any(
+            join_receipt.get(field) != live_acs_source_people
+            for field in (
+                "acs_source_people",
+                "selected_raw_person_rows",
+                "matched_pool_source_people",
+            )
+        ):
+            raise ValueError(
+                "US release weeks-worked live ACS source-person counts differ "
+                "from the exact-join receipt."
+            )
+        if join_receipt.get("acs_support_rows") != live_acs_support_rows:
+            raise ValueError(
+                "US release weeks-worked live ACS support-row count differs "
+                "from the exact-join receipt."
+            )
+        receipted_clone_counts = _mapping(
+            join_receipt.get("acs_support_rows_by_clone_index"),
+            label="ACS support rows by clone index",
+        )
+        if (
+            dict(receipted_clone_counts) != live_acs_clone_counts
+            or joint[_ACS_CHANNEL] != live_acs_clone_counts
+        ):
+            raise ValueError(
+                "US release weeks-worked live ACS clone-role counts differ "
+                "from the exact-join receipt."
+            )
+        if join_receipt.get("semantic_key_sha256") != live_semantic_key_sha256:
+            raise ValueError(
+                "US release weeks-worked live ACS semantic keys differ from "
+                "the exact-join receipt."
+            )
 
         source_column = support_source_id_column("person")
         source_ids = _required_integral_domain(
@@ -844,6 +922,42 @@ def _read_and_validate_acs_weeks_archive(
     }
 
 
+def _acs_semantic_key_sha256(canonical: pd.DataFrame) -> str:
+    required = {"SERIALNO", "SPORDER"}
+    missing = sorted(required - set(canonical.columns))
+    if missing:
+        raise ValueError(
+            "US release weeks-worked ACS semantic-key digest lacks column(s): "
+            f"{missing}."
+        )
+    serial = canonical["SERIALNO"]
+    if serial.isna().any():
+        raise ValueError(
+            "US release weeks-worked ACS semantic-key SERIALNO must be complete."
+        )
+    sporder = _required_integral_domain(
+        canonical["SPORDER"],
+        label="ACS semantic-key SPORDER",
+        minimum=1,
+        maximum=10_000,
+    )
+    semantic_keys = pd.DataFrame(
+        {"SERIALNO": serial.astype(str), "SPORDER": sporder}
+    ).sort_values(["SERIALNO", "SPORDER"], kind="stable")
+    if semantic_keys.duplicated(["SERIALNO", "SPORDER"]).any():
+        raise ValueError(
+            "US release weeks-worked ACS semantic-key digest found collision(s)."
+        )
+    return hashlib.sha256(
+        "".join(
+            f"{serial_value}:{int(sporder_value)}\n"
+            for serial_value, sporder_value in semantic_keys.itertuples(
+                index=False, name=None
+            )
+        ).encode()
+    ).hexdigest()
+
+
 def _validate_source_receipt(receipt: Mapping[str, object]) -> None:
     required = {
         "version",
@@ -1102,6 +1216,55 @@ def _source_value_sha256(person: pd.DataFrame) -> str:
             )
         ).encode()
     ).hexdigest()
+
+
+def _expected_source_value_sha256(person: pd.DataFrame) -> str:
+    """Hash the authorized mapping independently from operation output."""
+
+    channel_column = support_channel_column("person")
+    source_column = support_source_id_column("person")
+    required = {
+        channel_column,
+        source_column,
+        _ASEC_SOURCE,
+        _STAGE_ACS_WEEKS,
+    }
+    missing = sorted(required - set(person.columns))
+    if missing:
+        raise ValueError(
+            "US release weeks-worked expected-value digest lacks column(s): "
+            f"{missing}."
+        )
+    channels = person[channel_column].astype(str)
+    if set(channels.unique()) != {_ASEC_CHANNEL, _ACS_CHANNEL}:
+        raise ValueError(
+            "US release weeks-worked expected-value digest requires exact "
+            "ASEC/ACS channels."
+        )
+    asec = channels.eq(_ASEC_CHANNEL)
+    acs = channels.eq(_ACS_CHANNEL)
+    asec_values = _required_integral_domain(
+        person.loc[asec, _ASEC_SOURCE],
+        label="expected-value ASEC WKSWORK",
+        minimum=0,
+        maximum=52,
+    )
+    acs_values, _acs_blank = _required_blank_or_integral_domain(
+        person.loc[acs, _STAGE_ACS_WEEKS],
+        label="expected-value ACS WKWN",
+        minimum=1,
+        maximum=52,
+    )
+    expected = np.zeros(len(person), dtype=np.float64)
+    expected[np.flatnonzero(asec.to_numpy())] = asec_values.to_numpy(
+        dtype=np.float64
+    )
+    expected[np.flatnonzero(acs.to_numpy())] = acs_values.fillna(0).to_numpy(
+        dtype=np.float64
+    )
+    canonical_input = person.loc[:, [channel_column, source_column]].copy()
+    canonical_input[_OUTPUT] = expected
+    return _source_value_sha256(canonical_input)
 
 
 def _column_diff_receipt(before: Frame, after: Frame) -> dict[str, object]:
