@@ -144,6 +144,12 @@ push, or PR. Candidate-25 remains read-only evidence.
   its surface-separation assertions. This is attestation follow-through, not a
   runtime or declaration change. All 311 tests across the complete 24-file
   spec-engine/bundle corridor pass, with focused Ruff and diff hygiene green.
+- The next repository run stopped at 4,180 passed on the sole remaining old US
+  live-spec literal: the constants-adapter test still expected the pre-weeks
+  `7f4537db...01c9` binding. Updated that one live-binding expectation to the
+  generated and coverage-attested `e9ea75c7...9ed`; the arbitrary checkpoint
+  identity fixtures remain untouched. The complete multispine pool-tool file
+  passes 187/187 with focused Ruff and diff hygiene green.
 
 ## Next
 
