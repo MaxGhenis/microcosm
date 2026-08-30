@@ -8,13 +8,14 @@ Plan SHA-256: `e89dd0facbc6d22f296f65ff18520333af0f8ecc6c2b706c1fd6a2b98d49e729`
 
 ## State
 
-Implementation is complete and final verification is in progress. The
-declarative 2024 source stage, provenance-owner runtime, dedicated fail-closed
-gate, release-builder/manifest integration, consumer/period-boundary
-regressions, corrected ACS archive declaration, and dependent compiler
-attestations are committed. The authorized v3 ruling is the binding scope:
-code, spec, and tests only; no data build, artifact mutation, publication,
-push, or PR. Candidate-25 remains read-only evidence.
+Complete on 2026-08-30. The declarative 2024 source stage,
+provenance-owner runtime, dedicated fail-closed gate,
+release-builder/manifest integration, consumer/period-boundary regressions,
+corrected ACS archive declaration, and dependent compiler attestations are
+committed. Exact implementation commit `d074f0d0` passed the complete
+repository suite and all static checks. The authorized v3 ruling was the
+binding scope: code, spec, and tests only; no data build, artifact mutation,
+publication, push, or PR. Candidate-25 remained read-only evidence.
 
 ## Done
 
@@ -156,13 +157,23 @@ push, or PR. Candidate-25 remains read-only evidence.
   `stacked_release_weeks_worked` explicitly as a release-only source spec and
   asserted that it remains outside the ordinary `US_STAGE_NAMES` build plan.
   The focused plan/source-runtime/spec-bundle corridor passes 95/95.
+- Fresh repository-wide pytest from exact clean implementation commit
+  `d074f0d0` passes 7,592 tests with 83 expected skips and 2,462 warnings in
+  3,902.41 seconds. This run crossed all three earlier stale-contract stopping
+  points and completed the previously unreached tail.
+- Final exact-commit static verification is green: repository Ruff; all 315
+  tracked test files assigned by the CI-group verifier; generated US bundle
+  SHA-256 `e9ea75c7cc5a1613f0fde007f1061ad23dbf8e2d3c4574523c5469f77b8209ed`;
+  41,558/41,558 spec fields and 41/41 inventory checks; and clean diff/status
+  hygiene. Import-dependent checks were run through the project UV
+  environment.
+- No data build, candidate mutation, publication, push, or PR was performed.
+  The required implementation report is recorded in `out.md`.
 
 ## Next
 
-- Run fresh final verification against the committed tree: all pytest shards,
-  repository Ruff, CI test inventory, generated US bundle check, coverage
-  check, and diff hygiene.
-- Finalize the journal and required `out.md` implementation report.
+- No implementation-lane work remains. Preserve the no-build hold and
+  candidate-25 read-only boundary unless separately authorized.
 
 ---
 
