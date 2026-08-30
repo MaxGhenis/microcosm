@@ -8,12 +8,13 @@ Plan SHA-256: `e89dd0facbc6d22f296f65ff18520333af0f8ecc6c2b706c1fd6a2b98d49e729`
 
 ## State
 
-Implementation in progress. The declarative 2024 source stage, provenance-owner
-runtime, dedicated fail-closed gate, release-builder/manifest integration, and
-consumer/period-boundary regressions are complete and green. Repository-wide
-verification remains. The authorized v3 ruling is the binding scope: code,
-spec, and tests only; no data build, artifact mutation, publication, push, or
-PR. Candidate-25 remains read-only evidence.
+Implementation is complete and final verification is in progress. The
+declarative 2024 source stage, provenance-owner runtime, dedicated fail-closed
+gate, release-builder/manifest integration, consumer/period-boundary
+regressions, corrected ACS archive declaration, and dependent compiler
+attestations are committed. The authorized v3 ruling is the binding scope:
+code, spec, and tests only; no data build, artifact mutation, publication,
+push, or PR. Candidate-25 remains read-only evidence.
 
 ## Done
 
@@ -105,13 +106,17 @@ PR. Candidate-25 remains read-only evidence.
   runtime constants. The 24-test weeks suite plus both direct identity tests,
   focused Ruff, generator `--check`, and coverage `--check` are green. Both
   independent audits report no remaining v3 plan gap.
+- Resumed from the clean committed tree at `4266de0e`, read the complete
+  binding plan and full lane journal, reverified the authorized plan SHA-256,
+  and reconciled the stale prior "Next" item: the corrected declaration and
+  dependent identities are already committed in `deb42a37` and `4266de0e`.
 
 ## Next
 
-- Commit the corrected ACS declaration and dependent identities.
-- Rerun the complete affected spec corridor and build shard against the
-  committed final tree. The frame, fit, data, and calibrate shards are already
-  green; finalize the journal and required output report afterward.
+- Run fresh final verification against the committed tree: all pytest shards,
+  repository Ruff, CI test inventory, generated US bundle check, coverage
+  check, and diff hygiene.
+- Finalize the journal and required `out.md` implementation report.
 
 ---
 
