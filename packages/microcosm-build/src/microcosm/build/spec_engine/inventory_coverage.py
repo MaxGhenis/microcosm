@@ -347,20 +347,20 @@ EXPECTED_LEGACY_RELEASE_REGEX = EXPECTED_RELEASE_REGEX.replace(
 EXPECTED_HASHES = {
     "acs_group_predictors": "a927bb7ecf3e84f54c93583ab79318654514ac546aefafba67da5285615fbd60",
     "acs_person_predictors": "878c788a6f037d7aca12b3586ea034eff04f3034ffa11935a736493042551f25",
-    "authority": "bfa60231e7b5c4bbc82f507bd3ab113132917b4de6f68c296cc674990b88c119",
+    "authority": "6e7359c5bbdea0deb3ad5a76812bdc3138a5f78305e8c3c9c220884a83ba2fdb",
     "early_families": "4aa9f736fd76e83955477ad1667e58f48f264783f05bdc7f0102cd32d61323bd",
-    "full_checkpoint": "a76010ad1296d5f61cab511b9a18ad727fd4b8991813a74c265931b6d53ce310",
+    "full_checkpoint": "c7abba2339906367767d7efde5f90df4b1f7205be0cc8d4e78faa3ee6895770e",
     "gap_fill_schedule": "1c31f9868f7884347cc19cf1ff65da43f950b9114941a715bab168246db414a7",
-    "graph_nodes": "2cd88e59a502ce574ccea40efa130807cfeb513bbef2d48baf72cd836076a704",
+    "graph_nodes": "8551198b67644d45dc064d51c5dfbd41a91154c9cdf0665770adc2503f6c10e6",
     "geography_assignment": "f49425ca8734ac559c73cf44f6458d86d3162a48956b98a27e6e758959361585",
     "late_families": "0b5134e544c218ba079bcfb1a789e1cd1ff27d4706709163c7e78de52dd1f580",
-    "late_resource_semantics": "f77e5badbf8191d13ff91812285122479b0f32afd5fd24728a0390132fb77dac",
-    "late_schedule": "61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809",
+    "late_resource_semantics": "f7056887d0bbcf516aefe523ba478717c1c0316fec618ba39deea98678147fd6",
+    "late_schedule": "5222f7329e12723ae809c5ff3cb09b7c06c1a5b2d09571cb3ad7b86cca207aee",
     "ownership": "c154604b6b0e8adaccb3cdea8542836d42d3d52f8fd0e2c3e5c63f0696cb8b1c",
     "primary_tuples": "987b501c695e31f45521c4a178528f75ab3df22c09bc407b182213b2de99ee57",
-    "seed_map": "0c0528231b7b5f6fe6cd1e52de8627b8000ab47d46f43c96d6c039fa167f5a84",
-    "seed_protocol": "af40954eb19aa1be7237821f19998917cabc1e95f8bef4825d2ba2776bf3a873",
-    "source_manifest": "cd5ba8924d64da5425ee14cca82a774e3f4b2bb5aabe06df291cc3cc457287a9",
+    "seed_map": "ffd8104143ef7d58fc1e9789db96f4e1209c052716a33dbb5c6ca8e48800201c",
+    "seed_protocol": "9636a6deea8b2f877d372f13635757b4088e03cd0d21eb96655d9e6e205142a2",
+    "source_manifest": "fae4801adb8aada71775b3b44ee1d4a5e784acabc3dfc44a0fe7d1ae00f91b57",
     "take_up": "fa186daea0f8dd641cc470e41d1a2953f887d45282ec990201298f47bedf8d4d",
     "tail": "ac92829c88a1a4fb6460d61190918d5d99c6c377fc8dd8f62f02b332d09bf59c",
 }
@@ -428,7 +428,7 @@ EXPECTED_INVENTORY_COUNTS: Mapping[str, int] = {
     "primary_targets": 65,
     "producer_authored_outputs": 92,
     "producer_compiled_outputs": 220,
-    "producer_inputs": 2_646,
+    "producer_inputs": 2_651,
     "producer_nodes": 37,
     "producer_virtual_resources": 73,
     "release_rungs": 5,
@@ -953,7 +953,7 @@ def build_inventory_coverage(
         clauses={
             "producer order differs": compiled.producer_graph.order
             == EXPECTED_PRODUCER_ORDER,
-            "edge count differs": len(compiled.producer_graph.edges) == 69,
+            "edge count differs": len(compiled.producer_graph.edges) == 71,
             "wave count differs": len(compiled.producer_graph.waves) == 6,
             "stage DAG differs": (
                 compiled.stage_dag.edges == compiled.producer_graph.edges
@@ -984,7 +984,7 @@ def build_inventory_coverage(
         },
         expected={
             "nodes": 37,
-            "edges": 69,
+            "edges": 71,
             "waves": 6,
             "schedule_sha256": EXPECTED_HASHES["late_schedule"],
         },
@@ -1004,7 +1004,7 @@ def build_inventory_coverage(
         "producer_inputs_exact",
         clauses={
             "producer input rows differ": inputs_exact,
-            "input row count differs": input_count == 2646,
+            "input row count differs": input_count == 2651,
         },
         homes=("/imputation/producer_graph/nodes/*/inputs",),
         consumers=(
@@ -1012,7 +1012,7 @@ def build_inventory_coverage(
             "compiler_ir.node_slices",
         ),
         observed={"rows": input_count},
-        expected={"rows": 2646, "relation": "source rows preserved exactly"},
+        expected={"rows": 2651, "relation": "source rows preserved exactly"},
     )
     outputs_exact = set(expected_outputs) == set(compiled_by_id) and all(
         _json_equal(

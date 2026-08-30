@@ -23,7 +23,7 @@ from microcosm.build.spec_engine.model import (
 from microcosm.build.spec_engine.resolver import F0_CONTRACT_ONLY_KERNEL_IDS
 
 US_SCHEDULE_SHA256 = (
-    "61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809"
+    "5222f7329e12723ae809c5ff3cb09b7c06c1a5b2d09571cb3ad7b86cca207aee"
 )
 
 
@@ -64,7 +64,7 @@ def test_us_compiles_exact_stage_dag_and_lossless_producer_graph(
     graph = compiled_us.producer_graph
     assert graph.present
     assert len(graph.nodes) == 37
-    assert len(graph.edges) == 69
+    assert len(graph.edges) == 71
     assert len(graph.waves) == 6
     assert len(graph.order) == 37
     assert len(set(graph.order)) == 37
@@ -99,8 +99,8 @@ def test_us_ownership_matrix_is_cell_closed(compiled_us: CompiledSpecIR) -> None
         ]
         assert final == [row["final_owner"]]
     policy = compiled_us.producer_graph.incomparable_node_policy
-    assert policy["incomparable_pair_count"] == 553
-    assert policy["disjoint_write_pair_count"] == 553
+    assert policy["incomparable_pair_count"] == 552
+    assert policy["disjoint_write_pair_count"] == 552
 
 
 def test_us_seed_stream_map_is_complete_and_owner_typed(

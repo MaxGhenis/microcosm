@@ -79,7 +79,7 @@ EXPECTED_COUNTS = {
     "primary_targets": 65,
     "producer_authored_outputs": 92,
     "producer_compiled_outputs": 220,
-    "producer_inputs": 2_646,
+    "producer_inputs": 2_651,
     "producer_nodes": 37,
     "producer_virtual_resources": 73,
     "release_rungs": 5,

@@ -32,7 +32,7 @@ EXPECTED_RESOURCES = {
     [
         (
             "be",
-            "01f41838b4a975fbdb68796c462750798d6dcd7f3082043f2ee8e6d867a07e8d",
+            "4ee2c5484cc157bf69984860be44503f2efbee3c7f145dd205c4fa83d0612e81",
             {
                 "household.household_id",
                 "person.person_id",
@@ -42,7 +42,7 @@ EXPECTED_RESOURCES = {
         ),
         (
             "uk",
-            "a4839c6bf9f7fd06554ffa2fa2ca1055c5893355fac6dcd8b9ed9468c18c882c",
+            "cf7b11fabf236e9f86aad53f2eeba43b7f8589daaed6317c1221f78e69519e85",
             {
                 "benunit.benunit_id",
                 "household.household_id",
