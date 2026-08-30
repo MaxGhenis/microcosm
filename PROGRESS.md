@@ -385,6 +385,19 @@ modified or run.
   support. The canonical 1,053-byte gate payload has SHA-256
   `fa4df7fa5d392bfcb4e5d43d914ab7d8c1e052f41ba20094fd8b2e996a2f2361`.
   This replay ran no pool/dense/release build and modified no candidate byte.
+- Repository verification exposed one legitimate source-attestation recut,
+  not a behavioral failure. The only seed-inventoried source changed since
+  `b6599ff7` is `puf_support.py`, where `e524fdac`/`6d30b93b` hardened clone-
+  receipt validation. Reviewed identities are now seed protocol
+  `674b63ad...2e00`, compiled seed map `1063879c...efde`, US spec
+  `7f4537db...01c9`, BE spec `018439ef...4e51`, UK spec
+  `60a2604b...702a`, and minimal-loader vector `c324198d...de4b`. Re-pinned
+  only the established five identity/evidence surfaces; no YAML, schema, seed
+  site, owner, RNG, or runtime semantics changed, and the arbitrary checkpoint
+  fixture remains unchanged. The focused 38-case compiler/coverage/loader/live-
+  binding corridor passes, as do the US bundle generator check, coverage at
+  41,523/41,523 fields plus 41/41 inventory checks, focused Ruff, and diff
+  hygiene.
 
 ### Next
 
