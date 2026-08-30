@@ -99,7 +99,7 @@ sources:
 stage_asset:
   id: source_stages
   path: microcosm.build.us/source_stages.json
-  sha256: 064cdababc3182d50f4f649dc2de3d97ae55d65e9e27c1dba0e7aa743b591330
+  sha256: e2172ea6616d8af2cab0a1db835a9970c79fc0911d4be660921eebf6d274aa30
 stage_manifest:
   version: 1
   country: us
@@ -1942,7 +1942,7 @@ stages:
     format: census_acs_pums_person_zip
     vintage: 2024 one-year
     locator: https://www2.census.gov/programs-surveys/acs/data/pums/2024/1-Year/csv_pus.zip
-    sha256: afdc4dbfd455e7e2b41956462911be2e6b955a33aa1f093bcc095460aed88da9
+    sha256: afdc6d90c6e2f0bab365ed32d95ba4c4d8ac651162f46ac7861295b2dc469894
     expected_rows: 3422888
     source_columns:
     - SERIALNO

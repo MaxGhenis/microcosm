@@ -233,6 +233,13 @@ def test_stage_is_closed_registered_and_documents_the_authorized_mapping() -> No
     assert "rolling 12 months" in stage.notes
     assert "calendar 2023" in stage.notes
     assert "reported-or-allocated" in stage.notes
+    acs_person_artifact = next(
+        artifact
+        for artifact in stage.artifacts
+        if artifact.get("format") == "census_acs_pums_person_zip"
+    )
+    assert acs_person_artifact["sha256"] == module.ACS_2024_PERSON_ZIP_SHA256
+    assert acs_person_artifact["expected_rows"] == module.ACS_2024_PERSON_ROW_COUNT
     assert us_source_operation_handlers()[US_RELEASE_WEEKS_WORKED_OPERATION] is (
         module.derive_us_release_weeks_worked_from_manifest
     )

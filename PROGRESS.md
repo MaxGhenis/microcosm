@@ -56,7 +56,7 @@ PR. Candidate-25 remains read-only evidence.
   `--check` is green. Updated the deliberate source-stage count/hash pins and
   the BE/UK spec identities changed by the shared closed-operation schema; the
   generated US spec identity is
-  `b837a8703b8d278364e98e0ddf537d8861b02492dd75228204e1c0d4f49fc372`.
+  `e9ea75c7cc5a1613f0fde007f1061ad23dbf8e2d3c4574523c5469f77b8209ed`.
 - Committed the declarative/runtime/gate step at `268ad894`.
 - Wired the stage only for authenticated stacked inputs, immediately after the
   base frame is loaded and before capital-gains-tail checks, weeks-unemployed,
@@ -95,13 +95,23 @@ PR. Candidate-25 remains read-only evidence.
   report. All 35 field-usage/inventory/coverage tests pass, focused Ruff is
   green, and `spec_engine_coverage.py --check` proves 41,558/41,558 fields and
   41/41 inventory checks.
+- Independent final plan audits found one declaration/runtime mismatch before
+  completion: the new source-stage artifact had a mistyped ACS archive digest
+  while the runtime correctly enforced the established official archive pin.
+  Corrected the declaration to
+  `afdc6d90c6e2f0bab365ed32d95ba4c4d8ac651162f46ac7861295b2dc469894`,
+  regenerated the US bundle and every dependent compiler attestation, and
+  added an explicit test binding the declared digest and row count to the
+  runtime constants. The 24-test weeks suite plus both direct identity tests,
+  focused Ruff, generator `--check`, and coverage `--check` are green. Both
+  independent audits report no remaining v3 plan gap.
 
 ## Next
 
-- Commit the exact compiler coverage-attestation update.
-- Rerun the complete build shard against the committed final tree. The frame,
-  fit, data, and calibrate shards are already green; finalize the journal and
-  required output report after the build shard completes.
+- Commit the corrected ACS declaration and dependent identities.
+- Rerun the complete affected spec corridor and build shard against the
+  committed final tree. The frame, fit, data, and calibrate shards are already
+  green; finalize the journal and required output report afterward.
 
 ---
 
