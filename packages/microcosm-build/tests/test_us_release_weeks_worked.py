@@ -375,11 +375,9 @@ def test_measured_release_weeks_flow_through_org_and_flsa(
     )
 
 
+@pytest.mark.requires_us
 def test_authorized_2024_weeks_values_drive_live_spm_work_expenses() -> None:
-    policyengine_us = pytest.importorskip(
-        "policyengine_us",
-        reason="requires the policyengine-us [us] extra (build environment)",
-    )
+    import policyengine_us
 
     def work_expenses(weeks: int) -> float:
         simulation = policyengine_us.Simulation(

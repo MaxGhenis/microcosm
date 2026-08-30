@@ -77,8 +77,8 @@ PR. Candidate-25 remains read-only evidence.
   reach ORG's `52 / weeks` annualization, zero weeks use the deliberate income
   bypass, positive weeks retain the actual-income FLSA premium, zero weeks
   suppress that premium, and the ORG stage preserves the measured leaf.
-- Added a live PolicyEngine-US 1.819.0 SPM regression: the fixture's 10- and
-  20-week values produce exactly $349.945 and $699.890 of
+- Added a registered-`requires_us` live PolicyEngine-US 1.819.0 SPM regression:
+  the fixture's 10- and 20-week values produce exactly $349.945 and $699.890 of
   `spm_unit_work_expenses`; zero-income adults and child earners do not
   contribute.
 - Strengthened the period-boundary adapter regression. A 2024
