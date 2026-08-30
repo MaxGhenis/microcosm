@@ -105,6 +105,22 @@ _SUPPORTED_PUF_CLONE_ATTACHMENT_MANIFEST_VERSIONS = {
     _PUF_CLONE_ATTACHMENT_MANIFEST_VERSION,
     _PUF_CLONE_ATTACHMENT_TAIL_DESCENDANT_MANIFEST_VERSION,
 }
+_PUF_CLONE_ATTACHMENT_EXACT_COUNT_RULE = "floor(fraction * eligible)"
+_PUF_CLONE_ATTACHMENT_BASE_FIELDS = frozenset(
+    {
+        "version",
+        "clone_attachment_fraction",
+        "clone_attachment_seed",
+        "eligible_household_count",
+        "requested_household_count",
+        "realized_household_count",
+        "exact_count_rule",
+        "selected_household_source_ids_sha256",
+    }
+)
+_PUF_CLONE_ATTACHMENT_TRANSFORM_FIELD = "post_attachment_transform"
+_PUF_CLONE_ATTACHMENT_FULL_AUTHORITY_FIELD = "authority_form"
+_PUF_CLONE_ATTACHMENT_FULL_AUTHORITY = "full_clone_identity_no_manifest"
 
 #: Finalization policies for cells the PUF pass does not own (microcosm#578
 #: revision, audit item 1).  The legacy policy reproduces the historical
@@ -811,7 +827,7 @@ def _attach_clone_arm_to_seeded_sample(
             "eligible_household_count": eligible,
             "requested_household_count": requested,
             "realized_household_count": requested,
-            "exact_count_rule": "floor(fraction * eligible)",
+            "exact_count_rule": _PUF_CLONE_ATTACHMENT_EXACT_COUNT_RULE,
             "selected_household_source_ids_sha256": _source_ids_sha256(selected),
         }
     }
@@ -917,7 +933,7 @@ def bind_puf_clone_attachment_tail_descendant(
     descendant_manifest = {
         **dict(attachment_receipt),
         "version": _PUF_CLONE_ATTACHMENT_TAIL_DESCENDANT_MANIFEST_VERSION,
-        "exact_count_rule": "floor(fraction * eligible)",
+        "exact_count_rule": _PUF_CLONE_ATTACHMENT_EXACT_COUNT_RULE,
         "post_attachment_transform": {
             "stage": stage,
             "tail_clone_index": 2,
@@ -1006,35 +1022,55 @@ def validate_puf_clone_attachment(
             f"{boundary}: clone attachment manifest "
             f"{PUF_CLONE_ATTACHMENT_MANIFEST_KEY!r} is absent."
         )
+    if not isinstance(manifest, Mapping):
+        raise ValueError(f"{boundary}: clone attachment manifest is malformed.")
+    raw_version = manifest.get("version")
+    if (
+        type(raw_version) is not int
+        or raw_version not in _SUPPORTED_PUF_CLONE_ATTACHMENT_MANIFEST_VERSIONS
+    ):
+        raise ValueError(
+            f"{boundary}: clone attachment manifest version is malformed."
+        )
+    version = raw_version
     if (
         expected_fraction is not None
         and float(expected_fraction) == 1.0
-        and (
-            not isinstance(manifest, Mapping)
-            or manifest.get("version")
-            != _PUF_CLONE_ATTACHMENT_TAIL_DESCENDANT_MANIFEST_VERSION
-        )
+        and version != _PUF_CLONE_ATTACHMENT_TAIL_DESCENDANT_MANIFEST_VERSION
     ):
         raise ValueError(
             f"{boundary}: full-clone metadata symmetry failed: attachment "
             "manifest must be absent before the tail split."
         )
-    if not isinstance(manifest, Mapping) or manifest.get("version") not in (
-        _SUPPORTED_PUF_CLONE_ATTACHMENT_MANIFEST_VERSIONS
-    ):
-        raise ValueError(f"{boundary}: clone attachment manifest is malformed.")
-    version = int(manifest["version"])
-    if expected_fraction is not None and float(expected_fraction) == 1.0:
-        if version != _PUF_CLONE_ATTACHMENT_TAIL_DESCENDANT_MANIFEST_VERSION:
-            raise ValueError(
-                f"{boundary}: full-clone metadata symmetry failed: attachment "
-                "manifest must be absent before the tail split."
-            )
     fraction = manifest.get("clone_attachment_fraction")
     if not isinstance(fraction, float) or isinstance(fraction, bool):
         raise ValueError(
             f"{boundary}: clone attachment fraction must be a float, got {fraction!r}."
         )
+    expected_manifest_fields = set(_PUF_CLONE_ATTACHMENT_BASE_FIELDS)
+    if version == _PUF_CLONE_ATTACHMENT_TAIL_DESCENDANT_MANIFEST_VERSION:
+        expected_manifest_fields.add(_PUF_CLONE_ATTACHMENT_TRANSFORM_FIELD)
+        if fraction == 1.0:
+            expected_manifest_fields.add(_PUF_CLONE_ATTACHMENT_FULL_AUTHORITY_FIELD)
+    if set(manifest) != expected_manifest_fields:
+        raise ValueError(
+            f"{boundary}: clone attachment manifest fields are malformed."
+        )
+    if (
+        manifest.get("exact_count_rule")
+        != _PUF_CLONE_ATTACHMENT_EXACT_COUNT_RULE
+    ):
+        raise ValueError(
+            f"{boundary}: clone attachment exact count rule is malformed."
+        )
+    if fraction == 1.0 and version == _PUF_CLONE_ATTACHMENT_TAIL_DESCENDANT_MANIFEST_VERSION:
+        if (
+            manifest.get(_PUF_CLONE_ATTACHMENT_FULL_AUTHORITY_FIELD)
+            != _PUF_CLONE_ATTACHMENT_FULL_AUTHORITY
+        ):
+            raise ValueError(
+                f"{boundary}: full-clone attachment authority is malformed."
+            )
     seed = manifest.get("clone_attachment_seed")
     if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
         raise ValueError(
@@ -1058,20 +1094,31 @@ def validate_puf_clone_attachment(
     native = clone_index.eq(0)
     detail = clone_index.eq(PUF_TAX_DETAIL_CLONE_INDEX)
     eligible = int(native.sum())
-    if int(manifest.get("eligible_household_count", -1)) != eligible:
+    for count_field in (
+        "eligible_household_count",
+        "requested_household_count",
+        "realized_household_count",
+    ):
+        count = manifest.get(count_field)
+        if type(count) is not int or count < 1:
+            raise ValueError(
+                f"{boundary}: clone attachment {count_field} must be a "
+                "positive integer."
+            )
+    if manifest["eligible_household_count"] != eligible:
         raise ValueError(
             f"{boundary}: live eligible household count {eligible} differs "
             "from the clone attachment manifest "
             f"{manifest.get('eligible_household_count')!r}."
         )
-    requested = int(manifest.get("requested_household_count", -1))
+    requested = manifest["requested_household_count"]
     if requested != int(np.floor(float(fraction) * eligible)):
         raise ValueError(
             f"{boundary}: clone attachment requested count {requested} "
             "violates floor(fraction * eligible) for "
             f"fraction={fraction!r}, eligible={eligible}."
         )
-    realized = int(manifest.get("realized_household_count", -1))
+    realized = manifest["realized_household_count"]
     live_detail_ids = np.sort(source_ids.loc[detail].to_numpy(dtype=np.int64))
     if realized != requested or int(detail.sum()) != realized:
         raise ValueError(
@@ -1152,7 +1199,9 @@ def validate_puf_clone_attachment(
         raise ValueError(
             f"{boundary}: tail-descendant attachment transform fields are malformed."
         )
-    if transform["tail_clone_index"] != 2:
+    if type(transform["tail_clone_index"]) is not int or transform[
+        "tail_clone_index"
+    ] != 2:
         raise ValueError(
             f"{boundary}: tail-descendant attachment must use clone index 2."
         )
@@ -1175,7 +1224,12 @@ def validate_puf_clone_attachment(
         )
     tail = clone_index.eq(2)
     live_tail_ids = np.sort(source_ids.loc[tail].to_numpy(dtype=np.int64))
-    if int(transform["tail_household_count"]) != len(live_tail_ids):
+    tail_household_count = transform["tail_household_count"]
+    if type(tail_household_count) is not int or tail_household_count < 1:
+        raise ValueError(
+            f"{boundary}: tail-descendant household count is malformed."
+        )
+    if tail_household_count != len(live_tail_ids):
         raise ValueError(
             f"{boundary}: live tail household count {len(live_tail_ids)} differs "
             "from the tail-descendant attachment transform."

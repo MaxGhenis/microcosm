@@ -1751,6 +1751,43 @@ def test_ready_stacked_pool_loader_validates_clone_attachment_against_h5(
         load_simulation_ready_us_multispine_pool(manifest_path)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("version", True, "manifest version is malformed"),
+        ("exact_count_rule", "not the floor rule", "exact count rule is malformed"),
+        ("unexpected_field", "drift", "manifest fields are malformed"),
+        (
+            "eligible_household_count",
+            "2",
+            "eligible_household_count must be a positive integer",
+        ),
+        (
+            "requested_household_count",
+            True,
+            "requested_household_count must be a positive integer",
+        ),
+    ],
+)
+def test_ready_stacked_pool_loader_rejects_clone_attachment_schema_drift(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    match: str,
+) -> None:
+    pytest.importorskip("tables")
+    manifest_path = _write_ready_pool(tmp_path, stacked=True)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    receipt = manifest["stage_receipts"]["impute"]["stacked_puf_pass"][
+        "clone_attachment"
+    ]
+    receipt[field] = value
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=match):
+        load_simulation_ready_us_multispine_pool(manifest_path)
+
+
 def test_ready_stacked_pool_loader_requires_assembly_receipt(
     tmp_path: Path,
 ) -> None:
