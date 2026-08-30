@@ -21,11 +21,12 @@ The inherited typed-spec closure and its mechanically derived identity recut
 are accepted through commits `0363f739` and `b6599ff7`. Independent producer
 and adapter review is also complete after the fail-closed follow-ups recorded
 below. The candidate-wide post-producer health replay now passes the unchanged
-gate. Final repository verification and the verdict report remain.
+gate. Final repository verification is green; the verdict report remains.
 The first fresh repository pass left only four stale build-test fixture
-clusters; all four are now repaired and focused-green. A fresh complete build
-shard rerun, final static verification, and the verdict report remain. The
-immutable candidate-25 pool and release evidence remain read-only; no
+clusters; all four are repaired, and the fresh complete build-shard rerun plus
+every repository-wide static check are now green. Only the verdict report and
+journal closeout remain. The immutable candidate-25 pool and release evidence
+remain read-only; no
 pool/release artifact, publication surface, remote, or data build will be
 modified or run.
 
@@ -421,12 +422,25 @@ modified or run.
   clone-version error precedence. The complete ACS and L0 files pass 5 and 49
   tests respectively; 14 targeted late-receipt/clone cases and an independent
   five-case representative rerun pass; focused Ruff and diff hygiene are
-  green. The complete build shard must now be rerun from the committed state.
+  green. The complete build-shard result from that committed state is recorded
+  next.
+- Reran the complete build shard from committed checkpoint `9c25d56f`: 6,647
+  passed, 45 skipped, 0 failed, and 0 errors in 3,439.43 seconds. Combined with
+  the fresh calibrate/data/fit/frame shards above, repository-wide pytest is
+  7,560 passed and 83 skipped across all five package shards. No test was
+  omitted because of a failure retry.
+- Final repository Ruff passes. `tools/ci_test_groups.py --verify` reports 314
+  tracked test files and `verification=ok`; `tools/spec_engine_coverage.py
+  --check` reports 41,523/41,523 configuration fields and 41/41 inventory
+  checks; and `tools/generate_us_bundle_from_constants.py --check` passes at US
+  spec SHA-256
+  `7f4537db123094c556d09bd3a1130940cbdfe351359690b75f88e0afa25101c9`.
+  `git diff --check` is green. The tracked tree is clean; the separate untracked
+  weeks-ruling note remains untouched and excluded from this lane.
 
 ### Next
 
-Rerun the complete build shard, repeat repository-wide static verification,
-then write and commit the verdict report.
+Write and commit the verdict report, then close this current journal section.
 The stacked `weeks_worked`/ORG ownership ruling remains an explicit dense
 blocker; the separate untracked ruling note explicitly defers any
 implementation until this r3 lane completes and is not part of this lane.
