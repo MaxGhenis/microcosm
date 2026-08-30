@@ -139,6 +139,7 @@ def _us_frame(**person_extra: object) -> Frame:
             "fsla_overtime_premium": [0.0, 1_000.0, 0.0],
             "takes_up_medicare_if_eligible": [False, True, False],
             "pre_subsidy_rent": [0.0, 12_000.0, 0.0],
+            "real_estate_taxes": [2_400.0, 3_600.0, 0.0],
             "self_employment_income_last_year": [0.0, 8_000.0, -1_000.0],
             "previous_year_income_available": [False, True, False],
             "meets_ssi_disability_criteria": [False, True, False],
