@@ -330,7 +330,7 @@ def test_constant_derived_domain_counts_are_complete(
         for stage in ("primary_puf_qrf", "late_producer_dag")
     }
     assert modeled_output_scopes == {
-        "primary_puf_qrf": {"puf_clone": 57, "whole_pool": 8},
+        "primary_puf_qrf": {"puf_clone": 54, "whole_pool": 11},
         "late_producer_dag": {"whole_pool": 63},
     }
     assert all(
@@ -378,15 +378,15 @@ def test_constant_derived_domain_counts_are_complete(
         spine_document=spine,
         bundle_document=bundle,
     )["late_producer_schedule_receipt"]
-    assert len(compiled_schedule["edges"]) == 69
+    assert len(compiled_schedule["edges"]) == 71
     assert len(compiled_schedule["waves"]) == 6
     assert (
         compiled_schedule["schedule_sha256"]
-        == "61d01a841b7186caa2a7de124a8cd798896a17fa6fb0acddda0631b099adc809"
+        == "5222f7329e12723ae809c5ff3cb09b7c06c1a5b2d09571cb3ad7b86cca207aee"
     )
     assert (
         compiled_schedule["payload_sha256"]
-        == "493f35c7f90f50642797c8e84b1b58627705bc43402de768ff3e29b3b02e4896"
+        == "de0970ae04dedee09054e2ea37201cec0296bfa1eac7b820f2f45b52e5b66882"
     )
 
     assert len(take_up["programs"]) == 17
@@ -757,6 +757,22 @@ def test_authored_imputation_sha256_fields_are_assets_or_policy_identity(
                 ]["sha256"]
             ),
         ),
+        (
+            (
+                "gap_fill_schedule",
+                "directions",
+                "[]",
+                "post_reconciliation_policy",
+                "sha256",
+            ),
+            str(
+                next(
+                    direction["post_reconciliation_policy"]["sha256"]
+                    for direction in imputation["gap_fill_schedule"]["directions"]
+                    if direction["post_reconciliation_policy"] is not None
+                )
+            ),
+        ),
     ]
     assert len(asset_pins) == 2
     assert set(asset_pins) == {
@@ -912,6 +928,31 @@ def test_imputation_projector_derives_hashes_and_joins_source_asset(
     assert {
         (stage_spec["asset"], stage_spec["asset_sha256"]) for stage_spec in stage_specs
     } == {("source-owned/rebound.json", "f" * 64)}
+    structural_policies = [
+        resource["binding"]["structural_reconciliation_policy"]
+        for producer in source_rebound["late_producer_resource_semantics"]["producers"]
+        for resource in producer["resources"].values()
+        if resource["binding"]["resource_kind"] == "late_transfer_model_config"
+        and resource["binding"]["structural_reconciliation_policy"] is not None
+    ]
+    assert len(structural_policies) == 2
+    assert {
+        (
+            policy["source_stage"]["asset"],
+            policy["source_stage"]["asset_sha256"],
+        )
+        for policy in structural_policies
+    } == {("source-owned/rebound.json", "f" * 64)}
+    for policy in structural_policies:
+        payload = {key: value for key, value in policy.items() if key != "sha256"}
+        assert policy["sha256"] == hashlib.sha256(
+            json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
 
 
 def test_legacy_seed_vintage_and_publication_grammars_are_pinned(

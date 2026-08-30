@@ -23717,64 +23717,13 @@ producer_graph:
           - has_american_opportunity_credit_institution_ein
           assignment: each_output_equals_qualified_tuition_expenses_gt_zero
           preserved_producer_scope: asec_origin_bit_exact
-          source_stage:
-            asset: microcosm.build.us/source_stages.json
-            asset_sha256: 128d3c3832b3d6863276ca9de041ced0b1d2097ca8dcd9f8a1271c57bc319723
-            manifest:
-              country: us
-              version: 1
-              policy: US source stages are manifest-defined. Country/source content may declare primary
-                artifacts, columns, sentinel handling, derivations, imputation recipes, and outputs here;
-                executable Python belongs only in shared Microcosm runtimes.
-            stage_name: education_inputs
-            resolved_stage_spec:
-              stage: education_inputs
-              survey: IRS PUF 2015 (uprated) + Census CPS ASEC
-              source: https://www.irs.gov/statistics/soi-tax-stats-individual-public-use-microdata-files
-              grain: person
-              artifacts:
-              - kind: public_microdata
-                format: fixed_width_or_csv
-                vintage: '2015'
-                source: https://www.irs.gov/statistics/soi-tax-stats-individual-public-use-microdata-files
-                locator: IRS SOI Public Use File E03230 and optional E87530 tuition fields
-              - kind: public_microdata
-                format: census_asec
-                vintage: build_year
-                source: https://www.census.gov/programs-surveys/cps/data/datasets.html
-                locator: Census CPS ASEC person ED_VAL educational-assistance field
-              operations:
-              - kind: read_table
-                parameters:
-                  table: person
-                  weight: person_weight
-              - kind: derive_education_inputs
-                parameters: {}
-              outputs:
-              - qualified_tuition_expenses
-              - educational_assistance
-              - is_pursuing_credential_for_american_opportunity_credit
-              - attends_eligible_educational_institution_for_american_opportunity_credit
-              - is_enrolled_at_least_half_time_for_american_opportunity_credit
-              - has_american_opportunity_credit_1098_t_or_exception
-              - has_american_opportunity_credit_institution_ein
-              nonnegative_outputs:
-              - qualified_tuition_expenses
-              - educational_assistance
-              rewrites: []
-              notes: 'Retired published-eCPS construction: the PUF publication path drops the reported
-                american_opportunity_credit tax output before AOTC factual-input postprocessing, so archived
-                extended_cps.py takes its positive-qualified-tuition fallback and sets all five affirmative
-                AOTC inputs on that mask (publication candidate 9f8db56e9ed1ca25f0ed16285fcc928343d2e474).
-                educational_assistance carries directly from measured ASEC ED_VAL (archived cps.py at
-                9a823603e6b5fb916d65ec45d74c9c7eb0043db1). The pinned export independently confirms that
-                the five flags and tuition share one support mask.'
-            resolved_stage_spec_sha256: 6628b0d864d4621643b4552f0b7919077d53b89ae45d9a0df69421e1eb9d3aea
-            runtime_stage_spec_resolver:
+          source_stage_ref:
+            asset_id: source_stages
+            stage_id: education_inputs
+            runtime_resolver:
               module: microcosm.build.us_runtime.education_inputs
               callable: us_education_inputs_stage_spec
-            runtime_stage_spec_verified: true
-          sha256: 95483890b3c9d38515a77d768bfafc47f57fb6aea223b99c9d58b453feb33de3
+              purpose: legacy_runtime_verification_evidence
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived
@@ -29661,92 +29610,13 @@ producer_graph:
           seed_owner: late_transfer_model_config.seed
           time_period: 2024
           preserved_producer_scope: asec_origin_bit_exact
-          source_stage:
-            asset: microcosm.build.us/source_stages.json
-            asset_sha256: 128d3c3832b3d6863276ca9de041ced0b1d2097ca8dcd9f8a1271c57bc319723
-            manifest:
-              country: us
-              version: 1
-              policy: US source stages are manifest-defined. Country/source content may declare primary
-                artifacts, columns, sentinel handling, derivations, imputation recipes, and outputs here;
-                executable Python belongs only in shared Microcosm runtimes.
-            stage_name: wic_claim_input
-            resolved_stage_spec:
-              stage: wic_claim_input
-              survey: USDA FNS WIC Eligibility and Enrollment Estimates + Census CPS ASEC
-              source: https://www.fns.usda.gov/research/wic/eligibility-and-coverage-rates-2022
-              grain: person
-              artifacts:
-              - kind: administrative_table
-                format: published_estimate
-                vintage: CY2022
-                source: https://fns-prod.azureedge.us/sites/default/files/resource-files/wic-eer-2022-summary.pdf
-                locator: USDA FNS WIC coverage rates by participant category, Summary Table 1
-              - kind: archived_derivation_evidence
-                repository_owner: PolicyEngine
-                repository_name_parts:
-                - policyengine-
-                - us-data
-                commit: 42ed5d45c56df80d754fbe24cce21cfeb8d05cbe
-                path_parts:
-                - policyengine_
-                - us_data
-                - datasets
-                - cps
-                - cps.py
-                lines: 684-691
-                parameter_path_parts:
-                - policyengine_
-                - us_data
-                - parameters
-                - take_up
-                - wic_takeup.yaml
-                parameter_lines: 1-33
-                randomness_path_parts:
-                - policyengine_
-                - us_data
-                - utils
-                - randomness.py
-                randomness_lines: 5-28
-              operations:
-              - kind: read_table
-                parameters:
-                  table: person
-                  weight: person_weight
-              - kind: derive_wic_claim
-                parameters:
-                  seed_from_build_config: true
-                  category_rates:
-                    source: https://fns-prod.azureedge.us/sites/default/files/resource-files/wic-eer-2022-summary.pdf
-                    vintage: CY2022
-                    values:
-                      pregnant: 0.456
-                      postpartum: 0.689
-                      breastfeeding: 0.663
-                      infant: 0.784
-                      child: 0.46
-                      none: 0.0
-              outputs:
-              - takes_up_wic_if_eligible
-              nonnegative_outputs: []
-              rewrites: []
-              notes: 'The retired eCPS derives PolicyEngine-US wic_category_str and assigns a stable seeded
-                Bernoulli at category-specific rates (archived cps.py lines 684-691, wic_takeup.yaml lines
-                1-33, and randomness.py lines 5-28). The archived rates exactly match USDA FNS CY2022
-                average-month coverage: pregnant 45.6%, all postpartum 68.9%, breastfeeding 66.3%, infants
-                78.4%, and children 46.0%. Microcosm deliberately runs this stage after pregnancy; the
-                retired file computed WIC categories before its later pregnancy seed, which accidentally
-                made the pregnant rate unreachable. The hermetic sources carry no breastfeeding assessment,
-                so breastfeeding remains unavailable and mothers of infants use FNS''s all-postpartum
-                rate rather than an invented breastfeeding status. Stable source-identity hashes preserve
-                paired support-clone outcomes. The separate is_wic_at_nutritional_risk input remains a
-                reviewed source-unavailability exclusion.'
-            resolved_stage_spec_sha256: a3a068bf896c3ab8edbbc25baa710ceed011bfb5530bba9ea67486031af8bfda
-            runtime_stage_spec_resolver:
+          source_stage_ref:
+            asset_id: source_stages
+            stage_id: wic_claim_input
+            runtime_resolver:
               module: microcosm.build.us_runtime.wic_claim
               callable: us_wic_claim_stage_spec
-            runtime_stage_spec_verified: true
-          sha256: 80686d7cba23aacc7861d5d3d856beaa9aae1e63c56b4dd8f9b4a1b5a81d6f12
+              purpose: legacy_runtime_verification_evidence
     - id: person.@late_transfer_target_bank
       kind: target_bank
       resolution: transferred_stage_identity_derived

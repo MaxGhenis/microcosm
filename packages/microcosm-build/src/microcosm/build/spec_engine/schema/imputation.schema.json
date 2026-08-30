@@ -1019,12 +1019,141 @@
     }
    }
   },
+  "late_transfer_structural_reconciliation_policy_v1": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "resource_kind",
+    "schema_version",
+    "policy_id",
+    "producer",
+    "entity",
+    "family",
+    "ordered_group_targets",
+    "dependencies",
+    "outputs",
+    "assignment",
+    "preserved_producer_scope",
+    "source_stage_ref"
+   ],
+   "properties": {
+    "resource_kind": {
+     "const": "late_transfer_structural_reconciliation_policy"
+    },
+    "schema_version": {
+     "const": 1
+    },
+    "policy_id": {
+     "$ref": "defs.schema.json#/$defs/identifier"
+    },
+    "producer": {
+     "type": "string",
+     "minLength": 1
+    },
+    "entity": {
+     "type": "string",
+     "minLength": 1
+    },
+    "family": {
+     "type": "string",
+     "minLength": 1
+    },
+    "ordered_group_targets": {
+     "type": "array",
+     "minItems": 1,
+     "uniqueItems": true,
+     "items": {
+      "type": "string",
+      "minLength": 1
+     }
+    },
+    "dependencies": {
+     "type": "array",
+     "minItems": 1,
+     "uniqueItems": true,
+     "items": {
+      "type": "string",
+      "minLength": 1
+     }
+    },
+    "outputs": {
+     "type": "array",
+     "minItems": 1,
+     "uniqueItems": true,
+     "items": {
+      "type": "string",
+      "minLength": 1
+     }
+    },
+    "assignment": {
+     "type": "string",
+     "minLength": 1
+    },
+    "preserved_producer_scope": {
+     "type": "string",
+     "minLength": 1
+    },
+    "seed_owner": {
+     "type": "string",
+     "minLength": 1
+    },
+    "time_period": {
+     "type": "integer"
+    },
+    "source_stage_ref": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "asset_id",
+      "stage_id",
+      "runtime_resolver"
+     ],
+     "properties": {
+      "asset_id": {
+       "const": "source_stages"
+      },
+      "stage_id": {
+       "type": "string",
+       "minLength": 1
+      },
+      "runtime_resolver": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "module",
+        "callable",
+        "purpose"
+       ],
+       "properties": {
+        "module": {
+         "type": "string",
+         "minLength": 1
+        },
+        "callable": {
+         "type": "string",
+         "minLength": 1
+        },
+        "purpose": {
+         "const": "legacy_runtime_verification_evidence"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "puf_native_zero_output_universe": {
    "type": "object",
    "additionalProperties": false,
    "properties": {
     "assignment": {
      "type": "string"
+    },
+    "authority_kind": {
+     "enum": [
+      "strict_release_gate_native_zero",
+      "policyengine_schema_default_native_zero"
+     ]
     },
     "column": {
      "type": "string"
@@ -1056,6 +1185,7 @@
    },
    "required": [
     "assignment",
+    "authority_kind",
     "column",
     "coverage_scope",
     "entity",
@@ -2645,11 +2775,22 @@
               },
               "schema_version": {
                "type": "integer"
+              },
+              "structural_reconciliation_policy": {
+               "oneOf": [
+                {
+                 "type": "null"
+                },
+                {
+                 "$ref": "#/$defs/late_transfer_structural_reconciliation_policy_v1"
+                }
+               ]
               }
              },
              "required": [
               "resource_kind",
-              "schema_version"
+              "schema_version",
+              "structural_reconciliation_policy"
              ]
             },
             {
@@ -3464,6 +3605,15 @@
                   },
                   "tax_unit.unrecaptured_section_1250_gain": {
                    "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "tax_unit.second_home_mortgage_balance": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "tax_unit.second_home_mortgage_interest": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
+                  },
+                  "tax_unit.second_home_mortgage_origination_year": {
+                   "$ref": "#/$defs/puf_native_zero_output_universe"
                   }
                  },
                  "required": [
@@ -3474,7 +3624,10 @@
                   "person.educator_expense",
                   "person.farm_rent_income",
                   "tax_unit.domestic_production_ald",
-                  "tax_unit.unrecaptured_section_1250_gain"
+                  "tax_unit.unrecaptured_section_1250_gain",
+                  "tax_unit.second_home_mortgage_balance",
+                  "tax_unit.second_home_mortgage_interest",
+                  "tax_unit.second_home_mortgage_origination_year"
                  ]
                 }
                },

@@ -770,6 +770,28 @@ def _project_gap_fill_plan(
                     )
                 )
             )
+            for assignment_index, assignment_value in enumerate(
+                _array_like(
+                    post_reconciliation_policy["assignments"],
+                    f"gap-fill direction {name!r} reconciliation assignments",
+                )
+            ):
+                assignment = _mapping_like(
+                    assignment_value,
+                    (
+                        f"gap-fill direction {name!r} reconciliation assignment "
+                        f"{assignment_index}"
+                    ),
+                )
+                value = assignment["value"]
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    assignment["value"] = _legacy_float(  # type: ignore[index]
+                        value,
+                        location=(
+                            f"gap-fill direction {name!r} reconciliation assignment "
+                            f"{assignment_index}/value"
+                        ),
+                    )
             declared_sha256 = post_reconciliation_policy.pop("sha256", None)
             projected_sha256 = _canonical_sha256(post_reconciliation_policy)
             if declared_sha256 != projected_sha256:
@@ -970,6 +992,93 @@ def _post_clone_operator_order(
     ]
 
 
+def _inflate_source_stage_ref(
+    value: object,
+    *,
+    sources_document: Mapping[str, object],
+    location: str,
+) -> dict[str, object]:
+    """Resolve one typed source-stage reference to its legacy receipt."""
+
+    ref = _mapping_like(value, location)
+    if set(ref) != {"asset_id", "stage_id", "runtime_resolver"}:
+        raise RuntimeError(f"{location} is not an exact typed source-stage ref.")
+    stage_id = str(ref["stage_id"])
+    stage_values = _array_like(sources_document["stages"], "source stages")
+    stages = {
+        str(stage["stage"]): stage
+        for stage_value in stage_values
+        for stage in [_mapping_like(stage_value, "source stage")]
+    }
+    if len(stages) != len(stage_values):
+        raise RuntimeError("Source document repeats a stage id.")
+    if stage_id not in stages:
+        raise RuntimeError(f"{location} references missing stage {stage_id!r}.")
+    asset = _mapping_like(
+        sources_document["stage_asset"], "source document stage asset"
+    )
+    if asset["id"] != ref["asset_id"]:
+        raise RuntimeError(
+            f"{location} references source-stage asset {ref['asset_id']!r}, "
+            f"but sources declares {asset['id']!r}."
+        )
+    manifest = _mapping_like(
+        sources_document["stage_manifest"], "source stage manifest"
+    )
+    resolver = _mapping_like(ref["runtime_resolver"], "source runtime resolver")
+    if set(resolver) != {"module", "callable", "purpose"} or resolver.get(
+        "purpose"
+    ) != "legacy_runtime_verification_evidence":
+        raise RuntimeError(f"{location} has a noncanonical runtime resolver.")
+    stage_row = _mapping_like(stages[stage_id], f"source stage {stage_id}")
+    stage = {
+        "stage": stage_row["stage"],
+        "survey": stage_row["survey"],
+        "source": stage_row["source"],
+        "grain": stage_row["grain"],
+        "artifacts": deepcopy(list(stage_row.get("artifacts", []))),
+        "operations": [
+            {
+                "kind": operation["kind"],
+                "parameters": {
+                    key: deepcopy(child)
+                    for key, child in operation.items()
+                    if key != "kind"
+                },
+            }
+            for operation_value in _array_like(
+                stage_row["operations"], f"source stage {stage_id} operations"
+            )
+            for operation in [
+                _mapping_like(
+                    operation_value,
+                    f"source stage {stage_id} operation",
+                )
+            ]
+        ],
+        "outputs": deepcopy(list(stage_row["outputs"])),
+        "nonnegative_outputs": deepcopy(
+            list(stage_row.get("nonnegative_outputs", []))
+        ),
+        "rewrites": deepcopy(list(stage_row.get("rewrites", []))),
+        "notes": stage_row.get("notes", ""),
+    }
+    _restore_source_stage_legacy_numbers(stage)
+    return {
+        "asset": asset["path"],
+        "asset_sha256": asset["sha256"],
+        "manifest": deepcopy(dict(manifest)),
+        "stage_name": stage_id,
+        "resolved_stage_spec": stage,
+        "resolved_stage_spec_sha256": _canonical_sha256(stage),
+        "runtime_stage_spec_resolver": {
+            "module": resolver["module"],
+            "callable": resolver["callable"],
+        },
+        "runtime_stage_spec_verified": True,
+    }
+
+
 def _inflate_virtual_resource(
     *,
     document: Mapping[str, object],
@@ -1049,6 +1158,26 @@ def _inflate_virtual_resource(
             }
         )
         binding["seed"] = build_model_seed
+        structural_policy = binding["structural_reconciliation_policy"]
+        if structural_policy is not None:
+            policy = deepcopy(
+                dict(
+                    _mapping_like(
+                        structural_policy,
+                        f"late structural reconciliation policy for {producer}",
+                    )
+                )
+            )
+            policy["source_stage"] = _inflate_source_stage_ref(
+                policy.pop("source_stage_ref"),
+                sources_document=sources_document,
+                location=(
+                    f"late structural reconciliation policy for {producer} "
+                    "source_stage_ref"
+                ),
+            )
+            policy["sha256"] = _canonical_sha256(policy)
+            binding["structural_reconciliation_policy"] = policy
     elif resource_kind == "primary_puf_execution_config":
         family = _primary_family_from_document(document)
         targets = [
@@ -1239,77 +1368,11 @@ def _inflate_virtual_resource(
         if stage_ref is None:
             binding["source_stage_spec"] = None
         else:
-            ref = _mapping_like(stage_ref, f"source stage ref for {operator}")
-            stage_id = str(ref["stage_id"])
-            stages = {
-                str(stage["stage"]): stage
-                for value in _array_like(sources_document["stages"], "source stages")
-                for stage in [_mapping_like(value, "source stage")]
-            }
-            if len(stages) != len(
-                _array_like(sources_document["stages"], "source stages")
-            ):
-                raise RuntimeError("Source document repeats a stage id.")
-            if stage_id not in stages:
-                raise RuntimeError(
-                    f"Source producer {operator!r} references missing stage {stage_id!r}."
-                )
-            asset = _mapping_like(
-                sources_document["stage_asset"], "source document stage asset"
+            binding["source_stage_spec"] = _inflate_source_stage_ref(
+                stage_ref,
+                sources_document=sources_document,
+                location=f"source stage ref for {operator}",
             )
-            if asset["id"] != ref["asset_id"]:
-                raise RuntimeError(
-                    f"Source producer {operator!r} references source-stage asset "
-                    f"{ref['asset_id']!r}, but sources declares {asset['id']!r}."
-                )
-            manifest = _mapping_like(
-                sources_document["stage_manifest"], "source stage manifest"
-            )
-            resolver = _mapping_like(ref["runtime_resolver"], "source runtime resolver")
-            stage_row = _mapping_like(stages[stage_id], f"source stage {stage_id}")
-            stage = {
-                "stage": stage_row["stage"],
-                "survey": stage_row["survey"],
-                "source": stage_row["source"],
-                "grain": stage_row["grain"],
-                "artifacts": deepcopy(list(stage_row.get("artifacts", []))),
-                "operations": [
-                    {
-                        "kind": operation["kind"],
-                        "parameters": {
-                            key: deepcopy(value)
-                            for key, value in operation.items()
-                            if key != "kind"
-                        },
-                    }
-                    for value in _array_like(
-                        stage_row["operations"], f"source stage {stage_id} operations"
-                    )
-                    for operation in [
-                        _mapping_like(value, f"source stage {stage_id} operation")
-                    ]
-                ],
-                "outputs": deepcopy(list(stage_row["outputs"])),
-                "nonnegative_outputs": deepcopy(
-                    list(stage_row.get("nonnegative_outputs", []))
-                ),
-                "rewrites": deepcopy(list(stage_row.get("rewrites", []))),
-                "notes": stage_row.get("notes", ""),
-            }
-            _restore_source_stage_legacy_numbers(stage)
-            binding["source_stage_spec"] = {
-                "asset": asset["path"],
-                "asset_sha256": asset["sha256"],
-                "manifest": deepcopy(dict(manifest)),
-                "stage_name": stage_id,
-                "resolved_stage_spec": stage,
-                "resolved_stage_spec_sha256": _canonical_sha256(stage),
-                "runtime_stage_spec_resolver": {
-                    "module": resolver["module"],
-                    "callable": resolver["callable"],
-                },
-                "runtime_stage_spec_verified": True,
-            }
     elif resource_kind == "primary_qrf_checkpoint":
         family = _primary_family_from_document(document)
         target_order = [
