@@ -27,13 +27,38 @@ remains read-only; no build, publication, push, or PR is authorized.
 - Recorded the hard boundaries: focused tests only while candidate-26 uses the
   machine; repository-wide pytest is deferred; no gate threshold, pool
   exclusion, release ordering, or authorized weeks-stage behavior may change.
+- Completed the direct caller/dependency audit after confirming that this
+  workspace exposes no GitNexus query tools. The root resolver has two
+  production consumers (PUF output rejection and ACS transfer leaf
+  classification); every direct resolver/blocklist caller and every adapter
+  `formula_owned_outputs` caller is enumerated for explicit period plumbing.
+- Probed installed PolicyEngine-US 1.819.0 / Core 3.31.0. The source index and
+  live engine agree on 5,218 computed/compat variables for 2024 and 5,219 for
+  2025; `weeks_worked` is the sole delta. Its only active formula from 2025 is
+  the exact pure self-reference at `period.last_year`.
+- Confirmed the static pool boundary contains 12 names: period-resolved engine
+  metadata owns 11 in 2024 and all 12 in 2025, with `weeks_worked` the sole
+  difference. The corrected parity contract will retain the full cross-period
+  static exclusion while proving both dated results explicitly.
+- Located the adapter deadlock: `_SourceVariableDefinition.computed_at(period)`
+  is already dated, but `PolicyEngineUSVariableMetadataIndex.variables()` and
+  both public `formula_owned_outputs()` methods collapse all formula vintages.
+  A 2024 leaf can therefore pass the final writer yet fail the earlier strict
+  leaf classifier. The fix will add a period-required input-leaf view without
+  changing the shared periodless `RulesEngine.variables()` projection or its
+  pinned pool identities.
+- Chose separate ownership and write-eligibility semantics. Pure prior-period
+  self-reference is recorded as `DELEGATION` and chased to an actual material
+  owner; unresolved/unbounded delegation fails closed. A delegated current
+  period remains ineligible for direct single-year persistence, preserving the
+  authorized 2025 rejection and the unchanged pool exclusion.
 
 ## Next
 
-- Trace both classifiers, the installed-engine formula/aggregation metadata,
-  every caller, and the exact period representation accepted at each boundary.
-- Add fail-closed 2024/2025 ownership regressions, implement the build-side
-  root fix, then implement the frame-adapter fix and run focused Ruff/tests.
+- Implement the period-required build-side resolver and propagate the dataset
+  period through every PUF/ACS ownership boundary and caller.
+- Add fail-closed 2024/2025 ownership regressions and the corrected parity
+  proof, then implement the frame-adapter metadata fix and focused tests.
 - Replace `out.md` with the required final classifier-fix report and journal
   repository-wide pytest as deferred rather than running it in this lane.
 
