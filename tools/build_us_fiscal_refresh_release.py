@@ -447,7 +447,11 @@ TARGET_FRAME_CHECKPOINT_SCHEMA_VERSION = 2
 # 12: simulation-boundary copies now materialize only authenticated structural
 # SSI/rent/tenure absences. Target frames and reform vectors produced before
 # that adapter existed cannot be reused under the new engine-input semantics.
-TARGET_FRAME_CHECKPOINT_MATERIALIZER_VERSION = 12
+# 13: the authenticated stacked-release weeks stage now materializes the 2024
+# weeks_worked input after the on-disk base pool hash is fixed. Target frames
+# and reform vectors produced before that measured leaf existed must not be
+# reused with the enriched in-memory base frame.
+TARGET_FRAME_CHECKPOINT_MATERIALIZER_VERSION = 13
 DEFAULT_MAXIMUM_MICROSIM_BATCH_SIZE = 5_000
 DEFAULT_L0_REFIT_LAMBDA_SHARE = 0.8
 DEFAULT_US_FISCAL_CALIBRATION_EPOCHS = 1_500

@@ -110,6 +110,14 @@ push, or PR. Candidate-25 remains read-only evidence.
   binding plan and full lane journal, reverified the authorized plan SHA-256,
   and reconciled the stale prior "Next" item: the corrected declaration and
   dependent identities are already committed in `deb42a37` and `4266de0e`.
+- A fresh independent audit found one integration hole before final
+  verification: the measured leaf changes the in-memory base frame after the
+  pool byte hash is fixed, while target-frame checkpoint identity remained at
+  materializer v12. A matching pre-weeks checkpoint could therefore bypass
+  target recomputation. Advanced the materializer identity to v13 and changed
+  the stale-checkpoint regression to prove v12 refusal; the same digest
+  transitively invalidates reform-vector caches. Both focused checkpoint tests
+  pass and focused Ruff is green.
 
 ## Next
 

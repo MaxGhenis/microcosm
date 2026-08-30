@@ -508,10 +508,11 @@ def test__given_target_frame_checkpoint__then_builder_round_trips_frame(
         ssi_take_up_assignment_sha256="ssi-flags-sha",
         selection_identities_sha256=None,
     )
-    # 12 = target simulations include authenticated structural-null adapters;
-    # schema 2 distinguishes the values+mask codec from schema-1 checkpoints.
+    # 13 = target simulations consume the authenticated 2024 weeks-worked
+    # leaf; schema 2 distinguishes the values+mask codec from schema-1
+    # checkpoints.
     assert identity["schema_version"] == 2
-    assert identity["materializer_version"] == 12
+    assert identity["materializer_version"] == 13
     # The SSI prior-weight basis is identity-bearing (microcosm#543 instance
     # 2): unflagged runs carry the key as None.
     assert identity["ssi_take_up_prior_weight_basis_sha256"] is None
@@ -723,9 +724,9 @@ def test__given_stale_materializer_version_checkpoint__then_builder_rejects_it(
 ) -> None:
     """A checkpoint stored under a superseded materializer version must not load.
 
-    Version 11 adds the lossless nullable-boolean checkpoint codec. The version
-    constant participates in the identity comparison; this pins stored-10
-    versus current-11 rejection directly.
+    Version 13 adds the authenticated 2024 stacked-release weeks-worked leaf.
+    The version constant participates in the identity comparison; this pins
+    stored-12 versus current-13 rejection directly.
     """
     builder = _load_builder_module()
     monkeypatch.setattr(builder, "US_SCHEMA", small_frame.schema)
@@ -759,10 +760,10 @@ def test__given_stale_materializer_version_checkpoint__then_builder_rejects_it(
         ssi_take_up_assignment_sha256="ssi-flags-sha",
         selection_identities_sha256=None,
     )
-    # 10 = the pre-nullable-boolean-codec world; 9 = the still-older pre-#557
-    # release-refit world. Both must miss against expected version 11.
-    stale_identity = {**dict(identity), "materializer_version": 10}
-    older_identity = {**dict(identity), "materializer_version": 9}
+    # 12 = the pre-release-weeks world; 11 = the still-older
+    # pre-structural-null-adapter world. Both must miss against version 13.
+    stale_identity = {**dict(identity), "materializer_version": 12}
+    older_identity = {**dict(identity), "materializer_version": 11}
     path = tmp_path / "target_frame_checkpoint.h5"
     builder._write_target_frame_checkpoint(
         path,
