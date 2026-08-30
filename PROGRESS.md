@@ -136,6 +136,14 @@ push, or PR. Candidate-25 remains read-only evidence.
   `e9ea75c7cc5a1613f0fde007f1061ad23dbf8e2d3c4574523c5469f77b8209ed`,
   and coverage remains 41,558/41,558 fields plus 41/41 inventory checks. The
   final independent v3 audit reports no remaining material plan deviation.
+- The first final repository run stopped at 921 passed when the rich-minimal
+  loader golden exposed one missed downstream consequence of registering the
+  weeks operation in the direct-kernel source inventory. The already-reviewed
+  seed protocol pin is `a16b77d7...cc7a1`; recut the exact loader semantic hash
+  from `c324198d...de4b` to `425b4263...a6445` without changing the fixture or
+  its surface-separation assertions. This is attestation follow-through, not a
+  runtime or declaration change. All 311 tests across the complete 24-file
+  spec-engine/bundle corridor pass, with focused Ruff and diff hygiene green.
 
 ## Next
 
