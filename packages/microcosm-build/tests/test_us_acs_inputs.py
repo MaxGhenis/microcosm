@@ -249,6 +249,43 @@ def test_acs_property_tax_mapping_rejects_nonzero_group_quarters_value() -> None
         map_acs_native_inputs(tampered)
 
 
+def test_acs_property_tax_structural_zero_needs_no_adjustment_factor() -> None:
+    frame = _acs_frame()
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    household = tables["household"]
+    household[["RNTP", "GRNTP"]] = np.nan
+    household["TAXAMT"] = 0.0
+    household["ADJHSG"] = np.nan
+    structural_zero = Frame(
+        tables,
+        frame.schema,
+        {"household": frame.weights_for("household")},
+        frame.strata,
+    )
+
+    result = map_acs_native_inputs(structural_zero)
+
+    assert result.frame.table("household")["acs_annual_property_tax"].tolist() == [
+        0.0
+    ]
+    assert result.frame.table("person")["real_estate_taxes"].tolist() == [0.0, 0.0]
+
+
+def test_acs_property_tax_mapping_rejects_nonnumeric_structural_value() -> None:
+    frame = _acs_frame()
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["household"]["TAXAMT"] = "not-a-number"
+    invalid = Frame(
+        tables,
+        frame.schema,
+        {"household": frame.weights_for("household")},
+        frame.strata,
+    )
+
+    with pytest.raises(ValueError, match="TAXAMT must be numeric"):
+        map_acs_native_inputs(invalid)
+
+
 @pytest.mark.parametrize(
     ("type_hugq", "tenure"),
     [(np.nan, 3), (4, 3), (1, np.nan), (1, 9)],

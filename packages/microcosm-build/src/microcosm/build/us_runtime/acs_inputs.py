@@ -368,7 +368,11 @@ def _adjusted_real_estate_taxes(
             "ACS real-estate-tax source-domain masks do not partition households."
         )
 
-    raw = pd.to_numeric(household["TAXAMT"], errors="coerce")
+    source_tax = household["TAXAMT"]
+    raw = pd.to_numeric(source_tax, errors="coerce")
+    invalid_encoding = source_tax.notna() & raw.isna()
+    if invalid_encoding.any():
+        raise ValueError("ACS TAXAMT must be numeric when observed.")
     owner_blank = owner & raw.isna()
     if owner_blank.any():
         raise ValueError(
@@ -385,8 +389,12 @@ def _adjusted_real_estate_taxes(
             f"incompatible rows={int(incompatible.sum())}."
         )
 
-    adjusted = _adjusted_dollars(household["TAXAMT"], household, factor="ADJHSG")
-    adjusted[structural_zero.to_numpy()] = 0.0
+    adjusted = np.zeros(len(household), dtype=np.float64)
+    adjusted[owner.to_numpy()] = _adjusted_dollars(
+        source_tax.loc[owner],
+        household.loc[owner],
+        factor="ADJHSG",
+    )
     if not np.isfinite(adjusted).all() or (adjusted < 0.0).any():
         raise RuntimeError(
             "ACS real-estate-tax source-domain materialization produced invalid values."
