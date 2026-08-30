@@ -17,6 +17,10 @@ interrupted r2 implementation still dirty. Before any new implementation, the
 and preserved as the explicitly unaccepted WIP commit `8129c9b7`. Evaluation
 will proceed through focused tests and independent source review; unsound
 pieces will be corrected by follow-up commits rather than history rewriting.
+The inherited typed-spec closure and its mechanically derived identity recut
+are now accepted through commits `0363f739` and `b6599ff7`; producer and
+adapter integration review, the post-producer health replay, and final
+repository verification remain.
 The immutable candidate-25 pool and release evidence remain read-only; no
 pool/release artifact, publication surface, remote, or data build will be
 modified or run.
@@ -54,6 +58,21 @@ modified or run.
   exact version-2 receipt. Commit `f82d7bc8` compares JSON-normalized receipts;
   both new cases and focused Ruff pass. The adapters still alter only engine
   table copies and reject selected-batch lineage drift.
+- Closed the inherited typed-spec/schema mismatch at `0363f739`. The JSON
+  schema now admits the structural-reconciliation policy, native-zero
+  authority kind, and three second-home keys; the reverse projector restores
+  typed source-stage references and the exact numeric legacy policy form.
+  The official bundle generator changes only `spec/imputation.yaml`, its
+  `--check` mode passes, and the complete spec-bundle/core-contract corridor is
+  green.
+- Recut the downstream source-attested compiler identities at `b6599ff7`
+  after independent bundle, projector, and coverage-ledger reviews found only
+  expected identity drift. The official coverage generator and `--check`
+  report 41,523/41,523 configuration fields and 41/41 inventory checks; BE and
+  UK envelope digests match their independently computed values. A 13-file
+  compiler corridor, including seed, loader, coverage, compiler-IR, legacy
+  adapter, and stacked-authority suites, passes after two final hidden pins
+  were corrected; focused Ruff and `git diff --check` are clean.
 - Re-read `CLAUDE.md`, confirmed the PR-CI/certification boundary and the
   root-journal history convention, and verified a clean
   `stacked-dense-gate-sweep` worktree at `2422669e` before this continuation.
@@ -285,12 +304,10 @@ modified or run.
 
 ### Next
 
-Finish the typed-schema/reverse-projection repair, regenerate the checked-in
-spec projection, and recut every mechanically derived compiler/coverage
-identity. Then complete independent review of the accepted
-property-tax/native-zero and bounded SSI/rent/tenure repairs, run the actual
-post-producer health replay over existing candidate evidence, write the verdict
-report, and run repository-wide verification. The stacked
+Complete independent review of the accepted property-tax/native-zero and
+bounded SSI/rent/tenure repairs, then run the actual post-producer health replay
+over existing candidate evidence, write the verdict report, and run
+repository-wide verification. The stacked
 `weeks_worked`/ORG ownership ruling remains an explicit dense blocker; the
 separate untracked ruling note explicitly defers any implementation until this
 r3 lane completes and is not part of this lane.
