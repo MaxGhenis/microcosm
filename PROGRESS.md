@@ -20,8 +20,8 @@ pieces will be corrected by follow-up commits rather than history rewriting.
 The inherited typed-spec closure and its mechanically derived identity recut
 are accepted through commits `0363f739` and `b6599ff7`. Independent producer
 and adapter review is also complete after the fail-closed follow-ups recorded
-below. The post-producer health replay, final repository verification, and
-verdict report remain.
+below. The candidate-wide post-producer health replay now passes the unchanged
+gate. Final repository verification and the verdict report remain.
 The immutable candidate-25 pool and release evidence remain read-only; no
 pool/release artifact, publication surface, remote, or data build will be
 modified or run.
@@ -345,14 +345,53 @@ modified or run.
   adapter integrations. Focused clone-receipt, manifest/H5, sparse authority,
   final-write, ACS mapping, compiler/spec, and Ruff corridors are green. The
   separate untracked weeks ruling prompt was never staged or modified.
+- Completed the actual post-producer health replay as read-only analysis over
+  candidate-25. Reverified the immutable H5/manifest identities above, restored
+  only their authenticated assembly/stack/clone receipts onto directly read
+  fixed tables (the historical frozen checkpoint schedule correctly cannot
+  masquerade as the current late-DAG schedule), and validated assembly plus
+  full-clone attachment before replay. The reconstructed support has 1,970,973
+  people, 865,460 households, 1,179,864 tax units, 868,956 SPM units, 875,642
+  families, and 1,572,357 marital units.
+- Replayed every repaired upstream root in memory with no artifact write:
+  ten-leaf clone-0 structural projection, the joint ASEC/ACS property-tax
+  producer, the pinned ACS predictor join, and the actual SCF wealth producer.
+  Property tax finished with zero nulls, 453,778 positive person rows, and
+  60,425 unique values. The ACS join matched all 1,736,840 support rows with
+  zero unmatched rows/collisions and semantic SHA-256
+  `c7723adc889fc655b46103426d21f6c74937434eff51e8f3e6025bdf60972b74`.
+  The unchanged SCF wealth gate passed at bank/stock/bond nonzero shares
+  0.3878991327/0.1128501657/0.0117176352.
+- Audited the complete ACA dependency closure before simulation: its four
+  roots resolve to 483 PolicyEngine input leaves, and after the producer replay
+  there are **zero** nullable semantic inputs outside the exact bounded-copy
+  authorities. The remaining nulls are only `ssi_reported` (495,738), GQ rent
+  (91,032), GQ household tenure (91,032), and GQ SPM tenure (91,032), all on
+  the previously authenticated adapter surfaces. The canonical empty omitted-
+  leaf list has SHA-256
+  `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`.
+- Compiled the production-equivalent target registry from Ledger facts SHA-256
+  `b3c0835631a446eb96aa84d86f3ee962d15ca356174c7114db52974f1cacc080`
+  with default target aging and the canonical congressional-district
+  crosswalk: 32,843 target specs, one reviewed Medicaid substitution, and
+  three ACA source tables of 51 states each. The real ACA source producer then
+  completed all 35 bounded batches over 865,460 households in 1,608.14 seconds.
+- The unchanged `health_input_signal` gate passes with no failures over all
+  1,179,864 tax units. Both outputs have zero nulls:
+  `takes_up_aca_if_eligible` has two values (45,520 true / 1,134,344 false),
+  while `selected_marketplace_plan_benchmark_ratio` has 35,059 distinct values
+  in the required `[0.5, 1.5]` support. Among 45,520 marketplace takers, 30,327
+  are below benchmark, 11,563 above, and 3,632 neutral; none are outside
+  support. The canonical 1,053-byte gate payload has SHA-256
+  `fa4df7fa5d392bfcb4e5d43d914ab7d8c1e052f41ba20094fd8b2e996a2f2361`.
+  This replay ran no pool/dense/release build and modified no candidate byte.
 
 ### Next
 
-Run the actual post-producer health replay over existing candidate evidence,
-write the verdict report, and run repository-wide verification. The stacked
-`weeks_worked`/ORG ownership ruling remains an explicit dense blocker; the
-separate untracked ruling note explicitly defers any implementation until this
-r3 lane completes and is not part of this lane.
+Run repository-wide verification, then write and commit the verdict report.
+The stacked `weeks_worked`/ORG ownership ruling remains an explicit dense
+blocker; the separate untracked ruling note explicitly defers any
+implementation until this r3 lane completes and is not part of this lane.
 
 ---
 
