@@ -4083,7 +4083,7 @@ def _simulation_dataset_authority(
             )
         rent_keys = _housing_rent_authority_keys(
             person,
-            allowed,
+            missing,
             boundary=boundary,
         )
     else:

@@ -10015,6 +10015,42 @@ def test_dataset_from_frame_uses_full_frame_authority_for_selected_batch(
         )
 
 
+def test_dataset_from_frame_refuses_new_rent_null_after_authority_capture(
+    monkeypatch,
+) -> None:
+    from microcosm.build.us_runtime import stacked_spine as stacked_spine_module
+
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    person = frame.table("person")
+    person["pre_subsidy_rent"] = np.asarray([np.nan, 700.0, 800.0])
+    person["person_support_channel"] = ["acs", "acs", "asec"]
+    person["person_support_clone_index"] = np.asarray([0, 0, 0])
+    person["person_source_id"] = np.asarray([101, 102, 103])
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validated_stacked_housing_rent_absence",
+        lambda frame_arg, *, boundary: (
+            pd.Series([True, True, False], index=frame_arg.table("person").index),
+            {"rule_id": "fixture", "status": "structural_absence_universe"},
+        ),
+    )
+
+    authority = builder._simulation_dataset_authority(
+        frame,
+        boundary="new-rent-null fixture",
+    )
+    person.loc[1, "pre_subsidy_rent"] = np.nan
+
+    with pytest.raises(ValueError, match=r"blank outside.*rows=1"):
+        builder._dataset_from_frame(
+            frame,
+            assert_no_formula_owned_columns=False,
+            simulation_dataset_authority=authority,
+        )
+
+
 def test_dataset_from_frame_uses_full_frame_tenure_authority_for_selected_batch(
     monkeypatch,
 ) -> None:
