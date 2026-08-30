@@ -508,10 +508,10 @@ def test__given_target_frame_checkpoint__then_builder_round_trips_frame(
         ssi_take_up_assignment_sha256="ssi-flags-sha",
         selection_identities_sha256=None,
     )
-    # 11 = target checkpoints preserve nullable booleans explicitly; schema 2
-    # distinguishes the new values+mask codec from schema-1 checkpoints.
+    # 12 = target simulations include authenticated structural-null adapters;
+    # schema 2 distinguishes the values+mask codec from schema-1 checkpoints.
     assert identity["schema_version"] == 2
-    assert identity["materializer_version"] == 11
+    assert identity["materializer_version"] == 12
     # The SSI prior-weight basis is identity-bearing (microcosm#543 instance
     # 2): unflagged runs carry the key as None.
     assert identity["ssi_take_up_prior_weight_basis_sha256"] is None

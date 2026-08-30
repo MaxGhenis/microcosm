@@ -440,7 +440,10 @@ TARGET_FRAME_CHECKPOINT_SCHEMA_VERSION = 2
 # 11: target-frame checkpoint columns now preserve nullable booleans as
 # canonical bool values plus an explicit uint8 null mask. Older checkpoints
 # cannot attest this lossless physical representation.
-TARGET_FRAME_CHECKPOINT_MATERIALIZER_VERSION = 11
+# 12: simulation-boundary copies now materialize only authenticated structural
+# SSI/rent/tenure absences. Target frames and reform vectors produced before
+# that adapter existed cannot be reused under the new engine-input semantics.
+TARGET_FRAME_CHECKPOINT_MATERIALIZER_VERSION = 12
 DEFAULT_MAXIMUM_MICROSIM_BATCH_SIZE = 5_000
 DEFAULT_L0_REFIT_LAMBDA_SHARE = 0.8
 DEFAULT_US_FISCAL_CALIBRATION_EPOCHS = 1_500
