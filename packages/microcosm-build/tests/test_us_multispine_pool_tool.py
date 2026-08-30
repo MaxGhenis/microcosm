@@ -1251,6 +1251,114 @@ def _canonical_pregnancy_structural_receipt() -> dict[str, object]:
     }
 
 
+def _with_fixture_late_structural_inputs(frame: Frame) -> Frame:
+    """Materialize the source identities required by special late groups."""
+
+    tables = {entity: frame.table(entity).copy(deep=True) for entity in frame.entities}
+    person = tables["person"]
+    person["age"] = pd.to_numeric(person["A_AGE"], errors="raise")
+    person["is_female"] = pd.to_numeric(person["A_SEX"], errors="raise").eq(2)
+    person["is_pregnant"] = pd.Series(False, index=person.index, dtype="boolean")
+    person["own_children_in_household"] = np.zeros(len(person), dtype=np.int64)
+    if "person_source_id" not in person:
+        person["person_source_id"] = pd.to_numeric(
+            person["person_id"], errors="raise"
+        ).astype("int64")
+    if "source_household_id" not in person:
+        person["source_household_id"] = pd.to_numeric(
+            person["person_household_id"], errors="raise"
+        ).astype("int64")
+    if "source_person_id" not in person:
+        person["source_person_id"] = pd.to_numeric(
+            person["person_id"], errors="raise"
+        ).astype("int64")
+
+    person["qualified_tuition_expenses"] = np.zeros(len(person), dtype=np.float64)
+    for column in (
+        "is_pursuing_credential_for_american_opportunity_credit",
+        "attends_eligible_educational_institution_for_american_opportunity_credit",
+        "is_enrolled_at_least_half_time_for_american_opportunity_credit",
+        "has_american_opportunity_credit_1098_t_or_exception",
+        "has_american_opportunity_credit_institution_ein",
+    ):
+        person[column] = np.zeros(len(person), dtype=bool)
+    person["educational_assistance"] = np.zeros(len(person), dtype=np.float64)
+    person["takes_up_wic_if_eligible"] = np.zeros(len(person), dtype=bool)
+
+    tables.update({name: frame.link(name) for name in frame.links})
+    return Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+
+def _canonical_late_structural_reconciliation_receipts(
+    frame: Frame | None,
+) -> dict[str, object]:
+    """Return signed structural receipts, live-bound when a frame is supplied."""
+
+    special_names = {
+        stacked_spine_module._EDUCATION_LATE_RECONCILIATION_GROUP,
+        stacked_spine_module._WIC_LATE_RECONCILIATION_GROUP,
+    }
+    receipts: dict[str, object] = {}
+    for group in stacked_spine_module.CANONICAL_US_LATE_TRANSFER_GROUPS:
+        if group.name not in special_names:
+            continue
+        policy = (
+            stacked_spine_module._late_transfer_structural_reconciliation_policy_identity(
+                group_name=group.name,
+                entity=group.entity,
+                family=group.family,
+                targets=group.targets,
+            )
+        )
+        assert policy is not None
+        if frame is None:
+            receipt: dict[str, object] = {
+                "policy_sha256": policy["sha256"],
+                "seed": 0,
+                "status": "verified",
+                "dependency_values_sha256": "a" * 64,
+                "pre_reconciliation_output_values_sha256": "b" * 64,
+                "output_values_sha256": "c" * 64,
+                "changed_rows": {column: 0 for column in policy["outputs"]},
+                "asec_producer_values_before_sha256": "d" * 64,
+                "asec_producer_values_after_sha256": "d" * 64,
+                "asec_producer_values_preserved": True,
+            }
+            receipt["sha256"] = stacked_spine_module._canonical_sha256(receipt)
+        else:
+            table = frame.table(group.entity)
+            producer = table[support_channel_column(group.entity)].astype(str).eq(
+                "asec"
+            )
+            producer_snapshot = {
+                (group.entity, target): table.loc[producer, target].copy()
+                for target in group.targets
+            }
+            reconciled, receipt = (
+                stacked_spine_module._apply_late_transfer_structural_reconciliation(
+                    frame,
+                    group=group,
+                    seed=0,
+                    producer_snapshot=producer_snapshot,
+                )
+            )
+            if stacked_spine_module._late_frame_content_sha256(
+                reconciled
+            ) != stacked_spine_module._late_frame_content_sha256(frame):
+                raise AssertionError(
+                    f"Late structural fixture for {group.name!r} was not canonical."
+                )
+        receipts[group.name] = receipt
+    return receipts
+
+
 def _canonical_late_transfer_receipt(
     pool_tool: ModuleType,
     *,
@@ -1277,6 +1385,9 @@ def _canonical_late_transfer_receipt(
             "sha256"
         ]
     )
+    structural_reconciliations = (
+        _canonical_late_structural_reconciliation_receipts(frame)
+    )
     for group in pool_tool.CANONICAL_US_LATE_TRANSFER_GROUPS:
         group_targets = {
             f"{group.entity}/{group.family}/{target}": {
@@ -1300,7 +1411,7 @@ def _canonical_late_transfer_receipt(
                     frame=frame,
                 )
             )
-        groups[group.name] = {
+        group_receipt: dict[str, object] = {
             "producer": group.name,
             "ordered_targets": list(group.targets),
             "targets": group_targets,
@@ -1310,6 +1421,11 @@ def _canonical_late_transfer_receipt(
                 "targets": calibrated_keys,
             },
         }
+        if group.name in structural_reconciliations:
+            group_receipt["structural_reconciliations"] = {
+                group.name: structural_reconciliations[group.name]
+            }
+        groups[group.name] = group_receipt
         for target in group.targets:
             targets[
                 f"{group.entity}/{canonical_family[(group.entity, target)]}/{target}"
@@ -1651,6 +1767,7 @@ def _authorized_late_impute_fixture(
         mass_log=frame.mass_log,
         metadata=frame.metadata,
     )
+    frame = _with_fixture_late_structural_inputs(frame)
     dag = _canonical_late_dag_receipt(
         pool_tool,
         authority=authority,
@@ -1994,6 +2111,7 @@ def _install_stacked_entrypoint_stubs(
             mass_log=primary_puf_result.frame.mass_log,
             metadata=primary_puf_result.frame.metadata,
         )
+        late_frame = _with_fixture_late_structural_inputs(late_frame)
         dag_receipt = _canonical_late_dag_receipt(
             pool_tool,
             authority=post_puf_authority,
