@@ -1,3 +1,47 @@
+# Period-aware ownership classification
+
+Date: 2026-08-30
+
+Branch: `stacked-dense-gate-sweep`
+
+Lane base: `dc7e09cb`
+
+## State
+
+In progress. The lane is repairing the build-side and frame-adapter ownership
+classifiers so ownership is resolved for the required dataset period, including
+pure carry-forward delegation. Candidate-26 is running in another worktree and
+remains read-only; no build, publication, push, or PR is authorized.
+
+## Done
+
+- Read the complete existing `PROGRESS.md` history and `CLAUDE.md` before
+  changing the tree; confirmed the requested clean branch and exact lane base.
+- Read the GitNexus debugging and impact-analysis workflows. This repository's
+  prior journal records that no local GitNexus index/query resources are
+  available, so the caller and dependency audit will use direct source search,
+  installed-engine metadata probes, and focused executable tests.
+- Recorded the two sequential implementation boundaries: first the build-side
+  classifier and all callers/parity coverage, then the microcosm-frame
+  PolicyEngine-US derived-metadata adapter with the same period semantics.
+- Recorded the hard boundaries: focused tests only while candidate-26 uses the
+  machine; repository-wide pytest is deferred; no gate threshold, pool
+  exclusion, release ordering, or authorized weeks-stage behavior may change.
+
+## Next
+
+- Trace both classifiers, the installed-engine formula/aggregation metadata,
+  every caller, and the exact period representation accepted at each boundary.
+- Add fail-closed 2024/2025 ownership regressions, implement the build-side
+  root fix, then implement the frame-adapter fix and run focused Ruff/tests.
+- Replace `out.md` with the required final classifier-fix report and journal
+  repository-wide pytest as deferred rather than running it in this lane.
+
+---
+
+> **Historical material below.** The sections below describe completed prior
+> lanes and are not the current state for this classifier-fix lane.
+
 # Authorized stacked `weeks_worked` implementation (v3)
 
 Date: 2026-08-30
