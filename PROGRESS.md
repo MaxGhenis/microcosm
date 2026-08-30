@@ -22,7 +22,10 @@ are accepted through commits `0363f739` and `b6599ff7`. Independent producer
 and adapter review is also complete after the fail-closed follow-ups recorded
 below. The candidate-wide post-producer health replay now passes the unchanged
 gate. Final repository verification and the verdict report remain.
-The immutable candidate-25 pool and release evidence remain read-only; no
+The first fresh repository pass left only four stale build-test fixture
+clusters; all four are now repaired and focused-green. A fresh complete build
+shard rerun, final static verification, and the verdict report remain. The
+immutable candidate-25 pool and release evidence remain read-only; no
 pool/release artifact, publication surface, remote, or data build will be
 modified or run.
 
@@ -380,9 +383,12 @@ modified or run.
   1,179,864 tax units. Both outputs have zero nulls:
   `takes_up_aca_if_eligible` has two values (45,520 true / 1,134,344 false),
   while `selected_marketplace_plan_benchmark_ratio` has 35,059 distinct values
-  in the required `[0.5, 1.5]` support. Among 45,520 marketplace takers, 30,327
-  are below benchmark, 11,563 above, and 3,632 neutral; none are outside
-  support. The canonical 1,053-byte gate payload has SHA-256
+  in the required `[0.5, 1.5]` support. The non-exclusive diagnostics among
+  45,520 marketplace takers are 30,327 strictly below benchmark, 11,563
+  strictly above, and 3,632 within the neutral `isclose` tolerance; the
+  tolerance category overlaps the strict-side categories, so these counts are
+  not a partition. None is outside support. The canonical 1,053-byte gate
+  payload has SHA-256
   `fa4df7fa5d392bfcb4e5d43d914ab7d8c1e052f41ba20094fd8b2e996a2f2361`.
   This replay ran no pool/dense/release build and modified no candidate byte.
 - Repository verification exposed one legitimate source-attestation recut,
@@ -398,10 +404,29 @@ modified or run.
   binding corridor passes, as do the US bundle generator check, coverage at
   41,523/41,523 fields plus 41/41 inventory checks, focused Ruff, and diff
   hygiene.
+- Ran all five pytest package shards from a clean committed source state. The
+  calibrate shard passed 203 tests; data passed 322 with 2 skipped; fit passed
+  93; and frame passed 295 with 36 skipped. The first complete build shard
+  passed 6,616 with 45 skipped and exposed exactly 31 stale-fixture failures:
+  two ACS fixtures omitted newly required `TYPEHUGQ`, six L0 export fixtures
+  omitted newly required `real_estate_taxes`, 21 shared late-transfer fixtures
+  omitted the now-required education/WIC structural receipts, and two clone
+  tests expected the older generic error after validation became deliberately
+  version-first. There were no errors.
+- Repaired each fixture-only cluster without changing production behavior or a
+  gate. `55dcce8d` adds an occupied-unit `TYPEHUGQ` to the ACS fixture;
+  `e125a207` adds nonconstant head-carried property tax to the L0 fixture;
+  `e79ad178` creates canonical signed education/WIC structural receipts,
+  live-bound when a frame exists; and `e98c8398` matches the intentional
+  clone-version error precedence. The complete ACS and L0 files pass 5 and 49
+  tests respectively; 14 targeted late-receipt/clone cases and an independent
+  five-case representative rerun pass; focused Ruff and diff hygiene are
+  green. The complete build shard must now be rerun from the committed state.
 
 ### Next
 
-Run repository-wide verification, then write and commit the verdict report.
+Rerun the complete build shard, repeat repository-wide static verification,
+then write and commit the verdict report.
 The stacked `weeks_worked`/ORG ownership ruling remains an explicit dense
 blocker; the separate untracked ruling note explicitly defers any
 implementation until this r3 lane completes and is not part of this lane.
