@@ -9860,6 +9860,86 @@ def test_dataset_from_frame_materializes_reported_ssi_only_in_dataset_copy(
     )
 
 
+def test_export_dataset_frame_materializes_only_the_engine_copy(
+    monkeypatch,
+) -> None:
+    from microcosm.build.us_runtime import stacked_spine as stacked_spine_module
+
+    builder = _load_builder_module()
+    frame = _multi_reform_frame(builder)
+    person = frame.table("person")
+    household = frame.table("household")
+    spm_unit = frame.table("spm_unit")
+    person["age"] = np.asarray([40.0, 50.0, 10.0])
+    person["SSI_VAL"] = np.asarray([1_200.0, np.nan, np.nan])
+    person["ssi_reported"] = np.asarray([np.nan, 900.0, np.nan])
+    person["pre_subsidy_rent"] = np.asarray([np.nan, 700.0, 800.0])
+    household["tenure_type"] = pd.Series([np.nan, "RENTED"], dtype="object")
+    spm_unit["spm_unit_tenure_type"] = pd.Series(
+        [np.nan, "RENTER"], dtype="object"
+    )
+    for table, entity, source_ids in (
+        (person, "person", [101, 102, 103]),
+        (household, "household", [201, 202]),
+        (spm_unit, "spm_unit", [301, 302]),
+    ):
+        table[f"{entity}_support_channel"] = ["acs"] * len(table)
+        table[f"{entity}_support_clone_index"] = np.zeros(
+            len(table), dtype=np.int64
+        )
+        table[f"{entity}_source_id"] = np.asarray(source_ids)
+    source_tables = {
+        entity: frame.table(entity).copy(deep=True) for entity in frame.entities
+    }
+
+    monkeypatch.setattr(
+        stacked_spine_module,
+        "validated_stacked_housing_tenure_absence",
+        lambda frame_arg, *, boundary: (
+            {
+                "person": pd.Series(
+                    [True, True, False], index=frame_arg.table("person").index
+                ),
+                "household": pd.Series(
+                    [True, False], index=frame_arg.table("household").index
+                ),
+                "spm_unit": pd.Series(
+                    [True, False], index=frame_arg.table("spm_unit").index
+                ),
+            },
+            {"rule_id": "fixture", "status": "exact_structural_absence"},
+        ),
+    )
+
+    authority = builder._simulation_dataset_authority(
+        frame,
+        boundary="export engine-copy fixture",
+    )
+    export_copy = builder._simulation_frame_for_dataset_write(
+        frame,
+        simulation_dataset_authority=authority,
+    )
+
+    np.testing.assert_array_equal(
+        export_copy.table("person")["ssi_reported"],
+        [1_200.0, 900.0, 0.0],
+    )
+    np.testing.assert_array_equal(
+        export_copy.table("person")["pre_subsidy_rent"],
+        [0.0, 700.0, 800.0],
+    )
+    assert export_copy.table("household")["tenure_type"].tolist() == [
+        "NONE",
+        "RENTED",
+    ]
+    assert export_copy.table("spm_unit")["spm_unit_tenure_type"].tolist() == [
+        "RENTER",
+        "RENTER",
+    ]
+    for entity, source in source_tables.items():
+        pd.testing.assert_frame_equal(frame.table(entity), source, check_exact=True)
+
+
 def test_dataset_from_frame_materializes_only_authorized_group_quarters_rent(
     monkeypatch,
 ) -> None:
@@ -11422,7 +11502,7 @@ def test_release_h5_write_sits_between_batched_raise_and_smoke() -> None:
     tree = ast.parse(source)
 
     batched_raises: list[int] = []
-    writes: list[int] = []
+    write_calls: list[ast.Call] = []
     smokes: list[int] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Raise):
@@ -11437,19 +11517,23 @@ def test_release_h5_write_sits_between_batched_raise_and_smoke() -> None:
                 else getattr(func, "id", None)
             )
             if name == "write_dataset":
-                writes.append(node.lineno)
+                write_calls.append(node)
             elif name == "us_reform_coverage_smoke_gate":
                 smokes.append(node.lineno)
 
     assert len(batched_raises) == 1, batched_raises
-    assert len(writes) == 1, (
+    assert len(write_calls) == 1, (
         "main() must write the export H5 exactly once; the smoke gate and "
-        f"release manifest read that file (microcosm#443). Found: {writes}"
+        "release manifest read that file (microcosm#443). Found: "
+        f"{[call.lineno for call in write_calls]}"
     )
     assert len(smokes) == 1, smokes
-    assert batched_raises[0] < writes[0] < smokes[0], (
+    write_call = write_calls[0]
+    assert isinstance(write_call.args[0], ast.Name)
+    assert write_call.args[0].id == "export_dataset_frame"
+    assert batched_raises[0] < write_call.lineno < smokes[0], (
         "Ordering contract violated: batched pre-export raise "
-        f"(line {batched_raises[0]}) < H5 write ({writes[0]}) < smoke "
+        f"(line {batched_raises[0]}) < H5 write ({write_call.lineno}) < smoke "
         f"({smokes[0]}) must hold so a gate-failed run never produces the "
         "H5 and the smoke scores the just-written file."
     )

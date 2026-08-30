@@ -4119,18 +4119,12 @@ def _simulation_dataset_authority(
     )
 
 
-def _dataset_from_frame(
+def _simulation_engine_copy_tables(
     frame: Frame,
     *,
-    zero_variables: Iterable[str] = (),
-    system=None,
-    assert_no_formula_owned_columns: bool = True,
     simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
-):
-    if assert_no_formula_owned_columns:
-        _assert_no_formula_owned_columns(frame)
-
-    from policyengine_us.data import USSingleYearDataset
+) -> dict[str, pd.DataFrame]:
+    """Copy tables and materialize only authenticated engine-bound absences."""
 
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
     person = tables["person"]
@@ -4197,6 +4191,51 @@ def _dataset_from_frame(
                 f"rows={len(unauthorized_keys)}."
             )
         table.loc[missing_tenure, column] = materialized_value
+    return tables
+
+
+def _simulation_frame_for_dataset_write(
+    frame: Frame,
+    *,
+    simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
+) -> Frame:
+    """Return an engine-only Frame copy for the final PolicyEngine H5 write."""
+
+    _assert_no_formula_owned_columns(frame)
+    tables = _simulation_engine_copy_tables(
+        frame,
+        simulation_dataset_authority=simulation_dataset_authority,
+    )
+    return Frame(
+        tables,
+        frame.schema,
+        {
+            entity: frame.weights_for(entity)
+            for entity in frame.weighted_entities
+        },
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+
+def _dataset_from_frame(
+    frame: Frame,
+    *,
+    zero_variables: Iterable[str] = (),
+    system=None,
+    assert_no_formula_owned_columns: bool = True,
+    simulation_dataset_authority: _SimulationDatasetAuthority | None = None,
+):
+    if assert_no_formula_owned_columns:
+        _assert_no_formula_owned_columns(frame)
+
+    from policyengine_us.data import USSingleYearDataset
+
+    tables = _simulation_engine_copy_tables(
+        frame,
+        simulation_dataset_authority=simulation_dataset_authority,
+    )
     for variable_name in zero_variables:
         if system is None:
             raise ValueError("system is required when zero_variables are provided.")
@@ -12022,7 +12061,11 @@ def _main(argv: Sequence[str] | None = None) -> None:
     # the batched pre-export raise so a gate-failed run never produces it.
     # microcosm#443: #437 dropped this call while inserting the batched raise,
     # so attempts 13/14 smoke-scored a stale artifact from a prior run.
-    release_engine.write_dataset(export_frame, dataset_path, period=PERIOD)
+    export_dataset_frame = _simulation_frame_for_dataset_write(
+        export_frame,
+        simulation_dataset_authority=full_base_simulation_dataset_authority,
+    )
+    release_engine.write_dataset(export_dataset_frame, dataset_path, period=PERIOD)
     # microcosm#368: reform-coverage smoke on the WRITTEN release H5. The column
     # gate above proves the required keys exist and carry signal; this is the
     # end-to-end backstop: each pinned probe (first: SSI asset limits at
