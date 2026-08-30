@@ -548,9 +548,10 @@ class TestWriteDataset:
             adapter.write_dataset(rebuilt, path, period=2024)
         assert not path.exists()
 
-    def test_future_formula_does_not_block_current_period_input(
+    def test_weeks_worked_2024_input_carries_to_2025_and_blocks_direct_2025(
         self, adapter, us_bundle, tmp_path
     ) -> None:
+        from policyengine_us import Microsimulation
         from policyengine_us.data import USSingleYearDataset
 
         person = us_bundle.person.copy()
@@ -569,6 +570,18 @@ class TestWriteDataset:
 
         reloaded = USSingleYearDataset(file_path=str(path))
         assert reloaded.person["weeks_worked"].tolist() == [52, 26, 40]
+
+        simulation = Microsimulation(dataset=reloaded)
+        assert simulation.calculate("weeks_worked", period=2025).tolist() == [
+            52,
+            26,
+            40,
+        ]
+
+        direct_path = tmp_path / "direct_2025_weeks_worked.h5"
+        with pytest.raises(ValueError, match="formula-owned.*weeks_worked"):
+            adapter.write_dataset(rebuilt, direct_path, period=2025)
+        assert not direct_path.exists()
 
     def test_closed_contract_blocks_unexpected_columns(
         self, us_bundle, tmp_path

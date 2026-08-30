@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import microcosm.build.us_runtime.org_wages as org_wages
 import microcosm.build.us_runtime.release_weeks_worked as module
 from microcosm.build.us_runtime.puf_support import clone_us_frame_for_puf_support
 from microcosm.build.us_runtime.release_weeks_worked import (
@@ -282,6 +283,138 @@ def test_release_mapping_is_origin_aware_clone_stable_and_fully_receipted(
         gate.details["column_diff"]["non_weeks_person_sha256_before"]
         == gate.details["column_diff"]["non_weeks_person_sha256_after"]
     )
+
+
+def test_measured_release_weeks_flow_through_org_and_flsa(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frame = _stacked_frame()
+    person = frame.table("person")
+    person["is_female"] = False
+    person["PRDTRACE"] = 1
+    person["PRDTHSP"] = 0
+    person["POCCU2"] = 20
+    person["employment_income_before_lsr"] = 26_000.0
+    person["weekly_hours_worked_before_lsr"] = 40.0
+    person["hours_worked_last_week"] = 50.0
+    person["state_fips"] = 6
+    measured = _weeks(frame, tmp_path, monkeypatch)
+    measured_weeks = measured.frame.table("person")["weeks_worked"].to_numpy(
+        dtype=np.float64
+    )
+
+    captured: dict[str, pd.DataFrame] = {}
+
+    class Fitted:
+        def predict(self, features: pd.DataFrame) -> pd.DataFrame:
+            captured["features"] = features.copy()
+            return pd.DataFrame(
+                {
+                    "hourly_wage": np.full(len(features), 25.0),
+                    "is_paid_hourly": np.ones(len(features)),
+                },
+                index=features.index,
+            )
+
+    class CaptureQRF:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def fit(self, *args: object, **kwargs: object) -> Fitted:
+            return Fitted()
+
+    monkeypatch.setattr("microcosm.fit.QRF", CaptureQRF)
+    monkeypatch.setattr(
+        org_wages,
+        "_flsa_policy",
+        lambda year: (107_432.0, 35_568.0, 57_470.4, 40.0, 1.5),
+    )
+    donor = pd.DataFrame(
+        {
+            "employment_income": [52_000.0],
+            "weekly_hours_worked": [40.0],
+            "age": [35.0],
+            "is_female": [0.0],
+            "is_hispanic": [0.0],
+            "race_wbho": [1.0],
+            "state_fips": [6.0],
+            "hourly_wage": [25.0],
+            "is_paid_hourly": [1.0],
+            "sample_weight": [1.0],
+        }
+    )
+
+    consumed = org_wages.with_us_org_wages_inputs(
+        measured.frame,
+        seed=0,
+        time_period=2024,
+        org_donor=donor,
+    )
+    expected_feature_income = np.divide(
+        52.0 * 26_000.0,
+        measured_weeks,
+        out=np.full_like(measured_weeks, 26_000.0),
+        where=measured_weeks > 0,
+    )
+    np.testing.assert_allclose(
+        captured["features"]["employment_income"].to_numpy(),
+        expected_feature_income,
+    )
+    expected_premium = np.where(
+        measured_weeks > 0,
+        np.float32(26_000.0 / 11.0),
+        np.float32(0.0),
+    )
+    output_person = consumed.table("person")
+    np.testing.assert_array_equal(
+        output_person["weeks_worked"].to_numpy(), measured_weeks
+    )
+    np.testing.assert_allclose(
+        output_person["fsla_overtime_premium"].to_numpy(), expected_premium
+    )
+
+
+def test_authorized_2024_weeks_values_drive_live_spm_work_expenses() -> None:
+    policyengine_us = pytest.importorskip(
+        "policyengine_us",
+        reason="requires the policyengine-us [us] extra (build environment)",
+    )
+
+    def work_expenses(weeks: int) -> float:
+        simulation = policyengine_us.Simulation(
+            situation={
+                "people": {
+                    "adult_worker": {
+                        "age": {2024: 40},
+                        "weeks_worked": {2024: weeks},
+                        "employment_income": {2024: 20_000},
+                    },
+                    "adult_nonworker": {
+                        "age": {2024: 38},
+                        "weeks_worked": {2024: 30},
+                        "employment_income": {2024: 0},
+                    },
+                    "child": {
+                        "age": {2024: 12},
+                        "weeks_worked": {2024: 52},
+                        "employment_income": {2024: 500},
+                    },
+                },
+                "spm_units": {
+                    "spm_unit": {
+                        "members": ["adult_worker", "adult_nonworker", "child"]
+                    }
+                },
+            }
+        )
+        return float(simulation.calculate("spm_unit_work_expenses", 2024)[0])
+
+    ten_week_result = work_expenses(10)
+    twenty_week_result = work_expenses(20)
+    assert ten_week_result == pytest.approx(349.945, abs=0.001)
+    assert twenty_week_result == pytest.approx(699.890, abs=0.001)
+    assert twenty_week_result - ten_week_result == pytest.approx(349.945, abs=0.001)
 
 
 @pytest.mark.parametrize("bad_value", [np.nan, 52.5, 53, -1])

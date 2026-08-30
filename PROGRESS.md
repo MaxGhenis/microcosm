@@ -9,11 +9,11 @@ Plan SHA-256: `e89dd0facbc6d22f296f65ff18520333af0f8ecc6c2b706c1fd6a2b98d49e729`
 ## State
 
 Implementation in progress. The declarative 2024 source stage, provenance-owner
-runtime, dedicated fail-closed gate, and release-builder/manifest integration
-are complete and green. Consumer and period-boundary regressions remain. The
-authorized v3 ruling is the binding scope: code, spec, and tests only; no data
-build, artifact mutation, publication, push, or PR. Candidate-25 remains
-read-only evidence.
+runtime, dedicated fail-closed gate, release-builder/manifest integration, and
+consumer/period-boundary regressions are complete and green. Repository-wide
+verification remains. The authorized v3 ruling is the binding scope: code,
+spec, and tests only; no data build, artifact mutation, publication, push, or
+PR. Candidate-25 remains read-only evidence.
 
 ## Done
 
@@ -72,14 +72,27 @@ read-only evidence.
 - The complete release-builder suite passes 235/235 with focused Ruff green,
   including executable order/authentication checks, the exact-k stacked path,
   the provenance-aware gate roster, and a four-location manifest round trip.
+- Added a composed measured-leaf regression that runs the release weeks source
+  stage and then the real ORG/FLSA operator. It proves the authorized values
+  reach ORG's `52 / weeks` annualization, zero weeks use the deliberate income
+  bypass, positive weeks retain the actual-income FLSA premium, zero weeks
+  suppress that premium, and the ORG stage preserves the measured leaf.
+- Added a live PolicyEngine-US 1.819.0 SPM regression: the fixture's 10- and
+  20-week values produce exactly $349.945 and $699.890 of
+  `spm_unit_work_expenses`; zero-income adults and child earners do not
+  contribute.
+- Strengthened the period-boundary adapter regression. A 2024
+  `weeks_worked` leaf round-trips through `USSingleYearDataset`, the installed
+  2025 formula carries it forward unchanged, and a direct 2025 dataset write
+  fails as formula-owned without creating a file.
+- Both focused consumer files pass 62/62 (24 release-weeks and 38 frame-adapter
+  cases), with focused Ruff green.
 
 ## Next
 
-- Add the 2024 frame input/export, ORG/FLSA, and SPM work-expense regressions;
-  prove 2025 engine carry-forward from the 2024 leaf and direct 2025 input-write
-  rejection.
-- Run affected package shards, Ruff, then the complete repository-wide suite;
-  finalize the journal and required output report.
+- Commit the complete consumer/period regression step.
+- Run all repository package shards, repository-wide Ruff, and generated/
+  inventory checks; finalize the journal and required output report.
 
 ---
 
