@@ -429,6 +429,7 @@ def _raw_acs_frame() -> Frame:
                     "state_fips": [6],
                     "puma": ["0600100"],
                     "ADJHSG": [1_000_000],
+                    "TYPEHUGQ": [1],
                     "TEN": [3],
                     "RNTP": [1_000.0],
                     "GRNTP": [1_200.0],
