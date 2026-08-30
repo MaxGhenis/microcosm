@@ -1985,6 +1985,54 @@ def test_frozen_support_selection_is_followed_by_weeks_unemployed_regate() -> No
     assert "Post-selection weeks-unemployed input signal failed" in source
 
 
+def test_stacked_release_weeks_precedes_selection_and_unchanged_hours_gate() -> None:
+    import ast
+    import inspect
+
+    builder = _load_builder_module()
+    source = inspect.getsource(builder._main)
+    base_load = source.index("base_frame = pool_frame")
+    weeks_stage = source.index("release_weeks_result = with_us_release_weeks_worked(")
+    weeks_gate = source.index(
+        "release_weeks_worked_gate = us_release_weeks_worked_gate("
+    )
+    weeks_assignment = source.index("base_frame = release_weeks_result.frame")
+    selection = source.index("base_frame, selection_report = select_frozen_support(")
+    hours_gate = source.index("hours_worked_gate = us_hours_worked_signal_gate(")
+    predictor_join = source.index("acs_predictor_join_result = join_acs_release_predictors(")
+
+    assert (
+        base_load
+        < weeks_stage
+        < weeks_gate
+        < weeks_assignment
+        < selection
+        < hours_gate
+        < predictor_join
+    )
+    assert (
+        'authenticated_pool_h5.verified_digest(\n'
+        '            consumer="stacked release weeks_worked source stage"'
+    ) in source
+    assert '"pool_manifest_sha256": authenticated_pool_h5.manifest_sha256' in source
+
+    tree = ast.parse(source)
+    manifest_call = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_build_manifests"
+    )
+    keywords = {keyword.arg: keyword.value for keyword in manifest_call.keywords}
+    assert isinstance(keywords["release_weeks_worked_source"], ast.Name)
+    assert keywords["release_weeks_worked_source"].id == (
+        "release_weeks_worked_source_receipt"
+    )
+    assert isinstance(keywords["release_weeks_worked_gate"], ast.Name)
+    assert keywords["release_weeks_worked_gate"].id == "release_weeks_worked_gate"
+
+
 def test_sipp_vehicle_donor_override_parses(monkeypatch) -> None:
     builder = _load_builder_module()
     monkeypatch.setattr(
@@ -4633,6 +4681,34 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
             lambda frame: builder.US_BASE_PERSON_POPULATION_BENCHMARK,
         )
 
+    def fake_with_release_weeks_worked(frame, **kwargs):
+        captured["source_stage_events"].append("release_weeks_stage")
+        captured["release_weeks_kwargs"] = kwargs
+        result = SimpleNamespace(frame=frame, receipt={"sha256": "9" * 64})
+        captured["release_weeks_result"] = result
+        return result
+
+    def fake_release_weeks_worked_gate(before, result):
+        captured["source_stage_events"].append("release_weeks_gate")
+        assert before is result.frame
+        assert result is captured["release_weeks_result"]
+        return builder.GateResult(
+            name="stacked_release_weeks_worked",
+            passed=True,
+            details={"checked": True},
+        )
+
+    monkeypatch.setattr(
+        builder,
+        "with_us_release_weeks_worked",
+        fake_with_release_weeks_worked,
+    )
+    monkeypatch.setattr(
+        builder,
+        "us_release_weeks_worked_gate",
+        fake_release_weeks_worked_gate,
+    )
+
     def fake_load_weeks_unemployed_source(path, **kwargs):
         captured["source_stage_events"].append("load_weeks_source")
         captured["weeks_unemployed_source_path"] = Path(path)
@@ -6204,6 +6280,26 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
                 "failures": ["fixture PUF own-tail donor missing"],
                 "details": {"status": "failed"},
             }
+            expected_pool_sha256 = __import__("hashlib").sha256(b"h5").hexdigest()
+            assert captured["release_weeks_kwargs"] == {
+                "time_period": builder.PERIOD,
+                "acs_person_zip": acs_person_zip,
+                "acs_person_sha256": "d" * 64,
+                "pool_identity": {
+                    "period": builder.PERIOD,
+                    "pool_h5_sha256": expected_pool_sha256,
+                    "pool_manifest_sha256": "a" * 64,
+                },
+            }
+            assert captured["source_stage_events"].index(
+                "release_weeks_stage"
+            ) < captured["source_stage_events"].index("release_weeks_gate")
+            assert captured["source_stage_events"].index(
+                "release_weeks_gate"
+            ) < captured["source_stage_events"].index("weeks_gate")
+            assert captured["source_stage_events"].index(
+                "release_weeks_gate"
+            ) < captured["source_stage_events"].index("ssi_reporters")
             return
     else:
         # Corridor order: SSI delivery + basis note, health-input crash
@@ -9019,6 +9115,33 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
             "crosswalk": {"sha256": "c" * 64},
             "join": {"acs_source_people": 856_626},
         },
+        release_weeks_worked_source={
+            "stage": "stacked_release_weeks_worked",
+            "sha256": "d" * 64,
+            "raw_domains": {
+                "acs_archive": {
+                    "WKWN_blank_nonblank_by_allocation": {
+                        "blank": {"allocated": 2, "not_allocated": 1_655_754},
+                        "nonblank": {
+                            "allocated": 305_604,
+                            "not_allocated": 1_461_528,
+                        },
+                    }
+                }
+            },
+        },
+        release_weeks_worked_gate=builder.GateResult(
+            name="stacked_release_weeks_worked",
+            passed=True,
+            details={
+                "by_source_channel_and_clone_index": {
+                    "asec": {"0": 1, "1": 1, "2": 0},
+                    "acs": {"0": 3, "1": 3, "2": 1},
+                },
+                "per_source_clone_disagreements": {"asec": 0, "acs": 0},
+                "column_diff": {"changed_columns": ["person.weeks_worked"]},
+            },
+        ),
     )
 
     manifest = json.loads((release_dir / "release_manifest.json").read_text())
@@ -9030,6 +9153,46 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
     }
     assert build_manifest["acs_predictor_join"] == expected_acs_join
     assert manifest["build"]["acs_predictor_join"] == expected_acs_join
+    expected_weeks_source = {
+        "stage": "stacked_release_weeks_worked",
+        "sha256": "d" * 64,
+        "raw_domains": {
+            "acs_archive": {
+                "WKWN_blank_nonblank_by_allocation": {
+                    "blank": {"allocated": 2, "not_allocated": 1_655_754},
+                    "nonblank": {
+                        "allocated": 305_604,
+                        "not_allocated": 1_461_528,
+                    },
+                }
+            }
+        },
+    }
+    assert (
+        build_manifest["stacked_release_weeks_worked_source"]
+        == expected_weeks_source
+    )
+    assert (
+        manifest["build"]["stacked_release_weeks_worked_source"]
+        == expected_weeks_source
+    )
+    expected_weeks_details = {
+        "by_source_channel_and_clone_index": {
+            "asec": {"0": 1, "1": 1, "2": 0},
+            "acs": {"0": 3, "1": 3, "2": 1},
+        },
+        "per_source_clone_disagreements": {"asec": 0, "acs": 0},
+        "column_diff": {"changed_columns": ["person.weeks_worked"]},
+    }
+    assert build_manifest["gates"]["stacked_release_weeks_worked"] == {
+        "passed": True,
+        "failures": [],
+        "details": expected_weeks_details,
+    }
+    assert manifest["build"]["stacked_release_weeks_worked"] == {
+        "passed": True,
+        "details": expected_weeks_details,
+    }
     assert build_manifest["gates"]["target_profile_coverage"]["passed"]
     assert (
         build_manifest["gates"]["target_profile_coverage"]["details"][
@@ -12930,6 +13093,11 @@ def test_release_gate_roster_exactly_classifies_support_and_source_semantics() -
             "prior_year_income",
             1,
             "authenticated_pool_stacked_safe",
+        ),
+        "us_release_weeks_worked_gate": (
+            "release_weeks_worked",
+            1,
+            "source_boundary_stacked_safe",
         ),
         "us_qbi_inputs_signal_gate": ("qbi_inputs", 1, "stacked_safe"),
         "us_reported_coverage_vintage_signal_gate": (

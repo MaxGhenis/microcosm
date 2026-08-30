@@ -9,11 +9,11 @@ Plan SHA-256: `e89dd0facbc6d22f296f65ff18520333af0f8ecc6c2b706c1fd6a2b98d49e729`
 ## State
 
 Implementation in progress. The declarative 2024 source stage, provenance-owner
-runtime, dedicated fail-closed gate, and focused contract suite are complete and
-green. Release-builder ordering/manifest integration and consumer/period
-regressions remain. The authorized v3 ruling is the binding scope: code, spec,
-and tests only; no data build, artifact mutation, publication, push, or PR.
-Candidate-25 remains read-only evidence.
+runtime, dedicated fail-closed gate, and release-builder/manifest integration
+are complete and green. Consumer and period-boundary regressions remain. The
+authorized v3 ruling is the binding scope: code, spec, and tests only; no data
+build, artifact mutation, publication, push, or PR. Candidate-25 remains
+read-only evidence.
 
 ## Done
 
@@ -57,14 +57,29 @@ Candidate-25 remains read-only evidence.
   the BE/UK spec identities changed by the shared closed-operation schema; the
   generated US spec identity is
   `b837a8703b8d278364e98e0ddf537d8861b02492dd75228204e1c0d4f49fc372`.
+- Committed the declarative/runtime/gate step at `268ad894`.
+- Wired the stage only for authenticated stacked inputs, immediately after the
+  base frame is loaded and before capital-gains-tail checks, weeks-unemployed,
+  frozen-support selection, and the unchanged hours signal gate. Both the
+  explicit pool-manifest route and an identified `--base-h5` pool use the one
+  returned `AuthenticatedPoolH5`; the stage re-verifies its bytes and receipts
+  its H5 and manifest digests. Legacy bare H5 behavior is unchanged.
+- Added immediate fail-closed release handling and telemetry. The source receipt
+  and dedicated gate receipt now propagate through `build_manifest.json`,
+  `release_manifest.json`, and calibration diagnostics; both manifests carry
+  the origin x clone-role table, raw joint allocation table through the source
+  receipt, disagreement counts, and only-weeks column diff evidence.
+- The complete release-builder suite passes 235/235 with focused Ruff green,
+  including executable order/authentication checks, the exact-k stacked path,
+  the provenance-aware gate roster, and a four-location manifest round trip.
 
 ## Next
 
-- Wire the new stage immediately after the authenticated stacked base frame is
-  loaded and before frozen-support selection and the unchanged hours signal
-  gate; propagate its source and gate receipts through both release manifests.
-- Add release-builder ordering/identity regressions, then the 2024 export,
-  ORG/FLSA, SPM work-expense, and 2025 carry-forward/direct-write regressions.
+- Add the 2024 frame input/export, ORG/FLSA, and SPM work-expense regressions;
+  prove 2025 engine carry-forward from the 2024 leaf and direct 2025 input-write
+  rejection.
+- Run affected package shards, Ruff, then the complete repository-wide suite;
+  finalize the journal and required output report.
 
 ---
 

@@ -260,6 +260,10 @@ from microcosm.build.us_runtime.reform_validation import (
     reform_validation_payload,
     write_reform_validation,
 )
+from microcosm.build.us_runtime.release_weeks_worked import (
+    us_release_weeks_worked_gate,
+    with_us_release_weeks_worked,
+)
 from microcosm.build.us_runtime.ssi_take_up import (
     US_SSI_TAKE_UP_AGE_TARGETS,
     US_SSI_TAKE_UP_ENFORCED_BAND_KEYS,
@@ -7035,6 +7039,7 @@ def _release_gate_failures(
     input_mass_reference_gate: GateResult | None = None,
     degenerate_input_gate: GateResult | None = None,
     ecps_parity_gate: GateResult | None = None,
+    release_weeks_worked_gate: GateResult | None = None,
     hours_worked_gate: GateResult | None = None,
     snap_take_up_gate: GateResult | None = None,
     eligibility_inputs_gate: GateResult | None = None,
@@ -7063,6 +7068,14 @@ def _release_gate_failures(
         failures.extend(
             f"Immigration composition failed: {failure}"
             for failure in immigration_gate.failures
+        )
+    if (
+        release_weeks_worked_gate is not None
+        and not release_weeks_worked_gate.passed
+    ):
+        failures.extend(
+            f"Stacked release weeks-worked failed: {failure}"
+            for failure in release_weeks_worked_gate.failures
         )
     if hours_worked_gate is not None and not hours_worked_gate.passed:
         failures.extend(
@@ -7591,6 +7604,7 @@ def _write_release_calibration_diagnostics(
     audit_export_targets: bool,
     immigration_gate: GateResult | None = None,
     input_mass_reference_gate: GateResult | None = None,
+    release_weeks_worked_gate: GateResult | None = None,
     hours_worked_gate: GateResult | None = None,
     snap_take_up_gate: GateResult | None = None,
     eligibility_inputs_gate: GateResult | None = None,
@@ -7686,6 +7700,15 @@ def _write_release_calibration_diagnostics(
                     "details": dict(immigration_gate.details),
                 }
                 if immigration_gate is not None
+                else None
+            ),
+            "stacked_release_weeks_worked": (
+                {
+                    "passed": release_weeks_worked_gate.passed,
+                    "failures": list(release_weeks_worked_gate.failures),
+                    "details": dict(release_weeks_worked_gate.details),
+                }
+                if release_weeks_worked_gate is not None
                 else None
             ),
             "hours_worked_signal": (
@@ -7995,6 +8018,7 @@ def _build_manifests(
     input_mass_reference_gate: GateResult | None = None,
     degenerate_input_gate: GateResult | None = None,
     ecps_parity_gate: GateResult | None = None,
+    release_weeks_worked_gate: GateResult | None = None,
     hours_worked_gate: GateResult | None = None,
     snap_take_up_gate: GateResult | None = None,
     eligibility_inputs_gate: GateResult | None = None,
@@ -8014,6 +8038,7 @@ def _build_manifests(
     calibration_filename: str = CALIBRATION_FILENAME,
     exact_k_ladder: Mapping[str, object] | None = None,
     base_pool: Mapping[str, object] | None = None,
+    release_weeks_worked_source: Mapping[str, object] | None = None,
     acs_predictor_join: Mapping[str, object] | None = None,
     evidence_known_failures: Sequence[Mapping[str, str]] | None = None,
 ) -> None:
@@ -8037,6 +8062,7 @@ def _build_manifests(
         input_mass_reference_gate,
         degenerate_input_gate,
         ecps_parity_gate=ecps_parity_gate,
+        release_weeks_worked_gate=release_weeks_worked_gate,
         hours_worked_gate=hours_worked_gate,
         snap_take_up_gate=snap_take_up_gate,
         eligibility_inputs_gate=eligibility_inputs_gate,
@@ -8082,6 +8108,15 @@ def _build_manifests(
             else {}
         ),
         **({"base_pool": dict(base_pool)} if base_pool is not None else {}),
+        **(
+            {
+                "stacked_release_weeks_worked_source": dict(
+                    release_weeks_worked_source
+                )
+            }
+            if release_weeks_worked_source is not None
+            else {}
+        ),
         **(
             {"acs_predictor_join": dict(acs_predictor_join)}
             if acs_predictor_join is not None
@@ -8214,6 +8249,17 @@ def _build_manifests(
             ),
             **(
                 {
+                    "stacked_release_weeks_worked": {
+                        "passed": release_weeks_worked_gate.passed,
+                        "failures": list(release_weeks_worked_gate.failures),
+                        "details": dict(release_weeks_worked_gate.details),
+                    }
+                }
+                if release_weeks_worked_gate is not None
+                else {}
+            ),
+            **(
+                {
                     "hours_worked_signal": {
                         "passed": hours_worked_gate.passed,
                         "failures": list(hours_worked_gate.failures),
@@ -8312,6 +8358,15 @@ def _build_manifests(
             ),
             **({"base_pool": dict(base_pool)} if base_pool is not None else {}),
             **(
+                {
+                    "stacked_release_weeks_worked_source": dict(
+                        release_weeks_worked_source
+                    )
+                }
+                if release_weeks_worked_source is not None
+                else {}
+            ),
+            **(
                 {"acs_predictor_join": dict(acs_predictor_join)}
                 if acs_predictor_join is not None
                 else {}
@@ -8362,6 +8417,16 @@ def _build_manifests(
                     }
                 }
                 if ecps_parity_gate is not None
+                else {}
+            ),
+            **(
+                {
+                    "stacked_release_weeks_worked": {
+                        "passed": release_weeks_worked_gate.passed,
+                        "details": dict(release_weeks_worked_gate.details),
+                    }
+                }
+                if release_weeks_worked_gate is not None
                 else {}
             ),
             **(
@@ -9345,6 +9410,61 @@ def _main(argv: Sequence[str] | None = None) -> None:
         base_frame = _load_frame(base_h5)
     else:
         base_frame = pool_frame
+    release_weeks_worked_source_receipt: dict[str, object] | None = None
+    release_weeks_worked_gate: GateResult | None = None
+    if authenticated_pool_h5 is not None:
+        if args.acs_person_zip is None or args.acs_person_sha256 is None:
+            raise ValueError(
+                "The authenticated stacked release requires --acs-person-zip "
+                "and --acs-person-sha256 for the measured weeks_worked leaf."
+            )
+        release_weeks_pool_sha256 = authenticated_pool_h5.verified_digest(
+            consumer="stacked release weeks_worked source stage"
+        )
+        release_weeks_before = base_frame
+        release_weeks_result = with_us_release_weeks_worked(
+            release_weeks_before,
+            time_period=PERIOD,
+            acs_person_zip=args.acs_person_zip,
+            acs_person_sha256=args.acs_person_sha256,
+            pool_identity={
+                "period": PERIOD,
+                "pool_h5_sha256": release_weeks_pool_sha256,
+                "pool_manifest_sha256": authenticated_pool_h5.manifest_sha256,
+            },
+        )
+        release_weeks_worked_source_receipt = dict(release_weeks_result.receipt)
+        release_weeks_worked_gate = us_release_weeks_worked_gate(
+            release_weeks_before,
+            release_weeks_result,
+        )
+        if not release_weeks_worked_gate.passed:
+            if telemetry is not None:
+                telemetry.stage(
+                    "stacked_release_weeks_worked",
+                    status="failed",
+                    message="Stacked release weeks-worked source gate failed.",
+                    failures=list(release_weeks_worked_gate.failures),
+                    force_upload=True,
+                )
+            raise RuntimeError(
+                "Release gates failed: "
+                + "; ".join(
+                    "Stacked release weeks-worked failed: " + failure
+                    for failure in release_weeks_worked_gate.failures
+                )
+            )
+        base_frame = release_weeks_result.frame
+        if telemetry is not None:
+            telemetry.stage(
+                "stacked_release_weeks_worked",
+                message=(
+                    "Authenticated and materialized the 2024 ASEC/ACS measured "
+                    "weeks leaf before frozen-support selection."
+                ),
+                source_receipt_sha256=release_weeks_worked_source_receipt["sha256"],
+                gate_details=dict(release_weeks_worked_gate.details),
+            )
     capital_gains_tail_presence = assert_puf_capital_gains_tail_survives_selection(
         base_frame,
         base_frame,
@@ -11622,6 +11742,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
             enforced_input_mass_reference_gate,
             degenerate_input_gate,
             ecps_parity_gate=enforced_ecps_parity_gate,
+            release_weeks_worked_gate=release_weeks_worked_gate,
             hours_worked_gate=hours_worked_gate,
             snap_take_up_gate=snap_take_up_gate,
             eligibility_inputs_gate=eligibility_inputs_gate,
@@ -11669,6 +11790,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
         base_population_gate=base_population_gate,
         immigration_gate=immigration_gate,
         input_mass_reference_gate=input_mass_reference_gate,
+        release_weeks_worked_gate=release_weeks_worked_gate,
         hours_worked_gate=hours_worked_gate,
         snap_take_up_gate=snap_take_up_gate,
         eligibility_inputs_gate=eligibility_inputs_gate,
@@ -12321,6 +12443,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
         input_mass_reference_gate=enforced_input_mass_reference_gate,
         degenerate_input_gate=degenerate_input_gate,
         ecps_parity_gate=enforced_ecps_parity_gate,
+        release_weeks_worked_gate=release_weeks_worked_gate,
         hours_worked_gate=hours_worked_gate,
         snap_take_up_gate=snap_take_up_gate,
         eligibility_inputs_gate=eligibility_inputs_gate,
@@ -12340,6 +12463,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
         calibration_filename=calibration_filename,
         exact_k_ladder=exact_k_ladder_provenance,
         base_pool=base_pool_receipt,
+        release_weeks_worked_source=release_weeks_worked_source_receipt,
         acs_predictor_join=acs_predictor_join_receipt,
         evidence_known_failures=evidence_known_failures,
     )
