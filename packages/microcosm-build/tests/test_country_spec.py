@@ -190,6 +190,7 @@ class TestArmenianPackage:
             "target_references.json",
             "gates.json",
             "release_contract.json",
+            "financial_wealth_targets.json",
         }
         assert set(spec.resource_hashes) == set(spec.resources) | {
             "country_package.json"

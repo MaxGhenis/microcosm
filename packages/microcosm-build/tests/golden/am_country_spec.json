@@ -1,6 +1,6 @@
 {
   "country": "am",
-  "fingerprint": "64f50fa39e68e9ba6c451e3a47a2f2adeaba5a5ccb147cb80297f942de433ca8",
+  "fingerprint": "cbb36d5c052ac8fe4faaae1a3994d8db2eb80ed4c084fcf9159c3eaee7fd5290",
   "gate_ids": [
     "calibration_per_family_fit",
     "national_and_marz_admin_aggregates",
@@ -33,7 +33,8 @@
     "staging_repo": "policyengine/populace-am-staging"
   },
   "resource_hashes": {
-    "country_package.json": "d16ce36bc7ea2fac4aaa43036cfea04b2c0f905a2e1682fe64665954bc1cd4b3",
+    "country_package.json": "f800cbd08cc7c76b6bc24ae16b9692126621058a7fe3e7ad030229b710aa14af",
+    "financial_wealth_targets.json": "506f911bc77e830df36a8afee43baa7af9ecc9df6294266e9a5fe6ce40277efa",
     "gates.json": "ccfb0558558f2b0678637a3bebf0778a25e7a3b999981a0a20bc89f3e7b3d320",
     "geography_spine.json": "12ee8607f1a222b642cbc251d3fe51c209786b24542084a06249aab8c7ab2fa1",
     "release_contract.json": "86339163c03eaa4d9abea5712546dc63697ea4223b8870d177f23b89a0098dbb",
@@ -57,7 +58,8 @@
     "geography_spine.json",
     "release_contract.json",
     "source_stages.json",
-    "target_references.json"
+    "target_references.json",
+    "financial_wealth_targets.json"
   ],
   "stage_names": [
     "load_populace_us_support_pool",

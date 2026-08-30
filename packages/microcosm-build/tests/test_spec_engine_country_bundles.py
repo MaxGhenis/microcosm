@@ -25,7 +25,7 @@ EXPECTED_RESOURCES = {
     "spine",
     "vintages",
 }
-AM_SPEC_SHA256 = "659b6baf5ebbd71fb7786ec4c4d49df565b2bddabeb868a9385ed226c56880f9"
+AM_SPEC_SHA256 = "cd392e80a362cf87eeab1cd77a45264a661ca6c90e09506c0537f75c54892b04"
 
 
 @pytest.mark.parametrize(
@@ -171,6 +171,7 @@ def test_am_generation_zero_views_come_from_the_country_spec_seam() -> None:
     assert spec.release_contract is not None
     assert not spec.release_contract.artifact_repo_private
     assert {row.path for row in spec.resource_rows if row.kind == "legacy_json"} == {
+        "financial_wealth_targets.json",
         "gates.json",
         "geography_spine.json",
         "release_contract.json",

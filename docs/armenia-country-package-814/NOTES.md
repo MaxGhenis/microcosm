@@ -1,5 +1,10 @@
 # Armenia country-package decisions (#814)
 
+The 2026-08-29 [financial and wealth extension](FINANCIAL_WEALTH.md) adds a
+separate opt-in monetary inventory. The engine-free v1 decisions below remain
+the demographic baseline; its exclusions do not describe the new profile's
+source inventory or explicitly prepared local monetary experiment.
+
 ## Product posture
 
 Armenia v1 is an engine-free, NZ-style pool reweight. Its base is an
