@@ -18,9 +18,10 @@ and preserved as the explicitly unaccepted WIP commit `8129c9b7`. Evaluation
 will proceed through focused tests and independent source review; unsound
 pieces will be corrected by follow-up commits rather than history rewriting.
 The inherited typed-spec closure and its mechanically derived identity recut
-are now accepted through commits `0363f739` and `b6599ff7`; producer and
-adapter integration review, the post-producer health replay, and final
-repository verification remain.
+are accepted through commits `0363f739` and `b6599ff7`. Independent producer
+and adapter review is also complete after the fail-closed follow-ups recorded
+below. The post-producer health replay, final repository verification, and
+verdict report remain.
 The immutable candidate-25 pool and release evidence remain read-only; no
 pool/release artifact, publication surface, remote, or data build will be
 modified or run.
@@ -301,13 +302,54 @@ modified or run.
   repair is therefore engine-copy-only under the already authenticated full-
   frame GQ lineage authority, including exact household/SPM identity sets
   carried into sparse batches; no source cell or persisted frame is rewritten.
+- Accepted the property-tax producer repair and ten-leaf native-zero expansion
+  after an independent source/receipt review. The immutable candidate H5 is
+  3,239,263,159 bytes with SHA-256
+  `eeea886afec72c4ec6e15d31358920416ea6892ef2dca6bb9a281dc1faf6231b`;
+  its manifest SHA-256 is
+  `c9ee554939790d854efea9d69897a40376d0c7ea49e40e3f76f268835ebd148a`.
+  Every second-home leaf has 582,318 null native rows, 582,318 finite-zero
+  clone-1 rows, and 15,228 finite-zero clone-2 rows. `real_estate_taxes` has
+  350,656 native nulls but no clone nulls; its positive counts are 234,483,
+  181,057, and 11,176 on roles 0/1/2 respectively, with no positive native
+  nonhead. This supports the joint ASEC QRF + measured ACS source-domain root
+  and exact native-zero contract, not an engine default or gate exception.
+- Hardened the ACS property-tax mapper at `13dc0b34`: nonnumeric observed
+  `TAXAMT` now fails at the mapper boundary, while renter/group-quarters
+  structural zero no longer requires an irrelevant `ADJHSG`; owner amounts
+  remain adjustment-bound. All ten focused property-tax cases and Ruff pass.
+- Independent adapter/H5 review found three fail-closed holes and each now has
+  a regression. `9ec67cd5` binds rent authority to the exact observed-null
+  lineage set so a newly introduced GQ null cannot reuse a broader structural
+  universe. `e524fdac` rejects clone-receipt version booleans, coerced counts,
+  noncanonical count rules, and extra keys. `6d30b93b` applies that exact
+  receipt validation at manifest-only readiness and cross-binds eligible
+  households to the assembly receipt, so launcher preflight cannot defer a
+  clone mismatch until full H5 loading.
+- Independent whole-lane review found the inherited adapters were used for
+  target/reform simulations but not the final H5 write. `29072fd5` factors the
+  authenticated SSI/rent/tenure materialization into one engine-copy table
+  path and routes the final writer through a copied Frame under the same full-
+  support authority; the source Frame remains byte-exact. Behavioral copy and
+  AST call-site regressions pass. `3d972d2f` advances the target-frame
+  materializer identity to v12 so old checkpoints and transitively bound reform
+  vectors cannot warm-hit across the new engine-input semantics.
+- A first follow-up (`182a2f45`) incorrectly removed the three second-home
+  degenerate exclusions. Independent candidate review proved every preserved
+  clone payload is exactly zero, so `f2765b54` restores the reviewed exclusions
+  without rewriting history. This is fail-closed: the gate passes today's
+  justified all-zero leaves and will reject any exclusion whose future clone
+  payload becomes nondefault. No threshold, formula, or weeks ownership choice
+  changed.
+- Three independent reviews now accept the property/native-zero and bounded
+  adapter integrations. Focused clone-receipt, manifest/H5, sparse authority,
+  final-write, ACS mapping, compiler/spec, and Ruff corridors are green. The
+  separate untracked weeks ruling prompt was never staged or modified.
 
 ### Next
 
-Complete independent review of the accepted property-tax/native-zero and
-bounded SSI/rent/tenure repairs, then run the actual post-producer health replay
-over existing candidate evidence, write the verdict report, and run
-repository-wide verification. The stacked
+Run the actual post-producer health replay over existing candidate evidence,
+write the verdict report, and run repository-wide verification. The stacked
 `weeks_worked`/ORG ownership ruling remains an explicit dense blocker; the
 separate untracked ruling note explicitly defers any implementation until this
 r3 lane completes and is not part of this lane.
