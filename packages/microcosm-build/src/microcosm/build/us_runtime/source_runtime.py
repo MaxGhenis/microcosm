@@ -71,6 +71,9 @@ from microcosm.build.us_runtime.puf_aggregate_records import (
 from microcosm.build.us_runtime.relationship_inputs import (
     derive_us_relationship_inputs_from_manifest,
 )
+from microcosm.build.us_runtime.release_weeks_worked import (
+    derive_us_release_weeks_worked_from_manifest,
+)
 from microcosm.build.us_runtime.retirement_contributions import (
     derive_us_retirement_contributions_from_manifest,
     impute_us_retirement_contributions_to_puf_support_from_manifest,
@@ -111,6 +114,7 @@ __all__ = [
     "derive_us_other_health_insurance_from_manifest",
     "derive_us_prior_year_income_from_manifest",
     "derive_us_relationship_inputs_from_manifest",
+    "derive_us_release_weeks_worked_from_manifest",
     "derive_us_retirement_distributions_from_manifest",
     "derive_us_workers_compensation_from_manifest",
     "derive_us_weeks_unemployed_from_manifest",
@@ -318,6 +322,9 @@ def us_source_operation_handlers() -> Mapping[str, SourceOperationHandler]:
         "derive_pregnancy": derive_us_pregnancy_from_manifest,
         "derive_prior_year_income": derive_us_prior_year_income_from_manifest,
         "derive_relationship_inputs": derive_us_relationship_inputs_from_manifest,
+        "derive_stacked_release_weeks_worked": (
+            derive_us_release_weeks_worked_from_manifest
+        ),
         "derive_retirement_distributions": (
             derive_us_retirement_distributions_from_manifest
         ),

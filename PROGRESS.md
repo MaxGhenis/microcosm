@@ -8,9 +8,12 @@ Plan SHA-256: `e89dd0facbc6d22f296f65ff18520333af0f8ecc6c2b706c1fd6a2b98d49e729`
 
 ## State
 
-Implementation in progress. The authorized v3 ruling is the binding scope:
-code, spec, and tests only; no data build, artifact mutation, publication,
-push, or PR. Candidate-25 remains read-only evidence.
+Implementation in progress. The declarative 2024 source stage, provenance-owner
+runtime, dedicated fail-closed gate, and focused contract suite are complete and
+green. Release-builder ordering/manifest integration and consumer/period
+regressions remain. The authorized v3 ruling is the binding scope: code, spec,
+and tests only; no data build, artifact mutation, publication, push, or PR.
+Candidate-25 remains read-only evidence.
 
 ## Done
 
@@ -24,13 +27,44 @@ push, or PR. Candidate-25 remains read-only evidence.
   provenance-owner routing, exact source authentication and clone fan-out,
   an additive weeks-specific gate, unchanged pool exclusion/gate 9480/hours
   gate/thresholds, and 2025 carry-forward rather than direct materialization.
+- Traced the typed source compiler, provenance-owner allowlist, stacked release
+  ordering, manifest receipt pattern, period-aware frame adapter, ORG/FLSA
+  consumers, SPM formula, and PolicyEngine-US 1.819.0 carry-forward formula.
+- Added the generated `stacked_release_weeks_worked` source declaration and
+  closed-vocabulary `derive_stacked_release_weeks_worked` kernel registration.
+  The stage pins the 2024 ACS person ZIP, exact raw fields and domains, the
+  accepted reference-window mismatch, and Microcosm ownership of the ACS blank
+  recode. Regenerated `spec/sources.yaml` through the repository generator.
+- Added the release-only provenance-owner runtime. It authenticates the pool
+  HDF5/manifest identity and ACS archive, scans the complete two-member archive,
+  validates `WKWN` and `FWKWNP`, asserts the exact joint blank/allocation table,
+  performs an exact one-to-one `SERIALNO + SPORDER` join, and only then fans out
+  through validated `person_source_id` across clone roles 0/1/2.
+- Added the dedicated additive weeks gate and source receipt: raw ASEC/ACS
+  domains; exact archive/period identities; exact join counts and key digest;
+  origin x clone-role joint table; zero per-source clone disagreements;
+  Microcosm blank-recode counts; canonical source-value digest; conflicting
+  pre-existing-value rejection; and a byte-sensitive only-weeks column diff.
+- Closed adversarial review findings before commit: extra selected raw keys now
+  fail the exact semantic-key-set assertion, coherent all-clone value tampering
+  fails the source-value binding, and rehashed raw-domain receipts are validated
+  semantically rather than trusted as self-describing JSON.
+- Focused weeks tests pass 22/22 with Ruff green. Compatibility tests pass
+  544/544 across source runtime, the unchanged hours stage, and the complete
+  source-blindness/provenance-owner contract.
+- Typed-source/spec compatibility passes 61/61, and the US bundle generator
+  `--check` is green. Updated the deliberate source-stage count/hash pins and
+  the BE/UK spec identities changed by the shared closed-operation schema; the
+  generated US spec identity is
+  `b837a8703b8d278364e98e0ddf537d8861b02492dd75228204e1c0d4f49fc372`.
 
 ## Next
 
-- Trace the existing source-stage schema/compiler/manifest path, the
-  `acs_release_predictors.py` provenance-owner pattern, release ordering, and
-  consumer tests; then implement the smallest spec-driven stage in committed,
-  focused-green steps.
+- Wire the new stage immediately after the authenticated stacked base frame is
+  loaded and before frozen-support selection and the unchanged hours signal
+  gate; propagate its source and gate receipts through both release manifests.
+- Add release-builder ordering/identity regressions, then the 2024 export,
+  ORG/FLSA, SPM work-expense, and 2025 carry-forward/direct-write regressions.
 
 ---
 

@@ -190,7 +190,7 @@ EXPECTED_RUNGS = [
 
 LEGACY_COMPATIBILITY_SHA256 = {
     "source_stages.json": (
-        "128d3c3832b3d6863276ca9de041ced0b1d2097ca8dcd9f8a1271c57bc319723"
+        "064cdababc3182d50f4f649dc2de3d97ae55d65e9e27c1dba0e7aa743b591330"
     ),
     "support_spine.json": (
         "68f37dc6ae6e0cde7ebccb53f88dd4a800e63456f838fa214ff98d1db8d815be"
@@ -278,7 +278,7 @@ def test_us_package_has_twelve_typed_domains_and_loads_through_one_seam(
         resolved_us_spec.spec_sha256
     )
     assert resolved_country_spec.sources is not None
-    assert len(resolved_country_spec.sources.stages) == 37
+    assert len(resolved_country_spec.sources.stages) == 38
     assert resolved_country_spec.support_spine is not None
     assert len(resolved_country_spec.support_spine.support_spine.sources) == 2
 
@@ -297,7 +297,7 @@ def test_constant_derived_domain_counts_are_complete(
     catalogs = _domain(resolved_us_spec, ResourceKind.CATALOGS)
 
     assert len(sources["sources"]) == 8
-    assert len(sources["stages"]) == 37
+    assert len(sources["stages"]) == 38
 
     families = imputation["families"]
     family_counts = Counter(family["stage"] for family in families)

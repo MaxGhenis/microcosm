@@ -1913,6 +1913,74 @@
       "notes": "Citizenship is measured (PRCITSHP), not imputed. Non-citizens with any ASEC-UA legal-status indicator (Van Hook et al., SSRN 4662801) become OTHER_NON_CITIZEN. The CPS carries no work-authorization variable, so among residual non-citizens, workers and students spill to NON_CITIZEN_VALID_EAD in deterministic seeded order until the remaining undocumented worker count matches Pew's 8.3M and the undocumented student count matches the Higher Ed Immigration Portal's ~408k \u2014 the only forced margins. The total undocumented population is emergent (\u224813M on the 2024 ASEC, within the range of published 2023-24 estimates) and is gated against Pew's 11.0M 2022 anchor with a coarse plausibility band rather than forced; reconciling the level is the calibration lane's job. Immigration-status tags carry only statutory tests the data supports: DACA (arrival cohort among EAD holders) and CUBAN_HAITIAN_ENTRANT (nativity plus post-1980 arrival); other documented non-citizens stay LEGAL_PERMANENT_RESIDENT, the modal true status \u2014 blanket REFUGEE/TPS labels are deliberately not fabricated because they would mislabel millions and over-grant refugee-class benefit exemptions."
     },
     {
+      "stage": "stacked_release_weeks_worked",
+      "survey": "Census CPS ASEC + Census ACS PUMS",
+      "source": "Authenticated stacked support pool plus pinned official 2024 ACS one-year person archive",
+      "grain": "person",
+      "artifacts": [
+        {
+          "kind": "versioned_derived_microdata",
+          "format": "authenticated_multispine_pool_hdf5",
+          "vintage": "2024 release",
+          "locator": "Release-provided authenticated multispine pool; HDF5 and manifest SHA-256 identities are required at runtime"
+        },
+        {
+          "kind": "public_microdata",
+          "format": "census_acs_pums_person_zip",
+          "vintage": "2024 one-year",
+          "locator": "https://www2.census.gov/programs-surveys/acs/data/pums/2024/1-Year/csv_pus.zip",
+          "sha256": "afdc4dbfd455e7e2b41956462911be2e6b955a33aa1f093bcc095460aed88da9",
+          "expected_rows": 3422888,
+          "source_columns": [
+            "SERIALNO",
+            "SPORDER",
+            "WKWN",
+            "FWKWNP"
+          ],
+          "integrity_note": "The complete two-member person archive is authenticated before a one-to-one SERIALNO + SPORDER join; WKWN and FWKWNP domains and their joint cross-tab are fail-closed receipts."
+        }
+      ],
+      "operations": [
+        {
+          "kind": "read_table",
+          "table": "person"
+        },
+        {
+          "kind": "derive_stacked_release_weeks_worked",
+          "release_period": 2024,
+          "asec_source": "WKSWORK",
+          "asec_integral_domain": [
+            0,
+            52
+          ],
+          "acs_source": "WKWN",
+          "acs_blank_or_integral_domain": [
+            1,
+            52
+          ],
+          "acs_allocation_flag": "FWKWNP",
+          "acs_allocation_flag_domain": [
+            0,
+            1
+          ],
+          "acs_blank_recode": 0,
+          "acs_blank_recode_owner": "Microcosm",
+          "semantic_join_key": [
+            "SERIALNO",
+            "SPORDER"
+          ],
+          "clone_fanout_key": "person_source_id"
+        }
+      ],
+      "outputs": [
+        "weeks_worked"
+      ],
+      "nonnegative_outputs": [
+        "weeks_worked"
+      ],
+      "notes": "Release-only 2024 ownership for the stacked path, applied before frozen-support selection and the unchanged hours signal gate. Physical ASEC lineages map weeks_worked <- WKSWORK after integral 0-52 validation with no clipping. Physical ACS lineages authenticate the pinned official archive, join one-to-one on SERIALNO + SPORDER, then fan WKWN out through validated person_source_id to clone roles 0/1/2. ACS WKWN must be blank or integral 1-52; validated Census blanks are structurally recoded to zero by Microcosm and receipted as Microcosm's recode. FWKWNP must be 0/1, and its joint blank/nonblank x allocation-status cross-tab is authenticated. Values are source-direct reported-or-allocated. The reference-window and universe mismatch is accepted explicitly: ACS 2024 WKWN covers the rolling 12 months before interview for persons 16+, while ASEC 2024 WKSWORK covers calendar 2023 for persons 15+. Pool cross-period exclusion remains unchanged because PolicyEngine-US owns weeks_worked through formula_2025 from 2025 onward."
+    },
+    {
       "stage": "hours_worked",
       "survey": "Census CPS ASEC",
       "source": "https://www.census.gov/programs-surveys/cps.html",

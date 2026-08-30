@@ -81,6 +81,7 @@ ALLOWED_SOURCE_OPERATION_KINDS = frozenset(
         "derive_medicare_take_up",
         "derive_other_health_insurance_premiums",
         "derive_prior_year_income",
+        "derive_stacked_release_weeks_worked",
         "derive_snap_abawd_discretionary_exemption",
         "derive_snap_take_up",
         "derive_puf_policyengine_variables",

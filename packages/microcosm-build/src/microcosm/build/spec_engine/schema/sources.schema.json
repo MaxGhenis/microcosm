@@ -1445,6 +1445,74 @@
      "type": "object",
      "additionalProperties": false,
      "properties": {
+      "acs_allocation_flag": {
+       "const": "FWKWNP"
+      },
+      "acs_allocation_flag_domain": {
+       "const": [
+        0,
+        1
+       ]
+      },
+      "acs_blank_or_integral_domain": {
+       "const": [
+        1,
+        52
+       ]
+      },
+      "acs_blank_recode": {
+       "const": 0
+      },
+      "acs_blank_recode_owner": {
+       "const": "Microcosm"
+      },
+      "acs_source": {
+       "const": "WKWN"
+      },
+      "asec_integral_domain": {
+       "const": [
+        0,
+        52
+       ]
+      },
+      "asec_source": {
+       "const": "WKSWORK"
+      },
+      "clone_fanout_key": {
+       "const": "person_source_id"
+      },
+      "kind": {
+       "const": "derive_stacked_release_weeks_worked"
+      },
+      "release_period": {
+       "const": 2024
+      },
+      "semantic_join_key": {
+       "const": [
+        "SERIALNO",
+        "SPORDER"
+       ]
+      }
+     },
+     "required": [
+      "acs_allocation_flag",
+      "acs_allocation_flag_domain",
+      "acs_blank_or_integral_domain",
+      "acs_blank_recode",
+      "acs_blank_recode_owner",
+      "acs_source",
+      "asec_integral_domain",
+      "asec_source",
+      "clone_fanout_key",
+      "kind",
+      "release_period",
+      "semantic_join_key"
+     ]
+    },
+    {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
       "kind": {
        "const": "derive_hours_worked"
       }

@@ -96,6 +96,8 @@ _SOURCE_SPINE_PROVENANCE_OWNERS = frozenset(
         "acs_income_universe.py",
         # Owner-approved release boundary: exact raw ACS join and receipt.
         "acs_release_predictors.py",
+        # Owner-approved measured weeks boundary: exact raw ACS join and fan-out.
+        "release_weeks_worked.py",
         "base_pool.py",  # Legacy late-spine assembly.
         # Enumerates provenance columns only to reject preassembled source frames.
         "operator_boundary.py",
@@ -220,6 +222,7 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         "acs_multispine.py",
         "acs_pums.py",
         "acs_release_predictors.py",  # Pinned release join; provenance owner.
+        "release_weeks_worked.py",  # Pinned measured weeks join; provenance owner.
         "acs_sources.py",
         "acs_transfer_bank.py",  # Bounded checkpoint I/O; no population treatment.
         "asec_checkpoint.py",  # Bounded checkpoint I/O; no population treatment.
