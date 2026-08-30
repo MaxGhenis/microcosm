@@ -9815,14 +9815,14 @@ def test_dataset_from_frame_rejects_formula_owned_columns_by_default(
         builder._dataset_from_frame(small_frame)
 
 
-def test_second_home_inputs_are_not_reviewed_as_degenerate() -> None:
+def test_second_home_zero_sources_remain_reviewed_as_degenerate() -> None:
     builder = _load_builder_module()
 
     assert {
         "second_home_mortgage_balance",
         "second_home_mortgage_interest",
         "second_home_mortgage_origination_year",
-    }.isdisjoint(builder.US_DEGENERATE_INPUT_REVIEWED_EXCLUSIONS)
+    } <= set(builder.US_DEGENERATE_INPUT_REVIEWED_EXCLUSIONS)
 
 
 def test_dataset_from_frame_materializes_reported_ssi_only_in_dataset_copy(

@@ -671,6 +671,18 @@ US_HEALTH_INPUT_NONCONSTANT_COLUMNS = (
 # default-valued-columns gate so this list cannot rot.
 US_DEGENERATE_INPUT_REVIEWED_EXCLUSIONS = {
     "takes_up_dc_ptc": ("DC PTC take-up imputation backlog; constant True."),
+    "second_home_mortgage_balance": (
+        "Second-home mortgage decomposition not imputed; constant at the"
+        " engine default (PolicyEngine/microcosm#38)."
+    ),
+    "second_home_mortgage_interest": (
+        "Second-home mortgage decomposition not imputed; constant at the"
+        " engine default (PolicyEngine/microcosm#38)."
+    ),
+    "second_home_mortgage_origination_year": (
+        "Second-home mortgage decomposition not imputed; constant at the"
+        " engine default (PolicyEngine/microcosm#38)."
+    ),
     "takes_up_early_head_start_if_eligible": (
         "Early Head Start person enrollment is absent from every locked source; "
         "see the archived-derivation and source-domain evidence in the parity "
