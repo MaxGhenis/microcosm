@@ -2,6 +2,8 @@
 
 Date: 2026-08-29
 
+Completed: 2026-08-30
+
 Branch: `stacked-dense-gate-sweep`
 
 Lane base: `7d44c0b5`
@@ -10,25 +12,20 @@ Lane base: `7d44c0b5`
 
 ### State
 
-In progress on 2026-08-29. Continuation r3 resumed at `615710d7` with the
-interrupted r2 implementation still dirty. Before any new implementation, the
-31 tracked files were verified byte-for-byte against salvage commit
-`38b424f8`, reviewed at the change-cluster level against this section's plan,
-and preserved as the explicitly unaccepted WIP commit `8129c9b7`. Evaluation
-will proceed through focused tests and independent source review; unsound
-pieces will be corrected by follow-up commits rather than history rewriting.
-The inherited typed-spec closure and its mechanically derived identity recut
-are accepted through commits `0363f739` and `b6599ff7`. Independent producer
-and adapter review is also complete after the fail-closed follow-ups recorded
-below. The candidate-wide post-producer health replay now passes the unchanged
-gate. Final repository verification is green; the verdict report remains.
-The first fresh repository pass left only four stale build-test fixture
-clusters; all four are repaired, and the fresh complete build-shard rerun plus
-every repository-wide static check are now green. Only the verdict report and
-journal closeout remain. The immutable candidate-25 pool and release evidence
-remain read-only; no
-pool/release artifact, publication surface, remote, or data build will be
-modified or run.
+Complete on 2026-08-30 with verdict `ADJUDICATION-BLOCKED`. Continuation r3
+recovered the interrupted 31-file implementation from salvage `38b424f8`,
+preserved it without history rewriting at WIP `8129c9b7`, independently
+reviewed every producer and adapter cluster, corrected the unsound pieces in
+follow-up commits, completed the read-only post-producer health replay, and
+passed repository-wide verification. The authoritative verdict report is
+`out.md`, committed at `ce643527`; its first line is
+`ADJUDICATION-BLOCKED`.
+
+The lane-local adjudication work is finished. Dense certification remains
+blocked on the explicit Max ruling for stacked `weeks_worked`/ORG ownership
+and the separate no-build hold. Candidate-25 remains the immutable historical
+`gate_failed` artifact; no pool/release artifact, publication surface, remote,
+or data build was modified or run.
 
 ### Done
 
@@ -437,13 +434,21 @@ modified or run.
   `7f4537db123094c556d09bd3a1130940cbdfe351359690b75f88e0afa25101c9`.
   `git diff --check` is green. The tracked tree is clean; the separate untracked
   weeks-ruling note remains untouched and excluded from this lane.
+- Wrote the final 2026-08-30 verdict report at `ce643527`. It contains the
+  required per-red root/fix/blocker table, the exact 5/6 archived-model status,
+  the open Max ruling, the read-only health replay, and the precise
+  current-source rebuild/certification sequence. Its blocked verdict does not
+  claim that candidate-25 was repaired or certified in place.
 
 ### Next
 
-Write and commit the verdict report, then close this current journal section.
-The stacked `weeks_worked`/ORG ownership ruling remains an explicit dense
-blocker; the separate untracked ruling note explicitly defers any
-implementation until this r3 lane completes and is not part of this lane.
+No further lane-local work is authorized. Max must first rule on stacked
+`weeks_worked` ownership; any implementation must preserve gate 9480 and recut
+affected identities. Max must separately lift the no-build hold before a new
+current-source candidate can be built. The exact raw-stage pool, dense-release,
+six-model, certification, and preflight sequence is in `out.md`. Candidate-25
+must not be resumed or modified. The separate untracked ruling note was never
+edited or staged and is not part of this lane.
 
 ---
 
