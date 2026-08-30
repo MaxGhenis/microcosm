@@ -349,18 +349,18 @@ EXPECTED_HASHES = {
     "acs_person_predictors": "878c788a6f037d7aca12b3586ea034eff04f3034ffa11935a736493042551f25",
     "authority": "6e7359c5bbdea0deb3ad5a76812bdc3138a5f78305e8c3c9c220884a83ba2fdb",
     "early_families": "4aa9f736fd76e83955477ad1667e58f48f264783f05bdc7f0102cd32d61323bd",
-    "full_checkpoint": "c7abba2339906367767d7efde5f90df4b1f7205be0cc8d4e78faa3ee6895770e",
+    "full_checkpoint": "24abb80cb119404fc520532087be0a4b0240c06d03961c5f4df2d8b82acbedb0",
     "gap_fill_schedule": "1c31f9868f7884347cc19cf1ff65da43f950b9114941a715bab168246db414a7",
     "graph_nodes": "8551198b67644d45dc064d51c5dfbd41a91154c9cdf0665770adc2503f6c10e6",
     "geography_assignment": "f49425ca8734ac559c73cf44f6458d86d3162a48956b98a27e6e758959361585",
     "late_families": "0b5134e544c218ba079bcfb1a789e1cd1ff27d4706709163c7e78de52dd1f580",
-    "late_resource_semantics": "f7056887d0bbcf516aefe523ba478717c1c0316fec618ba39deea98678147fd6",
+    "late_resource_semantics": "f054b27c22ea4c978c91a1536b4e6f4245d5013d9885e9dd47ebe9f1416d830a",
     "late_schedule": "5222f7329e12723ae809c5ff3cb09b7c06c1a5b2d09571cb3ad7b86cca207aee",
     "ownership": "c154604b6b0e8adaccb3cdea8542836d42d3d52f8fd0e2c3e5c63f0696cb8b1c",
     "primary_tuples": "987b501c695e31f45521c4a178528f75ab3df22c09bc407b182213b2de99ee57",
-    "seed_map": "1063879c6d36ade3522b943681cf6a6edc1ab1949b991d07b4d06ae39ad2efde",
-    "seed_protocol": "674b63ad00c1bd176bb9a20e8c8e9b4a202c9e08422a6e150e42f4c7a96d2e00",
-    "source_manifest": "fae4801adb8aada71775b3b44ee1d4a5e784acabc3dfc44a0fe7d1ae00f91b57",
+    "seed_map": "44c64c548579ab4ec2e666553a4ac5e9dcd546e71c2182f2cf8d0874f73e5d65",
+    "seed_protocol": "a16b77d78cb351197e78b8edf630aab33c32a0ba2b8c6ae23f4d35560adcc7a1",
+    "source_manifest": "e16a65d3c28dc89fa9609ee151f4aa5efa3480aadf97a71615bdaa3da77d1986",
     "take_up": "fa186daea0f8dd641cc470e41d1a2953f887d45282ec990201298f47bedf8d4d",
     "tail": "ac92829c88a1a4fb6460d61190918d5d99c6c377fc8dd8f62f02b332d09bf59c",
 }
@@ -438,7 +438,7 @@ EXPECTED_INVENTORY_COUNTS: Mapping[str, int] = {
     "seed_sites": 53,
     "seed_streams": 14,
     "source_operators": 16,
-    "source_stages": 37,
+    "source_stages": 38,
     "stacked_checkpoint_full_components": 13,
     "stacked_checkpoint_pool_code_components": 19,
     "stacked_checkpoint_static_components": 10,
@@ -1180,7 +1180,7 @@ def build_inventory_coverage(
             "source manifest digest differs": sha256_json(source_manifest)
             == EXPECTED_HASHES["source_manifest"],
             "stage count differs": len(_array(sources["stages"], "source stages"))
-            == 37,
+            == 38,
         },
         homes=("/sources/stage_manifest", "/sources/stages"),
         consumers=(
@@ -1191,7 +1191,7 @@ def build_inventory_coverage(
             "stages": len(_array(sources["stages"], "source stages")),
             "sha256": sha256_json(source_manifest),
         },
-        expected={"stages": 37, "sha256": EXPECTED_HASHES["source_manifest"]},
+        expected={"stages": 38, "sha256": EXPECTED_HASHES["source_manifest"]},
     )
     pipeline = _mapping(spine["pipeline_contract"], "spine pipeline contract")
     operator_order = tuple(

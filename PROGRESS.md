@@ -87,12 +87,21 @@ PR. Candidate-25 remains read-only evidence.
   fails as formula-owned without creating a file.
 - Both focused consumer files pass 62/62 (24 release-weeks and 38 frame-adapter
   cases), with focused Ruff green.
+- The final anti-rot pass exposed and closed the remaining spec-attestation
+  follow-through: the measured stage adds 35 authored fields, taking the exact
+  ledger from 41,523 to 41,558 and source stages from 37 to 38. Re-pinned the
+  exact source-stage pointer inventory, compiler projections, seed-map/source-
+  manifest/checkpoint identities, and regenerated the committed coverage
+  report. All 35 field-usage/inventory/coverage tests pass, focused Ruff is
+  green, and `spec_engine_coverage.py --check` proves 41,558/41,558 fields and
+  41/41 inventory checks.
 
 ## Next
 
-- Commit the complete consumer/period regression step.
-- Run all repository package shards, repository-wide Ruff, and generated/
-  inventory checks; finalize the journal and required output report.
+- Commit the exact compiler coverage-attestation update.
+- Rerun the complete build shard against the committed final tree. The frame,
+  fit, data, and calibrate shards are already green; finalize the journal and
+  required output report after the build shard completes.
 
 ---
 
