@@ -7660,7 +7660,10 @@ def test_full_clone_identity_validation_fails_closed() -> None:
             PUF_CLONE_ATTACHMENT_MANIFEST_KEY: {"unexpected": True},
         },
     )
-    with pytest.raises(ValueError, match="full-clone metadata symmetry failed"):
+    with pytest.raises(
+        ValueError,
+        match="clone attachment manifest version is malformed",
+    ):
         validate_puf_clone_attachment(
             asymmetric_metadata,
             boundary="metadata-asymmetric full clone",
@@ -7764,7 +7767,10 @@ def test_stacked_validator_rejects_a_partial_attachment_receipt() -> None:
         },
     )
 
-    with pytest.raises(ValueError, match="clone attachment manifest is malformed"):
+    with pytest.raises(
+        ValueError,
+        match="clone attachment manifest version is malformed",
+    ):
         validate_stacked_spine_frame(
             malformed,
             boundary="partial attachment receipt fixture",
