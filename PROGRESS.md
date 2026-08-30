@@ -150,6 +150,12 @@ push, or PR. Candidate-25 remains read-only evidence.
   generated and coverage-attested `e9ea75c7...9ed`; the arbitrary checkpoint
   identity fixtures remain untouched. The complete multispine pool-tool file
   passes 187/187 with focused Ruff and diff hygiene green.
+- The following repository run stopped at 4,838 passed on the source-plan
+  exact-set contract, which still modeled all source declarations as donor or
+  mortgage-derived pipeline stages. Classified
+  `stacked_release_weeks_worked` explicitly as a release-only source spec and
+  asserted that it remains outside the ordinary `US_STAGE_NAMES` build plan.
+  The focused plan/source-runtime/spec-bundle corridor passes 95/95.
 
 ## Next
 

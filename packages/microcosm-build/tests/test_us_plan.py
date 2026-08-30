@@ -59,6 +59,9 @@ from microcosm.build.us_runtime.puf_support import (
     PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
 )
+from microcosm.build.us_runtime.release_weeks_worked import (
+    US_RELEASE_WEEKS_WORKED_STAGE_NAME,
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -208,12 +211,14 @@ class TestUsSources:
 
     def test_source_specs_align_with_declared_plan(self) -> None:
         derived_source_specs = {"mortgage_conversion"}
+        release_only_source_specs = {US_RELEASE_WEEKS_WORKED_STAGE_NAME}
         frame_structural_stages = {US_PUF_SUPPORT_STAGE_NAME}
         assert {spec.stage for spec in US_SOURCE_STAGE_SPECS} == set(
             US_DONORS
-        ) | derived_source_specs
+        ) | derived_source_specs | release_only_source_specs
         assert set(US_DONORS).issubset(US_STAGE_NAMES)
         assert derived_source_specs.issubset(US_STAGE_NAMES)
+        assert release_only_source_specs.isdisjoint(US_STAGE_NAMES)
         assert frame_structural_stages.issubset(US_STAGE_NAMES)
 
     def test_puf_support_channel_precedes_puf_detail_donor_stage(self) -> None:
