@@ -1,3 +1,42 @@
+# Authorized stacked `weeks_worked` implementation (v3)
+
+Date: 2026-08-30
+
+Branch: `stacked-dense-gate-sweep`
+
+Plan SHA-256: `e89dd0facbc6d22f296f65ff18520333af0f8ecc6c2b706c1fd6a2b98d49e729`
+
+## State
+
+Implementation in progress. The authorized v3 ruling is the binding scope:
+code, spec, and tests only; no data build, artifact mutation, publication,
+push, or PR. Candidate-25 remains read-only evidence.
+
+## Done
+
+- Read `PROGRESS.md`, `CLAUDE.md`, `AGENTS.md`, and the complete binding plan
+  before implementation.
+- Verified the plan file byte identity against Max's authorized SHA-256.
+- Found only the untracked r3 plan in the inherited tree and preserved it
+  honestly at WIP commit `b71ca20a`; no inherited implementation edits were
+  present.
+- Reconfirmed the non-negotiable boundaries: 2024 release-only materialization,
+  provenance-owner routing, exact source authentication and clone fan-out,
+  an additive weeks-specific gate, unchanged pool exclusion/gate 9480/hours
+  gate/thresholds, and 2025 carry-forward rather than direct materialization.
+
+## Next
+
+- Trace the existing source-stage schema/compiler/manifest path, the
+  `acs_release_predictors.py` provenance-owner pattern, release ordering, and
+  consumer tests; then implement the smallest spec-driven stage in committed,
+  focused-green steps.
+
+---
+
+> **Historical material below.** Earlier sections are accurate for their
+> completed lanes but are not current implementation state.
+
 # Stacked dense-release gate sweep: farm-rent and remaining single-spine gates
 
 Date: 2026-08-29
