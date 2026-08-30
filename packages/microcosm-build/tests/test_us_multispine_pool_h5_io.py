@@ -1747,8 +1747,23 @@ def test_ready_stacked_pool_loader_validates_clone_attachment_against_h5(
     ] += 1
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="live eligible household count"):
+    with pytest.raises(ValueError, match="eligible household count"):
         load_simulation_ready_us_multispine_pool(manifest_path)
+
+
+def test_ready_stacked_manifest_loader_validates_clone_attachment_binding(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("tables")
+    manifest_path = _write_ready_pool(tmp_path, stacked=True)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["stage_receipts"]["impute"]["stacked_puf_pass"][
+        "clone_attachment"
+    ]["eligible_household_count"] += 1
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="eligible household count"):
+        h5_io.load_simulation_ready_us_multispine_pool_manifest(manifest_path)
 
 
 @pytest.mark.parametrize(

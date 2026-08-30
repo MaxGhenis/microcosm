@@ -38,6 +38,7 @@ from microcosm.build.us_runtime.congressional_district_vintage import (
 from microcosm.build.us_runtime.puf_support import (
     PUF_CLONE_ATTACHMENT_MANIFEST_KEY,
     validate_puf_clone_attachment,
+    validate_puf_clone_attachment_receipt,
 )
 from microcosm.build.us_runtime.support_provenance import (
     SPINE_ASSEMBLY_MANIFEST_KEY,
@@ -462,14 +463,38 @@ def _validated_stacked_clone_attachment_binding(
         stacked_puf_pass.get("clone_attachment"),
         label=(f"{label}.stage_receipts.impute.stacked_puf_pass.clone_attachment"),
     )
-    if receipt.get("clone_attachment_fraction") != fraction:
+    validate_puf_clone_attachment_receipt(
+        receipt,
+        boundary=f"{label} frozen clone-attachment receipt",
+        expected_fraction=fraction,
+        expected_seed=seed,
+    )
+    assembly_receipt = _mapping(
+        manifest.get("assembly_receipt"),
+        label=f"{label}.assembly_receipt",
+    )
+    native_row_counts = _mapping(
+        assembly_receipt.get("native_row_counts"),
+        label=f"{label}.assembly_receipt.native_row_counts",
+    )
+    household_counts = _mapping(
+        native_row_counts.get("household"),
+        label=f"{label}.assembly_receipt.native_row_counts.household",
+    )
+    if set(household_counts) != set(_STACKED_SURVEY_CHANNELS):
+        raise ValueError(f"{label} native household counts are malformed.")
+    eligible_households = 0
+    for channel in _STACKED_SURVEY_CHANNELS:
+        count = household_counts[channel]
+        if type(count) is not int or count < 1:
+            raise ValueError(
+                f"{label} {channel} native-household count is malformed."
+            )
+        eligible_households += count
+    if receipt["eligible_household_count"] != eligible_households:
         raise ValueError(
-            f"{label} frozen clone-attachment receipt differs from the requested "
-            "fraction."
-        )
-    if receipt.get("clone_attachment_seed") != seed:
-        raise ValueError(
-            f"{label} frozen clone-attachment receipt differs from the requested seed."
+            f"{label} frozen clone-attachment eligible household count differs "
+            "from the sampled native household inventory."
         )
     return receipt, fraction, seed
 
@@ -837,6 +862,10 @@ def _load_authenticated_us_multispine_pool_manifest(
         manifest_path=manifest_path,
     )
     _validated_stacked_sampling_manifest_binding(
+        manifest,
+        manifest_path=manifest_path,
+    )
+    _validated_stacked_clone_attachment_binding(
         manifest,
         manifest_path=manifest_path,
     )

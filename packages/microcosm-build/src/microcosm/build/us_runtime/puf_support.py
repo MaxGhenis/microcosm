@@ -91,6 +91,7 @@ __all__ = [
     "support_role_series",
     "support_source_id_column",
     "validate_puf_clone_attachment",
+    "validate_puf_clone_attachment_receipt",
 ]
 
 US_PUF_SUPPORT_STAGE_NAME = "puf_support_channel"
@@ -962,23 +963,14 @@ def bind_puf_clone_attachment_tail_descendant(
     return descendant
 
 
-def validate_puf_clone_attachment(
-    frame: Frame,
+def validate_puf_clone_attachment_receipt(
+    manifest: Mapping[str, Any],
     *,
     boundary: str,
     expected_fraction: float | None = None,
     expected_seed: int | None = None,
 ) -> Mapping[str, Any]:
-    """Validate the clone-attachment manifest against live clone lineages.
-
-    The realized clone-pair count, the selection digest over live detail-arm
-    household source IDs, the floor rule, and per-pair weight symmetry must
-    all match the manifest; any mutation of the sample, the counts, or the
-    manifest fails closed with a named error.  An explicitly expected full
-    attachment uses the metadata-symmetric ordinary clone instead: exact
-    native/detail household lineage and pair-weight identity are validated
-    and returned as an out-of-frame authority receipt.
-    """
+    """Validate the frozen clone-attachment receipt without live tables."""
 
     if (expected_fraction is None) != (expected_seed is None):
         raise ValueError(
@@ -1005,23 +997,6 @@ def validate_puf_clone_attachment(
                 f"{boundary}: expected clone attachment seed must be a "
                 f"non-negative integer, got {expected_seed!r}."
             )
-
-    manifest = frame.metadata.get(PUF_CLONE_ATTACHMENT_MANIFEST_KEY)
-    if (
-        expected_fraction is not None
-        and float(expected_fraction) == 1.0
-        and manifest is None
-    ):
-        return _validate_full_clone_identity(
-            frame,
-            boundary=boundary,
-            expected_seed=expected_seed,
-        )
-    if manifest is None:
-        raise ValueError(
-            f"{boundary}: clone attachment manifest "
-            f"{PUF_CLONE_ATTACHMENT_MANIFEST_KEY!r} is absent."
-        )
     if not isinstance(manifest, Mapping):
         raise ValueError(f"{boundary}: clone attachment manifest is malformed.")
     raw_version = manifest.get("version")
@@ -1087,13 +1062,6 @@ def validate_puf_clone_attachment(
             f"{boundary}: clone attachment seed {seed!r} differs from the "
             f"expected seed {expected_seed!r}."
         )
-
-    household = frame.table("household")
-    clone_index = household[support_clone_index_column("household")]
-    source_ids = household[support_source_id_column("household")]
-    native = clone_index.eq(0)
-    detail = clone_index.eq(PUF_TAX_DETAIL_CLONE_INDEX)
-    eligible = int(native.sum())
     for count_field in (
         "eligible_household_count",
         "requested_household_count",
@@ -1105,12 +1073,7 @@ def validate_puf_clone_attachment(
                 f"{boundary}: clone attachment {count_field} must be a "
                 "positive integer."
             )
-    if manifest["eligible_household_count"] != eligible:
-        raise ValueError(
-            f"{boundary}: live eligible household count {eligible} differs "
-            "from the clone attachment manifest "
-            f"{manifest.get('eligible_household_count')!r}."
-        )
+    eligible = manifest["eligible_household_count"]
     requested = manifest["requested_household_count"]
     if requested != int(np.floor(float(fraction) * eligible)):
         raise ValueError(
@@ -1119,8 +1082,155 @@ def validate_puf_clone_attachment(
             f"fraction={fraction!r}, eligible={eligible}."
         )
     realized = manifest["realized_household_count"]
+    if realized != requested:
+        raise ValueError(
+            f"{boundary}: clone attachment realized count {realized} differs "
+            f"from requested count {requested}."
+        )
+    selected_sha256 = manifest["selected_household_source_ids_sha256"]
+    if (
+        not isinstance(selected_sha256, str)
+        or len(selected_sha256) != 64
+        or any(
+            character not in "0123456789abcdef" for character in selected_sha256
+        )
+    ):
+        raise ValueError(
+            f"{boundary}: clone attachment selection SHA-256 is malformed."
+        )
+    if version == _PUF_CLONE_ATTACHMENT_MANIFEST_VERSION:
+        return manifest
+
+    transform = manifest.get("post_attachment_transform")
+    if not isinstance(transform, Mapping):
+        raise ValueError(
+            f"{boundary}: tail-descendant attachment transform is malformed."
+        )
+    expected_transform_fields = {
+        "stage",
+        "tail_clone_index",
+        "tail_manifest_sha256",
+        "tail_household_count",
+        "tail_household_source_ids_sha256",
+    }
+    if set(transform) != expected_transform_fields:
+        raise ValueError(
+            f"{boundary}: tail-descendant attachment transform fields are malformed."
+        )
+    if type(transform["tail_clone_index"]) is not int or transform[
+        "tail_clone_index"
+    ] != 2:
+        raise ValueError(
+            f"{boundary}: tail-descendant attachment must use clone index 2."
+        )
+    stage = transform["stage"]
+    if not isinstance(stage, str) or not stage.strip():
+        raise ValueError(f"{boundary}: tail-descendant stage is malformed.")
+    for field in (
+        "tail_manifest_sha256",
+        "tail_household_source_ids_sha256",
+    ):
+        value = transform[field]
+        if (
+            not isinstance(value, str)
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+        ):
+            raise ValueError(
+                f"{boundary}: tail-descendant {field} is malformed."
+            )
+    tail_household_count = transform["tail_household_count"]
+    if type(tail_household_count) is not int or tail_household_count < 1:
+        raise ValueError(
+            f"{boundary}: tail-descendant household count is malformed."
+        )
+    return manifest
+
+
+def validate_puf_clone_attachment(
+    frame: Frame,
+    *,
+    boundary: str,
+    expected_fraction: float | None = None,
+    expected_seed: int | None = None,
+) -> Mapping[str, Any]:
+    """Validate the clone-attachment manifest against live clone lineages.
+
+    The realized clone-pair count, the selection digest over live detail-arm
+    household source IDs, the floor rule, and per-pair weight symmetry must
+    all match the manifest; any mutation of the sample, the counts, or the
+    manifest fails closed with a named error.  An explicitly expected full
+    attachment uses the metadata-symmetric ordinary clone instead: exact
+    native/detail household lineage and pair-weight identity are validated
+    and returned as an out-of-frame authority receipt.
+    """
+
+    if (expected_fraction is None) != (expected_seed is None):
+        raise ValueError(
+            f"{boundary}: expected clone attachment fraction and seed must be "
+            "provided together."
+        )
+    if expected_fraction is not None:
+        if (
+            isinstance(expected_fraction, bool)
+            or not isinstance(expected_fraction, (int, float))
+            or not np.isfinite(expected_fraction)
+            or not 0.0 < float(expected_fraction) <= 1.0
+        ):
+            raise ValueError(
+                f"{boundary}: expected clone attachment fraction must be a "
+                f"finite number in (0, 1], got {expected_fraction!r}."
+            )
+        if (
+            isinstance(expected_seed, bool)
+            or not isinstance(expected_seed, int)
+            or expected_seed < 0
+        ):
+            raise ValueError(
+                f"{boundary}: expected clone attachment seed must be a "
+                f"non-negative integer, got {expected_seed!r}."
+            )
+
+    manifest = frame.metadata.get(PUF_CLONE_ATTACHMENT_MANIFEST_KEY)
+    if (
+        expected_fraction is not None
+        and float(expected_fraction) == 1.0
+        and manifest is None
+    ):
+        return _validate_full_clone_identity(
+            frame,
+            boundary=boundary,
+            expected_seed=expected_seed,
+        )
+    if manifest is None:
+        raise ValueError(
+            f"{boundary}: clone attachment manifest "
+            f"{PUF_CLONE_ATTACHMENT_MANIFEST_KEY!r} is absent."
+        )
+    manifest = validate_puf_clone_attachment_receipt(
+        manifest,
+        boundary=boundary,
+        expected_fraction=expected_fraction,
+        expected_seed=expected_seed,
+    )
+    version = manifest["version"]
+
+    household = frame.table("household")
+    clone_index = household[support_clone_index_column("household")]
+    source_ids = household[support_source_id_column("household")]
+    native = clone_index.eq(0)
+    detail = clone_index.eq(PUF_TAX_DETAIL_CLONE_INDEX)
+    eligible = int(native.sum())
+    if manifest["eligible_household_count"] != eligible:
+        raise ValueError(
+            f"{boundary}: live eligible household count {eligible} differs "
+            "from the clone attachment manifest "
+            f"{manifest.get('eligible_household_count')!r}."
+        )
+    requested = manifest["requested_household_count"]
+    realized = manifest["realized_household_count"]
     live_detail_ids = np.sort(source_ids.loc[detail].to_numpy(dtype=np.int64))
-    if realized != requested or int(detail.sum()) != realized:
+    if int(detail.sum()) != realized:
         raise ValueError(
             f"{boundary}: live attached clone-pair count {int(detail.sum())} "
             f"differs from the manifest's realized attachment count "
@@ -1183,38 +1293,9 @@ def validate_puf_clone_attachment(
             )
         return manifest
 
-    transform = manifest.get("post_attachment_transform")
+    transform = manifest["post_attachment_transform"]
     if not isinstance(transform, Mapping):
-        raise ValueError(
-            f"{boundary}: tail-descendant attachment transform is malformed."
-        )
-    expected_transform_fields = {
-        "stage",
-        "tail_clone_index",
-        "tail_manifest_sha256",
-        "tail_household_count",
-        "tail_household_source_ids_sha256",
-    }
-    if set(transform) != expected_transform_fields:
-        raise ValueError(
-            f"{boundary}: tail-descendant attachment transform fields are malformed."
-        )
-    if type(transform["tail_clone_index"]) is not int or transform[
-        "tail_clone_index"
-    ] != 2:
-        raise ValueError(
-            f"{boundary}: tail-descendant attachment must use clone index 2."
-        )
-    stage = transform["stage"]
-    tail_sha = transform["tail_manifest_sha256"]
-    if not isinstance(stage, str) or not stage.strip():
-        raise ValueError(f"{boundary}: tail-descendant stage is malformed.")
-    if (
-        not isinstance(tail_sha, str)
-        or len(tail_sha) != 64
-        or any(character not in "0123456789abcdef" for character in tail_sha)
-    ):
-        raise ValueError(f"{boundary}: tail-descendant manifest SHA-256 is malformed.")
+        raise RuntimeError("Validated tail-descendant transform lost mapping type.")
     all_roles = set(pd.to_numeric(clone_index, errors="raise").astype("int64"))
     unexpected_roles = sorted(all_roles - {0, PUF_TAX_DETAIL_CLONE_INDEX, 2})
     if unexpected_roles:
@@ -1224,12 +1305,7 @@ def validate_puf_clone_attachment(
         )
     tail = clone_index.eq(2)
     live_tail_ids = np.sort(source_ids.loc[tail].to_numpy(dtype=np.int64))
-    tail_household_count = transform["tail_household_count"]
-    if type(tail_household_count) is not int or tail_household_count < 1:
-        raise ValueError(
-            f"{boundary}: tail-descendant household count is malformed."
-        )
-    if tail_household_count != len(live_tail_ids):
+    if transform["tail_household_count"] != len(live_tail_ids):
         raise ValueError(
             f"{boundary}: live tail household count {len(live_tail_ids)} differs "
             "from the tail-descendant attachment transform."
