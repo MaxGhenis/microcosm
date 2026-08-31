@@ -1,3 +1,64 @@
+# WIC recipient-only reconciliation dtype repair
+
+Date: 2026-08-31
+
+Branch: `stacked-dense-gate-sweep`
+
+Lane base: `74acf94b`
+
+## State
+
+In progress. The binding Class-A diagnosis identifies a deterministic WIC
+reconciliation defect: the whole-pool redraw preserves ASEC logical values but
+replaces nullable pandas `boolean` storage with dense NumPy `bool`, so the
+unchanged dtype-sensitive `Series.equals` guard correctly fails. This lane will
+implement only the prescribed recipient-only redraw, recut the generated
+authority identities, audit sibling structural reconciliations, add composed
+rebuilt/resumed/adversarial regressions, and run focused plus repository-wide
+verification. No gate, threshold, candidate artifact, remote, PR, or build is
+in scope.
+
+## Done
+
+- Read the complete pre-existing `PROGRESS.md`, `CLAUDE.md`, and the full
+  Class-A diagnosis before changing the tree; confirmed the clean requested
+  branch at lane base `74acf94b`.
+- Read the GitNexus debugging workflow. This workspace exposes no GitNexus
+  query tools, consistent with the prior journal, so the call/dataflow audit
+  will use direct source inspection and executable tests without creating
+  unrelated index state.
+- Recorded the binding repair: derive deterministic whole-pool WIC values;
+  prove their ASEC logical values equal the incumbent ASEC snapshot before any
+  write; copy the incumbent Series; assign only declared non-producer/ACS
+  recipients; preserve dtype and leave ASEC storage untouched; retain the
+  exact `Series.equals` and typed hashing guards.
+- Recorded the identity and verification boundaries: recipient-only redraw
+  must govern structural-policy/generated checkpoint reuse; no manual
+  carry-forward; compose the real nullable source merge through transfer and
+  reconciliation for rebuilt and resumed targets; retain an adversarial
+  ASEC-mismatch refusal; audit every sibling late structural callback; run the
+  full suite because the machine is available.
+- Identified the established lane output file as `out.md`; the final committed
+  report will begin with the required `WIC-FIX-COMPLETE` or
+  `WIC-FIX-BLOCKED` verdict.
+
+## Next
+
+- Trace the WIC reconciliation, transfer/merge helpers, structural authority,
+  generated identities, and existing fixture gap; enumerate every sibling
+  callback in the late structural reconciliation registry.
+- Implement and commit the minimal runtime repair with focused tests and Ruff.
+- Recut and commit the structural-policy/generated authority identities with
+  focused generator/spec verification and Ruff.
+- Add and commit production-shaped rebuilt/resumed/mismatch regressions, then
+  run the complete repository suite, repository Ruff, final anti-rot checks,
+  and commit the finished journal plus `out.md` report.
+
+---
+
+> **Historical material below.** The sections below describe completed prior
+> lanes and are not the current state for this WIC repair lane.
+
 # Period-aware ownership classification
 
 Date: 2026-08-30
