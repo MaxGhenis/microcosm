@@ -156,9 +156,13 @@ below is `uv run pytest` on this lane's tree:
 | weeks corridor (`test_us_release_weeks_worked.py`, `test_us_hours_worked.py`, `test_us_org_wages.py`, `test_us_plan.py`, `test_us_l0_refit_export.py`) | 154 passed |
 | validation input coverage (this lane's new regressions) | 18 passed |
 
-A consolidated single-process re-run of all 32 files was still executing when
-this report was written; every file in it has already passed individually on
-this tree, and its purpose is one-tree confirmation rather than new coverage.
+A consolidated single-process re-run of all 32 files was started as one-tree
+confirmation and deliberately stopped at ~5% after eleven minutes: serialized
+against candidate-26 it projected to hours of contended CPU for coverage this
+tree already has, which is exactly the contention the lane's focused-tests-only
+constraint exists to avoid. Every file it would have covered passed in the
+corridors above, and each file fixed after its corridor ran was re-run
+individually and green.
 
 Static checks: `ruff check` green on all 48 Python files this lane touched;
 `ruff format --check` flags six of them, and all six were verified already
