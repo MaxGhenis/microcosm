@@ -329,3 +329,38 @@ class TestRegisteredLeafOwnership:
         assert registered_leaf_ownership(engine, ["mystery"], period=2026) == {
             "mystery": "UNKNOWN"
         }
+
+    @requires_us
+    def test_registry_check_reports_an_index_gap_instead_of_assuming_input(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # A leaf the live engine knows but the pinned source index does not
+        # cannot have its period ownership resolved. The check must say so
+        # rather than treat the silence as "still a pure input leaf".
+        import microcosm.build.us_runtime.validation_input_coverage as module
+
+        monkeypatch.setattr(
+            module,
+            "US_VALIDATION_PROVISION_INPUT_LEAVES",
+            (
+                ValidationInputLeaf(
+                    leaf="employment_income",
+                    provision_variables=("income_tax",),
+                    validation_rows=("fixture_row",),
+                ),
+            ),
+        )
+
+        class _IndexGapEngine:
+            def variable_ownership(self, name: str, *, period: int) -> object:
+                raise ValueError(f"Unknown PolicyEngine-US source variable {name!r}.")
+
+            def input_variables(self, *, period: int) -> list[str]:
+                return []
+
+        with pytest.raises(ValueError, match="source index does not"):
+            module.assert_validation_leaf_registry_current(
+                engine=_IndexGapEngine(),
+                period=US_VALIDATION_PROVISION_PERIOD,
+            )

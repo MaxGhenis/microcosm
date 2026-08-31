@@ -414,6 +414,13 @@ def assert_validation_leaf_registry_current(
             )
             continue
         ownership_kind = owned.get(entry.leaf)
+        if ownership_kind == "UNKNOWN":
+            failures.append(
+                f"{entry.leaf}: the live engine knows this variable but the pinned "
+                "PolicyEngine-US source index does not, so its period ownership "
+                "cannot be resolved; refresh the index before trusting the registry."
+            )
+            continue
         if ownership_kind is not None:
             failures.append(
                 f"{entry.leaf}: registered as a pure input leaf but PolicyEngine-US "
