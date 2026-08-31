@@ -41,12 +41,38 @@ in scope.
 - Identified the established lane output file as `out.md`; the final committed
   report will begin with the required `WIC-FIX-COMPLETE` or
   `WIC-FIX-BLOCKED` verdict.
+- Traced the production path end to end. The ASEC-only source runner emits
+  physical NumPy booleans; `_merge_source_operator_outputs` deliberately
+  materializes the partial whole-pool column as nullable pandas `boolean`;
+  ACS transfer copies that Series and fills recipient nulls only; the WIC
+  callback then replaces the whole column with a NumPy `bool` array. The
+  unchanged producer `Series.equals` guard and typed table digest therefore
+  detect the physical ASEC rewrite exactly as diagnosed.
+- Audited the complete late structural reconciliation registry. It contains
+  exactly two callbacks, WIC and education/AOTC; receipt validation rejects a
+  structural receipt on every other group. AOTC shares the identical defect:
+  all five source flags enter through the nullable boolean merge, transfer
+  preserves their dtype, and reconciliation currently assigns one dense
+  whole-column NumPy predicate to each. Both callbacks and both fixtures need
+  the same recipient-only repair; there is no third sibling to change.
+- Confirmed the existing WIC and AOTC regression fixture pre-densifies each
+  source output before taking the producer snapshot, so its current 2/2 green
+  baseline cannot exercise the production dtype boundary. Focused Ruff is
+  green on the relevant runtime and test files. The sandboxed UV cache needs
+  the established task-local `/private/tmp` path; no environment dependency
+  or code failure occurred.
+- Traced the formal identity chain. Each structural policy's canonical hash is
+  embedded in the late-transfer model resource, the complete resource-
+  semantics receipt, the stacked checkpoint base identity, every transferred
+  stage identity, and each per-producer target-bank identity. Updating the WIC
+  and AOTC policy/assignment strings to declare logical producer proof plus
+  recipient-only writes is sufficient to invalidate stale reuse; no manual
+  carry-forward, registry version, materializer version, or schema weakening
+  is needed. The official US bundle generator must author the resulting
+  `imputation.yaml` changes.
 
 ## Next
 
-- Trace the WIC reconciliation, transfer/merge helpers, structural authority,
-  generated identities, and existing fixture gap; enumerate every sibling
-  callback in the late structural reconciliation registry.
 - Implement and commit the minimal runtime repair with focused tests and Ruff.
 - Recut and commit the structural-policy/generated authority identities with
   focused generator/spec verification and Ruff.
