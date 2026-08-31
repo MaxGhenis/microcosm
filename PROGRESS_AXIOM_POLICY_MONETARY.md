@@ -7,13 +7,14 @@ current truth.
 
 ## State
 
-Repair implemented and verified locally. All six review findings were first
-reproduced with executable probes, then closed. A follow-up exact audit found
-that the initial stripping regression still supplied the external acceptance:
-stripping both all target metadata and the optional compiler argument demoted
-the row to an ordinary target. The registry now emits a nominal
-`AxiomPolicyTarget` classification outside metadata, and the exact combined
-stripping probe fails closed. Nothing was pushed and no PR was opened.
+Repair implemented, rebased onto the repaired relation prerequisite at
+`952952a1`, and verified locally. All six review findings were first reproduced
+with executable probes, then closed. A follow-up exact audit found that the
+initial stripping regression still supplied the external acceptance: stripping
+both all target metadata and the optional compiler argument demoted the row to
+an ordinary target. The registry now emits a nominal `AxiomPolicyTarget`
+classification outside metadata, and the exact combined stripping probe fails
+closed. Nothing was pushed and no PR was opened.
 
 ## Scope
 
@@ -26,10 +27,10 @@ Repair only the policy layer added by `f6e04467`:
 - `packages/microcosm-calibrate/src/microcosm/calibrate/{solve,score,registry}.py`
 - the tests and CI inventory for the above
 
-Out of scope by instruction: `microcosm.frame.adapters.axiom` and the relation
-adapter tests (repaired in a separate worktree from parent `f07b79fb`). This
-branch reads that module's public verifier and restates its schema-v2 numeric
-identity contract locally rather than importing private helpers.
+The relation adapter itself was repaired separately, then incorporated here by
+rebasing the policy commits after `f07b79fb` onto exact commit `952952a1`. The
+policy layer reads that module's public verifier and restates its schema-v2
+numeric/string identity contract locally rather than importing private helpers.
 
 ## Findings and how each was closed
 
@@ -79,6 +80,29 @@ identity contract locally rather than importing private helpers.
   Ruff, touched-file formatting, the CI test inventory verifier, and
   `git diff --check` successfully.
 
+## Relation integration
+
+- Rebased the four policy commits byte-equivalently from parent `f07b79fb` onto
+  repaired relation commit `952952a1`; the rebase completed without conflicts.
+- Adapted live policy replay to the relation verifier's three-argument API. The
+  binder now reads and validates the raw float64 output first, then supplies the
+  exact one-name live-output mapping authenticated by the materialization
+  receipt.
+- Removed the temporary verifier monkeypatch from the string-keyed policy test.
+  The regression now exercises the real repaired verifier and policy replay
+  with canonical string row IDs.
+- Corrected the synthetic receipt's engine dtype spelling from the invalid
+  `Decimal` to the adapter's native `decimal` vocabulary; the repaired verifier
+  now authenticates this declaration against the float kernel/output identity.
+- Passed 1,257 tests with 42 optional-environment skips across 1,299 collected
+  cases: full calibrate (212 passed), full frame/Axiom (323 passed, 42 skipped),
+  and the selected policy/monetary/target build suites (722 passed).
+- Repository-wide `ruff check .`, branch-file `ruff format --check`, the
+  318-file CI test inventory verifier, and `git diff --check` pass. The
+  repository-wide format check still reports 124 pre-existing files outside
+  this branch; none of the 15 Python files changed by this relation+policy lane
+  are among them.
+
 ## Done
 
 - Read the review, `AGENTS.md`, `CLAUDE.md`, and every file `f6e04467` touched.
@@ -100,5 +124,6 @@ pre-repair files and re-running.
 
 ## Next
 
-- Rebase/merge alongside the separately repaired parent `f07b79fb` and re-run
-  the policy tests against the repaired relation adapter.
+- Human review of the integrated relation and policy-derived monetary lane.
+- Native Axiom dense-extension and external RuleSpec integration tests remain
+  environment-gated; no artifact, publication, push, PR, or merge was performed.

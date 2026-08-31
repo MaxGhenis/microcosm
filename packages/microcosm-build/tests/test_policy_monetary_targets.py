@@ -185,7 +185,7 @@ def _materialization_receipt(
         "relations": {},
         "requested_outputs": {
             output_name: {
-                "declared_engine_dtype": "Decimal",
+                "declared_engine_dtype": "decimal",
                 "declared_kernel_dtype": "float",
                 "declared_period": declared_period,
                 "values": _axiom_array_identity(np.asarray(output_values)),
@@ -541,17 +541,8 @@ def test_string_keyed_policy_rows_preserve_canonical_id_receipts():
     assert _binding_of(spec)["prepared"]["output"]["record_ids"]["dtype"] == "string"
 
 
-def test_string_keyed_policy_target_replays_against_live_rows(monkeypatch):
-    """Exercise policy replay while the parent relation repair is rebased later."""
-    from microcosm.frame.adapters import axiom
-
-    # The current parent verifier is int64-only. The separate relation repair
-    # adds canonical string IDs; isolate this policy-layer replay until rebase.
-    monkeypatch.setattr(
-        axiom,
-        "verify_axiom_materialization_receipt",
-        lambda *_args, **_kwargs: None,
-    )
+def test_string_keyed_policy_target_replays_against_live_rows():
+    """Exercise the real relation verifier and policy replay with string IDs."""
     spec = _bind(prepared=_string_prepared())
     problem = build_constraint_matrix(
         _string_frame(),

@@ -1639,8 +1639,6 @@ def verify_policy_monetary_binding(
             verify_axiom_materialization_receipt,
         )
 
-        verify_axiom_materialization_receipt(frame, payload["materialization"])
-
         output_table = frame.table(identity["output_entity"])
         _require(
             _same(
@@ -1655,6 +1653,11 @@ def verify_policy_monetary_binding(
             and raw_outputs.ndim == 1
             and np.isfinite(raw_outputs).all(),
             "live Axiom outputs are not native finite float64",
+        )
+        verify_axiom_materialization_receipt(
+            frame,
+            payload["materialization"],
+            {identity["output_variable"]: raw_outputs},
         )
         output_ids = canonical_policy_record_ids(
             output_table[
