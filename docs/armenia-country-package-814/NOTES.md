@@ -1,5 +1,10 @@
 # Armenia country-package decisions (#814)
 
+The [financial and wealth target inventory](FINANCIAL_WEALTH.md) is a separate,
+explicitly opt-in surface. Its loading cannot alter the default count targets,
+and its readiness labels prevent unproved fiscal and wealth mappings from
+becoming calibration constraints.
+
 ## Product posture
 
 Armenia v1 is an engine-free, NZ-style pool reweight. Its base is an

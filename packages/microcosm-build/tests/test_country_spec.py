@@ -248,6 +248,7 @@ class TestArmenianPackage:
             "source_stages.json",
             "geography_spine.json",
             "target_references.json",
+            "financial_wealth_targets.json",
             "gates.json",
             "release_contract.json",
         }

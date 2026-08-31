@@ -40,7 +40,7 @@ from dataclasses import dataclass, field
 from importlib import resources as importlib_resources
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from microcosm.build.ledger_targets import (
     LedgerTargetReference,
@@ -54,6 +54,9 @@ from microcosm.build.source_manifest import (
 )
 from microcosm.build.trace import compute_composition_fingerprint, sha256_file
 from microcosm.frame import Frame
+
+if TYPE_CHECKING:
+    from microcosm.build.monetary_profile import MonetaryTargetProfile
 
 __all__ = [
     "ALLOWED_GATE_FUNCTIONS",
@@ -1485,6 +1488,8 @@ class ResolvedCountrySpec:
         resolved_spec: The canonical spec-engine object for a generation-1
             bundle, when compiled. It remains ``None`` for generation-0
             compatibility packages.
+        monetary_profile: Optional, value-free financial target inventory.
+            Loading it never appends its references to the active target set.
     """
 
     country: str
@@ -1501,6 +1506,7 @@ class ResolvedCountrySpec:
     take_up_contract: Mapping[str, Any] | None
     resource_hashes: Mapping[str, str]
     resolved_spec: object | None = None
+    monetary_profile: MonetaryTargetProfile | None = None
 
     @property
     def resources(self) -> tuple[str, ...]:
@@ -2134,6 +2140,13 @@ def load_country_spec(country: str | Path) -> ResolvedCountrySpec:
         if "local_target_references.json" in payloads
         else ()
     )
+    monetary_profile = None
+    if "financial_wealth_targets.json" in payloads:
+        from microcosm.build.monetary_profile import MonetaryTargetProfile
+
+        monetary_profile = MonetaryTargetProfile.from_mapping(
+            payloads["financial_wealth_targets.json"], country=declared_country
+        )
     gates = (
         GatesManifest.from_mapping(payloads["gates.json"], country=declared_country)
         if "gates.json" in payloads
@@ -2167,6 +2180,7 @@ def load_country_spec(country: str | Path) -> ResolvedCountrySpec:
         take_up_contract=take_up_contract,
         resource_hashes=hashes,
         resolved_spec=resolved_spec,
+        monetary_profile=monetary_profile,
     )
 
 
