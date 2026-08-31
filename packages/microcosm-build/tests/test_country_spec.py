@@ -20,6 +20,7 @@ import pytest
 from microcosm.build import (
     CountryResourceRow,
     CountrySpec,
+    DataRightsManifest,
     ResolvedCountrySpec,
     country_stage_plan,
     load_country_spec,
@@ -32,6 +33,19 @@ COUNTRY_PACKAGE_ROOT = Path(__file__).parents[1] / "src/microcosm/build"
 GOLDEN_ROOT = Path(__file__).parent / "golden"
 GOLDEN_COUNTRIES = ("am", "be")
 FORBIDDEN_TARGET_VALUE_KEYS = {"value", "values", "observed", "observed_value"}
+
+
+def _blocked_data_rights() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "access": "public_anonymised_download",
+        "local_analysis": "authorized",
+        "raw_redistribution": "no_express_grant",
+        "derived_unit_record_publication": ("blocked_pending_explicit_permission"),
+        "row_aligned_weight_publication": ("blocked_pending_explicit_permission"),
+        "aggregate_output": ("allowed_with_attribution_and_disclosure_review"),
+        "permission_record": None,
+    }
 
 
 def _loaded_spec_summary(country: str) -> dict[str, object]:
@@ -69,6 +83,30 @@ def _nested_mapping_keys(value: object) -> set[str]:
     if isinstance(value, list):
         return {key for child in value for key in _nested_mapping_keys(child)}
     return set()
+
+
+def test_data_rights_refuses_authorized_publication_without_permission_pin() -> None:
+    payload = _blocked_data_rights()
+    payload["derived_unit_record_publication"] = "authorized"
+
+    with pytest.raises(ValueError, match="requires a SHA-pinned permission_record"):
+        DataRightsManifest.from_mapping(payload, context="data_rights")
+
+
+def test_data_rights_digest_binds_every_closed_status() -> None:
+    rights = DataRightsManifest.from_mapping(
+        _blocked_data_rights(), context="data_rights"
+    )
+    changed = _blocked_data_rights()
+    changed["raw_redistribution"] = "authorized"
+    changed["permission_record"] = {
+        "sha256": "1" * 64,
+        "scope": "raw and derived unit-record redistribution",
+    }
+    authorized = DataRightsManifest.from_mapping(changed, context="data_rights")
+
+    assert len(rights.sha256) == 64
+    assert rights.sha256 != authorized.sha256
 
 
 def _armenia_scalar_ledger_fact(
@@ -288,7 +326,7 @@ class TestArmenianPackage:
             "member",
         }
         assert {artifact["kind"] for artifact in native.artifacts} == {
-            "public_microdata"
+            "restricted_microdata"
         }
         assert all(artifact["runtime_sha256_required"] for artifact in native.artifacts)
         assert "employment_income_monthly" in native.outputs
@@ -472,20 +510,67 @@ class TestArmenianPackage:
         assert reference_coverage[0].not_applicable is None
         assert reference_coverage[0].evidence_absent_blocks is True
 
-    def test_release_contract_is_public_and_ordinal_free(self, spec) -> None:
+    def test_release_contract_is_fail_closed_and_ordinal_free(self, spec) -> None:
         contract = spec.release_contract
         assert contract.builder == "populace-am"
         assert contract.artifact_repo == "policyengine/populace-am"
-        assert contract.artifact_repo_private is False
-        assert contract.licence_restricted is False
+        assert contract.artifact_repo_private is True
+        assert contract.licence_restricted is True
         assert contract.dataset_filename_template == "populace_am_{year}.h5"
-        assert contract.private_artifacts == ()
-        assert set(contract.required_release_files) <= set(contract.public_artifacts)
+        assert set(contract.private_artifacts) == {
+            "populace_am_{year}.h5",
+            "populace_am_{year}_calibration.npz",
+        }
+        assert not set(contract.private_artifacts) & set(contract.public_artifacts)
+        assert contract.data_rights is not None
+        assert contract.data_rights.permission_record is None
+        assert (
+            contract.data_rights.derived_unit_record_publication
+            == "blocked_pending_explicit_permission"
+        )
         assert "source_coverage.json" in contract.required_release_files
         assert "validation_bands.json" in contract.required_release_files
 
     def test_fingerprint_is_stable_across_loads(self, spec) -> None:
         assert load_country_spec("am").fingerprint == spec.fingerprint
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    (
+        ("overlap", "must be disjoint"),
+        ("duplicate", "must not contain duplicates"),
+        ("missing", "classify every required release artifact"),
+        ("path_component", "bare file names"),
+        ("row_public", "H5/NPZ artifacts to remain private"),
+    ),
+)
+def test_armenian_release_boundary_mutations_fail_closed(
+    tmp_path: Path, mutation: str, message: str
+) -> None:
+    package_dir = tmp_path / "am"
+    shutil.copytree(COUNTRY_PACKAGE_ROOT / "am", package_dir)
+    contract_path = package_dir / "release_contract.json"
+    contract = json.loads(contract_path.read_text())
+    public = contract["boundary"]["public"]
+    private = contract["boundary"]["private"]
+    if mutation == "overlap":
+        public.append(private[0])
+    elif mutation == "duplicate":
+        public.append(public[0])
+    elif mutation == "missing":
+        public.remove("validation_bands.json")
+    elif mutation == "path_component":
+        public[0] = "nested/build_manifest.json"
+    elif mutation == "row_public":
+        private.remove("populace_am_{year}.h5")
+        public.append("populace_am_{year}.h5")
+    else:  # pragma: no cover - parametrization is closed above
+        raise AssertionError(mutation)
+    contract_path.write_text(json.dumps(contract))
+
+    with pytest.raises(ValueError, match=message):
+        load_country_spec(package_dir)
 
 
 class TestBelgianPackage:

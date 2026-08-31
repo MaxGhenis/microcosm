@@ -1,6 +1,6 @@
 {
   "country": "am",
-  "fingerprint": "5b3f213c70ef2bc10674908fe573e165d9fd1fe2893733007b9d830f816fc40f",
+  "fingerprint": "0ae6b5fff44d53ed7df187f89ee0e27c57f05e7637368c9d7a0c42162796cb75",
   "gate_ids": [
     "calibration_per_family_fit",
     "national_and_marz_admin_aggregates",
@@ -36,12 +36,12 @@
     "country_package.json": "d16ce36bc7ea2fac4aaa43036cfea04b2c0f905a2e1682fe64665954bc1cd4b3",
     "gates.json": "ccfb0558558f2b0678637a3bebf0778a25e7a3b999981a0a20bc89f3e7b3d320",
     "geography_spine.json": "12ee8607f1a222b642cbc251d3fe51c209786b24542084a06249aab8c7ab2fa1",
-    "release_contract.json": "86339163c03eaa4d9abea5712546dc63697ea4223b8870d177f23b89a0098dbb",
-    "source_stages.json": "3c11f9d5086a0906bc2d766c443b6495e886714c9295aaffc54b0121a1493262",
+    "release_contract.json": "19bfd1474348aa9e5c325770ff7732b3f5f21081b52b69de7fb0cb665d6556f9",
+    "source_stages.json": "d2a002811c375bbbc9c514c920641845b424485b86b322725c0bdd8aae6925dd",
     "spec/bundle.yaml": "d581c77a5bfe8a53651e76b31d94814d2103d2939740238d5b72984017f0ac44",
     "spec/catalogs.yaml": "906a2cb7e54d2048b106ff133c8245e0045b040b40874306bd8ebff73d317808",
     "spec/geography.yaml": "4a4ad56ff3f75a068402d333493d63ba7ab01c287827f4afdbdc4b9ca4b45a1a",
-    "spec/sources.yaml": "3729e59e08b01c53fad3cb34125f6d8b8d7e385a7818687706dc4690fcf0192c",
+    "spec/sources.yaml": "d8b466810eab82f903d0edafeadf436b7cf7cd11b6ce9eda4bafd4c41d2112c0",
     "spec/spine.yaml": "c8de4c84fe7b361b74ce72cc37646c28fed266d22602ef6997ff2588e562c9a5",
     "spec/vintages.yaml": "216527e25f3f5466f9459d8865c899aee0e40f2870fcbf5e3f8eda9e5a30b5c5",
     "target_references.json": "b9f1a36cd53d1a8971599b0b668f8f40d14242303c2dbd512a4584fa89549d6f"

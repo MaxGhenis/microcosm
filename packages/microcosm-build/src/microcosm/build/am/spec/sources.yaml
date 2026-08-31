@@ -1,8 +1,8 @@
 sources:
 - id: am_populace_us_support_contract
   role: am_populace_us_support_pool
-  sha256: 3c11f9d5086a0906bc2d766c443b6495e886714c9295aaffc54b0121a1493262
-  byte_size: 11913
+  sha256: d2a002811c375bbbc9c514c920641845b424485b86b322725c0bdd8aae6925dd
+  byte_size: 12185
   loader: kernel:load_populace_us_support_pool
   vintages:
   - vintage:am_support_pool_unpinned
@@ -12,8 +12,8 @@ sources:
     value: HARVEST_REQUIRED
 - id: am_marz_assignment_contract
   role: am_marz_assignment_contract
-  sha256: 3c11f9d5086a0906bc2d766c443b6495e886714c9295aaffc54b0121a1493262
-  byte_size: 11913
+  sha256: d2a002811c375bbbc9c514c920641845b424485b86b322725c0bdd8aae6925dd
+  byte_size: 12185
   loader: kernel:assign_am_marz
   vintages:
   - vintage:am_marz_2022
@@ -23,8 +23,8 @@ sources:
     value: 2022_marz
 - id: am_ilcs_2024_contract
   role: am_ilcs_2024_native_source
-  sha256: 3c11f9d5086a0906bc2d766c443b6495e886714c9295aaffc54b0121a1493262
-  byte_size: 11913
+  sha256: d2a002811c375bbbc9c514c920641845b424485b86b322725c0bdd8aae6925dd
+  byte_size: 12185
   loader: kernel:ingest_am_ilcs_spine
   vintages:
   - vintage:am_ilcs_2024
@@ -159,12 +159,15 @@ stages:
   artifacts:
   - role: ilcs_table
     table: household
-    kind: public_microdata
+    kind: restricted_microdata
     format: xlsx
     vintage: '2024'
     locator: households_2024.xlsx
     sheet: Household - 2024
     source: https://armstat.am/file/doc/99565003.xlsx
+    licence: >-
+      Public anonymised download; no express raw or derived unit-record
+      redistribution grant has been identified.
     sha256: 48527e2de376e7ef88dc04ac9fe2de2fdc1728d34ce2d753ce165ab5c496590e
     size_bytes: 2186167
     expected_rows: 5184
@@ -175,12 +178,15 @@ stages:
       a release blocker.
   - role: ilcs_table
     table: member
-    kind: public_microdata
+    kind: restricted_microdata
     format: xlsx
     vintage: '2024'
     locator: members_2024.xlsx
     sheet: Sheet1
     source: https://armstat.am/file/doc/99565008.xlsx
+    licence: >-
+      Public anonymised download; no express raw or derived unit-record
+      redistribution grant has been identified.
     sha256: 6d52cc9867147043decbc8539dd40ac428468fba0caed60176b28bd7bc1a24f5
     size_bytes: 8613335
     expected_rows: 17744

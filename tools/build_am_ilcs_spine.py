@@ -21,6 +21,7 @@ from microcosm.build.trace import sha256_file
 
 _PIPELINE = "am-ilcs-2024-native-spine"
 _STAGE = "ingest_am_ilcs_2024"
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _source_sha256(value: object) -> str:
@@ -70,6 +71,19 @@ def _validate_args(args: argparse.Namespace) -> Path:
         raise ValueError("--build-sidecar must end with '.json'.")
     if args.spine_h5.expanduser().resolve() == sidecar.expanduser().resolve():
         raise ValueError("--spine-h5 and --build-sidecar must not collide.")
+    protected_paths = {
+        "--ilcs-raw-dir": args.ilcs_raw_dir,
+        "--spine-h5": args.spine_h5,
+        "--build-sidecar": sidecar,
+    }
+    for label, path in protected_paths.items():
+        resolved = path.expanduser().resolve()
+        if resolved.is_relative_to(_REPOSITORY_ROOT):
+            raise ValueError(
+                f"{label} must be outside the Microcosm repository checkout; "
+                "raw and derived unit-record files are local analysis inputs, "
+                "not source-tree artifacts."
+            )
     return sidecar
 
 
@@ -95,6 +109,9 @@ def _build_sidecar(
     spec = load_country_spec("am")
     if spec.resolved_spec is None:
         raise RuntimeError("AM country package did not resolve through the typed spec.")
+    if spec.release_contract is None or spec.release_contract.data_rights is None:
+        raise RuntimeError("AM country package has no normative data-rights envelope.")
+    data_rights = spec.release_contract.data_rights
     receipt = transform.last_receipt.as_dict()
     return {
         "schema_version": 1,
@@ -102,6 +119,10 @@ def _build_sidecar(
         "disposition": "local_ingest_diagnostic_only",
         "release_eligible": False,
         "publication_authorized": False,
+        "data_rights": {
+            "sha256": data_rights.sha256,
+            "envelope": data_rights.as_dict(),
+        },
         "country": "am",
         "time_period": str(frame.metadata["time_period"]),
         "amount_basis": receipt["amount_basis"],
@@ -147,8 +168,14 @@ def _build_sidecar(
         },
         "licensing": {
             "raw_inputs": "caller_supplied_local_only",
-            "derived_unit_record_redistribution": "not_authorized_by_this_build",
-            "blocker": "capture and review exact ArmStat licence text",
+            "derived_unit_record_redistribution": (
+                data_rights.derived_unit_record_publication
+            ),
+            "row_aligned_weight_publication": (
+                data_rights.row_aligned_weight_publication
+            ),
+            "aggregate_output": data_rights.aggregate_output,
+            "blocker": "obtain, review, and SHA-pin explicit ArmStat permission",
         },
     }
 

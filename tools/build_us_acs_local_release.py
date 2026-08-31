@@ -1803,6 +1803,7 @@ def do_package(args) -> dict:
 
     release_manifest = {
         "schema_version": 1,
+        "country": "us",
         "data_package": {"name": "microcosm-data", "version": "0.1.0"},
         # NON-DEFAULT: this artifact claims NO default dataset slot.
         # Publishing it must never flip latest.json; it is discoverable by

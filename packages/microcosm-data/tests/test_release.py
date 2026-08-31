@@ -579,6 +579,7 @@ def release_dir(tmp_path: Path) -> Path:
         json.dumps(
             {
                 "schema_version": 1,
+                "country": "us",
                 "data_package": {"name": "microcosm-data", "version": "0.1.0"},
                 "default_datasets": {"national": "populace_us_2024"},
                 "build": {
@@ -1266,6 +1267,423 @@ def test_nonstandard_nan_calibration_diagnostics_uploads_nothing(
     assert hub.uploads == []
 
 
+@pytest.mark.parametrize(
+    "publish_options",
+    [
+        {},
+        {"evidence": True},
+        {"update_latest": False, "tag_only": True},
+        {"update_latest": False},
+    ],
+    ids=("certified", "evidence-private-repo", "tag-only", "no-latest"),
+)
+def test_armenia_release_identity_requires_reviewed_permission_before_remote_call(
+    tmp_path: Path,
+    hub: FakeHub,
+    publish_options: dict,
+) -> None:
+    release_dir = tmp_path / "releases" / "populace-am-2024-native-test"
+    release_dir.mkdir(parents=True)
+    (release_dir / "release_manifest.json").write_text(
+        json.dumps(
+            {
+                "country": "am",
+                "data_rights": {
+                    "schema_version": 1,
+                    "access": "public_anonymised_download",
+                    "local_analysis": "authorized",
+                    "raw_redistribution": "no_express_grant",
+                    "derived_unit_record_publication": (
+                        "blocked_pending_explicit_permission"
+                    ),
+                    "row_aligned_weight_publication": (
+                        "blocked_pending_explicit_permission"
+                    ),
+                    "aggregate_output": (
+                        "allowed_with_attribution_and_disclosure_review"
+                    ),
+                    "permission_record": None,
+                },
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="remains blocked pending express permission"):
+        publish_release(
+            release_dir,
+            "policyengine/populace-am",
+            api=hub,
+            **publish_options,
+        )
+
+    assert hub.uploads == []
+    assert hub.tags == []
+    assert hub.events == []
+
+
+def test_armenia_permission_gate_precedes_default_api_construction(
+    tmp_path: Path, monkeypatch
+) -> None:
+    release_dir = tmp_path / "populace-am-2024-native-test"
+    release_dir.mkdir()
+    (release_dir / "release_manifest.json").write_text(
+        json.dumps(
+            {
+                "country": "am",
+                "data_rights": {
+                    "schema_version": 1,
+                    "access": "public_anonymised_download",
+                    "local_analysis": "authorized",
+                    "raw_redistribution": "no_express_grant",
+                    "derived_unit_record_publication": (
+                        "blocked_pending_explicit_permission"
+                    ),
+                    "row_aligned_weight_publication": (
+                        "blocked_pending_explicit_permission"
+                    ),
+                    "aggregate_output": (
+                        "allowed_with_attribution_and_disclosure_review"
+                    ),
+                    "permission_record": None,
+                },
+            }
+        )
+    )
+    api_constructions: list[None] = []
+
+    def construct_api():
+        api_constructions.append(None)
+        raise AssertionError("Hub API must not be constructed")
+
+    monkeypatch.setattr(release_module, "_hf_api", construct_api)
+    with pytest.raises(ValueError, match="remains blocked pending express permission"):
+        publish_release(release_dir, "policyengine/populace-am")
+
+    assert api_constructions == []
+
+
+@pytest.mark.parametrize("identity", ("country", "artifact_name", "h5_marker"))
+def test_renaming_release_directory_does_not_bypass_armenia_permission_gate(
+    tmp_path: Path,
+    hub: FakeHub,
+    identity: str,
+) -> None:
+    release_dir = tmp_path / "renamed-release"
+    artifact_root = tmp_path / "artifacts"
+    release_dir.mkdir()
+    artifact_root.mkdir()
+    manifest: dict[str, object] = {
+        "country": "am" if identity == "country" else "us",
+        "data_rights": {
+            "schema_version": 1,
+            "access": "public_anonymised_download",
+            "local_analysis": "authorized",
+            "raw_redistribution": "no_express_grant",
+            "derived_unit_record_publication": ("blocked_pending_explicit_permission"),
+            "row_aligned_weight_publication": ("blocked_pending_explicit_permission"),
+            "aggregate_output": "allowed_with_attribution_and_disclosure_review",
+            "permission_record": None,
+        },
+    }
+    if identity != "country":
+        filename = (
+            "populace_am_2024.h5"
+            if identity == "artifact_name"
+            else "deliberately_renamed.bin"
+        )
+        manifest["artifacts"] = {"dataset": {"path": filename}}
+        if identity == "h5_marker":
+            h5py = pytest.importorskip("h5py")
+            with h5py.File(artifact_root / filename, mode="w") as file:
+                file.attrs["microcosm_am_data_rights_sha256"] = "d" * 64
+    (release_dir / "release_manifest.json").write_text(json.dumps(manifest))
+
+    expected = (
+        "remains blocked pending express permission"
+        if identity == "country"
+        else "carry Armenian provenance"
+    )
+    with pytest.raises(ValueError, match=expected):
+        publish_release(
+            release_dir,
+            (
+                "policyengine/populace-am"
+                if identity == "country"
+                else "alternate-owner/renamed-dataset"
+            ),
+            api=hub,
+            artifact_root=artifact_root,
+        )
+
+    assert hub.uploads == []
+    assert hub.tags == []
+    assert hub.events == []
+
+
+def _authorized_am_rights(permission_sha256: str = "b" * 64) -> dict:
+    return {
+        "schema_version": 1,
+        "access": "public_anonymised_download",
+        "local_analysis": "authorized",
+        "raw_redistribution": "no_express_grant",
+        "derived_unit_record_publication": "authorized",
+        "row_aligned_weight_publication": "authorized",
+        "aggregate_output": "allowed_with_attribution_and_disclosure_review",
+        "permission_record": {
+            "sha256": permission_sha256,
+            "scope": "derived unit records and row-aligned weights",
+        },
+    }
+
+
+def _write_am_preflight_fixture(
+    tmp_path: Path,
+    *,
+    rights: dict,
+    h5_rights_sha256: str | None = None,
+    h5_status: str = "authorized",
+    h5_country: str = "am",
+) -> tuple[Path, Path, str]:
+    h5py = pytest.importorskip("h5py")
+    release_dir = tmp_path / "renamed-release"
+    artifact_root = tmp_path / "artifacts"
+    release_dir.mkdir()
+    artifact_root.mkdir()
+    rights_sha256 = hashlib.sha256(
+        json.dumps(rights, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    with h5py.File(artifact_root / "populace_am_2024.h5", mode="w") as file:
+        file.attrs["microcosm_am_country"] = h5_country
+        file.attrs["microcosm_am_data_rights_sha256"] = (
+            h5_rights_sha256 or rights_sha256
+        )
+        file.attrs["microcosm_am_unit_record_publication_status"] = h5_status
+    artifacts = {
+        "dataset": {
+            "path": "populace_am_2024.h5",
+            "kind": "microdata",
+            "repo_id": "policyengine/populace-am",
+        },
+        "calibration": {
+            "path": "populace_am_2024_calibration.npz",
+            "kind": "calibration",
+            "repo_id": "policyengine/populace-am",
+        },
+        **{
+            path.removesuffix(".json"): {
+                "path": path,
+                "kind": "diagnostics",
+                "repo_id": "policyengine/populace-am",
+            }
+            for path in (
+                "calibration_diagnostics.json",
+                "demographics.json",
+                "source_coverage.json",
+                "validation_bands.json",
+            )
+        },
+    }
+    (release_dir / "release_manifest.json").write_text(
+        json.dumps({"country": "am", "data_rights": rights, "artifacts": artifacts})
+    )
+    return release_dir, artifact_root, rights_sha256
+
+
+def _install_authorized_am_policy(
+    monkeypatch, *, rights_sha256: str, permission_sha256: str = "b" * 64
+) -> None:
+    policy = release_module._AMPublicationPolicy(
+        rights_sha256=rights_sha256,
+        permission_record_sha256=permission_sha256,
+        allowed_repo_id="policyengine/populace-am",
+        private_required=True,
+        publication_authorized=True,
+    )
+    monkeypatch.setattr(
+        release_module,
+        "_AM_REVIEWED_PUBLICATION_POLICIES",
+        {rights_sha256: policy},
+    )
+
+
+def test_armenia_permission_gate_requires_exact_rights_registry_match(
+    tmp_path: Path,
+) -> None:
+    release_dir, artifact_root, _rights_sha256 = _write_am_preflight_fixture(
+        tmp_path, rights=_authorized_am_rights()
+    )
+
+    with pytest.raises(ValueError, match="no exact code-reviewed publication policy"):
+        release_module._require_release_publication_identity(
+            release_dir,
+            artifact_root=artifact_root,
+            repo_id="policyengine/populace-am",
+            extra_files=(),
+        )
+
+
+def test_armenia_old_blocked_h5_cannot_ride_under_authorized_manifest(
+    tmp_path: Path, monkeypatch
+) -> None:
+    release_dir, artifact_root, rights_sha256 = _write_am_preflight_fixture(
+        tmp_path,
+        rights=_authorized_am_rights(),
+        h5_status="blocked_pending_explicit_permission",
+    )
+    _install_authorized_am_policy(monkeypatch, rights_sha256=rights_sha256)
+
+    with pytest.raises(ValueError, match="H5 country/data-rights/status stamp"):
+        release_module._require_release_publication_identity(
+            release_dir,
+            artifact_root=artifact_root,
+            repo_id="policyengine/populace-am",
+            extra_files=(),
+        )
+
+
+def test_armenia_exact_authorized_tuple_reaches_contract_validation_boundary(
+    tmp_path: Path, monkeypatch
+) -> None:
+    release_dir, artifact_root, rights_sha256 = _write_am_preflight_fixture(
+        tmp_path, rights=_authorized_am_rights()
+    )
+    _install_authorized_am_policy(monkeypatch, rights_sha256=rights_sha256)
+
+    _manifest, policy = release_module._require_release_publication_identity(
+        release_dir,
+        artifact_root=artifact_root,
+        repo_id="policyengine/populace-am",
+        extra_files=(),
+    )
+
+    assert policy is not None
+    assert policy.rights_sha256 == rights_sha256
+
+
+@pytest.mark.parametrize(
+    "rogue_path",
+    (
+        "rows.csv",
+        "rows.parquet",
+        "rows.zip",
+        "rows.json",
+        "rows.bin",
+        "rows",
+        "renamed_h5.bin",
+    ),
+)
+def test_armenia_authorized_policy_rejects_unreviewed_artifact_formats(
+    tmp_path: Path, monkeypatch, rogue_path: str
+) -> None:
+    release_dir, artifact_root, rights_sha256 = _write_am_preflight_fixture(
+        tmp_path, rights=_authorized_am_rights()
+    )
+    _install_authorized_am_policy(monkeypatch, rights_sha256=rights_sha256)
+    manifest_path = release_dir / "release_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["artifacts"]["rogue_rows"] = {
+        "path": rogue_path,
+        "kind": "diagnostics",
+        "repo_id": "policyengine/populace-am",
+    }
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="reviewed country boundary"):
+        release_module._require_release_publication_identity(
+            release_dir,
+            artifact_root=artifact_root,
+            repo_id="policyengine/populace-am",
+            extra_files=(),
+        )
+
+
+def test_armenia_authorized_tuple_rejects_wrong_repo_and_public_repo(
+    tmp_path: Path, monkeypatch
+) -> None:
+    release_dir, artifact_root, rights_sha256 = _write_am_preflight_fixture(
+        tmp_path, rights=_authorized_am_rights()
+    )
+    _install_authorized_am_policy(monkeypatch, rights_sha256=rights_sha256)
+
+    with pytest.raises(ValueError, match="artifact repository identities"):
+        release_module._require_release_publication_identity(
+            release_dir,
+            artifact_root=artifact_root,
+            repo_id="alternate-owner/public-repo",
+            extra_files=(),
+        )
+
+    class PublicRepoApi:
+        def repo_info(self, **_kwargs):
+            return {"sha": "commit-0", "private": False}
+
+    with pytest.raises(ValueError, match="does not report.*private"):
+        release_module._require_private_repo(
+            PublicRepoApi(), repo_id="policyengine/populace-am"
+        )
+
+
+def test_publish_requires_manifest_country_before_api_mutation(
+    release_dir: Path, artifact_root: Path, hub: FakeHub
+) -> None:
+    manifest_path = release_dir / "release_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    del manifest["country"]
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="two-letter lowercase country"):
+        publish_release(
+            release_dir,
+            "policyengine/populace-us",
+            api=hub,
+            artifact_root=artifact_root,
+        )
+
+    assert hub.events == []
+
+
+@pytest.mark.parametrize(
+    "filename",
+    (
+        "unreviewed_rows.h5",
+        "unreviewed_rows.hdf5",
+        "unreviewed_rows.npz",
+        "unreviewed_rows.xlsx",
+        "unreviewed_rows.xls",
+        "unreviewed_rows.sav",
+        "unreviewed_rows.7z",
+        "unreviewed_rows.csv",
+        "unreviewed_rows.parquet",
+        "unreviewed_rows.zip",
+        "unreviewed_rows.json",
+        "unreviewed_rows.bin",
+        "unreviewed_rows",
+        "unreviewed_rows.H5",
+        ".h5",
+    ),
+)
+def test_extra_files_reject_row_bearing_formats_before_remote_mutation(
+    hub: FakeHub,
+    release_dir: Path,
+    artifact_root: Path,
+    filename: str,
+) -> None:
+    (release_dir / filename).write_bytes(b"row-level payload")
+
+    with pytest.raises(ValueError, match="not a manifest-declared JSON diagnostics"):
+        publish_release(
+            release_dir,
+            "policyengine/populace-us",
+            api=hub,
+            artifact_root=artifact_root,
+            extra_files=(filename,),
+        )
+
+    assert hub.uploads == []
+    assert hub.tags == []
+    assert hub.events == []
+
+
 def test_extra_files_ride_along_before_the_pointer(
     hub: FakeHub, release_dir: Path, artifact_root: Path
 ) -> None:
@@ -1283,7 +1701,7 @@ def test_extra_files_ride_along_before_the_pointer(
 
 
 def test_missing_extra_file_fails_loudly(hub: FakeHub, release_dir: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="support_audit"):
+    with pytest.raises(ValueError, match="not a manifest-declared JSON diagnostics"):
         publish_release(
             release_dir,
             "policyengine/populace-us",

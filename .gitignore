@@ -8,6 +8,21 @@ dist/
 build/
 out/
 *.h5
+/packages/microcosm-build/src/microcosm/build/am*/**/*.hdf5
+/packages/microcosm-build/src/microcosm/build/am*/**/*.npz
+/packages/microcosm-build/src/microcosm/build/am*/**/*.csv
+/packages/microcosm-build/src/microcosm/build/am*/**/*.parquet
+/packages/microcosm-build/src/microcosm/build/am*/**/*.dta
+/packages/microcosm-build/src/microcosm/build/am*/**/*.feather
+/packages/microcosm-build/src/microcosm/build/am*/**/*.arrow
+/packages/microcosm-build/src/microcosm/build/am*/**/*.xlsx
+/packages/microcosm-build/src/microcosm/build/am*/**/*.xls
+/packages/microcosm-build/src/microcosm/build/am*/**/*.sav
+/packages/microcosm-build/src/microcosm/build/am*/**/*.bin
+/packages/microcosm-build/src/microcosm/build/am*/**/*.zip
+/packages/microcosm-build/src/microcosm/build/am*/**/*.tar
+/packages/microcosm-build/src/microcosm/build/am*/**/*.tar.gz
+/packages/microcosm-build/src/microcosm/build/am*/**/*.7z
 !packages/*/build/
 # microcosm.build is a real namespace package, not a build-artifact dir
 !packages/microcosm-build/src/microcosm/build/

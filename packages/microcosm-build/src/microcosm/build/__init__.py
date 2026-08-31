@@ -52,6 +52,7 @@ _assert_frame_compatible(_frame_version, _REQUIRED_FRAME_SERIES)
 from microcosm.build.country_spec import (  # noqa: E402 - after the compat gate
     CountryResourceRow,
     CountrySpec,
+    DataRightsManifest,
     GateSelectionSpec,
     GatesManifest,
     GeographySpineManifest,
@@ -163,6 +164,7 @@ __all__ = [
     "CountryResourceRow",
     "DonorSpec",
     "DEFAULT_STAGING_PREFIX",
+    "DataRightsManifest",
     "EvidenceContext",
     "FitWeightRecord",
     "FunctionBinding",

@@ -24,11 +24,14 @@ from microcosm.frame import (
 
 __all__ = [
     "AM_EXPORTED_WEIGHT_COLUMNS",
+    "AM_COUNTRY_ATTR",
+    "AM_DATA_RIGHTS_SHA256_ATTR",
     "AM_HOUSEHOLD_WEIGHT_KIND_ATTR",
     "AM_MASS_LOG_ATTR",
     "AM_NATIONAL_H5_TABLES",
     "AM_NATIONAL_SCHEMA",
     "AM_TIME_PERIOD_METADATA_KEY",
+    "AM_UNIT_RECORD_PUBLICATION_STATUS_ATTR",
     "AMStagingProvenance",
     "am_household_weight_kind",
     "am_national_frame",
@@ -43,6 +46,9 @@ AM_TIME_PERIOD_METADATA_KEY = "time_period"
 AM_NATIONAL_H5_TABLES = ("person", "household", "time_period")
 AM_HOUSEHOLD_WEIGHT_KIND_ATTR = "microcosm_am_household_weight_kind"
 AM_MASS_LOG_ATTR = "microcosm_am_mass_log_json"
+AM_COUNTRY_ATTR = "microcosm_am_country"
+AM_DATA_RIGHTS_SHA256_ATTR = "microcosm_am_data_rights_sha256"
+AM_UNIT_RECORD_PUBLICATION_STATUS_ATTR = "microcosm_am_unit_record_publication_status"
 AM_EXPORTED_WEIGHT_COLUMNS = frozenset({"household_weight"})
 
 
@@ -127,6 +133,24 @@ def _weight_kind_from_stored(value: object) -> WeightKind:
         ) from exc
 
 
+def _stored_text(value: object) -> str:
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    return str(value)
+
+
+def _am_data_rights_identity() -> tuple[str, str]:
+    # Import lazily so the country-package loader can itself import shared
+    # runtime modules without a module-initialization cycle.
+    from microcosm.build.country_spec import load_country_spec
+
+    contract = load_country_spec("am").release_contract
+    if contract is None or contract.data_rights is None:
+        raise RuntimeError("AM country package has no normative data-rights envelope.")
+    rights = contract.data_rights
+    return rights.sha256, rights.derived_unit_record_publication
+
+
 def _read_h5_metadata(path: Path) -> tuple[WeightKind, tuple[MassChangeRecord, ...]]:
     try:
         import h5py
@@ -137,7 +161,13 @@ def _read_h5_metadata(path: Path) -> tuple[WeightKind, tuple[MassChangeRecord, .
     with h5py.File(path, mode="r") as file:
         missing = sorted(
             name
-            for name in (AM_HOUSEHOLD_WEIGHT_KIND_ATTR, AM_MASS_LOG_ATTR)
+            for name in (
+                AM_HOUSEHOLD_WEIGHT_KIND_ATTR,
+                AM_MASS_LOG_ATTR,
+                AM_COUNTRY_ATTR,
+                AM_DATA_RIGHTS_SHA256_ATTR,
+                AM_UNIT_RECORD_PUBLICATION_STATUS_ATTR,
+            )
             if name not in file.attrs
         )
         if missing:
@@ -146,6 +176,22 @@ def _read_h5_metadata(path: Path) -> tuple[WeightKind, tuple[MassChangeRecord, .
             )
         kind = _weight_kind_from_stored(file.attrs[AM_HOUSEHOLD_WEIGHT_KIND_ATTR])
         mass_log = _mass_log_from_stored(file.attrs[AM_MASS_LOG_ATTR])
+        observed_rights = _stored_text(file.attrs[AM_DATA_RIGHTS_SHA256_ATTR])
+        observed_status = _stored_text(
+            file.attrs[AM_UNIT_RECORD_PUBLICATION_STATUS_ATTR]
+        )
+        expected_rights, expected_status = _am_data_rights_identity()
+        observed_country = _stored_text(file.attrs[AM_COUNTRY_ATTR])
+        if (
+            observed_country != "am"
+            or observed_rights != expected_rights
+            or observed_status != expected_status
+        ):
+            raise ValueError(
+                "Armenian staging H5 country/data-rights metadata does not "
+                "match the current reviewed country contract; rebuild from "
+                "the pinned local inputs before analysis."
+            )
     return kind, mass_log
 
 
@@ -162,12 +208,16 @@ def _write_h5_metadata(
             "h5py is required to write Armenian staging metadata."
         ) from exc
     with h5py.File(path, mode="r+") as file:
+        rights_sha256, publication_status = _am_data_rights_identity()
+        file.attrs[AM_COUNTRY_ATTR] = "am"
         file.attrs[AM_HOUSEHOLD_WEIGHT_KIND_ATTR] = weight_kind.value
         file.attrs[AM_MASS_LOG_ATTR] = json.dumps(
             [_mass_record_payload(record) for record in mass_log],
             sort_keys=True,
             separators=(",", ":"),
         )
+        file.attrs[AM_DATA_RIGHTS_SHA256_ATTR] = rights_sha256
+        file.attrs[AM_UNIT_RECORD_PUBLICATION_STATUS_ATTR] = publication_status
 
 
 def am_national_frame(

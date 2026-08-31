@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from microcosm.build.staging import StagingTelemetry
 
 
@@ -186,3 +188,92 @@ def test_uploads_succeeded_is_zero_for_a_local_only_run(tmp_path):
 
     assert telemetry.uploads_succeeded == 0
     assert (tmp_path / "run-d" / "progress.json").is_file()
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    (
+        ".h5",
+        ".hdf5",
+        ".npz",
+        ".xlsx",
+        ".xls",
+        ".sav",
+        ".7z",
+        ".txt",
+        ".jsonl",
+        "",
+    ),
+)
+def test_staging_attachment_rejects_non_telemetry_without_mutation(
+    tmp_path, suffix
+) -> None:
+    class NoDownloadApi(FakeApi):
+        def hf_hub_download(self, **kwargs):
+            raise FileNotFoundError("no existing runs index")
+
+    api = NoDownloadApi()
+    run_dir = tmp_path / "run-guarded"
+    telemetry = StagingTelemetry(
+        run_id="run-guarded",
+        candidate_release_id="populace-us-2024-test",
+        run_dir=run_dir,
+        repo_id="alternate-owner/private-staging",
+        api=api,
+        upload_interval_seconds=0,
+    )
+    source = tmp_path / f"private-rows{suffix}"
+    source.write_bytes(b"row-level payload")
+    copied = run_dir / source.name
+    manifest_before = (run_dir / "run_manifest.json").read_bytes()
+    uploads_before = list(api.uploads)
+    successes_before = telemetry.uploads_succeeded
+
+    with pytest.raises(ValueError, match="only .json and .ndjson"):
+        telemetry.attach_artifact("private_rows", source, copy=True)
+
+    assert not copied.exists()
+    assert telemetry._artifacts == {}
+    assert (run_dir / "run_manifest.json").read_bytes() == manifest_before
+    assert api.uploads == uploads_before
+    assert telemetry.uploads_succeeded == successes_before
+
+
+def test_armenian_remote_staging_is_disabled_before_local_or_remote_mutation(
+    tmp_path,
+) -> None:
+    api = FakeApi()
+    run_dir = tmp_path / "am-run"
+
+    with pytest.raises(ValueError, match="remote staging is disabled for Armenian"):
+        StagingTelemetry(
+            run_id="am-run",
+            candidate_release_id="populace-am-2024-native-test",
+            run_dir=run_dir,
+            repo_id="alternate-owner/private-staging",
+            api=api,
+        )
+
+    assert not run_dir.exists()
+    assert api.uploads == []
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ("diagnostics.json", "diagnostics.ndjson", "diagnostics.JSON", ".ndjson"),
+)
+def test_staging_attachment_allows_json_telemetry(tmp_path, filename) -> None:
+    telemetry = StagingTelemetry(
+        run_id="run-json",
+        candidate_release_id="populace-am-2024-native-test",
+        run_dir=tmp_path / "run-json",
+    )
+    source = tmp_path / filename
+    source.write_text("{}\n")
+
+    telemetry.attach_artifact("diagnostics", source, copy=True)
+
+    copied = telemetry.run_dir / source.name
+    manifest = json.loads((telemetry.run_dir / "run_manifest.json").read_text())
+    assert copied.read_text() == "{}\n"
+    assert manifest["artifacts"]["diagnostics"]["path"] == source.name

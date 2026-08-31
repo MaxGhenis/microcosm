@@ -4620,8 +4620,15 @@
      "type": "object",
      "additionalProperties": false,
      "properties": {
+      "expected_rows": {
+       "type": "number"
+      },
       "format": {
        "type": "string"
+      },
+      "integrity_note": {
+       "type": "string",
+       "x-spec-surface": "documentation"
       },
       "kind": {
        "const": "restricted_microdata"
@@ -4633,6 +4640,28 @@
       "locator": {
        "type": "string",
        "x-spec-surface": "operational"
+      },
+      "role": {
+       "type": "string"
+      },
+      "runtime_sha256_required": {
+       "type": "boolean"
+      },
+      "sha256": {
+       "$ref": "defs.schema.json#/$defs/sha256"
+      },
+      "sheet": {
+       "type": "string"
+      },
+      "size_bytes": {
+       "type": "number"
+      },
+      "source": {
+       "type": "string",
+       "x-spec-surface": "operational"
+      },
+      "table": {
+       "type": "string"
       },
       "vintage": {
        "type": "string"

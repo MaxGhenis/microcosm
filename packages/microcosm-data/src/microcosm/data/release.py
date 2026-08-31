@@ -34,10 +34,12 @@ from __future__ import annotations
 import hashlib
 import json
 import posixpath
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from microcosm.data.contract import (
@@ -83,6 +85,55 @@ LATEST_POINTER_SCHEMA_VERSION = 1
 #: pointer payload, the release id, and the release manifest.
 RELEASE_TIER_CERTIFIED = "certified"
 RELEASE_TIER_EVIDENCE = "evidence"
+
+
+@dataclass(frozen=True)
+class _AMPublicationPolicy:
+    """Code-reviewed publication authority for one exact rights envelope."""
+
+    rights_sha256: str
+    permission_record_sha256: str | None
+    allowed_repo_id: str
+    private_required: bool
+    publication_authorized: bool
+
+
+# A manifest cannot authorize itself.  The exact canonical rights-envelope
+# digest must land in this registry through code review, along with its exact
+# permission record, repository, privacy requirement, and authorization
+# verdict.  The only reviewed envelope is deliberately blocked while ArmStat
+# has supplied no express derivative-publication grant.  A future grant needs
+# both a new country-contract digest and a new registry entry.
+_AM_REVIEWED_PUBLICATION_POLICIES: Mapping[str, _AMPublicationPolicy] = (
+    MappingProxyType(
+        {
+            "39cbf8b8c9d62dcf5743621f4a5ec6cf0a1c5d82550f4e5adf9864f35148e859": (
+                _AMPublicationPolicy(
+                    rights_sha256=(
+                        "39cbf8b8c9d62dcf5743621f4a5ec6cf0a1c5d82550f4e5adf9864f35148e859"
+                    ),
+                    permission_record_sha256=None,
+                    allowed_repo_id="policyengine/populace-am",
+                    private_required=True,
+                    publication_authorized=False,
+                )
+            )
+        }
+    )
+)
+
+_AM_ALLOWED_ARTIFACT_PATHS: Mapping[str, str] = {
+    "calibration_diagnostics.json": "diagnostics",
+    "demographics.json": "diagnostics",
+    "source_coverage.json": "diagnostics",
+    "validation_bands.json": "diagnostics",
+}
+_AM_MICRODATA_PATH_RE = re.compile(r"populace_am_(?P<year>[0-9]{4})\.h5")
+_AM_CALIBRATION_PATH_RE = re.compile(r"populace_am_(?P<year>[0-9]{4})_calibration\.npz")
+_AM_DATA_RIGHTS_H5_ATTR = "microcosm_am_data_rights_sha256"
+_AM_COUNTRY_H5_ATTR = "microcosm_am_country"
+_AM_PUBLICATION_STATUS_H5_ATTR = "microcosm_am_unit_record_publication_status"
+_AM_ARTIFACT_FILENAME_PREFIXES = ("populace_am_", "am_ilcs_")
 
 
 @dataclass(frozen=True)
@@ -158,6 +209,396 @@ def _hf_api():
     return HfApi()
 
 
+def _release_manifest_mapping(release_dir: Path) -> Mapping | None:
+    try:
+        manifest = json.loads((release_dir / "release_manifest.json").read_text())
+    except (OSError, ValueError):
+        return None
+    return manifest if isinstance(manifest, Mapping) else None
+
+
+def _manifest_artifact_paths(manifest: Mapping | None) -> tuple[str, ...]:
+    artifacts = manifest.get("artifacts") if isinstance(manifest, Mapping) else None
+    if not isinstance(artifacts, Mapping):
+        return ()
+    return tuple(
+        path
+        for entry in artifacts.values()
+        if isinstance(entry, Mapping)
+        for path in (entry.get("path"),)
+        if isinstance(path, str)
+    )
+
+
+def _h5_carries_am_data_rights(
+    path_in_repo: str,
+    *,
+    roots: tuple[Path, ...],
+) -> bool:
+    if (
+        "\\" in path_in_repo
+        or path_in_repo.startswith("/")
+        or posixpath.normpath(path_in_repo) != path_in_repo
+    ):
+        return False
+    for root in roots:
+        resolved_root = root.resolve()
+        candidate = (root / path_in_repo).resolve()
+        if not candidate.is_relative_to(resolved_root) or not candidate.is_file():
+            continue
+        try:
+            import h5py
+
+            with h5py.File(candidate, mode="r") as file:
+                if _AM_DATA_RIGHTS_H5_ATTR in file.attrs:
+                    return True
+        except OSError:
+            continue
+    return False
+
+
+def _is_armenian_unit_record_release(
+    release_dir: Path,
+    *,
+    artifact_root: Path | None,
+    manifest: Mapping | None,
+) -> bool:
+    if release_dir.name.startswith("populace-am-"):
+        return True
+    if isinstance(manifest, Mapping) and manifest.get("country") == "am":
+        return True
+    artifact_paths = _manifest_artifact_paths(manifest)
+    if any(
+        Path(path).name.lower().startswith(_AM_ARTIFACT_FILENAME_PREFIXES)
+        for path in artifact_paths
+    ):
+        return True
+    roots = (release_dir,) if artifact_root is None else (release_dir, artifact_root)
+    return any(_h5_carries_am_data_rights(path, roots=roots) for path in artifact_paths)
+
+
+def _canonical_sha256(value: object) -> str:
+    try:
+        encoded = json.dumps(
+            value, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode()
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "release_manifest.json data-rights envelope is not canonical JSON."
+        ) from exc
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _am_expected_artifact_kind(path: str) -> str | None:
+    if _AM_MICRODATA_PATH_RE.fullmatch(path):
+        return "microdata"
+    if _AM_CALIBRATION_PATH_RE.fullmatch(path):
+        return "calibration"
+    return _AM_ALLOWED_ARTIFACT_PATHS.get(path)
+
+
+def _artifact_local_path(
+    path_in_repo: str,
+    *,
+    release_dir: Path,
+    artifact_root: Path | None,
+) -> Path | None:
+    if (
+        not path_in_repo
+        or "\\" in path_in_repo
+        or path_in_repo.startswith("/")
+        or posixpath.normpath(path_in_repo) != path_in_repo
+    ):
+        return None
+    roots = (release_dir,) if artifact_root is None else (release_dir, artifact_root)
+    for root in roots:
+        resolved_root = root.resolve()
+        candidate = (root / path_in_repo).resolve()
+        if candidate.is_relative_to(resolved_root) and candidate.is_file():
+            return candidate
+    return None
+
+
+def _h5_text_attr(value: object) -> str:
+    return value.decode("utf-8") if isinstance(value, bytes) else str(value)
+
+
+def _require_am_artifact_surface(
+    manifest: Mapping,
+    *,
+    release_dir: Path,
+    artifact_root: Path | None,
+    rights_sha256: str,
+    publication_status: str,
+) -> None:
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, Mapping):
+        raise ValueError(
+            "refusing to publish Armenian release: release_manifest.json "
+            "must declare a closed artifacts mapping."
+        )
+    declared: dict[str, str] = {}
+    for key, raw_entry in artifacts.items():
+        if not isinstance(raw_entry, Mapping):
+            raise ValueError(
+                f"refusing Armenian artifact {key!r}: declaration must be an object."
+            )
+        path = raw_entry.get("path")
+        kind = raw_entry.get("kind")
+        if not isinstance(path, str) or not isinstance(kind, str):
+            raise ValueError(
+                f"refusing Armenian artifact {key!r}: path and kind are required."
+            )
+        expected_kind = _am_expected_artifact_kind(path)
+        if expected_kind is None or kind != expected_kind:
+            raise ValueError(
+                f"refusing Armenian artifact {path!r} with kind {kind!r}: the "
+                "reviewed country boundary admits only the exact H5, calibration "
+                "NPZ, and aggregate-diagnostics artifact inventory."
+            )
+        if path in declared:
+            raise ValueError(
+                f"refusing Armenian release: artifact path {path!r} is duplicated."
+            )
+        declared[path] = kind
+
+    microdata_paths = sorted(
+        path for path, kind in declared.items() if kind == "microdata"
+    )
+    calibration_paths = sorted(
+        path for path, kind in declared.items() if kind == "calibration"
+    )
+    expected_diagnostics = set(_AM_ALLOWED_ARTIFACT_PATHS)
+    observed_diagnostics = {
+        path for path, kind in declared.items() if kind == "diagnostics"
+    }
+    if (
+        len(microdata_paths) != 1
+        or len(calibration_paths) != 1
+        or observed_diagnostics != expected_diagnostics
+        or len(declared) != 2 + len(expected_diagnostics)
+    ):
+        raise ValueError(
+            "refusing Armenian release: artifact inventory must contain exactly "
+            "one populace_am_<year>.h5, one matching calibration NPZ, and the "
+            f"reviewed aggregate diagnostics {sorted(expected_diagnostics)}."
+        )
+    h5_match = _AM_MICRODATA_PATH_RE.fullmatch(microdata_paths[0])
+    calibration_match = _AM_CALIBRATION_PATH_RE.fullmatch(calibration_paths[0])
+    assert h5_match is not None and calibration_match is not None
+    h5_year = h5_match.group("year")
+    calibration_year = calibration_match.group("year")
+    if h5_year != calibration_year:
+        raise ValueError(
+            "refusing Armenian release: H5 and calibration NPZ years do not match."
+        )
+
+    h5_path = _artifact_local_path(
+        microdata_paths[0], release_dir=release_dir, artifact_root=artifact_root
+    )
+    if h5_path is None:
+        raise FileNotFoundError(
+            f"Armenian microdata artifact {microdata_paths[0]!r} is unavailable "
+            "for rights authentication; pass the exact artifact_root."
+        )
+    try:
+        import h5py
+
+        with h5py.File(h5_path, mode="r") as file:
+            observed_country = _h5_text_attr(file.attrs.get(_AM_COUNTRY_H5_ATTR, ""))
+            observed_rights = _h5_text_attr(file.attrs.get(_AM_DATA_RIGHTS_H5_ATTR, ""))
+            observed_status = _h5_text_attr(
+                file.attrs.get(_AM_PUBLICATION_STATUS_H5_ATTR, "")
+            )
+    except OSError as exc:
+        raise ValueError(
+            f"Armenian microdata artifact {microdata_paths[0]!r} is not a "
+            "readable authenticated H5."
+        ) from exc
+    if (
+        observed_country != "am"
+        or observed_rights != rights_sha256
+        or observed_status != publication_status
+    ):
+        raise ValueError(
+            "refusing Armenian release: H5 country/data-rights/status stamp does "
+            "not exactly match the reviewed release-manifest envelope; rebuild "
+            "the artifact under the current contract."
+        )
+
+
+def _require_trusted_unit_record_publication_permission(
+    release_dir: Path,
+    *,
+    artifact_root: Path | None,
+    manifest: Mapping,
+    repo_id: str,
+) -> _AMPublicationPolicy:
+    """Authenticate Armenian bytes to one reviewed rights/repository tuple."""
+    release_id = release_dir.name
+    data_rights = manifest.get("data_rights")
+    if not isinstance(data_rights, Mapping):
+        raise ValueError(
+            f"refusing to publish Armenian release {release_id!r}: a canonical "
+            "data_rights envelope is required."
+        )
+    rights_sha256 = _canonical_sha256(data_rights)
+    policy = _AM_REVIEWED_PUBLICATION_POLICIES.get(rights_sha256)
+    if policy is None or policy.rights_sha256 != rights_sha256:
+        raise ValueError(
+            f"refusing to publish Armenian release {release_id!r}: data-rights "
+            "envelope has no exact code-reviewed publication policy."
+        )
+    if repo_id != policy.allowed_repo_id:
+        raise ValueError(
+            f"refusing to publish Armenian release {release_id!r} to {repo_id!r}: "
+            f"the reviewed destination is exactly {policy.allowed_repo_id!r}."
+        )
+    permission_record = (
+        data_rights.get("permission_record")
+        if isinstance(data_rights, Mapping)
+        else None
+    )
+    permission_sha256 = (
+        permission_record.get("sha256")
+        if isinstance(permission_record, Mapping)
+        else None
+    )
+    authorized_derivatives = isinstance(data_rights, Mapping) and all(
+        data_rights.get(field) == "authorized"
+        for field in (
+            "derived_unit_record_publication",
+            "row_aligned_weight_publication",
+        )
+    )
+    if not policy.publication_authorized:
+        raise ValueError(
+            f"refusing to publish Armenian release {release_id!r}: "
+            "the exact reviewed rights envelope remains blocked pending express "
+            "permission; no Armenian unit-record publication is authorized."
+        )
+    if (
+        not authorized_derivatives
+        or not isinstance(permission_sha256, str)
+        or permission_sha256 != policy.permission_record_sha256
+    ):
+        raise ValueError(
+            f"refusing to publish Armenian release {release_id!r}: the manifest "
+            "authorization states and permission-record digest do not exactly "
+            "match the code-reviewed publication policy."
+        )
+    publication_status = str(data_rights["derived_unit_record_publication"])
+    _require_am_artifact_surface(
+        manifest,
+        release_dir=release_dir,
+        artifact_root=artifact_root,
+        rights_sha256=rights_sha256,
+        publication_status=publication_status,
+    )
+    return policy
+
+
+def _require_declared_diagnostic_extra_files(
+    extra_files: tuple[str, ...], *, manifest: Mapping
+) -> None:
+    artifacts = manifest.get("artifacts")
+    declared_diagnostics = (
+        {
+            entry.get("path")
+            for entry in artifacts.values()
+            if isinstance(entry, Mapping) and entry.get("kind") == "diagnostics"
+        }
+        if isinstance(artifacts, Mapping)
+        else set()
+    )
+    for filename in extra_files:
+        if filename in {".", ".."} or "/" in filename or "\\" in filename:
+            raise ValueError(
+                f"extra_files entry {filename!r} must be a bare file name; "
+                "path components cannot enter the publication lane."
+            )
+        if filename not in declared_diagnostics or not filename.endswith(".json"):
+            raise ValueError(
+                f"extra_files entry {filename!r} is not a manifest-declared JSON "
+                "diagnostics artifact; the generic file lane cannot publish "
+                "undeclared or row-bearing payloads."
+            )
+
+
+def _require_release_publication_identity(
+    release_dir: Path,
+    *,
+    artifact_root: Path | None,
+    repo_id: str,
+    extra_files: tuple[str, ...],
+) -> tuple[Mapping, _AMPublicationPolicy | None]:
+    manifest = _release_manifest_mapping(release_dir)
+    if manifest is None:
+        raise ValueError(
+            "release_manifest.json must be readable before publication preflight."
+        )
+    country = manifest.get("country")
+    if not isinstance(country, str) or re.fullmatch(r"[a-z]{2}", country) is None:
+        raise ValueError(
+            "release_manifest.json must declare a two-letter lowercase country "
+            "before publication."
+        )
+    detected_am = _is_armenian_unit_record_release(
+        release_dir, artifact_root=artifact_root, manifest=manifest
+    )
+    if detected_am and country != "am":
+        raise ValueError(
+            "release identity or artifact bytes carry Armenian provenance, but "
+            f"release_manifest.json declares country {country!r}."
+        )
+
+    artifacts = manifest.get("artifacts")
+    if isinstance(artifacts, Mapping):
+        mismatched_repos = sorted(
+            {
+                str(entry.get("repo_id"))
+                for entry in artifacts.values()
+                if isinstance(entry, Mapping) and entry.get("repo_id") != repo_id
+            }
+        )
+        if mismatched_repos:
+            raise ValueError(
+                "release_manifest.json artifact repository identities must all "
+                f"match the requested repo_id {repo_id!r}; got {mismatched_repos}."
+            )
+    _require_declared_diagnostic_extra_files(extra_files, manifest=manifest)
+
+    policy = None
+    if country == "am":
+        policy = _require_trusted_unit_record_publication_permission(
+            release_dir,
+            artifact_root=artifact_root,
+            manifest=manifest,
+            repo_id=repo_id,
+        )
+    return manifest, policy
+
+
+def _require_private_repo(api: object, *, repo_id: str) -> None:
+    repo_info = getattr(api, "repo_info", None)
+    if not callable(repo_info):
+        raise TypeError(
+            "Armenian publication requires a Hub backend whose repo_info can "
+            "authenticate that the reviewed destination is private."
+        )
+    info = repo_info(repo_id=repo_id, repo_type="dataset", revision="main")
+    private = (
+        info.get("private")
+        if isinstance(info, Mapping)
+        else getattr(info, "private", None)
+    )
+    if private is not True:
+        raise ValueError(
+            f"refusing Armenian publication to {repo_id!r}: the Hub does not "
+            "report the reviewed dataset repository as private."
+        )
+
+
 def publish_release(
     release_dir: Path | str,
     repo_id: str,
@@ -200,8 +641,9 @@ def publish_release(
             when artifact revisions in ``release_manifest.json`` are pinned to
             the release id.
         tag_name: Optional tag name override when ``create_tag=True``.
-        extra_files: Additional filenames in ``release_dir`` to upload
-            beyond the contract files (e.g. a diagnostics artifact).
+        extra_files: Manifest-declared JSON diagnostics filenames in
+            ``release_dir`` to upload beyond the contract files. Undeclared,
+            non-JSON, and row-bearing files are refused.
         updated_at: Pointer timestamp; defaults to now (UTC).
         update_latest: Update the production ``latest.json`` pointer after the
             immutable release tag is created. ``False`` preserves the legacy
@@ -240,6 +682,16 @@ def publish_release(
         FileNotFoundError: If an ``extra_files`` entry does not exist.
     """
     release_dir = Path(release_dir)
+    artifact_root = Path(artifact_root) if artifact_root is not None else None
+    # These publication-boundary checks precede release validation and Hub API
+    # construction.  No release tier, pointer mode, repository name, or
+    # caller-supplied backend can route around them.
+    _manifest, am_publication_policy = _require_release_publication_identity(
+        release_dir,
+        artifact_root=artifact_root,
+        repo_id=repo_id,
+        extra_files=extra_files,
+    )
     if evidence:
         validate_evidence_release_dir(release_dir)
     else:
@@ -266,8 +718,6 @@ def publish_release(
             "tag_only=True requires create_tag=True; deleting the staging branch "
             "without a tag would leave no published revision."
         )
-    artifact_root = Path(artifact_root) if artifact_root is not None else None
-
     if role == NATIONAL_DEFAULT_DATASET_ROLE:
         contract_files = required_release_files(release_id)
     else:
@@ -384,6 +834,8 @@ def publish_release(
 
     if api is None:
         api = _hf_api()
+    if am_publication_policy is not None and am_publication_policy.private_required:
+        _require_private_repo(api, repo_id=repo_id)
     if evidence:
         payload = latest_evidence_pointer_payload(release_id, updated_at=updated_at)
     else:

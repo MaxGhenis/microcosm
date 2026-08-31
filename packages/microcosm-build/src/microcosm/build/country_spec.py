@@ -32,6 +32,7 @@ JSON/YAML spec-engine domains; their interpretation belongs to the compiler.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -63,6 +64,7 @@ __all__ = [
     "ALLOWED_COUNTRY_RESOURCE_KINDS",
     "CountrySpec",
     "CountryResourceRow",
+    "DataRightsManifest",
     "GateSelectionSpec",
     "GatesManifest",
     "GeographySpineManifest",
@@ -651,6 +653,160 @@ class GatesManifest:
 # ---------------------------------------------------------------------------
 
 
+_DATA_RIGHTS_KEYS = frozenset(
+    {
+        "schema_version",
+        "access",
+        "local_analysis",
+        "raw_redistribution",
+        "derived_unit_record_publication",
+        "row_aligned_weight_publication",
+        "aggregate_output",
+        "permission_record",
+    }
+)
+_DATA_RIGHTS_ACCESS = frozenset({"public_anonymised_download"})
+_DATA_RIGHTS_LOCAL_ANALYSIS = frozenset({"authorized"})
+_DATA_RIGHTS_RAW_REDISTRIBUTION = frozenset({"no_express_grant", "authorized"})
+_DATA_RIGHTS_UNIT_RECORD_PUBLICATION = frozenset(
+    {"blocked_pending_explicit_permission", "authorized"}
+)
+_DATA_RIGHTS_AGGREGATE_OUTPUT = frozenset(
+    {"allowed_with_attribution_and_disclosure_review"}
+)
+_DATA_RIGHTS_PERMISSION_KEYS = frozenset({"sha256", "scope"})
+
+
+@dataclass(frozen=True)
+class DataRightsManifest:
+    """Normative rights boundary for one country's unit-record inputs.
+
+    Public access is not treated as a redistribution licence.  Unit-record
+    and row-aligned derivative publication remain blocked until an exact,
+    reviewed permission record is SHA-pinned in the country package.
+    """
+
+    schema_version: int
+    access: str
+    local_analysis: str
+    raw_redistribution: str
+    derived_unit_record_publication: str
+    row_aligned_weight_publication: str
+    aggregate_output: str
+    permission_record: Mapping[str, str] | None
+
+    @classmethod
+    def from_mapping(
+        cls, raw: Mapping[str, Any], *, context: str
+    ) -> DataRightsManifest:
+        raw = _require_mapping(raw, context=context)
+        unknown = sorted(set(raw) - _DATA_RIGHTS_KEYS)
+        missing = sorted(_DATA_RIGHTS_KEYS - set(raw))
+        if unknown:
+            raise ValueError(f"{context}: unknown key(s) {unknown}.")
+        if missing:
+            raise ValueError(f"{context}: missing key(s) {missing}.")
+        if raw["schema_version"] != 1:
+            raise ValueError(f"{context}: schema_version must be 1.")
+
+        def closed_status(field: str, allowed: frozenset[str]) -> str:
+            value = raw[field]
+            if not isinstance(value, str) or value not in allowed:
+                raise ValueError(
+                    f"{context}: {field} must be one of {sorted(allowed)}, "
+                    f"got {value!r}."
+                )
+            return value
+
+        permission_raw = raw["permission_record"]
+        permission_record: Mapping[str, str] | None
+        if permission_raw is None:
+            permission_record = None
+        else:
+            permission = _require_mapping(
+                permission_raw, context=f"{context}: permission_record"
+            )
+            unknown_permission = sorted(set(permission) - _DATA_RIGHTS_PERMISSION_KEYS)
+            missing_permission = sorted(_DATA_RIGHTS_PERMISSION_KEYS - set(permission))
+            if unknown_permission or missing_permission:
+                raise ValueError(
+                    f"{context}: permission_record must contain exactly "
+                    f"{sorted(_DATA_RIGHTS_PERMISSION_KEYS)}; missing "
+                    f"{missing_permission}, unknown {unknown_permission}."
+                )
+            sha256 = permission["sha256"]
+            scope = permission["scope"]
+            if (
+                not isinstance(sha256, str)
+                or re.fullmatch(r"[0-9a-f]{64}", sha256) is None
+            ):
+                raise ValueError(
+                    f"{context}: permission_record.sha256 must be 64 lowercase "
+                    "hexadecimal characters."
+                )
+            if not isinstance(scope, str) or not scope.strip():
+                raise ValueError(
+                    f"{context}: permission_record.scope must be a non-empty string."
+                )
+            permission_record = MappingProxyType({"sha256": sha256, "scope": scope})
+
+        instance = cls(
+            schema_version=1,
+            access=closed_status("access", _DATA_RIGHTS_ACCESS),
+            local_analysis=closed_status("local_analysis", _DATA_RIGHTS_LOCAL_ANALYSIS),
+            raw_redistribution=closed_status(
+                "raw_redistribution", _DATA_RIGHTS_RAW_REDISTRIBUTION
+            ),
+            derived_unit_record_publication=closed_status(
+                "derived_unit_record_publication",
+                _DATA_RIGHTS_UNIT_RECORD_PUBLICATION,
+            ),
+            row_aligned_weight_publication=closed_status(
+                "row_aligned_weight_publication",
+                _DATA_RIGHTS_UNIT_RECORD_PUBLICATION,
+            ),
+            aggregate_output=closed_status(
+                "aggregate_output", _DATA_RIGHTS_AGGREGATE_OUTPUT
+            ),
+            permission_record=permission_record,
+        )
+        publication_authorized = any(
+            status == "authorized"
+            for status in (
+                instance.raw_redistribution,
+                instance.derived_unit_record_publication,
+                instance.row_aligned_weight_publication,
+            )
+        )
+        if publication_authorized and instance.permission_record is None:
+            raise ValueError(
+                f"{context}: an authorized raw or derived publication state "
+                "requires a SHA-pinned permission_record."
+            )
+        return instance
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "access": self.access,
+            "local_analysis": self.local_analysis,
+            "raw_redistribution": self.raw_redistribution,
+            "derived_unit_record_publication": (self.derived_unit_record_publication),
+            "row_aligned_weight_publication": (self.row_aligned_weight_publication),
+            "aggregate_output": self.aggregate_output,
+            "permission_record": (
+                None if self.permission_record is None else dict(self.permission_record)
+            ),
+        }
+
+    @property
+    def sha256(self) -> str:
+        canonical = json.dumps(
+            self.as_dict(), sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        return hashlib.sha256(canonical).hexdigest()
+
+
 @dataclass(frozen=True)
 class ReleaseContractManifest:
     """Country release contract (``release_contract.json``).
@@ -678,6 +834,7 @@ class ReleaseContractManifest:
         private_artifacts: Files that never leave the private repo.
         licence_name: The microdata licence the boundary answers to.
         licence_restricted: Whether the microdata licence is restricted.
+        data_rights: Normative unit-record rights boundary, when declared.
         notes: Free-text caveats.
     """
 
@@ -694,6 +851,7 @@ class ReleaseContractManifest:
     private_artifacts: tuple[str, ...]
     licence_name: str
     licence_restricted: bool
+    data_rights: DataRightsManifest | None = None
     notes: str = ""
 
     @classmethod
@@ -747,13 +905,95 @@ class ReleaseContractManifest:
                 f"{context}: required_release_files must be a non-empty list."
             )
         boundary = _require_mapping(raw.get("boundary"), context=f"{context}: boundary")
-        public = tuple(str(name) for name in boundary.get("public", ()))
-        private_artifacts = tuple(str(name) for name in boundary.get("private", ()))
+        public_raw = boundary.get("public")
+        private_raw = boundary.get("private")
+        if not isinstance(public_raw, list) or not isinstance(private_raw, list):
+            raise ValueError(
+                f"{context}: boundary.public and boundary.private must be lists."
+            )
+        if any(not isinstance(name, str) for name in (*public_raw, *private_raw)):
+            raise ValueError(
+                f"{context}: boundary.public and boundary.private entries must "
+                "be strings."
+            )
+        public = tuple(str(name) for name in public_raw)
+        private_artifacts = tuple(str(name) for name in private_raw)
+        for label, names in (("public", public), ("private", private_artifacts)):
+            if len(names) != len(set(names)):
+                raise ValueError(
+                    f"{context}: boundary.{label} must not contain duplicates."
+                )
+            unclean = sorted(
+                name
+                for name in names
+                if not name or name in {".", ".."} or "/" in name or "\\" in name
+            )
+            if unclean:
+                raise ValueError(
+                    f"{context}: boundary.{label} entries must be bare file "
+                    f"names, got {unclean}."
+                )
+        overlap = sorted(set(public) & set(private_artifacts))
+        if overlap:
+            raise ValueError(
+                f"{context}: boundary.public and boundary.private must be "
+                f"disjoint; overlap {overlap}."
+            )
         if restricted and not private_artifacts:
             raise ValueError(
                 f"{context}: a restricted licence must name its private "
                 "artifacts (the files that never leave the private repo)."
             )
+        data_rights_raw = raw.get("data_rights")
+        data_rights = (
+            DataRightsManifest.from_mapping(
+                data_rights_raw, context=f"{context}: data_rights"
+            )
+            if data_rights_raw is not None
+            else None
+        )
+        if declared == "am" and data_rights is None:
+            raise ValueError(
+                f"{context}: Armenia requires a normative data_rights envelope."
+            )
+        if declared == "am":
+            # Armenia's restricted unit-record contract is a complete closed
+            # inventory, not documentation.  The mutable pointer is the sole
+            # boundary entry that is not itself a release artifact.
+            classified = (set(public) | set(private_artifacts)) - {"latest.json"}
+            if "latest.json" not in public:
+                raise ValueError(
+                    f"{context}: Armenia boundary.public must classify latest.json."
+                )
+            required_set = {str(name) for name in required}
+            if classified != required_set:
+                missing_boundary = sorted(required_set - classified)
+                undeclared_release = sorted(classified - required_set)
+                raise ValueError(
+                    f"{context}: Armenia boundary must classify every required "
+                    "release artifact exactly once; missing "
+                    f"{missing_boundary}, unexpected {undeclared_release}."
+                )
+            assert data_rights is not None  # guarded above
+            row_publication_blocked = any(
+                status != "authorized"
+                for status in (
+                    data_rights.derived_unit_record_publication,
+                    data_rights.row_aligned_weight_publication,
+                )
+            )
+            if row_publication_blocked:
+                exposed_rows = sorted(
+                    name
+                    for name in public
+                    if name.lower().endswith((".h5", ".hdf5", ".npz"))
+                )
+                if exposed_rows:
+                    raise ValueError(
+                        f"{context}: blocked Armenian unit-record or row-weight "
+                        "publication requires H5/NPZ artifacts to remain private; "
+                        f"public boundary contains {exposed_rows}."
+                    )
         for value in (builder, artifact_repo, staging_repo, template, *required):
             if _ORDINAL_VERSION_PATTERN.search(str(value)):
                 raise ValueError(
@@ -775,6 +1015,7 @@ class ReleaseContractManifest:
             private_artifacts=private_artifacts,
             licence_name=licence_name,
             licence_restricted=restricted,
+            data_rights=data_rights,
             notes=str(raw.get("notes", "")),
         )
 

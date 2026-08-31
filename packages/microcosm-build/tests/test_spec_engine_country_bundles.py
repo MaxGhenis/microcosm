@@ -25,7 +25,7 @@ EXPECTED_RESOURCES = {
     "spine",
     "vintages",
 }
-AM_SPEC_SHA256 = "84953fa8b0ee0b7ab4dc9e32024a8115816b36a63dc3202c769dfc448c86c06d"
+AM_SPEC_SHA256 = "0039c846c77d05c65b0e568367fb2861ed5ef5e46edd7a5e7ee652f726e55fd3"
 
 AM_NATIVE_COLUMNS = {
     "household.adult_equivalent_consumption_monthly",
@@ -208,7 +208,9 @@ def test_am_generation_zero_views_come_from_the_country_spec_seam() -> None:
     assert spec.geography_spine.geography_spine.stage == "clone_assign_communities"
     assert spec.gates is not None
     assert spec.release_contract is not None
-    assert not spec.release_contract.artifact_repo_private
+    assert spec.release_contract.artifact_repo_private
+    assert spec.release_contract.data_rights is not None
+    assert spec.release_contract.data_rights.permission_record is None
     assert {row.path for row in spec.resource_rows if row.kind == "legacy_json"} == {
         "gates.json",
         "geography_spine.json",
@@ -335,7 +337,7 @@ def test_am_smoke_build_has_only_the_native_stage_runtime_binding() -> None:
     }
     assert {
         artifact["kind"] for artifact in stages["ingest_am_ilcs_2024"].artifacts
-    } == {"public_microdata"}
+    } == {"restricted_microdata"}
     build_package = Path(__file__).parents[1] / "src/microcosm/build"
     assert (build_package / "am_runtime").exists()
 

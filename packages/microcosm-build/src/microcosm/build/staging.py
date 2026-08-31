@@ -24,6 +24,7 @@ STAGING_SCHEMA_VERSION = 1
 LATEST_STAGING_POINTER = "latest_staging.json"
 RUNS_INDEX = "runs.json"
 DEFAULT_STAGING_PREFIX = "runs"
+_STAGING_ATTACHMENT_SUFFIXES = frozenset({".json", ".ndjson"})
 
 
 def _now() -> str:
@@ -78,6 +79,18 @@ class StagingTelemetry:
     started_at: str = field(default_factory=_now)
 
     def __post_init__(self) -> None:
+        if self.repo_id and self.candidate_release_id.startswith("populace-am-"):
+            # The generic telemetry surface accepts caller-defined JSON details
+            # and attachments.  Until Armenian aggregate-only telemetry has a
+            # closed schema, even a private remote repo is too broad a rights
+            # boundary.  Local telemetry remains available for internal
+            # analysis; fail before creating a run directory or contacting the
+            # Hub when a remote destination is supplied.
+            raise ValueError(
+                "remote staging is disabled for Armenian candidate releases "
+                "until aggregate-only telemetry schemas are reviewed; use "
+                "repo_id=None for local telemetry."
+            )
         self.run_dir = Path(self.run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         # Normalize here rather than at the caller: a blank or slash-only
@@ -368,6 +381,12 @@ class StagingTelemetry:
         force_upload: bool = True,
     ) -> None:
         source = Path(path)
+        if not source.name.lower().endswith(tuple(_STAGING_ATTACHMENT_SUFFIXES)):
+            raise ValueError(
+                f"staging attachment {source.name!r} has suffix "
+                f"{source.suffix.lower()!r}; "
+                "only .json and .ndjson telemetry attachments are allowed."
+            )
         local = self.run_dir / source.name if copy else source
         if copy and source.resolve() != local.resolve():
             shutil.copy2(source, local)

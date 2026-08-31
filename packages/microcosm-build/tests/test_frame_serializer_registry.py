@@ -11,6 +11,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from microcosm.build.am_runtime.national_frame import (
+    am_national_frame,
+    load_am_national_frame,
+    write_am_national_frame,
+)
 from microcosm.build.frame_checkpoint import (
     load_frame_checkpoint,
     write_frame_checkpoint,
@@ -239,6 +244,31 @@ def _round_trip_uk_single_year(tmp_path: Path, nullable_case: str) -> BooleanRou
     return _semantic_observation(source, before, loaded)
 
 
+def _round_trip_am_national_h5(tmp_path: Path, nullable_case: str) -> BooleanRoundTrip:
+    pytest.importorskip("tables")
+    pytest.importorskip("h5py")
+    source = _dtype_family_table(nullable_case)
+    before = source.copy(deep=True)
+    person = source.copy(deep=False)
+    person.insert(1, "person_household_id", np.asarray([1, 2, 3], dtype=np.int64))
+    household = pd.DataFrame(
+        {
+            "household_id": np.asarray([1, 2, 3], dtype=np.int64),
+            "household_weight": np.asarray([1.0, 2.0, 3.0]),
+        },
+        index=source.index,
+    )
+    frame = am_national_frame(
+        person=person,
+        household=household,
+        time_period=2024,
+    )
+    path = tmp_path / "am-national.h5"
+    write_am_national_frame(frame, path)
+    loaded = load_am_national_frame(path)[0].table("person")
+    return _semantic_observation(source, before, loaded)
+
+
 def _round_trip_axiom(tmp_path: Path, nullable_case: str) -> BooleanRoundTrip:
     pytest.importorskip("tables")
     source = _dtype_family_table(nullable_case)
@@ -354,6 +384,7 @@ ROUND_TRIP_ADAPTERS: dict[str, RoundTripAdapter] = {
     "frame_checkpoint": _round_trip_frame_checkpoint,
     "nullable_us_h5": _round_trip_nullable_us_h5,
     "uk_single_year_h5": _round_trip_uk_single_year,
+    "am_national_h5": _round_trip_am_national_h5,
     "axiom_entity_tables": _round_trip_axiom,
     "policyengine_us_single_year": _round_trip_policyengine_us,
     "legacy_us_two_spine": _round_trip_legacy_us,
@@ -428,10 +459,10 @@ def test_registry_classifies_every_writable_production_hdf_site() -> None:
     assert _discover_writable_hdf_sites() == classified
 
 
-def test_registry_has_exactly_eight_unique_frame_table_serializers() -> None:
-    assert len(FRAME_TABLE_SERIALIZERS) == 8
-    assert len({spec.serializer_id for spec in FRAME_TABLE_SERIALIZERS}) == 8
-    assert len({spec.writer.key for spec in FRAME_TABLE_SERIALIZERS}) == 8
+def test_registry_has_exactly_nine_unique_frame_table_serializers() -> None:
+    assert len(FRAME_TABLE_SERIALIZERS) == 9
+    assert len({spec.serializer_id for spec in FRAME_TABLE_SERIALIZERS}) == 9
+    assert len({spec.writer.key for spec in FRAME_TABLE_SERIALIZERS}) == 9
 
 
 def test_round_trip_adapter_registry_exactly_matches_serializer_registry() -> None:

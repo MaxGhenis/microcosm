@@ -1605,9 +1605,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             len(value) != 64
             or any(character not in "0123456789abcdef" for character in value)
         ):
-            parser.error(
-                f"{flag} must be exactly 64 lowercase hexadecimal characters."
-            )
+            parser.error(f"{flag} must be exactly 64 lowercase hexadecimal characters.")
     if args.evidence_release and args.exact_k is not None:
         parser.error(
             "--evidence-release is incompatible with --exact-k: ladder "
@@ -7840,6 +7838,7 @@ def _build_manifests(
 
     release_manifest = {
         "schema_version": 1,
+        "country": "us",
         "data_package": {
             "name": "microcosm-data",
             "version": runtime["microcosm-data"],

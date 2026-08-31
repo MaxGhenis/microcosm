@@ -94,7 +94,10 @@ def main(argv: list[str] | None = None) -> int:
         "--extra-file",
         action="append",
         default=[],
-        help="Additional release-dir file to include in the immutable release.",
+        help=(
+            "Manifest-declared JSON diagnostics file to include in the immutable "
+            "release; undeclared and row-bearing files are refused."
+        ),
     )
     parser.add_argument(
         "--updated-at",

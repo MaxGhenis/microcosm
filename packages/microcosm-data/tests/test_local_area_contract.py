@@ -94,6 +94,7 @@ def _write_local_bundle(
     revision = release_id if pin_revisions else "some-other-revision"
     manifest = {
         "schema_version": 1,
+        "country": "us",
         "data_package": {"name": "microcosm-data", "version": "0.1.0"},
         "default_datasets": default_datasets if default_datasets is not None else {},
         "dataset_role": dataset_role,

@@ -1,11 +1,11 @@
 {
   "version": 1,
   "country": "am",
-  "policy": "Armenia releases are public because the v1 donor artifact and target sources are public. Every per-record artifact must retain an explicit US-donor/support-stratum banner and must never be described as Armenian microdata. Releases use data_build_id plus Hugging Face revision, never ordinal versions.",
+  "policy": "Armenia aggregate outputs may be released only with attribution and disclosure review. ArmStat's public anonymised download does not establish permission to redistribute raw ILCS rows, derived unit records, or row-aligned weights; those artifacts remain local until an exact written permission record is reviewed and pinned.",
   "builder": "populace-am",
   "hf": {
     "artifact_repo": "policyengine/populace-am",
-    "private": false,
+    "private": true,
     "staging_repo": "policyengine/populace-am-staging"
   },
   "dataset_filename_template": "populace_am_{year}.h5",
@@ -20,10 +20,11 @@
     "validation_bands.json"
   ],
   "boundary": {
-    "private": [],
-    "public": [
+    "private": [
       "populace_am_{year}.h5",
-      "populace_am_{year}_calibration.npz",
+      "populace_am_{year}_calibration.npz"
+    ],
+    "public": [
       "build_manifest.json",
       "release_manifest.json",
       "calibration_diagnostics.json",
@@ -34,9 +35,19 @@
     ]
   },
   "licence": {
-    "name": "ArmStat ILCS open dissemination (exact licence text to verify)",
-    "restricted": false,
-    "notes": "ArmStat makes ILCS household and member microdata available for free/open download. Chronicle must capture the exact licence text before a native-ILCS release; v1 itself republishes no ILCS unit record. The populace-US donor artifact's own public licence and exact certified revision must also be pinned before execution."
+    "name": "ArmStat ILCS public anonymised download; redistribution grant not established",
+    "restricted": true,
+    "notes": "The official ILCS page supports public anonymised download and internal analysis. No express permission was found for redistribution of raw rows, transformed unit records, or row-aligned calibration weights. Written ArmStat permission is required before any such publication."
   },
-  "notes": "The target dataset year is 2024. source_coverage.json follows the country-neutral populace#265 contract. validation_bands.json reports ArmStat national-accounts comparisons plus harvested CEQ/World Bank oracle bands; the latter are never gates unless promoted through Ledger. latest.json uploads last as the atomic pointer. No release or publication machinery exists in this spec-only package."
+  "data_rights": {
+    "schema_version": 1,
+    "access": "public_anonymised_download",
+    "local_analysis": "authorized",
+    "raw_redistribution": "no_express_grant",
+    "derived_unit_record_publication": "blocked_pending_explicit_permission",
+    "row_aligned_weight_publication": "blocked_pending_explicit_permission",
+    "aggregate_output": "allowed_with_attribution_and_disclosure_review",
+    "permission_record": null
+  },
+  "notes": "The target dataset year is 2024. source_coverage.json follows the country-neutral populace#265 contract. validation_bands.json reports ArmStat national-accounts comparisons plus harvested CEQ/World Bank oracle bands; the latter are never gates unless promoted through Ledger. Unit-record and row-aligned artifacts are not publication-eligible. Remote Armenian staging is disabled until aggregate-only telemetry schemas are reviewed; the named private staging repository is reserved for that future reviewed surface. Written permission would require a separate reviewed contract change, fresh build, and separate human publication decision."
 }

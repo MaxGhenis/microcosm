@@ -10,11 +10,14 @@ import pandas as pd
 import pytest
 
 from microcosm.build.am_runtime import (
+    AM_COUNTRY_ATTR,
+    AM_DATA_RIGHTS_SHA256_ATTR,
     AM_HOUSEHOLD_WEIGHT_KIND_ATTR,
     AM_ILCS_HOUSEHOLD_ROWS,
     AM_ILCS_MEMBER_ROWS,
     AM_ILCS_OUTPUT_COLUMNS,
     AM_MASS_LOG_ATTR,
+    AM_UNIT_RECORD_PUBLICATION_STATUS_ATTR,
     build_am_ilcs_spine,
     load_am_national_frame,
     write_am_national_frame,
@@ -25,7 +28,7 @@ from microcosm.build.spec_engine import load_bundle
 from microcosm.build.spec_engine.compiler_ir import compile_spec
 from microcosm.build.trace import sha256_file
 from microcosm.frame import WeightKind, engine_tables
-from tools.build_am_ilcs_spine import _build_sidecar
+from tools.build_am_ilcs_spine import _build_sidecar, _validate_args
 
 
 def _raw_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -155,6 +158,9 @@ def test_packaged_contract_keeps_donor_lane_and_adds_exact_native_pins() -> None
     stage = stages["ingest_am_ilcs_2024"]
     assert stage.outputs == AM_ILCS_OUTPUT_COLUMNS
     artifacts = {artifact["table"]: artifact for artifact in stage.artifacts}
+    assert {artifact["kind"] for artifact in artifacts.values()} == {
+        "restricted_microdata"
+    }
     assert {
         key: artifacts["household"][key]
         for key in ("sha256", "size_bytes", "expected_rows", "runtime_sha256_required")
@@ -179,6 +185,16 @@ def test_packaged_contract_keeps_donor_lane_and_adds_exact_native_pins() -> None
         ]
         == "populace_us_support"
     )
+    assert spec.release_contract is not None
+    rights = spec.release_contract.data_rights
+    assert rights is not None
+    assert rights.access == "public_anonymised_download"
+    assert rights.local_analysis == "authorized"
+    assert rights.raw_redistribution == "no_express_grant"
+    assert (
+        rights.derived_unit_record_publication == "blocked_pending_explicit_permission"
+    )
+    assert rights.permission_record is None
 
 
 def test_monthly_amount_catalog_is_amd_and_never_implicitly_annualized() -> None:
@@ -402,6 +418,15 @@ def test_staging_h5_round_trip_preserves_typed_weights(tmp_path: Path) -> None:
         loaded.weights_for("household").values,
         frame.weights_for("household").values,
     )
+    h5py = pytest.importorskip("h5py")
+    rights = load_country_spec("am").release_contract.data_rights
+    assert rights is not None
+    with h5py.File(output, mode="r") as file:
+        assert file.attrs[AM_COUNTRY_ATTR] == "am"
+        assert file.attrs[AM_DATA_RIGHTS_SHA256_ATTR] == rights.sha256
+        assert file.attrs[AM_UNIT_RECORD_PUBLICATION_STATUS_ATTR] == (
+            "blocked_pending_explicit_permission"
+        )
 
 
 def test_staging_h5_refuses_tampered_weight_metadata(tmp_path: Path) -> None:
@@ -430,6 +455,32 @@ def test_staging_h5_refuses_missing_required_metadata(tmp_path: Path) -> None:
         load_am_national_frame(output)
 
 
+def test_staging_h5_refuses_tampered_data_rights_metadata(tmp_path: Path) -> None:
+    h5py = pytest.importorskip("h5py")
+    pytest.importorskip("tables")
+    output = write_am_national_frame(
+        _build(tmp_path / "raw").frame,
+        tmp_path / "am_ilcs_2024.h5",
+    )
+    with h5py.File(output, mode="r+") as file:
+        file.attrs[AM_DATA_RIGHTS_SHA256_ATTR] = "0" * 64
+    with pytest.raises(ValueError, match="data-rights metadata does not match"):
+        load_am_national_frame(output)
+
+
+def test_staging_h5_refuses_tampered_country_metadata(tmp_path: Path) -> None:
+    h5py = pytest.importorskip("h5py")
+    pytest.importorskip("tables")
+    output = write_am_national_frame(
+        _build(tmp_path / "raw").frame,
+        tmp_path / "am_ilcs_2024.h5",
+    )
+    with h5py.File(output, mode="r+") as file:
+        file.attrs[AM_COUNTRY_ATTR] = "us"
+    with pytest.raises(ValueError, match="data-rights metadata does not match"):
+        load_am_national_frame(output)
+
+
 def test_build_sidecar_binds_inputs_output_and_validation_only_totals(
     tmp_path: Path,
 ) -> None:
@@ -451,6 +502,12 @@ def test_build_sidecar_binds_inputs_output_and_validation_only_totals(
 
     assert payload["release_eligible"] is False
     assert payload["publication_authorized"] is False
+    rights = load_country_spec("am").release_contract.data_rights
+    assert rights is not None
+    assert payload["data_rights"] == {
+        "sha256": rights.sha256,
+        "envelope": rights.as_dict(),
+    }
     assert payload["stage"]["name"] == "ingest_am_ilcs_2024"
     assert payload["stage"]["produced"] == list(stage.outputs)
     assert payload["output"]["sha256"] == sha256_file(output)
@@ -484,3 +541,28 @@ def test_build_sidecar_binds_inputs_output_and_validation_only_totals(
         "adult_equivalent_consumption_monthly"
         not in payload["validation_only_observed_monthly_amd"]["totals"]
     )
+
+
+def test_native_cli_refuses_raw_or_derived_paths_inside_checkout(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    with pytest.raises(ValueError, match="outside the Microcosm repository"):
+        _validate_args(
+            SimpleNamespace(
+                ilcs_raw_dir=repository,
+                spine_h5=tmp_path / "frame.h5",
+                build_sidecar=tmp_path / "frame.build.json",
+            )
+        )
+
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    with pytest.raises(ValueError, match="outside the Microcosm repository"):
+        _validate_args(
+            SimpleNamespace(
+                ilcs_raw_dir=raw_dir,
+                spine_h5=repository / "frame.h5",
+                build_sidecar=tmp_path / "frame.build.json",
+            )
+        )

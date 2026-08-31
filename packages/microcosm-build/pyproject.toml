@@ -63,11 +63,38 @@ build-backend = "hatchling.build"
 # semantics differ from git's, so the repo's `build/` ignore pattern would
 # silently empty the wheel. Inclusion is explicit below — skip VCS ignores.
 ignore-vcs = true
+# Never package unreviewed Armenian survey inputs or derivatives, even if a
+# local file is accidentally placed under src/.  This is a positive-inventory
+# rights boundary independent of .gitignore because ignore-vcs=true is required
+# for the namespace package. Other country runtimes legitimately ship reviewed
+# tabular resources, so the exclusion is deliberately country-scoped.
+exclude = [
+    # Armenia is a positive resource inventory: exclude the entire country
+    # data directory, then force-include only the reviewed spec files below.
+    # A payload renamed to JSON/BIN therefore cannot enter either archive.
+    "src/microcosm/build/am/**",
+    "src/microcosm/build/am_runtime/**",
+]
+
+[tool.hatch.build.force-include]
+"src/microcosm/build/am/country_package.json" = "src/microcosm/build/am/country_package.json"
+"src/microcosm/build/am/gates.json" = "src/microcosm/build/am/gates.json"
+"src/microcosm/build/am/geography_spine.json" = "src/microcosm/build/am/geography_spine.json"
+"src/microcosm/build/am/release_contract.json" = "src/microcosm/build/am/release_contract.json"
+"src/microcosm/build/am/source_stages.json" = "src/microcosm/build/am/source_stages.json"
+"src/microcosm/build/am/spec/bundle.yaml" = "src/microcosm/build/am/spec/bundle.yaml"
+"src/microcosm/build/am/spec/catalogs.yaml" = "src/microcosm/build/am/spec/catalogs.yaml"
+"src/microcosm/build/am/spec/geography.yaml" = "src/microcosm/build/am/spec/geography.yaml"
+"src/microcosm/build/am/spec/sources.yaml" = "src/microcosm/build/am/spec/sources.yaml"
+"src/microcosm/build/am/spec/spine.yaml" = "src/microcosm/build/am/spec/spine.yaml"
+"src/microcosm/build/am/spec/vintages.yaml" = "src/microcosm/build/am/spec/vintages.yaml"
+"src/microcosm/build/am/target_references.json" = "src/microcosm/build/am/target_references.json"
+"src/microcosm/build/am_runtime/__init__.py" = "src/microcosm/build/am_runtime/__init__.py"
+"src/microcosm/build/am_runtime/ilcs_spine.py" = "src/microcosm/build/am_runtime/ilcs_spine.py"
+"src/microcosm/build/am_runtime/national_frame.py" = "src/microcosm/build/am_runtime/national_frame.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/microcosm"]
-
-[tool.hatch.build.targets.wheel.force-include]
 
 [tool.uv.sources]
 microcosm-frame = { workspace = true }

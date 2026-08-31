@@ -90,6 +90,17 @@ FRAME_TABLE_SERIALIZERS = (
         nullable_boolean_storage="numpy_bool_or_object_pd_na_v1",
     ),
     FrameSerializerSpec(
+        serializer_id="am_national_h5",
+        writer=HdfWriteSite(
+            "packages/microcosm-build/src/microcosm/build/am_runtime/national_frame.py",
+            "write_am_national_frame",
+        ),
+        backend="pandas.HDFStore table",
+        routes=("Armenia restricted local national staging H5",),
+        version_owner="Armenia national H5 and data-rights contract",
+        nullable_boolean_storage="numpy_bool_or_object_pd_na_v1",
+    ),
+    FrameSerializerSpec(
         serializer_id="axiom_entity_tables",
         writer=HdfWriteSite(
             "packages/microcosm-frame/src/microcosm/frame/adapters/axiom.py",
@@ -148,6 +159,14 @@ FRAME_TABLE_SERIALIZERS = (
 
 
 HDF_WRITE_EXCLUSIONS = (
+    HdfWriteExclusion(
+        exclusion_id="am_rights_weight_root_attrs",
+        writer=HdfWriteSite(
+            "packages/microcosm-build/src/microcosm/build/am_runtime/national_frame.py",
+            "_write_h5_metadata",
+        ),
+        reason="Adds country, rights, weight-kind, and mass-log root attributes only.",
+    ),
     HdfWriteExclusion(
         exclusion_id="l0_refit_root_attrs",
         writer=HdfWriteSite(

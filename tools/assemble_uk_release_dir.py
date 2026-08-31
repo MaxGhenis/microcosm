@@ -48,9 +48,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _assemble(args: argparse.Namespace) -> dict[str, object]:
     certification_bytes = args.certification_json.read_bytes()
-    certification = _load_json_bytes(
-        certification_bytes, label="--certification-json"
-    )
+    certification = _load_json_bytes(certification_bytes, label="--certification-json")
     build_record = _load_json(args.build_record_json, label="--build-record-json")
     diagnostics_bytes = args.diagnostics_json.read_bytes()
     diagnostics = _load_json_bytes(diagnostics_bytes, label="--diagnostics-json")
@@ -163,9 +161,7 @@ def _assemble(args: argparse.Namespace) -> dict[str, object]:
     build_block = _mapping(diagnostics.get("build"), "diagnostics.build")
     attempt_id = build_block.get("build_id")
     if not isinstance(attempt_id, str) or not attempt_id:
-        raise SystemExit(
-            "error: diagnostics.build.build_id must be a non-empty string"
-        )
+        raise SystemExit("error: diagnostics.build.build_id must be a non-empty string")
     _require_equal(
         "build_record.build_id vs signed diagnostics.build.build_id",
         build_record.get("build_id"),
@@ -200,8 +196,7 @@ def _assemble(args: argparse.Namespace) -> dict[str, object]:
     npz_destination = args.candidate_h5.parent / calibration_filename
     if npz_destination.exists() or npz_destination.is_symlink():
         raise SystemExit(
-            f"error: {npz_destination} already exists; remove it before "
-            "re-assembling"
+            f"error: {npz_destination} already exists; remove it before re-assembling"
         )
     staging_parent = args.out_dir / f".assemble-{uuid.uuid4().hex}"
     # The NPZ stages beside its own destination, not under staging_parent:
@@ -219,9 +214,7 @@ def _assemble(args: argparse.Namespace) -> dict[str, object]:
     target_registry = _mapping(
         diagnostics.get("target_registry"), "diagnostics.target_registry"
     )
-    candidate_frame, _candidate_provenance = load_uk_national_frame(
-        args.candidate_h5
-    )
+    candidate_frame, _candidate_provenance = load_uk_national_frame(args.candidate_h5)
     spine_frame, _spine_provenance = load_uk_national_frame(args.spine_h5)
     # The NPZ pairs the two weight vectors row by row, so the household axes
     # must be identical — same ids, same order — before the pairing is
@@ -385,6 +378,7 @@ def _stage_and_finalize(
 
     release_manifest = {
         "schema_version": 1,
+        "country": "uk",
         "data_package": {
             "name": "microcosm-data",
             "version": runtime["microcosm-data"],
@@ -560,9 +554,8 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         metavar="PACKAGE=VERSION",
     )
     args = parser.parse_args(argv)
-    args.certification_json = (
-        args.certification_json
-        or args.candidate_h5.with_suffix(".release_certification.json")
+    args.certification_json = args.certification_json or args.candidate_h5.with_suffix(
+        ".release_certification.json"
     )
     args.release_cut_gate_json = (
         args.release_cut_gate_json
@@ -608,9 +601,7 @@ def _runtime_versions(
     environment, which is exactly what the release contract cannot detect.
     """
 
-    signed_runtime = _mapping(
-        build_block.get("runtime"), "diagnostics.build.runtime"
-    )
+    signed_runtime = _mapping(build_block.get("runtime"), "diagnostics.build.runtime")
     runtime: dict[str, str] = {}
     for package in _RUNTIME_PACKAGES:
         value = signed_runtime.get(package)
@@ -650,8 +641,7 @@ def _cut_tag(attempt_id: str, override: str | None) -> str:
             override[len(prefix) :]
         ):
             raise SystemExit(
-                f"error: --cut-tag must be "
-                f"{prefix}<YYYYMMDDTHHMMSSZ>-<uuid8>"
+                f"error: --cut-tag must be {prefix}<YYYYMMDDTHHMMSSZ>-<uuid8>"
             )
         return override
     if not attempt_id.startswith(_ATTEMPT_PREFIX):
@@ -661,8 +651,7 @@ def _cut_tag(attempt_id: str, override: str | None) -> str:
     suffix = attempt_id.removeprefix(_ATTEMPT_PREFIX)
     if not _ATTEMPT_SUFFIX.fullmatch(suffix):
         raise SystemExit(
-            "error: build_record.build_id must end with "
-            "<YYYYMMDDTHHMMSSZ>-<uuid8>"
+            "error: build_record.build_id must end with <YYYYMMDDTHHMMSSZ>-<uuid8>"
         )
     return f"{UK_NATIONAL_RELEASE_ID}-{suffix}"
 
