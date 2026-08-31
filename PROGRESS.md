@@ -2,9 +2,10 @@
 
 ## State
 
-Complete locally on 2026-08-31 from exact adapter commit `f07b79fb`. All six
-review findings are repaired or fail closed at their true owner boundary. No
-push, PR, merge, publication, or external Axiom repository change occurred.
+Complete locally on 2026-08-31, including a second hard-review repair pass
+atop exact adapter commit `952952a1`. The original six findings and the six
+second-pass findings are repaired or fail closed at their true owner
+boundary. No merge, publication, or external Axiom repository change occurred.
 
 ## Done
 
@@ -42,6 +43,26 @@ push, PR, merge, publication, or external Axiom repository change occurred.
 - Restored ordinary `materialize` compatibility: empty requests validate and
   return `{}`, and duplicate variable names remain harmless. The stricter
   receipted surface still requires a nonempty unique request.
+- Ran an exact hard review of `952952a1`; it reproduced duplicate canonical
+  link-pair inflation, non-injective entity-map execution, byte/Unicode ID
+  collisions, unsigned-input wraparound, late output-coercion mutation, and a
+  relation-free `uint64` ID regression. The review correctly requested
+  changes despite the existing local and GitHub checks being green.
+- Reject duplicate canonical `(current_id, related_id)` pairs before offsets
+  are constructed, while allowing the same related ID under distinct current
+  IDs. Fake and native-runtime regressions cover the distinction.
+- Require `entity_names` to cover every schema entity with a nonempty,
+  injective engine mapping. The exact mapping now rides the authenticated
+  receipt and input projection, and the standalone verifier binds each
+  executed entity to it.
+- Reject byte-string receipt and relation IDs instead of stringifying them,
+  and range-check unsigned root and relation inputs before signed-int64
+  conversion. Adversarial tests cover both collision and wraparound cases.
+- Repeat owned-input and relation snapshot verification after every output is
+  copied and hashed, closing mutation through a lazy output's `__array__`.
+- Split ordinary relation-free execution from the narrower receipt ID domain;
+  entity IDs above signed-int64 remain compatible when no relation or receipt
+  consumes them, while the receipted surface still fails closed.
 - Focused adapter verification passes with the native extension: 69 passed,
   4 skipped (only the expected missing rulespec-be pilot and installed-engine
   inverse skip). The complete frame shard passes 303 tests with 25 dependency

@@ -228,11 +228,37 @@ class AxiomEngine:
             if entity_names is not None
             else {entity: entity.capitalize() for entity in schema.entities}
         )
-        unknown = sorted(set(self._entity_names) - set(schema.entities))
-        if unknown:
+        declared_entities = set(schema.entities)
+        mapped_entities = set(self._entity_names)
+        unknown = sorted(mapped_entities - declared_entities)
+        missing = sorted(declared_entities - mapped_entities)
+        if unknown or missing:
             raise ValueError(
-                f"entity_names maps undeclared frame entit(ies) {unknown}; "
-                f"schema declares {list(schema.entities)}."
+                "entity_names must map every and only declared frame entity; "
+                f"missing={missing}, undeclared={unknown}, "
+                f"schema={list(schema.entities)}."
+            )
+        invalid_engine_names = sorted(
+            frame
+            for frame, engine in self._entity_names.items()
+            if not isinstance(engine, str) or not engine.strip()
+        )
+        if invalid_engine_names:
+            raise ValueError(
+                "entity_names values must be non-empty engine-entity strings; "
+                f"invalid frame entit(ies)={invalid_engine_names}."
+            )
+        repeated_engine_names = sorted(
+            {
+                engine
+                for engine in self._entity_names.values()
+                if list(self._entity_names.values()).count(engine) > 1
+            }
+        )
+        if repeated_engine_names:
+            raise ValueError(
+                "entity_names must be injective; repeated engine entit(ies)="
+                f"{repeated_engine_names}."
             )
         self._arithmetic = arithmetic
         self._frame_entity_by_engine = {
@@ -381,7 +407,97 @@ class AxiomEngine:
             self._require_schema(bundle)
             _period_bounds(period)
             return {}
+        bundle.revalidate()
+        self._require_schema(bundle)
+        _period_bounds(period)
+        # Relation-free ordinary execution predates receipts and never needs
+        # entity IDs. Keep that compatibility surface independent of the
+        # receipt/relation ID domain (notably, unsigned IDs above INT64_MAX
+        # remain valid when Axiom never consumes them). Any declared or
+        # configured relation still takes the authenticated path below.
+        metadata = {name: self.variable_metadata(name) for name in requested}
+        programs = {
+            item.entity: self._program(item.entity) for item in metadata.values()
+        }
+        if not self._relation_bindings and all(
+            not program.relations for program in programs.values()
+        ):
+            return self._materialize_relation_free(
+                bundle,
+                requested=requested,
+                metadata=metadata,
+                programs=programs,
+                period=period,
+            )
         results, _ = self._materialize_with_receipt(bundle, requested, period)
+        return results
+
+    def _materialize_relation_free(
+        self,
+        bundle: Frame,
+        *,
+        requested: Sequence[str],
+        metadata: Mapping[str, VariableMetadata],
+        programs: Mapping[str, Any],
+        period: int | str,
+    ) -> dict[str, np.ndarray]:
+        """Preserve ordinary relation-free execution without ID receipts."""
+
+        bundle.revalidate()
+        self._require_schema(bundle)
+        start, end, period_kind = _period_bounds(period)
+        by_entity: dict[str, list[str]] = {}
+        for name in requested:
+            by_entity.setdefault(metadata[name].entity, []).append(name)
+
+        results: dict[str, np.ndarray] = {}
+        for frame_entity in sorted(by_entity):
+            names = sorted(by_entity[frame_entity])
+            program = programs[frame_entity]
+            expected_root = self._entity_names[frame_entity]
+            if program.root_entity != expected_root:
+                raise ValueError(
+                    f"Dense program root {program.root_entity!r} does not match "
+                    f"frame entity {frame_entity!r}'s explicit engine mapping "
+                    f"{expected_root!r}."
+                )
+            table = bundle.table(frame_entity)
+            declared_root_inputs = tuple(program.root_inputs)
+            if len(set(declared_root_inputs)) != len(declared_root_inputs):
+                raise ValueError(
+                    f"Dense program for {frame_entity!r} repeats root input names."
+                )
+            inputs = _batch_from_table(table, declared_root_inputs)
+            input_receipts = {
+                name: _array_identity(inputs[name]) for name in sorted(inputs)
+            }
+            execute = (
+                program.execute_f64 if self._arithmetic == "f64" else program.execute
+            )
+            outputs = execute(
+                period_kind=period_kind,
+                start=start,
+                end=end,
+                inputs=inputs,
+                outputs=list(names),
+            )["outputs"]
+            expected = bundle.n(frame_entity)
+            for name in names:
+                values = np.array(outputs[name], copy=True)
+                if values.shape != (expected,):
+                    raise ValueError(
+                        f"Materialized variable {name!r} has shape "
+                        f"{values.shape} but entity {frame_entity!r} has "
+                        f"{expected} row(s)."
+                    )
+                results[name] = values
+            bundle.revalidate()
+            _verify_execution_snapshots(
+                inputs=inputs,
+                input_receipts=input_receipts,
+                relations={},
+                relation_receipts={},
+            )
         return results
 
     def materialize_with_receipt(
@@ -500,6 +616,17 @@ class AxiomEngine:
                     "values": _typed_array_identity(values),
                 }
 
+            # Output coercion may call user/native ``__array__`` code. Repeat
+            # the owned-snapshot check after every output has been copied and
+            # hashed so a lazy output cannot mutate an input after the first
+            # post-execution check.
+            _verify_execution_snapshots(
+                inputs=inputs,
+                input_receipts=root_input_receipts,
+                relations=relations,
+                relation_receipts=relation_receipts,
+            )
+
             entity_receipts[frame_entity] = {
                 "frame_entity": frame_entity,
                 "engine_entity": program.root_entity,
@@ -515,6 +642,7 @@ class AxiomEngine:
         input_projection = _input_projection_receipt(
             period=period_receipt,
             arithmetic=self._arithmetic,
+            entity_names=self._entity_names,
             entities=entity_receipts,
         )
         receipt: dict[str, object] = {
@@ -522,6 +650,7 @@ class AxiomEngine:
             "receipt_kind": "axiom_dense_materialization",
             "period": period_receipt,
             "arithmetic": self._arithmetic,
+            "entity_names": dict(sorted(self._entity_names.items())),
             "entities": entity_receipts,
             "input_frame_sha256": _canonical_digest(input_projection),
         }
@@ -1004,6 +1133,12 @@ def _batch_from_table(
         if kind == "b":
             batch[name] = column.to_numpy(dtype=bool, copy=True)
         elif kind in ("i", "u"):
+            raw = column.to_numpy(copy=True)
+            if kind == "u" and raw.size and raw.max() > np.iinfo(np.int64).max:
+                raise ValueError(
+                    f"Column {name!r} contains an integer outside Axiom's "
+                    "signed int64 input range."
+                )
             batch[name] = column.to_numpy(dtype=np.int64, copy=True)
         elif kind == "f":
             batch[name] = column.to_numpy(dtype=np.float64, copy=True)
@@ -1109,6 +1244,19 @@ def _relation_projection(
     if edge_current_ids.shape != edge_related_ids.shape:
         raise ValueError(
             f"Relation binding {relation_key!r} edge id columns do not align."
+        )
+    edge_pairs = [
+        (_id_key(current), _id_key(related))
+        for current, related in zip(
+            edge_current_ids,
+            edge_related_ids,
+            strict=True,
+        )
+    ]
+    if len(set(edge_pairs)) != len(edge_pairs):
+        raise ValueError(
+            f"Relation binding {relation_key!r} repeats a canonical "
+            "(current_id, related_id) edge pair."
         )
 
     current_positions = {_id_key(value): i for i, value in enumerate(current_ids)}
@@ -1219,6 +1367,7 @@ def _input_projection_receipt(
     *,
     period: Mapping[str, object],
     arithmetic: str,
+    entity_names: Mapping[str, str],
     entities: Mapping[str, object],
 ) -> dict[str, object]:
     projected_entities: dict[str, object] = {}
@@ -1233,6 +1382,7 @@ def _input_projection_receipt(
         "receipt_kind": "axiom_dense_input_projection",
         "period": dict(period),
         "arithmetic": arithmetic,
+        "entity_names": dict(sorted(entity_names.items())),
         "entities": projected_entities,
     }
 
@@ -1257,7 +1407,7 @@ def _id_vector(
     raw = values.to_numpy(copy=True)
     kind = raw.dtype.kind
     if not raw.size and empty_like is not None:
-        if empty_like.dtype.kind in ("O", "U", "S"):
+        if empty_like.dtype.kind in ("O", "U"):
             result = np.array([], dtype=object)
         else:
             result = np.array([], dtype="<i8")
@@ -1265,8 +1415,13 @@ def _id_vector(
         if kind == "u" and raw.size and raw.max() > np.iinfo(np.int64).max:
             raise ValueError(f"{label} contains an id outside signed int64 range.")
         result = np.array(raw, dtype="<i8", copy=True)
-    elif kind in ("U", "S"):
+    elif kind == "U":
         result = np.array([str(item) for item in raw.tolist()], dtype=object)
+    elif kind == "S":
+        raise ValueError(
+            f"{label} uses byte-string ids, which are ambiguous with Unicode "
+            "text in Axiom receipts; decode them to a Unicode string dtype."
+        )
     elif kind == "O":
         items = raw.tolist()
         if all(isinstance(item, str) for item in items):
@@ -1435,6 +1590,7 @@ def verify_axiom_materialization_receipt(
             "receipt_kind",
             "period",
             "arithmetic",
+            "entity_names",
             "entities",
             "input_frame_sha256",
             "receipt_sha256",
@@ -1454,6 +1610,23 @@ def verify_axiom_materialization_receipt(
     if arithmetic not in ("decimal", "f64"):
         raise ValueError("Invalid Axiom materialization arithmetic mode.")
     period = _verify_period_receipt(top["period"])
+    raw_entity_names = top["entity_names"]
+    if not isinstance(raw_entity_names, Mapping):
+        raise ValueError("Axiom receipt entity_names must be an object.")
+    if set(raw_entity_names) != set(frame.schema.entities):
+        raise ValueError(
+            "Axiom receipt entity_names must cover every and only frame entity."
+        )
+    entity_names: dict[str, str] = {}
+    for frame_entity in frame.schema.entities:
+        engine_entity = raw_entity_names[frame_entity]
+        if not isinstance(engine_entity, str) or not engine_entity.strip():
+            raise ValueError(
+                "Axiom receipt entity_names values must be non-empty strings."
+            )
+        entity_names[frame_entity] = engine_entity
+    if len(set(entity_names.values())) != len(entity_names):
+        raise ValueError("Axiom receipt entity_names must be injective.")
 
     raw_entities = top["entities"]
     if not isinstance(raw_entities, Mapping) or not raw_entities:
@@ -1463,9 +1636,14 @@ def verify_axiom_materialization_receipt(
     for entity_key in sorted(raw_entities):
         if not isinstance(entity_key, str) or not entity_key:
             raise ValueError("Axiom receipt entity keys must be non-empty strings.")
+        if entity_key not in entity_names:
+            raise ValueError(
+                f"Axiom receipt executes undeclared frame entity {entity_key!r}."
+            )
         entity = _verify_entity_receipt(
             frame,
             frame_entity=entity_key,
+            expected_engine_entity=entity_names[entity_key],
             value=raw_entities[entity_key],
             live_outputs=outputs,
         )
@@ -1481,6 +1659,7 @@ def verify_axiom_materialization_receipt(
     input_projection = _input_projection_receipt(
         period=period,
         arithmetic=arithmetic,
+        entity_names=entity_names,
         entities=recomputed_entities,
     )
     if _canonical_digest(input_projection) != top["input_frame_sha256"]:
@@ -1491,6 +1670,7 @@ def _verify_entity_receipt(
     frame: Frame,
     *,
     frame_entity: str,
+    expected_engine_entity: str,
     value: object,
     live_outputs: Mapping[str, object],
 ) -> dict[str, object]:
@@ -1510,9 +1690,10 @@ def _verify_entity_receipt(
     )
     if entity["frame_entity"] != frame_entity or frame_entity not in frame.entities:
         raise ValueError(f"Axiom receipt frame entity {frame_entity!r} differs.")
-    if not isinstance(entity["engine_entity"], str) or not entity["engine_entity"]:
+    if entity["engine_entity"] != expected_engine_entity:
         raise ValueError(
-            f"Axiom receipt engine entity for {frame_entity!r} is invalid."
+            f"Axiom receipt engine entity for {frame_entity!r} differs from "
+            "its authenticated entity_names mapping."
         )
     expected_id_column = frame.schema.entity_id_column(frame_entity)
     if entity["current_id_column"] != expected_id_column:
