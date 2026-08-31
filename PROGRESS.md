@@ -182,6 +182,21 @@ publication, push, or PR is authorized.
   on `weeks_worked` at 2024 — exactly the divergence the parity test now
   asserts, with the exclusion itself unchanged.
 
+- Quantified the two input views so the split is auditable rather than
+  asserted: the static all-vintage `variables()` projection holds 924 names,
+  the dated view holds 928 at 2024 and 927 at 2025, and the static projection
+  is a strict subset of both (a name with no formula in any period is an input
+  leaf in every period). The difference is exactly `weeks_worked` plus the
+  three 2026-commencing New Jersey variables, so the pinned pool projection
+  digest cannot be disturbed by the dated view.
+- Verified the delegation chain's period arithmetic against PolicyEngine Core
+  3.31.0 rather than trusting the code comment: `Period.last_year` is
+  `start.offset("first-of", "year").period("year").offset(-1)`, the prior
+  calendar year beginning 1 January even when requested from a sub-annual
+  period, which is exactly the `(year - 1, 1, 1)` step the chain takes. The
+  recognizer accepts only the exact `return entity(name, period.last_year)`
+  body, so a transformed carry-forward stays a material formula.
+
 ## Next
 
 - Finish the focused build-side corridors and write the final report to
