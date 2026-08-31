@@ -17,7 +17,6 @@ can never authenticate itself.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import re
@@ -31,12 +30,13 @@ from microcosm.build.ledger_targets import LedgerTargetReference
 from microcosm.build.monetary_targets import MonetaryBasis
 from microcosm.calibrate import TargetSpec
 from microcosm.calibrate.monetary_binding import (
-    canonical_record_ids,
     monetary_digest,
 )
 from microcosm.calibrate.policy_monetary_binding import (
     axiom_array_identity,
     bind_materialization_output,
+    canonical_policy_record_ids,
+    policy_array_identity,
     validate_policy_monetary_binding_payload,
 )
 
@@ -75,32 +75,7 @@ def _immutable_f64(values: np.ndarray) -> np.ndarray:
     return np.frombuffer(values.astype("<f8", copy=False).tobytes(), dtype="<f8")
 
 
-def _immutable_i64(values: np.ndarray) -> np.ndarray:
-    return np.frombuffer(values.astype("<i8", copy=False).tobytes(), dtype="<i8")
-
-
-def _aligned_ids(values: ArrayLike, label: str) -> np.ndarray:
-    ids = np.asarray(values)
-    if ids.ndim != 1 or not ids.size or ids.dtype.kind not in "iu":
-        raise ValueError(f"{label} must be a nonempty one-dimensional integer vector.")
-    if ids.dtype.kind == "u" and ids.max() > np.iinfo(np.int64).max:
-        raise ValueError(f"{label} must fit signed int64 without overflow.")
-    return ids.astype("<i8", copy=False)
-
-
-def _array_identity(values: np.ndarray) -> dict[str, object]:
-    """Typed identity for one exact dense vector."""
-    array = np.ascontiguousarray(np.asarray(values))
-    header = json.dumps(
-        {"dtype": array.dtype.str, "shape": list(array.shape)},
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode()
-    return {
-        "dtype": array.dtype.str,
-        "shape": list(array.shape),
-        "sha256": hashlib.sha256(header + b"\n" + array.tobytes()).hexdigest(),
-    }
+_array_identity = policy_array_identity
 
 
 @dataclass(frozen=True)
@@ -189,8 +164,12 @@ class PolicyDerivedMonetaryMeasure:
         outputs = _immutable_f64(
             _axiom_output_vector(self.output_values, "Axiom output values")
         )
-        output_ids = _immutable_i64(canonical_record_ids(self.output_record_ids))
-        target_ids = _immutable_i64(canonical_record_ids(self.target_record_ids))
+        output_ids = canonical_policy_record_ids(
+            self.output_record_ids, "output_record_ids"
+        )
+        target_ids = canonical_policy_record_ids(
+            self.target_record_ids, "target_record_ids"
+        )
         if outputs.shape != output_ids.shape:
             raise ValueError(
                 "output_record_ids must align one-to-one with Axiom outputs."
@@ -222,18 +201,30 @@ class PolicyDerivedMonetaryMeasure:
                 self.aggregation_membership_column,
                 "aggregation_membership_column",
             )
-            mapped_ids = _immutable_i64(
-                _aligned_ids(self.output_target_ids, "output_target_ids")
+            mapped_ids = canonical_policy_record_ids(
+                self.output_target_ids,
+                "output_target_ids",
+                unique=False,
             )
             if mapped_ids.shape != output_ids.shape:
                 raise ValueError(
                     "output_target_ids must align one-to-one with Axiom outputs."
                 )
+            if mapped_ids.dtype.kind != target_ids.dtype.kind:
+                raise ValueError(
+                    "output_target_ids and target_record_ids must use the same "
+                    "integer or string ID family."
+                )
             target_positions = {
-                int(value): index for index, value in enumerate(target_ids)
+                value.item() if isinstance(value, np.generic) else value: index
+                for index, value in enumerate(target_ids)
+            }
+            mapped_keys = {
+                value.item() if isinstance(value, np.generic) else value
+                for value in mapped_ids
             }
             unknown = sorted(
-                {int(value) for value in mapped_ids} - set(target_positions)
+                mapped_keys - set(target_positions), key=lambda value: repr(value)
             )
             if unknown:
                 raise ValueError(
@@ -241,7 +232,7 @@ class PolicyDerivedMonetaryMeasure:
                     f"table: {unknown[:5]}."
                 )
             unmapped = sorted(
-                set(target_positions) - {int(value) for value in mapped_ids}
+                set(target_positions) - mapped_keys, key=lambda value: repr(value)
             )
             if unmapped:
                 raise ValueError(
@@ -250,7 +241,12 @@ class PolicyDerivedMonetaryMeasure:
                 )
             target_values = np.zeros(len(target_ids), dtype="<f8")
             positions = np.fromiter(
-                (target_positions[int(value)] for value in mapped_ids),
+                (
+                    target_positions[
+                        value.item() if isinstance(value, np.generic) else value
+                    ]
+                    for value in mapped_ids
+                ),
                 dtype=np.int64,
                 count=len(mapped_ids),
             )
@@ -329,18 +325,33 @@ class PolicyDerivedMonetaryMeasure:
         return materialized
 
     def _check_vector_metadata(self) -> None:
+        canonical_output_ids = canonical_policy_record_ids(
+            self.output_record_ids, "output_record_ids"
+        )
+        canonical_target_ids = canonical_policy_record_ids(
+            self.record_ids, "target_record_ids"
+        )
+        if self.output_target_ids is None:
+            raise ValueError("Policy-derived output-to-target IDs were removed.")
+        canonical_mapped_ids = canonical_policy_record_ids(
+            self.output_target_ids,
+            "output_target_ids",
+            unique=False,
+        )
         if (
             self.output_values.dtype != np.dtype("<f8")
             or self.output_values.ndim != 1
-            or self.output_record_ids.dtype != np.dtype("<i8")
             or self.output_record_ids.shape != self.output_values.shape
-            or self.output_target_ids is None
-            or self.output_target_ids.dtype != np.dtype("<i8")
             or self.output_target_ids.shape != self.output_values.shape
             or self.values.dtype != np.dtype("<f8")
             or self.values.ndim != 1
-            or self.record_ids.dtype != np.dtype("<i8")
             or self.record_ids.shape != self.values.shape
+            or canonical_output_ids.dtype != self.output_record_ids.dtype
+            or canonical_target_ids.dtype != self.record_ids.dtype
+            or canonical_mapped_ids.dtype != self.output_target_ids.dtype
+            or not np.array_equal(canonical_output_ids, self.output_record_ids)
+            or not np.array_equal(canonical_target_ids, self.record_ids)
+            or not np.array_equal(canonical_mapped_ids, self.output_target_ids)
         ):
             raise ValueError("Policy-derived array dtype/shape metadata was mutated.")
         expected_identities = (

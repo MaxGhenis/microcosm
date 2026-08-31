@@ -183,7 +183,22 @@ class TargetSpec:
 
     def to_target(self) -> Target:
         """Compile the spec into a calibration :class:`Target`."""
-        return Target(
+        target_type = Target
+        if (
+            "policy_monetary_binding" in self.metadata
+            or "policy_monetary_binding_sha256" in self.metadata
+            or (
+                self.metadata.get("measure_kind") == "policy_derived"
+                and self.metadata.get("activation_status") == "active"
+            )
+        ):
+            # This nominal type is the non-metadata provenance signal that
+            # prevents an authenticated policy row from being demoted by
+            # stripping its entire metadata mapping after registry selection.
+            from microcosm.calibrate.policy_monetary_binding import AxiomPolicyTarget
+
+            target_type = AxiomPolicyTarget
+        return target_type(
             name=self.name,
             entity=self.entity,
             measure=self.measure,

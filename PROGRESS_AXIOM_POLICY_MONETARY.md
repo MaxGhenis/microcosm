@@ -8,8 +8,12 @@ current truth.
 ## State
 
 Repair implemented and verified locally. All six review findings were first
-reproduced with executable probes, then closed; the probe harness re-runs
-clean (19/19 closed or working). Nothing was pushed and no PR was opened.
+reproduced with executable probes, then closed. A follow-up exact audit found
+that the initial stripping regression still supplied the external acceptance:
+stripping both all target metadata and the optional compiler argument demoted
+the row to an ordinary target. The registry now emits a nominal
+`AxiomPolicyTarget` classification outside metadata, and the exact combined
+stripping probe fails closed. Nothing was pushed and no PR was opened.
 
 ## Scope
 
@@ -53,6 +57,27 @@ identity contract locally rather than importing private helpers.
 6. **Type coercion (MEDIUM).** `_same()` refuses cross-type equality
    throughout; shapes must be `list[int]`; observed values must be `float` in
    the receipt and `int`/`float` at bind.
+
+## Follow-up exact audit
+
+- Reproduced the remaining combined-stripping bypass by removing the complete
+  metadata mapping and omitting `policy_acceptances`; the PIT row compiled as
+  an ordinary target before the follow-up fix.
+- Added the nominal `AxiomPolicyTarget` emitted only after `TargetSpec`
+  validates the policy receipt. `dataclasses.replace(..., metadata={})`
+  preserves that concrete type, so the compiler still requires the receipt and
+  independent acceptance even after every serialized marker is removed.
+- Preserved the ordinary `Target` class and all public matrix, calibration, and
+  scoring signatures. Existing authenticated policy paths and ordinary/direct
+  target paths remain green.
+- Generalized policy row, membership, and target identities to the relation
+  adapter's canonical integer and string ID families. Numeric IDs remain
+  little-endian int64; string IDs use canonical JSON UTF-8 identities. Mixed,
+  boolean, float, cross-family, and incoherent encoding declarations fail
+  closed.
+- Re-ran 934 focused and broader policy/calibration tests, repository-wide
+  Ruff, touched-file formatting, the CI test inventory verifier, and
+  `git diff --check` successfully.
 
 ## Done
 

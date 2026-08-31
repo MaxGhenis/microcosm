@@ -46,7 +46,6 @@ import numpy as np
 
 from microcosm.calibrate.monetary_binding import (
     MonetaryBindingIntegrityError,
-    canonical_record_ids,
     monetary_digest,
 )
 from microcosm.calibrate.target import Target
@@ -55,13 +54,16 @@ from microcosm.frame import Frame
 __all__ = [
     "AxiomPolicyAcceptance",
     "AxiomPolicyAcceptanceSet",
+    "AxiomPolicyTarget",
     "AxiomPolicyTrustRoot",
     "axiom_array_identity",
     "axiom_policy_target_rows",
     "bind_materialization_output",
+    "canonical_policy_record_ids",
     "has_policy_semantics",
     "build_axiom_policy_acceptances",
     "normalize_policy_acceptances",
+    "policy_array_identity",
     "sign_axiom_policy_attestation",
     "validate_policy_monetary_binding_payload",
     "verify_policy_monetary_binding",
@@ -220,6 +222,7 @@ _AXIOM_ARRAY_IDENTITY_KEYS = frozenset(
     {"dtype", "storage_dtype", "encoding", "shape", "sha256"}
 )
 _AXIOM_ARRAY_ENCODING = "little_endian_raw_v1"
+_AXIOM_TEXT_ENCODING = "canonical_json_utf8_v1"
 
 #: Signed artifact envelopes the trust root authenticates.
 _ATTESTATION_KEYS = frozenset({"document", "signature"})
@@ -254,6 +257,24 @@ OBSERVATION_ARTIFACT_KIND = "axiom_policy_observation_attestation"
 #: Process-private seal key. It exists only in this module's namespace, so an
 #: acceptance can be minted only by :func:`build_axiom_policy_acceptances`.
 _SEAL_KEY = secrets.token_bytes(32)
+
+
+class AxiomPolicyTarget(Target):
+    """Nominal target type preserving policy provenance outside metadata.
+
+    Policy binding receipts remain serialized in :attr:`Target.metadata`, but
+    metadata is deliberately an ordinary mapping and therefore cannot be the
+    only signal that a row originated at the authenticated policy boundary.
+    :class:`~microcosm.calibrate.registry.TargetSpec` emits this subtype after
+    validating a policy receipt.  ``dataclasses.replace(target, metadata={})``
+    preserves the concrete type, so stripping every receipt and marker cannot
+    demote an accepted policy row into an ordinary calibration target.
+
+    The subtype adds no fields and does not change the public ``Target``
+    constructor or matrix API.  It is an integrity classification, not an
+    acceptance: a complete receipt and a separately trust-root-minted
+    :class:`AxiomPolicyAcceptance` are still required at compilation.
+    """
 
 
 def _require(condition: bool, message: str) -> None:
@@ -344,43 +365,156 @@ def _validate_basis(value: object, label: str) -> dict:
     return basis
 
 
-def _array_identity(values: np.ndarray) -> dict[str, object]:
-    """Policy-local typed identity for one exact dense vector."""
-    array = np.ascontiguousarray(np.asarray(values))
+def _id_key(value: object) -> object:
+    """Return the stable Python key for one canonical NumPy entity ID."""
+    return value.item() if isinstance(value, np.generic) else value
+
+
+def canonical_policy_record_ids(
+    values: object,
+    label: str = "record_ids",
+    *,
+    unique: bool = True,
+) -> np.ndarray:
+    """Return immutable canonical integer or string entity IDs.
+
+    This mirrors the Axiom relation adapter's two supported ID families:
+    integers become signed little-endian int64 and text becomes a native NumPy
+    Unicode vector. Object arrays are admitted only when every element belongs
+    to one of those families. Booleans, floats, bytes mixed with text, and
+    integer/string mixtures fail closed rather than being stringified.
+    """
+    array = np.asarray(values)
+    _require(
+        array.ndim == 1 and array.size > 0,
+        f"{label} must be a nonempty one-dimensional ID vector",
+    )
+    kind = array.dtype.kind
+    if kind in ("i", "u"):
+        if kind == "u":
+            _require(
+                array.max() <= np.iinfo(np.int64).max,
+                f"{label} contains an ID outside signed int64 range",
+            )
+        canonical = np.frombuffer(
+            array.astype("<i8", copy=False).tobytes(), dtype="<i8"
+        )
+    elif kind in ("U", "S"):
+        canonical = np.array([str(item) for item in array.tolist()], dtype=str)
+        canonical.setflags(write=False)
+    elif kind == "O":
+        items = array.tolist()
+        if all(isinstance(item, str) for item in items):
+            canonical = np.array(items, dtype=str)
+            canonical.setflags(write=False)
+        elif all(
+            isinstance(item, (int, np.integer))
+            and not isinstance(item, (bool, np.bool_))
+            for item in items
+        ):
+            _require(
+                all(
+                    np.iinfo(np.int64).min <= int(item) <= np.iinfo(np.int64).max
+                    for item in items
+                ),
+                f"{label} contains an ID outside signed int64 range",
+            )
+            canonical = np.frombuffer(
+                np.asarray([int(item) for item in items], dtype="<i8").tobytes(),
+                dtype="<i8",
+            )
+        else:
+            raise ValueError(
+                f"{label} must contain only integer IDs or only string IDs"
+            )
+    else:
+        raise ValueError(f"{label} must contain only integer IDs or only string IDs")
+    if unique:
+        keys = [_id_key(value) for value in canonical]
+        _require(len(set(keys)) == len(keys), f"{label} must contain unique IDs")
+    return canonical
+
+
+def _id_family(values: np.ndarray) -> str:
+    kind = np.asarray(values).dtype.kind
+    if kind == "i":
+        return "integer"
+    if kind == "U":
+        return "string"
+    raise ValueError("policy record IDs are not in a canonical ID family")
+
+
+def policy_array_identity(values: np.ndarray) -> dict[str, object]:
+    """Policy-local typed identity for one exact numeric or text vector."""
+    array = np.asarray(values)
+    _require(array.ndim == 1, "policy receipt vectors must be one-dimensional")
+    if array.dtype.kind == "U":
+        dtype = "string"
+        payload = json.dumps(
+            array.tolist(), ensure_ascii=True, separators=(",", ":")
+        ).encode("utf-8")
+    elif array.dtype.kind in "biuf":
+        array = np.ascontiguousarray(array)
+        dtype = array.dtype.str
+        payload = array.tobytes()
+    else:
+        raise ValueError("policy receipt vectors must be numeric or canonical strings")
     header = json.dumps(
-        {"dtype": array.dtype.str, "shape": list(array.shape)},
+        {"dtype": dtype, "shape": list(array.shape)},
         sort_keys=True,
         separators=(",", ":"),
     ).encode()
     return {
-        "dtype": array.dtype.str,
+        "dtype": dtype,
         "shape": [int(size) for size in array.shape],
-        "sha256": hashlib.sha256(header + b"\n" + array.tobytes()).hexdigest(),
+        "sha256": hashlib.sha256(header + b"\n" + payload).hexdigest(),
     }
 
 
+_array_identity = policy_array_identity
+
+
 def axiom_array_identity(values: np.ndarray) -> dict[str, object]:
-    """Recompute the schema-v2 Axiom receipt identity for a numeric vector.
+    """Recompute the schema-v2 Axiom receipt identity for a value vector.
 
     Mirrors the frame adapter's canonical numeric encoding — semantic dtype
     name, little-endian storage dtype, ``little_endian_raw_v1`` payload — so a
     policy receipt can be pinned to the exact requested output the
     materialization receipt recorded, without depending on that module's
-    private helpers. Only the numeric branch is reproduced: policy monetary
-    measures are float64 amounts over int64 entity rows.
+    private helpers. Monetary outputs remain float64; entity rows may use
+    either canonical int64 or canonical string IDs.
     """
     array = np.ascontiguousarray(np.asarray(values))
-    if array.ndim != 1 or array.dtype.kind not in "iuf":
-        raise ValueError(
-            "Axiom policy output vectors must be one-dimensional numeric arrays."
+    if array.ndim != 1:
+        raise ValueError("Axiom policy receipt vectors must be one-dimensional arrays.")
+    if array.dtype.kind in "biuf":
+        storage = np.ascontiguousarray(
+            array.astype(array.dtype.newbyteorder("<"), copy=False)
         )
-    storage = np.ascontiguousarray(
-        array.astype(array.dtype.newbyteorder("<"), copy=False)
-    )
+        semantic_dtype = array.dtype.name
+        storage_dtype = storage.dtype.str
+        encoding = _AXIOM_ARRAY_ENCODING
+        payload_bytes = storage.tobytes()
+    elif array.dtype.kind in ("U", "S", "O"):
+        items = array.tolist()
+        if any(not isinstance(item, str) for item in items):
+            raise ValueError("Axiom policy text ID vectors must contain only strings.")
+        semantic_dtype = "string"
+        storage_dtype = "utf8"
+        encoding = _AXIOM_TEXT_ENCODING
+        payload_bytes = json.dumps(
+            items,
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    else:
+        raise ValueError(
+            f"Axiom policy receipt cannot canonicalize dtype {array.dtype!s}."
+        )
     header = {
-        "dtype": array.dtype.name,
-        "storage_dtype": storage.dtype.str,
-        "encoding": _AXIOM_ARRAY_ENCODING,
+        "dtype": semantic_dtype,
+        "storage_dtype": storage_dtype,
+        "encoding": encoding,
         "shape": [int(size) for size in array.shape],
     }
     payload = json.dumps(
@@ -391,7 +525,7 @@ def axiom_array_identity(values: np.ndarray) -> dict[str, object]:
     ).encode("utf-8")
     return {
         **header,
-        "sha256": hashlib.sha256(payload + b"\n" + storage.tobytes()).hexdigest(),
+        "sha256": hashlib.sha256(payload + b"\n" + payload_bytes).hexdigest(),
     }
 
 
@@ -404,6 +538,23 @@ def _validate_array_identity(
 ) -> dict:
     identity = _exact_mapping(value, _ARRAY_IDENTITY_KEYS, label)
     _require(_same(identity["dtype"], dtype), f"invalid {label} dtype")
+    _require_shape(identity["shape"], length, label)
+    _hash(identity["sha256"], label)
+    return identity
+
+
+def _validate_record_id_identity(
+    value: object,
+    *,
+    label: str,
+    length: int,
+) -> dict:
+    """Validate the policy receipt's canonical integer/string ID identity."""
+    identity = _exact_mapping(value, _ARRAY_IDENTITY_KEYS, label)
+    _require(
+        _same(identity["dtype"], "<i8") or _same(identity["dtype"], "string"),
+        f"invalid {label} ID dtype",
+    )
     _require_shape(identity["shape"], length, label)
     _hash(identity["sha256"], label)
     return identity
@@ -432,18 +583,37 @@ def _validate_axiom_array_identity(
     return identity
 
 
-def _aligned_ids(values: object, label: str) -> np.ndarray:
-    ids = np.asarray(values)
-    _require(
-        ids.ndim == 1 and ids.size > 0 and ids.dtype.kind in "iu",
-        f"{label} must be a nonempty integer vector",
+def _validate_axiom_record_id_identity(
+    value: object,
+    *,
+    label: str,
+    length: int,
+) -> dict:
+    """Validate one canonical Axiom integer or string entity-ID identity."""
+    identity = _exact_mapping(value, _AXIOM_ARRAY_IDENTITY_KEYS, label)
+    numeric = (
+        _same(identity["dtype"], "int64")
+        and _same(identity["storage_dtype"], "<i8")
+        and _same(identity["encoding"], _AXIOM_ARRAY_ENCODING)
     )
-    if ids.dtype.kind == "u":
-        _require(
-            ids.max() <= np.iinfo(np.int64).max,
-            f"{label} exceeds signed int64",
-        )
-    return ids.astype("<i8", copy=False)
+    text = (
+        _same(identity["dtype"], "string")
+        and _same(identity["storage_dtype"], "utf8")
+        and _same(identity["encoding"], _AXIOM_TEXT_ENCODING)
+    )
+    _require(numeric or text, f"invalid {label} ID encoding")
+    _require_shape(identity["shape"], length, label)
+    _hash(identity["sha256"], label)
+    return identity
+
+
+def _identity_id_family(identity: Mapping[str, object]) -> str:
+    dtype = identity["dtype"]
+    if _same(dtype, "<i8") or _same(dtype, "int64"):
+        return "integer"
+    if _same(dtype, "string"):
+        return "string"
+    raise ValueError("record ID identity is not in a supported family")
 
 
 def bind_materialization_output(
@@ -572,11 +742,9 @@ def bind_materialization_output(
         storage_dtype="<f8",
         length=n_records,
     )
-    record_ids = _validate_axiom_array_identity(
+    record_ids = _validate_axiom_record_id_identity(
         entity["current_ids"],
         label="materialized policy output record ids",
-        dtype="int64",
-        storage_dtype="<i8",
         length=n_records,
     )
     return {
@@ -1212,10 +1380,9 @@ def validate_policy_monetary_binding_payload(
         dtype="<f8",
         length=output["n_records"],
     )
-    output_ids = _validate_array_identity(
+    output_ids = _validate_record_id_identity(
         output["record_ids"],
         label="policy output record ids",
-        dtype="<i8",
         length=output["n_records"],
     )
     materialized_values = _validate_axiom_array_identity(
@@ -1225,12 +1392,14 @@ def validate_policy_monetary_binding_payload(
         storage_dtype="<f8",
         length=output["n_records"],
     )
-    materialized_ids = _validate_axiom_array_identity(
+    materialized_ids = _validate_axiom_record_id_identity(
         output["materialized_record_ids"],
         label="policy materialized output record ids",
-        dtype="int64",
-        storage_dtype="<i8",
         length=output["n_records"],
+    )
+    _require(
+        _identity_id_family(output_ids) == _identity_id_family(materialized_ids),
+        "policy output and materialized record ID families differ",
     )
 
     aggregation = _exact_mapping(
@@ -1241,10 +1410,9 @@ def validate_policy_monetary_binding_payload(
         and aggregation["target_n_records"] > 0,
         "invalid target record count",
     )
-    output_target_ids = _validate_array_identity(
+    output_target_ids = _validate_record_id_identity(
         aggregation["output_target_ids"],
         label="policy output target ids",
-        dtype="<i8",
         length=output["n_records"],
     )
     target_values = _validate_array_identity(
@@ -1253,11 +1421,14 @@ def validate_policy_monetary_binding_payload(
         dtype="<f8",
         length=aggregation["target_n_records"],
     )
-    target_ids = _validate_array_identity(
+    target_ids = _validate_record_id_identity(
         aggregation["target_record_ids"],
         label="policy target record ids",
-        dtype="<i8",
         length=aggregation["target_n_records"],
+    )
+    _require(
+        _identity_id_family(output_target_ids) == _identity_id_family(target_ids),
+        "policy membership and target record ID families differ",
     )
     if identity["output_entity"] == identity["target_entity"]:
         _require(
@@ -1485,10 +1656,11 @@ def verify_policy_monetary_binding(
             and np.isfinite(raw_outputs).all(),
             "live Axiom outputs are not native finite float64",
         )
-        output_ids = canonical_record_ids(
+        output_ids = canonical_policy_record_ids(
             output_table[
                 frame.schema.entity_id_column(identity["output_entity"])
-            ].to_numpy()
+            ].to_numpy(),
+            "live policy output record IDs",
         )
         _require(
             _array_identity(raw_outputs) == output["values"],
@@ -1515,27 +1687,35 @@ def verify_policy_monetary_binding(
             and np.isfinite(target_values).all(),
             "live policy target values are not native finite float64",
         )
-        target_ids = canonical_record_ids(
+        target_ids = canonical_policy_record_ids(
             target_table[
                 frame.schema.entity_id_column(identity["target_entity"])
-            ].to_numpy()
+            ].to_numpy(),
+            "live policy target record IDs",
         )
         if aggregation["kind"] == "identity":
             mapped_ids = output_ids
             recomputed = raw_outputs
         else:
             membership_column = aggregation["membership_column"]
-            mapped_ids = _aligned_ids(
+            mapped_ids = canonical_policy_record_ids(
                 output_table[membership_column].to_numpy(),
                 "live output membership",
+                unique=False,
             )
             _require(
                 mapped_ids.shape == output_ids.shape,
                 "live output membership length differs",
             )
-            positions = {int(value): index for index, value in enumerate(target_ids)}
             _require(
-                set(int(value) for value in mapped_ids) == set(positions),
+                _id_family(mapped_ids) == _id_family(target_ids),
+                "live output membership and target ID families differ",
+            )
+            positions = {
+                _id_key(value): index for index, value in enumerate(target_ids)
+            }
+            _require(
+                set(_id_key(value) for value in mapped_ids) == set(positions),
                 "live output membership does not cover exact target IDs",
             )
             recomputed = np.zeros(len(target_ids), dtype="<f8")
@@ -1543,7 +1723,7 @@ def verify_policy_monetary_binding(
                 np.add.at(
                     recomputed,
                     np.fromiter(
-                        (positions[int(value)] for value in mapped_ids),
+                        (positions[_id_key(value)] for value in mapped_ids),
                         dtype=np.int64,
                         count=len(mapped_ids),
                     ),

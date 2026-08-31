@@ -68,14 +68,31 @@ def _basis(**changes) -> MonetaryBasis:
 
 
 def _axiom_array_identity(values) -> dict[str, object]:
-    """Mirror the public schema-v2 numeric-vector receipt contract."""
+    """Mirror the public schema-v2 numeric/text-vector receipt contract."""
     array = np.asarray(values)
-    dtype = array.dtype.newbyteorder("<")
-    canonical = np.ascontiguousarray(array.astype(dtype, copy=False))
+    if array.dtype.kind in "biuf":
+        dtype = array.dtype.newbyteorder("<")
+        canonical = np.ascontiguousarray(array.astype(dtype, copy=False))
+        semantic_dtype = array.dtype.name
+        storage_dtype = canonical.dtype.str
+        encoding = "little_endian_raw_v1"
+        payload_bytes = canonical.tobytes()
+    elif array.dtype.kind in ("U", "S", "O"):
+        items = array.tolist()
+        if any(not isinstance(item, str) for item in items):
+            raise ValueError("test receipt text vectors must contain only strings")
+        semantic_dtype = "string"
+        storage_dtype = "utf8"
+        encoding = "canonical_json_utf8_v1"
+        payload_bytes = json.dumps(
+            items, ensure_ascii=True, separators=(",", ":")
+        ).encode()
+    else:
+        raise ValueError("unsupported test receipt vector dtype")
     header = {
-        "dtype": array.dtype.name,
-        "storage_dtype": canonical.dtype.str,
-        "encoding": "little_endian_raw_v1",
+        "dtype": semantic_dtype,
+        "storage_dtype": storage_dtype,
+        "encoding": encoding,
         "shape": list(array.shape),
     }
     payload = json.dumps(
@@ -86,7 +103,7 @@ def _axiom_array_identity(values) -> dict[str, object]:
     ).encode()
     return {
         **header,
-        "sha256": sha256(payload + b"\n" + canonical.tobytes()).hexdigest(),
+        "sha256": sha256(payload + b"\n" + payload_bytes).hexdigest(),
     }
 
 
@@ -112,8 +129,31 @@ def _frame(values=(300.0, 300.0)) -> Frame:
     )
 
 
+def _string_frame(values=(300.0, 300.0)) -> Frame:
+    return Frame(
+        {
+            "person": pd.DataFrame(
+                {
+                    "person_id": ["p11", "p12", "p13"],
+                    "person_household_id": ["h1", "h1", "h2"],
+                    "armenia_personal_income_tax": [100.0, 200.0, 300.0],
+                }
+            ),
+            "household": pd.DataFrame(
+                {
+                    "household_id": ["h1", "h2"],
+                    "household_armenia_personal_income_tax": list(values),
+                }
+            ),
+        },
+        EntitySchema(group_entities=("household",)),
+        {"household": Weights(np.array([2.0, 1.0]), WeightKind.DESIGN)},
+    )
+
+
 def _materialization_receipt(
     *,
+    frame: Frame | None = None,
     year: str = "2024",
     entity: str = "person",
     id_column: str = "person_id",
@@ -122,7 +162,7 @@ def _materialization_receipt(
     declared_period: str = "year",
     **changes,
 ) -> dict[str, object]:
-    frame = _frame()
+    frame = _frame() if frame is None else frame
     table = frame.table(entity)
     if output_values is None:
         output_values = table[
@@ -212,6 +252,29 @@ def _prepared(**changes):
         "perimeter_bridge_description": (
             "Axiom person PIT is summed to household rows; the observed State "
             "Revenue Committee aggregate uses the same resident PIT perimeter."
+        ),
+        "perimeter_bridge_source_sha256": "e" * 64,
+    }
+    return prepare_policy_derived_monetary_measure(**(fields | changes))
+
+
+def _string_prepared(**changes):
+    frame = _string_frame()
+    materialization = changes.pop("materialization_receipt", None)
+    if materialization is None:
+        materialization = _materialization_receipt(frame=frame)
+    fields = {
+        "output_values": np.array([100.0, 200.0, 300.0]),
+        "output_record_ids": np.array(["p11", "p12", "p13"]),
+        "target_record_ids": np.array(["h1", "h2"]),
+        "output_target_ids": np.array(["h1", "h1", "h2"]),
+        "aggregation_membership_column": "person_household_id",
+        "basis": _basis(),
+        "identity": _identity(materialization),
+        "materialization_receipt": materialization,
+        "perimeter_bridge_description": (
+            "Axiom person PIT is summed to string-keyed household rows within "
+            "the observed State Revenue Committee perimeter."
         ),
         "perimeter_bridge_source_sha256": "e" * 64,
     }
@@ -454,8 +517,86 @@ def test_prepared_receipt_carries_the_materialized_output_identity():
 def test_public_axiom_identity_helper_matches_the_receipt_schema():
     values = np.array([100.0, 200.0, 300.0])
     ids = np.array([11, 12, 13], dtype="<i8")
+    text_ids = np.array(["p11", "p12", "p13"])
     assert axiom_array_identity(values) == _axiom_array_identity(values)
     assert axiom_array_identity(ids) == _axiom_array_identity(ids)
+    assert axiom_array_identity(text_ids) == _axiom_array_identity(text_ids)
+
+
+def test_string_keyed_policy_rows_preserve_canonical_id_receipts():
+    prepared = _string_prepared()
+    np.testing.assert_array_equal(prepared.values, [300.0, 300.0])
+    receipt = prepared.receipt()
+    assert receipt["output"]["record_ids"]["dtype"] == "string"
+    assert (
+        receipt["output"]["materialized_record_ids"]
+        == (receipt["materialization"]["entities"]["person"]["current_ids"])
+    )
+    assert receipt["aggregation"]["output_target_ids"]["dtype"] == "string"
+    assert receipt["aggregation"]["target_record_ids"]["dtype"] == "string"
+
+    # TargetSpec construction validates the complete serialized payload before
+    # the live relation-layer verifier is involved.
+    spec = _bind(prepared=prepared)
+    assert _binding_of(spec)["prepared"]["output"]["record_ids"]["dtype"] == "string"
+
+
+def test_string_keyed_policy_target_replays_against_live_rows(monkeypatch):
+    """Exercise policy replay while the parent relation repair is rebased later."""
+    from microcosm.frame.adapters import axiom
+
+    # The current parent verifier is int64-only. The separate relation repair
+    # adds canonical string IDs; isolate this policy-layer replay until rebase.
+    monkeypatch.setattr(
+        axiom,
+        "verify_axiom_materialization_receipt",
+        lambda *_args, **_kwargs: None,
+    )
+    spec = _bind(prepared=_string_prepared())
+    problem = build_constraint_matrix(
+        _string_frame(),
+        _targets(spec),
+        policy_acceptances=_acceptances(spec),
+    )
+    np.testing.assert_array_equal(problem.estimates(np.array([2.0, 1.0])), [900.0])
+
+
+@pytest.mark.parametrize(
+    "record_ids",
+    (
+        np.array(["p11", 12, "p13"], dtype=object),
+        np.array([True, False, True]),
+        np.array([11.0, 12.0, 13.0]),
+    ),
+)
+def test_policy_record_ids_reject_mixed_bool_and_float_families(record_ids):
+    with pytest.raises(ValueError, match="only integer IDs or only string IDs"):
+        _prepared(output_record_ids=record_ids)
+
+
+def test_membership_and_target_ids_must_use_one_id_family():
+    with pytest.raises(ValueError, match="same integer or string ID family"):
+        _string_prepared(output_target_ids=np.array([1, 1, 2]))
+
+
+@pytest.mark.parametrize(
+    "identity_changes",
+    (
+        {"storage_dtype": "<i8"},
+        {"encoding": "little_endian_raw_v1"},
+        {"dtype": "int64"},
+        {"dtype": []},
+    ),
+)
+def test_string_id_receipt_rejects_malformed_or_mixed_identity(identity_changes):
+    materialization = _materialization_receipt(frame=_string_frame())
+    materialization["entities"]["person"]["current_ids"].update(identity_changes)
+    raw = {
+        key: value for key, value in materialization.items() if key != "receipt_sha256"
+    }
+    materialization["receipt_sha256"] = monetary_digest(raw)
+    with pytest.raises(ValueError, match="record ids ID encoding"):
+        _string_prepared(materialization_receipt=materialization)
 
 
 def test_same_entity_output_requires_identical_rows_and_no_mapping():
@@ -757,6 +898,18 @@ def test_an_accepted_target_key_cannot_be_stripped_into_an_ordinary_row():
             TargetSet([stripped]),
             policy_acceptances=_acceptances(spec),
         )
+
+
+def test_policy_target_cannot_strip_all_metadata_and_omit_acceptance():
+    """Policy provenance survives the combined receipt/acceptance stripping bypass."""
+    spec = _bind()
+    stripped = replace(spec.to_target(), metadata={})
+
+    with pytest.raises(
+        MonetaryBindingIntegrityError,
+        match="authenticated_policy_target",
+    ):
+        build_constraint_matrix(_frame(), TargetSet([stripped]))
 
 
 def test_an_accepted_target_dropped_from_the_surface_fails_the_compilation():

@@ -159,8 +159,7 @@ def _validate_basis(value: object) -> dict:
     temporal_basis = basis["temporal_basis"]
     if temporal_basis == "annual_flow":
         _require(
-            isinstance(period, str)
-            and re.fullmatch(r"[0-9]{4}", period) is not None,
+            isinstance(period, str) and re.fullmatch(r"[0-9]{4}", period) is not None,
             "invalid annual-flow period",
         )
         date(int(period), 1, 1)
@@ -190,6 +189,13 @@ def verify_monetary_binding(
     """
     present_receipt_keys = _RECEIPT_KEYS.intersection(target.metadata)
     present_policy_receipt_keys = _POLICY_RECEIPT_KEYS.intersection(target.metadata)
+    # The registry emits a nominal policy target after authenticating its
+    # serialized binding.  Keep the import local so the direct monetary module
+    # remains independent, while making that provenance survive removal of the
+    # entire metadata mapping.
+    from microcosm.calibrate.policy_monetary_binding import AxiomPolicyTarget
+
+    policy_target = isinstance(target, AxiomPolicyTarget)
     if present_receipt_keys and present_policy_receipt_keys:
         raise MonetaryBindingIntegrityError(
             f"{target.row_name}: direct and policy-derived monetary receipts "
@@ -211,12 +217,18 @@ def verify_monetary_binding(
     if not present_receipt_keys:
         remaining_markers = _BINDING_MARKER_KEYS.intersection(target.metadata)
         policy_semantics = (
-            target.metadata.get("measure_kind") == "policy_derived"
+            policy_target
+            or target.metadata.get("measure_kind") == "policy_derived"
             or target.metadata.get("activation_status") == "requires_policy_output"
         )
         if remaining_markers or policy_semantics:
             detail = sorted(remaining_markers)
-            if policy_semantics:
+            if policy_target:
+                detail.append("authenticated_policy_target")
+            if (
+                target.metadata.get("measure_kind") == "policy_derived"
+                or target.metadata.get("activation_status") == "requires_policy_output"
+            ):
                 detail.append("policy_derived_semantics")
             raise MonetaryBindingIntegrityError(
                 f"{target.row_name}: monetary binding markers remain without the "
