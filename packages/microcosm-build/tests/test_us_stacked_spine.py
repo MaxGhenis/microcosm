@@ -3875,6 +3875,44 @@ def _post_puf_transfer_fixture() -> Frame:
     )
 
 
+def _wic_source_merged_transfer_fixture() -> Frame:
+    """Run the production ASEC-only WIC source merge on a complete pool."""
+
+    frame = _post_puf_transfer_fixture()
+    person = frame.table("person").copy(deep=True)
+    asec = person[support_channel_column("person")].astype(str).eq("asec")
+    person["age"] = np.floor(pd.to_numeric(person["age"], errors="raise")).astype(float)
+    person["own_children_in_household"] = np.zeros(len(person), dtype=float)
+    pregnancy_eligible = person["is_female"].astype(bool) & person["age"].between(
+        15,
+        44,
+        inclusive="both",
+    )
+    person.loc[~asec, "is_pregnant"] = pregnancy_eligible.loc[~asec].to_numpy()
+    person["PERIDNUM"] = pd.Series(
+        pd.NA,
+        index=person.index,
+        dtype=CANONICAL_STRING_DTYPE,
+    )
+    person.loc[asec, "PERIDNUM"] = (
+        person.loc[asec, "person_source_id"].astype(str).to_numpy()
+    )
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    tables["person"] = person
+    prepared = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    return multispine_pool_module.run_multispine_post_clone_source_operator(
+        prepared,
+        "with_us_wic_claim_input",
+    ).frame
+
+
 def test_housing_post_gap_reconciliation_restores_final_source_identities() -> None:
     frame = _stacked_gap_fixture()
     direction = next(
@@ -4187,6 +4225,86 @@ def test_wic_structural_reconciliation_rejects_asec_logical_mismatch_before_writ
         )
 
     pd.testing.assert_series_equal(tampered.table("person")[target], before)
+
+
+def test_wic_source_merge_transfer_reconciliation_preserves_nullable_asec_on_rebuild_and_resume(
+    tmp_path: Path,
+) -> None:
+    target = "takes_up_wic_if_eligible"
+    group_name = stacked_spine_module._WIC_LATE_RECONCILIATION_GROUP
+    surface = {"person": {"source_operator_wic_claim": (target,)}}
+    authority = stacked_spine_module._make_test_stacked_authority(
+        declared_surface=surface,
+        gap_fill_plan=(),
+        post_puf_transfer_surface=surface,
+    )
+    bank_root = tmp_path / "wic"
+    bank_identity = {"regression": "wic-recipient-only-redraw"}
+    executions: list[
+        tuple[
+            stacked_spine_module.StackedPostPufTransferResult,
+            pd.Series,
+            str,
+        ]
+    ] = []
+
+    for expected_source, expected_load_status in (
+        ("rebuilt", "missing"),
+        ("checkpoint", "resumed"),
+    ):
+        source_merged = _wic_source_merged_transfer_fixture()
+        source_person = source_merged.table("person")
+        asec = source_person[support_channel_column("person")].astype(str).eq("asec")
+        source_values = source_person[target]
+        assert source_values.dtype == pd.BooleanDtype()
+        assert source_values.loc[asec].notna().all()
+        assert source_values.loc[~asec].isna().all()
+        producer_snapshot = source_values.loc[asec].copy(deep=True)
+        producer_sha256 = stacked_spine_module._late_table_values_sha256(
+            source_person.loc[asec, [target]]
+        )
+        bank = AcsTransferTargetBankStore(bank_root, identity=bank_identity)
+
+        result = (
+            stacked_spine_module._transfer_stacked_post_puf_inputs_with_test_authority(
+                source_merged,
+                authority=authority,
+                seed=0,
+                n_estimators=1,
+                target_bank=bank,
+            )
+        )
+
+        bank_target = bank.receipt()["targets"]["0"]
+        assert bank_target["source"] == expected_source
+        assert bank_target["load_status"] == expected_load_status
+        output_values = result.frame.table("person")[target]
+        assert output_values.dtype == pd.BooleanDtype()
+        assert output_values.notna().all()
+        assert producer_snapshot.equals(output_values.loc[asec])
+        pd.testing.assert_series_equal(
+            output_values.loc[asec],
+            producer_snapshot,
+            check_dtype=True,
+            check_exact=True,
+        )
+        structural = result.receipt["structural_reconciliations"][group_name]
+        assert structural["changed_rows"][target] > 0
+        assert structural["asec_producer_values_preserved"] is True
+        assert structural["asec_producer_values_before_sha256"] == producer_sha256
+        assert structural["asec_producer_values_after_sha256"] == producer_sha256
+        executions.append((result, producer_snapshot, producer_sha256))
+
+    cold, cold_snapshot, cold_sha256 = executions[0]
+    warm, warm_snapshot, warm_sha256 = executions[1]
+    assert cold_snapshot.equals(warm_snapshot)
+    assert cold_sha256 == warm_sha256
+    pd.testing.assert_series_equal(
+        cold.frame.table("person")[target],
+        warm.frame.table("person")[target],
+        check_dtype=True,
+        check_exact=True,
+    )
 
 
 def test_bounded_transfer_group_remaps_canonical_producer_roles() -> None:

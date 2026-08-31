@@ -124,12 +124,21 @@ in scope.
   with one existing physical-core warning. The US generator `--check`, spec
   coverage at 41,558/41,558 fields and 41/41 inventory checks, focused Ruff,
   and diff hygiene are green.
+- Added the production-shaped WIC composition through the guarded public
+  ASEC-only source operator, real ACS transfer, and structural reconciliation.
+  Its source merge proves nullable pandas `boolean` storage with complete ASEC
+  producer values and null ACS recipients. A real target bank exercises both
+  cold `rebuilt/missing` and warm `checkpoint/resumed` paths; each proves the
+  exact ASEC `Series`, dtype, and typed producer SHA-256 are unchanged, the
+  reconciliation actually redraws recipients, and cold/warm final Series are
+  exact. Together with the logical-mismatch refusal and both registered
+  callbacks, the focused reconciliation corridor passes 4/4 tests. Focused
+  Ruff, format verification, and diff hygiene are green.
 
 ## Next
 
-- Add and commit production-shaped rebuilt/resumed/mismatch regressions, then
-  run the complete repository suite, repository Ruff, final anti-rot checks,
-  and commit the finished journal plus `out.md` report.
+- Run the complete repository suite, repository Ruff, and final anti-rot
+  checks; then commit the finished journal plus `out.md` report.
 
 ---
 
