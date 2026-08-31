@@ -206,6 +206,7 @@ def test_e19200_donor_split_preserves_each_band_and_published_shares() -> None:
             "investment_interest_expense",
         ),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     total = np.asarray(
@@ -266,6 +267,7 @@ def test_e19200_donor_split_requires_explicit_adjusted_gross_income() -> None:
                 "investment_interest_expense",
             ),
             tax_unit_outputs=(),
+            period=2024,
         )
 
 
@@ -279,6 +281,7 @@ def test_e19200_donor_split_is_bit_deterministic_and_order_invariant() -> None:
             "investment_interest_expense",
         ),
         tax_unit_outputs=(),
+        period=2024,
     )
     second = puf_tax_unit_donor_from_arrays(
         arrays,
@@ -288,6 +291,7 @@ def test_e19200_donor_split_is_bit_deterministic_and_order_invariant() -> None:
             "investment_interest_expense",
         ),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     permutation = np.arange(len(adjusted_gross_income) - 1, -1, -1)
@@ -303,6 +307,7 @@ def test_e19200_donor_split_is_bit_deterministic_and_order_invariant() -> None:
             "investment_interest_expense",
         ),
         tax_unit_outputs=(),
+        period=2024,
     ).sort_values("tax_unit_id")
 
     columns = ("home_mortgage_interest", "investment_interest_expense")
@@ -456,6 +461,7 @@ def test_donor_api_rejects_non_real_agi_through_a_valid_fixture() -> None:
             adjusted_gross_income=agi,
             person_outputs=(),
             tax_unit_outputs=(),
+            period=2024,
         )
 
     # Positive control: the fixture succeeds with valid AGI (the band

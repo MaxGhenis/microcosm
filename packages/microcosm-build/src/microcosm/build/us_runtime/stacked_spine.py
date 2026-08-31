@@ -9977,6 +9977,7 @@ def _gap_fill_stacked_spine_evaluate(
         result = transfer_acs_inputs(
             current,
             donor,
+            period=POOL_TIME_PERIOD,
             target_families=direction.target_families,
             donor_channel=None,
             seed=seed,
@@ -11336,6 +11337,7 @@ def _transfer_stacked_post_puf_inputs_evaluate(
     transfer = transfer_acs_inputs(
         frame,
         donor,
+        period=POOL_TIME_PERIOD,
         target_families=surface,
         donor_spine=ASEC_PUF_DONOR_SPINE,
         donor_channel=None,
@@ -13071,6 +13073,7 @@ def _run_stacked_puf_pass_evaluate(
         imputed = impute_us_puf_tax_detail_support(
             cloned,
             donor_tax_units,
+            period=POOL_TIME_PERIOD,
             seed=seed,
             n_estimators=n_estimators,
             fit_records=fit_records,
@@ -13175,6 +13178,7 @@ def _run_stacked_puf_pass_evaluate(
                 cloned,
                 donor_tax_units,
                 checkpoint_dir,
+                period=POOL_TIME_PERIOD,
                 seed=seed,
                 n_estimators=n_estimators,
                 require_complete_recipient_predictors=True,

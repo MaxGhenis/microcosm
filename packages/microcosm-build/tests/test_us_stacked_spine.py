@@ -1187,6 +1187,7 @@ def test_strict_recipient_predictors_fail_closed_on_absence() -> None:
             person_outputs=("taxable_interest_income",),
             tax_unit_outputs=(),
             require_complete_recipient_predictors=True,
+            period=2024,
         )
 
     legacy = prepare_us_puf_tax_detail_chain_inputs(
@@ -1195,6 +1196,7 @@ def test_strict_recipient_predictors_fail_closed_on_absence() -> None:
         predictors=("puf_predictor_employment_income",),
         person_outputs=("taxable_interest_income",),
         tax_unit_outputs=(),
+        period=2024,
     )
     assert not legacy.recipient_features.isna().any().any()
     tax_unit = cloned.table("tax_unit")
@@ -1287,6 +1289,7 @@ def test_strict_recipient_predictors_apply_exact_acs_age_universe() -> None:
         person_outputs=("taxable_interest_income",),
         tax_unit_outputs=(),
         require_complete_recipient_predictors=True,
+        period=2024,
     )
 
     receipt = prepared.recipient_predictor_universe
@@ -1390,6 +1393,7 @@ def test_strict_recipient_predictors_reject_cross_grain_source_collision() -> No
             person_outputs=("taxable_interest_income",),
             tax_unit_outputs=(),
             require_complete_recipient_predictors=True,
+            period=2024,
         )
 
 
@@ -1420,6 +1424,7 @@ def test_strict_recipient_predictors_reject_infinite_feature() -> None:
             person_outputs=("taxable_interest_income",),
             tax_unit_outputs=(),
             require_complete_recipient_predictors=True,
+            period=2024,
         )
 
 
@@ -1453,6 +1458,7 @@ def test_strict_recipient_predictors_require_raw_acs_universe_authority(
             person_outputs=("taxable_interest_income",),
             tax_unit_outputs=(),
             require_complete_recipient_predictors=True,
+            period=2024,
         )
 
 
@@ -1601,6 +1607,7 @@ def test_strict_recipient_predictors_reject_acs_universe_mismatch(
             person_outputs=("taxable_interest_income",),
             tax_unit_outputs=(),
             require_complete_recipient_predictors=True,
+            period=2024,
         )
 
 
@@ -1650,6 +1657,7 @@ def test_acs_universe_age_rule_mutations_fail_closed_by_rule_id(
             person_outputs=("taxable_interest_income",),
             tax_unit_outputs=(),
             require_complete_recipient_predictors=True,
+            period=2024,
         )
 
 
@@ -1690,6 +1698,7 @@ def test_strict_recipient_predictors_reject_null_filing_status_before_coercion(
             person_outputs=("taxable_interest_income",),
             tax_unit_outputs=(),
             require_complete_recipient_predictors=True,
+            period=2024,
         )
 
 
@@ -2669,9 +2678,7 @@ def test_acs_clone_person_cannot_substitute_group_quarters_parent() -> None:
         )
 
 
-def test_stacked_housing_tenure_absence_binds_every_live_group_quarters_clone() -> (
-    None
-):
+def test_stacked_housing_tenure_absence_binds_every_live_group_quarters_clone() -> None:
     attached = clone_us_frame_for_puf_support(
         _stacked_gap_fixture(),
         clone_attachment_fraction=1.0,
@@ -2740,7 +2747,9 @@ def test_stacked_housing_tenure_absence_binds_every_live_group_quarters_clone() 
         mass_log=structural.mass_log,
         metadata=structural.metadata,
     )
-    with pytest.raises(ValueError, match=r"spm_unit tenure blanks.*unauthorized_nulls=1"):
+    with pytest.raises(
+        ValueError, match=r"spm_unit tenure blanks.*unauthorized_nulls=1"
+    ):
         stacked_spine_module.validated_stacked_housing_tenure_absence(
             damaged,
             boundary="damaged tenure structural-null fixture",
@@ -5261,6 +5270,7 @@ def test_late_transfer_refuses_a_stale_bound_execution_contract(
             donor_channel=None,
             derive_schedule_d=False,
             execution_contract=bound,
+            period=2024,
         )
 
 

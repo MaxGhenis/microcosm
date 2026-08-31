@@ -26,6 +26,7 @@ def load_puf_tax_unit_donor(
     processed_puf_h5: str | Path,
     source_year_puf_csv: str | Path | None,
     *,
+    period: int | str,
     donor_build_summary: dict[str, object] | None = None,
 ) -> pd.DataFrame:
     """Load a processed PUF donor with source-year E00100 alignment.
@@ -36,6 +37,7 @@ def load_puf_tax_unit_donor(
             :func:`puf_tax_unit_donor_from_arrays`.
         source_year_puf_csv: Explicit restricted source-year PUF CSV used only
             by :func:`source_year_puf_adjusted_gross_income`.
+        period: Dataset period used to resolve effective output ownership.
         donor_build_summary: Optional mutable receipt populated by shared donor
             construction, including capital-gains and mortgage-quarantine
             diagnostics.
@@ -61,6 +63,7 @@ def load_puf_tax_unit_donor(
     )
     return puf_tax_unit_donor_from_arrays(
         arrays,
+        period=period,
         adjusted_gross_income=adjusted_gross_income,
         donor_build_summary=donor_build_summary,
     )

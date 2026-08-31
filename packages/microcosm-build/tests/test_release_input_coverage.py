@@ -136,12 +136,13 @@ def _household_weight_frame(
 
 
 class _StubEngine:
-    """Only ``default_values(names)`` — the single engine surface the gate uses."""
+    """Only dated defaults — the single engine surface the gate uses."""
 
     def __init__(self, defaults: dict[str, object]) -> None:
         self._defaults = dict(defaults)
 
-    def default_values(self, names) -> dict[str, object]:
+    def default_values(self, names, *, period) -> dict[str, object]:
+        assert period == 2024
         return {name: self._defaults[name] for name in names if name in self._defaults}
 
 
@@ -184,7 +185,10 @@ class TestReleaseInputCoverageGate:
             }
         )
         result = us_release_input_coverage_gate(
-            frame, _StubEngine(_DEFAULTS), manifest=_CONTRACT
+            frame,
+            _StubEngine(_DEFAULTS),
+            period=2024,
+            manifest=_CONTRACT,
         )
         assert result.passed
         assert result.failures == ()
@@ -195,7 +199,10 @@ class TestReleaseInputCoverageGate:
         # zero the #368 launch failure rode in on.
         frame = _person_frame({"employment_income": np.asarray([0.0, 52_000.0])})
         result = us_release_input_coverage_gate(
-            frame, _StubEngine(_DEFAULTS), manifest=_CONTRACT
+            frame,
+            _StubEngine(_DEFAULTS),
+            period=2024,
+            manifest=_CONTRACT,
         )
         assert not result.passed
         assert "stock_assets" in result.details["missing"]
@@ -215,7 +222,10 @@ class TestReleaseInputCoverageGate:
             }
         )
         result = us_release_input_coverage_gate(
-            frame, _StubEngine(_DEFAULTS), manifest=_CONTRACT
+            frame,
+            _StubEngine(_DEFAULTS),
+            period=2024,
+            manifest=_CONTRACT,
         )
         assert not result.passed
         assert "stock_assets" in result.details["degenerate_required"]
@@ -237,6 +247,7 @@ class TestReleaseInputCoverageGate:
         result = us_release_input_coverage_gate(
             frame,
             _StubEngine({name: 0.0 for name in assets}),
+            period=2024,
             manifest=manifest,
         )
 
@@ -287,6 +298,7 @@ class TestReleaseInputCoverageGate:
         result = us_release_input_coverage_gate(
             frame,
             _StubEngine({name: default}),
+            period=2024,
             manifest=manifest,
         )
 
@@ -331,6 +343,7 @@ class TestReleaseInputCoverageGate:
         result = us_release_input_coverage_gate(
             frame,
             _StubEngine({name: default}),
+            period=2024,
             manifest=manifest,
         )
 
@@ -350,9 +363,14 @@ class TestReleaseInputCoverageGate:
 
         assert frame.table("person")[name].dtype == pd.BooleanDtype()
         assert name in manifest.required_columns
-        assert engine.default_values([name]) == {name: False}
+        assert engine.default_values([name], period=2024) == {name: False}
 
-        result = us_release_input_coverage_gate(frame, engine, manifest=manifest)
+        result = us_release_input_coverage_gate(
+            frame,
+            engine,
+            period=2024,
+            manifest=manifest,
+        )
 
         assert not result.passed
         assert name not in result.details["missing"]
@@ -376,7 +394,10 @@ class TestReleaseInputCoverageGate:
             }
         )
         result = us_release_input_coverage_gate(
-            frame, _StubEngine(_DEFAULTS), manifest=_CONTRACT
+            frame,
+            _StubEngine(_DEFAULTS),
+            period=2024,
+            manifest=_CONTRACT,
         )
         assert not result.passed
         assert result.details["stale_exclusions"] == ["alimony_income"]
@@ -395,7 +416,10 @@ class TestReleaseInputCoverageGate:
             }
         )
         result = us_release_input_coverage_gate(
-            frame, _StubEngine(_DEFAULTS), manifest=_CONTRACT
+            frame,
+            _StubEngine(_DEFAULTS),
+            period=2024,
+            manifest=_CONTRACT,
         )
         assert result.passed
         assert result.details["reviewed_exclusions"] == {
@@ -410,6 +434,7 @@ class TestReleaseInputCoverageGate:
         result = us_release_input_coverage_gate(
             frame,
             _StubEngine({"household_weight": 1.0}),
+            period=2024,
             manifest=manifest,
         )
 
@@ -426,6 +451,7 @@ class TestReleaseInputCoverageGate:
         result = us_release_input_coverage_gate(
             frame,
             _StubEngine({"household_weight": 1.0}),
+            period=2024,
             manifest=manifest,
         )
 
@@ -731,7 +757,7 @@ class TestShippedManifest:
         # The checked-in-facts half runs everywhere (no engine in this env): the
         # declared surface must equal the reference eCPS populated columns and the
         # SSI assets must stay hard requirements.
-        assert_release_input_coverage_manifest_current()
+        assert_release_input_coverage_manifest_current(period=2024)
 
     def test_medicare_part_b_plural_names_are_deliberate_nonrequirements(
         self,
@@ -1514,7 +1540,9 @@ class TestShippedManifest:
         )
         with pytest.raises(ValueError, match="stock_assets"):
             assert_release_input_coverage_manifest_current(
-                manifest=tampered, engine=None
+                period=2024,
+                manifest=tampered,
+                engine=None,
             )
 
     def test_duplicate_probe_ids_are_rejected(self) -> None:
@@ -1607,4 +1635,7 @@ class TestCapitalGainDistributionRouteGuarantee:
         )
 
         with pytest.raises(ValueError, match=column):
-            assert_release_input_coverage_manifest_current(manifest=demoted)
+            assert_release_input_coverage_manifest_current(
+                period=2024,
+                manifest=demoted,
+            )

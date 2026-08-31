@@ -401,6 +401,7 @@ class TestFrameIntegration:
             tax_unit_outputs=(),
             seed=0,
             n_estimators=20,
+            period=2024,
         )
         person = imputed.table("person")
         channel = person[support_channel_column("person")]

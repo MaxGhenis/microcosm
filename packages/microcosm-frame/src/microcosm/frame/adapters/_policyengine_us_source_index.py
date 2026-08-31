@@ -11,6 +11,7 @@ from __future__ import annotations
 import ast
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from types import MappingProxyType
 
@@ -159,20 +160,105 @@ def _contains_unknown(value: _ExactValue) -> bool:
 
 
 @dataclass(frozen=True)
+class VariableOwnership:
+    """Period-resolved ownership of one PolicyEngine-US variable.
+
+    ``kind`` describes the requested period.  A ``DELEGATION`` is an active
+    pure carry-forward formula whose material owner is reported separately;
+    it remains computed (and therefore unsafe to persist directly) in the
+    requested period without being mislabeled as the material formula owner.
+    """
+
+    kind: str
+    period: tuple[int, int, int]
+    owner_kind: str
+    owner_period: tuple[int, int, int]
+    delegation_chain: tuple[tuple[int, int, int], ...] = ()
+
+    @property
+    def computed(self) -> bool:
+        return self.kind != "INPUT"
+
+
+@dataclass(frozen=True)
 class _SourceVariableDefinition:
     metadata: VariableMetadata
-    always_computed: bool
+    dynamic_formula: bool
+    aggregation: bool
     formula_starts: tuple[tuple[int, int, int], ...]
+    delegation_starts: tuple[tuple[int, int, int], ...] = ()
+    coverage_end: tuple[int, int, int] | None = None
+
+    @property
+    def always_computed(self) -> bool:
+        return self.dynamic_formula or self.aggregation
 
     @property
     def formula_owned(self) -> bool:
         return self.always_computed or bool(self.formula_starts)
 
     def computed_at(self, period: int | str) -> bool:
-        if self.always_computed:
-            return True
-        at = _period_start(period)
-        return any(start <= at for start in self.formula_starts)
+        return self.ownership_at(period).computed
+
+    def ownership_at(self, period: int | str) -> VariableOwnership:
+        """Resolve active computation and any prior-year delegation chain."""
+
+        requested = _period_start(period)
+        if self.coverage_end is not None and requested > self.coverage_end:
+            return VariableOwnership("INPUT", requested, "INPUT", requested)
+        if self.dynamic_formula:
+            return VariableOwnership("FORMULA", requested, "FORMULA", requested)
+
+        active = self._active_formula(requested)
+        if active is None:
+            kind = "AGGREGATION" if self.aggregation else "INPUT"
+            return VariableOwnership(kind, requested, kind, requested)
+        if active not in self.delegation_starts:
+            return VariableOwnership("FORMULA", requested, "FORMULA", requested)
+
+        current = requested
+        chain = [requested]
+        while True:
+            if current[0] <= 1:
+                raise RuntimeError(
+                    "PolicyEngine pure carry-forward ownership for "
+                    f"{self.metadata.name!r} never reaches a material owner."
+                )
+            # PolicyEngine Core's ``Period.last_year`` returns the prior
+            # calendar YEAR, starting on January 1 even when requested from a
+            # sub-annual period.
+            current = (current[0] - 1, 1, 1)
+            if current in chain:
+                raise RuntimeError(
+                    "PolicyEngine pure carry-forward ownership cycle for "
+                    f"{self.metadata.name!r}: {chain}."
+                )
+            chain.append(current)
+            active = self._active_formula(current)
+            if active is None:
+                owner_kind = "AGGREGATION" if self.aggregation else "INPUT"
+                return VariableOwnership(
+                    "DELEGATION",
+                    requested,
+                    owner_kind,
+                    current,
+                    tuple(chain),
+                )
+            if active not in self.delegation_starts:
+                return VariableOwnership(
+                    "DELEGATION",
+                    requested,
+                    "FORMULA",
+                    current,
+                    tuple(chain),
+                )
+
+    def _active_formula(
+        self,
+        period: tuple[int, int, int],
+    ) -> tuple[int, int, int] | None:
+        eligible = [start for start in self.formula_starts if start <= period]
+        return max(eligible, default=None)
 
 
 @dataclass(frozen=True)
@@ -338,9 +424,71 @@ def _formula_start(name: str) -> tuple[int, int, int] | None:
     year, *rest = (int(part) for part in parts)
     month = rest[0] if rest else 1
     day = rest[1] if len(rest) == 2 else 1
-    if not (1 <= month <= 12 and 1 <= day <= 31):
-        raise RuntimeError(f"Unsupported PolicyEngine formula date {name!r}.")
+    try:
+        date(year, month, day)
+    except ValueError as exc:
+        raise RuntimeError(f"Unsupported PolicyEngine formula date {name!r}.") from exc
+
     return year, month, day
+
+
+def _formula_is_pure_prior_period_delegation(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    variable_name: str,
+) -> bool:
+    """Recognize only ``return entity(name, period.last_year)`` formulas."""
+
+    parameters = (*node.args.posonlyargs, *node.args.args)
+    if len(parameters) < 2:
+        return False
+    entity_parameter = parameters[0].arg
+    period_parameter = parameters[1].arg
+    body = list(node.body)
+    if body and isinstance(body[0], ast.Expr):
+        value = body[0].value
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            body.pop(0)
+    if len(body) != 1 or not isinstance(body[0], ast.Return):
+        return False
+    returned = body[0].value
+    if not isinstance(returned, ast.Call):
+        return False
+    return (
+        isinstance(returned.func, ast.Name)
+        and returned.func.id == entity_parameter
+        and len(returned.args) == 2
+        and not returned.keywords
+        and isinstance(returned.args[0], ast.Constant)
+        and returned.args[0].value == variable_name
+        and isinstance(returned.args[1], ast.Attribute)
+        and returned.args[1].attr == "last_year"
+        and isinstance(returned.args[1].value, ast.Name)
+        and returned.args[1].value.id == period_parameter
+    )
+
+
+def _coverage_end(
+    node: ast.expr | None,
+    *,
+    variable_name: str,
+    source_path: Path,
+) -> tuple[int, int, int] | None:
+    if node is None or (isinstance(node, ast.Constant) and node.value is None):
+        return None
+    if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+        raise RuntimeError(
+            f"PolicyEngine variable {variable_name!r} in {source_path} has "
+            "dynamic end coverage metadata."
+        )
+    try:
+        parsed = date.fromisoformat(node.value)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"PolicyEngine variable {variable_name!r} in {source_path} has "
+            f"unsupported end coverage {node.value!r}."
+        ) from exc
+    return parsed.year, parsed.month, parsed.day
 
 
 def _period_start(period: int | str) -> tuple[int, int, int]:
@@ -350,6 +498,7 @@ def _period_start(period: int | str) -> tuple[int, int, int]:
     year = int(parts[0])
     month = int(parts[1]) if len(parts) > 1 else 1
     day = int(parts[2]) if len(parts) > 2 else 1
+    date(year, month, day)
     return year, month, day
 
 
@@ -389,23 +538,49 @@ def _variable_definition(
             f"definition_period metadata {period_name!r}."
         )
 
-    always_computed = False
+    dynamic_formula = False
+    aggregation = False
     formula_starts: list[tuple[int, int, int]] = []
+    delegation_starts: list[tuple[int, int, int]] = []
     for statement in node.body:
         if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if statement.name == "formula":
-                always_computed = True
+                start = (1, 1, 1)
+                formula_starts.append(start)
+                if _formula_is_pure_prior_period_delegation(
+                    statement,
+                    variable_name=node.name,
+                ):
+                    delegation_starts.append(start)
             elif statement.name.startswith("formula_"):
                 start = _formula_start(statement.name)
                 if start is not None:
                     formula_starts.append(start)
+                    if _formula_is_pure_prior_period_delegation(
+                        statement,
+                        variable_name=node.name,
+                    ):
+                        delegation_starts.append(start)
             continue
         assigned = _assigned_name(statement)
         if assigned is None:
             continue
         name, value = assigned
-        if name in {"formula", "formulas", "adds", "subtracts"}:
-            always_computed |= _is_nonempty_source_value(value)
+        if name == "formula":
+            dynamic_formula |= _is_nonempty_source_value(value)
+        elif name == "formulas" and _is_nonempty_source_value(value):
+            raise RuntimeError(
+                f"PolicyEngine variable {node.name!r} in {source_path} has "
+                "dynamic formula activation metadata."
+            )
+        elif name in {"adds", "subtracts"}:
+            aggregation |= _is_nonempty_source_value(value)
+
+    if len(formula_starts) != len(set(formula_starts)):
+        raise RuntimeError(
+            f"PolicyEngine variable {node.name!r} in {source_path} defines "
+            "duplicate formula activation dates."
+        )
 
     return _SourceVariableDefinition(
         metadata=VariableMetadata(
@@ -414,8 +589,15 @@ def _variable_definition(
             dtype=_DTYPE_KIND_BY_SOURCE_NAME.get(value_type_name, "str"),
             period=_PERIOD_BY_SOURCE_NAME[period_name],
         ),
-        always_computed=always_computed,
+        dynamic_formula=dynamic_formula,
+        aggregation=aggregation,
         formula_starts=tuple(sorted(formula_starts)),
+        delegation_starts=tuple(sorted(delegation_starts)),
+        coverage_end=_coverage_end(
+            assignments.get("end"),
+            variable_name=node.name,
+            source_path=source_path,
+        ),
     )
 
 
@@ -1725,9 +1907,7 @@ class _ConsumerInterpreter:
                     owner_name=owner.name,
                     frame=frame,
                     receiver_entity=self._definitions[owner.name].metadata.entity,
-                    aggregation_entity=(
-                        self._definitions[owner.name].metadata.entity
-                    ),
+                    aggregation_entity=(self._definitions[owner.name].metadata.entity),
                 )
             elif (
                 name == "defined_for"
@@ -2492,6 +2672,7 @@ def _index_policyengine_us_variable_sources(
 
 __all__ = [
     "ConsumerReceipt",
+    "VariableOwnership",
     "_PolicyEngineUSSourceIndex",
     "_SourceVariableDefinition",
     "_index_policyengine_us_sources",

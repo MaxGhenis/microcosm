@@ -228,7 +228,9 @@ def project_input_only(base_frame, period: int = PERIOD):
     structural = set(adapter._structural_columns())
     tables = {entity: base_frame.table(entity) for entity in base_frame.entities}
     present = {column for table in tables.values() for column in table.columns}
-    formula_owned = set(adapter.formula_owned_outputs(present)) - structural
+    formula_owned = set(
+        adapter.formula_owned_outputs(present, period=period)
+    ) - structural
     dropped: dict[str, list[str]] = {}
     if not formula_owned:
         return base_frame, dropped
@@ -301,7 +303,7 @@ def fill_reviewed_nulls(
             "cannot apply the nullable-artifact engine-pass contract."
         )
     adapter = PolicyEngineUSEngine()
-    input_names = set(adapter.variables())
+    input_names = set(adapter.input_variables(period=period))
     system = CountryTaxBenefitSystem()
 
     fills, drift_warnings, violations = [], [], []

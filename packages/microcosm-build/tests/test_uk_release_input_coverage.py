@@ -956,9 +956,17 @@ def test_default_us_coverage_path_is_unchanged() -> None:
         columns=(ReleaseInputColumn("employment_income", "required"),),
     )
     frame = _person_frame({"dividend_income": np.asarray([0.0, 1.0])})
+
+    class _USStubEngine:
+        def default_values(self, names, *, period) -> dict[str, object]:
+            assert names == ["dividend_income"]
+            assert period == 2024
+            return {}
+
     result = us_release_input_coverage_gate(
         frame,
-        _StubEngine({"employment_income": 0.0}),
+        _USStubEngine(),
+        period=2024,
         manifest=us_manifest,
     )
     assert not result.passed

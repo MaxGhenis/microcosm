@@ -5,6 +5,8 @@ a workspace dependency; install via ``microcosm-frame[policyengine]`` to run
 these).
 """
 
+from datetime import date
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -19,12 +21,29 @@ from microcosm.frame import (  # noqa: E402
     Weights,
     wsum,
 )
+from microcosm.frame.adapters import policyengine_us as adapter_module  # noqa: E402
 from microcosm.frame.adapters.policyengine_us import PolicyEngineUSEngine  # noqa: E402
 
 
 @pytest.fixture(scope="module")
 def adapter() -> PolicyEngineUSEngine:
     return PolicyEngineUSEngine()
+
+
+def test_live_computed_classifier_honors_end_for_aggregations() -> None:
+    class _EndedAggregate:
+        adds = ["leaf"]
+        subtracts = []
+        end = date(2024, 12, 31)
+
+        @staticmethod
+        def get_formula(_period):
+            return None
+
+    from microcosm.frame.adapters import policyengine_us as module
+
+    assert module._is_engine_computed(_EndedAggregate(), period=2024)
+    assert not module._is_engine_computed(_EndedAggregate(), period=2025)
 
 
 @pytest.fixture
@@ -109,7 +128,8 @@ class TestVariableMetadata:
                 "takes_up_snap_if_eligible",
                 "ssn_card_type",
                 "employment_income_before_lsr",
-            ]
+            ],
+            period=2024,
         )
         # PE-US 1.794.3 changed the missing-hours input default from 40 to 0.
         assert defaults["weekly_hours_worked_before_lsr"] == 0
@@ -120,9 +140,18 @@ class TestVariableMetadata:
 
     def test_default_values_skip_unknown_and_formula_owned_names(self, adapter) -> None:
         defaults = adapter.default_values(
-            ["HRSWK", "not_a_variable", "income_tax", "snap"]
+            ["HRSWK", "not_a_variable", "income_tax", "snap"],
+            period=2024,
         )
         assert defaults == {}
+
+    def test_default_values_resolve_future_formula_inputs_by_period(
+        self, adapter
+    ) -> None:
+        assert adapter.default_values(["weeks_worked"], period=2024) == {
+            "weeks_worked": 0
+        }
+        assert adapter.default_values(["weeks_worked"], period=2025) == {}
 
     def test_formula_owned_outputs_flags_computed_names(self, adapter) -> None:
         # A requested output set mixing engine input leaves with formula-owned
@@ -136,7 +165,8 @@ class TestVariableMetadata:
                 "ssi",  # formula (mapping)
                 "employment_income",  # adds-owned aggregate
                 "self_employed_pension_contribution_ald",  # formula-owned ALD
-            ]
+            ],
+            period=2024,
         )
         assert flagged == {
             "income_tax",
@@ -154,7 +184,8 @@ class TestVariableMetadata:
                 "social_security",
                 "partnership_s_corp_income",
                 "employment_income_before_lsr",
-            ]
+            ],
+            period=2024,
         )
         assert flagged == {
             "dividend_income",
@@ -165,14 +196,46 @@ class TestVariableMetadata:
     def test_formula_owned_outputs_ignores_unknown_names(self, adapter) -> None:
         # A name the engine does not know cannot be classified as formula-owned
         # here; the export/enum guards own unknown columns.
-        assert adapter.formula_owned_outputs(["not_a_variable"]) == set()
+        assert adapter.formula_owned_outputs(["not_a_variable"], period=2024) == set()
 
     def test_formula_owned_outputs_is_disjoint_from_inputs(self, adapter) -> None:
         # The derived rejection set and the input surface partition the engine's
         # variables: nothing the engine accepts as an input is ever flagged.
-        inputs = set(adapter.variables())
-        flagged = adapter.formula_owned_outputs(inputs)
+        inputs = set(adapter.input_variables(period=2024))
+        flagged = adapter.formula_owned_outputs(inputs, period=2024)
         assert flagged == set()
+
+    def test_period_resolved_inputs_distinguish_weeks_worked(self, adapter) -> None:
+        assert "weeks_worked" in adapter.input_variables(period=2024)
+        assert "weeks_worked" not in adapter.input_variables(period=2025)
+        assert adapter.formula_owned_outputs(["weeks_worked"], period=2024) == set()
+        assert adapter.formula_owned_outputs(["weeks_worked"], period=2025) == {
+            "weeks_worked"
+        }
+
+        owned_2024 = adapter.variable_ownership("weeks_worked", period=2024)
+        delegated_2025 = adapter.variable_ownership("weeks_worked", period=2025)
+        assert owned_2024.kind == "INPUT"
+        assert delegated_2025.kind == "DELEGATION"
+        assert delegated_2025.owner_kind == "INPUT"
+        assert delegated_2025.owner_period == (2024, 1, 1)
+        with pytest.raises(TypeError):
+            adapter.variable_ownership("weeks_worked")
+
+    @pytest.mark.parametrize("period", [2024, 2025])
+    def test_source_and_live_computed_sets_agree_exactly(
+        self,
+        adapter,
+        period: int,
+    ) -> None:
+        variables = adapter._tax_benefit_system().variables
+        live = set(variables) & set(adapter_module._FORMULA_OWNED_COMPAT_COLUMNS) | {
+            name
+            for name, variable in variables.items()
+            if adapter_module._is_engine_computed(variable, period=period)
+        }
+
+        assert adapter.formula_owned_outputs(variables, period=period) == live
 
 
 class TestMaterialize:

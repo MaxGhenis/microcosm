@@ -8,10 +8,11 @@ Lane base: `dc7e09cb`
 
 ## State
 
-In progress. The lane is repairing the build-side and frame-adapter ownership
-classifiers so ownership is resolved for the required dataset period, including
-pure carry-forward delegation. Candidate-26 is running in another worktree and
-remains read-only; no build, publication, push, or PR is authorized.
+Implementation complete; focused verification is in progress. The build-side
+and frame-adapter classifiers now resolve ownership for the required dataset
+period, including pure carry-forward delegation. Candidate-26 is running in
+another worktree and remains read-only; no build, publication, push, or PR is
+authorized.
 
 ## Done
 
@@ -52,13 +53,43 @@ remains read-only; no build, publication, push, or PR is authorized.
   owner; unresolved/unbounded delegation fails closed. A delegated current
   period remains ineligible for direct single-year persistence, preserving the
   authorized 2025 rejection and the unchanged pool exclusion.
+- Implemented dated formula/aggregation coverage in the import-free source
+  index, including validated formula activation dates and `end` coverage,
+  conservative recognition of exact prior-year self-delegation, material-owner
+  chain resolution, and explicit refusal of unbounded or dynamically dated
+  formula mappings.
+- Made period mandatory on both public `formula_owned_outputs` surfaces, the
+  period-resolved input/default views, the build root resolver, PUF donor/QRF
+  seams, ACS transfer classification, release coverage validation, and dated
+  release/legacy callers. The optional ACS wrapper now receives the dataset
+  period independently of source vintage; its regression passes 2025 through
+  a 2024 ACS source.
+- Kept `RulesEngine.variables()`, the take-up ABI, dependency closure, and pool
+  projection explicitly static/all-vintage. Those surfaces lack dated edge
+  metadata or pin cross-period pool identities; all dataset-dated ownership
+  consumers now use the required-period APIs instead.
+- Added exact 2024/2025 source-index/live-engine set parity, `weeks_worked`
+  INPUT-to-DELEGATION ownership, transformed carry-forward, material-formula
+  delegation, aggregation, end-coverage, dynamic-coverage refusal, and
+  unbounded-delegation propagation regressions. The static 12-name pool
+  exclusion remains unchanged while the dated parity proof reports 11 owners
+  in 2024 and 12 in 2025.
+- Two independent read-only audits found and closed the source-vintage caller
+  bug, remaining release/legacy periodless views, live/source ownership API
+  divergence, incomplete mocks, and the shared-UK stub regression. Their final
+  audits report no remaining material semantic or signature issue.
+- Focused frame verification passes 59/59 with one existing numerical warning;
+  focused Ruff is green across every changed Python file and `git diff --check`
+  is clean. Five additional build classifier/pool cases passed before a
+  resource-driven interrupted run; no test failure occurred. Heavy build-test
+  collection is currently CPU-starved by candidate-26 and remains to be rerun
+  after this implementation checkpoint.
 
 ## Next
 
-- Implement the period-required build-side resolver and propagate the dataset
-  period through every PUF/ACS ownership boundary and caller.
-- Add fail-closed 2024/2025 ownership regressions and the corrected parity
-  proof, then implement the frame-adapter metadata fix and focused tests.
+- Run the remaining focused changed-file/weeks/adapter/parity corridors once
+  candidate-26 releases enough CPU, recording exact pass counts; do not run the
+  repository-wide suite in this lane.
 - Replace `out.md` with the required final classifier-fix report and journal
   repository-wide pytest as deferred rather than running it in this lane.
 

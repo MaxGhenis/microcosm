@@ -927,12 +927,14 @@ def acs_transfer_donor_requirements(
 def assert_acs_transfer_targets_are_input_leaves(
     targets: Iterable[str],
     *,
+    period: int | str,
     engine: Any | None = None,
     require_known: bool = False,
 ) -> None:
     """Reject transfer targets the engine owns or, optionally, does not know.
 
-    The formula-owned branch is the production transfer check. Keeping it in
+    ``period`` is required because a future formula does not own an earlier
+    dataset input. The formula-owned branch is the production transfer check. Keeping it in
     one helper lets the committed full-plan sweep exercise the exact same
     classifier and error path before a Modal build starts. Generic library
     callers may use non-engine fixture columns, so strict engine membership is
@@ -940,7 +942,9 @@ def assert_acs_transfer_targets_are_input_leaves(
     """
 
     target_names = set(targets)
-    formula_owned = sorted(resolve_formula_owned_outputs(target_names, engine=engine))
+    formula_owned = sorted(
+        resolve_formula_owned_outputs(target_names, period=period, engine=engine)
+    )
     if formula_owned:
         raise ValueError(
             "ACS transfer targets must be PolicyEngine input leaves, not "
@@ -956,7 +960,7 @@ def assert_acs_transfer_targets_are_input_leaves(
             )
 
             engine = PolicyEngineUSVariableMetadataIndex()
-        engine_leaves = set(engine.variables())
+        engine_leaves = set(engine.input_variables(period=period))
     except ImportError as exc:
         raise RuntimeError(
             "Strict ACS transfer leaf classification requires policyengine-us; "
@@ -1295,6 +1299,7 @@ def transfer_acs_inputs(
     recipient: Frame,
     donor: Frame,
     *,
+    period: int | str,
     target_families: TargetFamilies | None = None,
     donor_spine: str = ASEC_PUF_DONOR_SPINE,
     donor_channel: str | None = ACS_DONOR_CHANNEL_AUTO,
@@ -1308,7 +1313,9 @@ def transfer_acs_inputs(
 ) -> AcsTransferResult:
     """Impute requested missing leaves from ``donor`` onto ``recipient``.
 
-    ``target_families`` is an ``entity -> family -> targets`` mapping. Each
+    ``period`` is the dataset period whose active formula/delegation coverage
+    determines whether each target is an input leaf. ``target_families`` is an
+    ``entity -> family -> targets`` mapping. Each
     family is split into recipient optional-predictor availability patterns.
     Every pattern gets a separately seeded QRF fit on donor rows complete for
     every family target and finite for exactly the predictors that pattern
@@ -1389,7 +1396,7 @@ def transfer_acs_inputs(
         raise ValueError(
             "ACS transfer runtime execution contract differs from its bound input."
         )
-    assert_acs_transfer_targets_are_input_leaves(all_targets)
+    assert_acs_transfer_targets_are_input_leaves(all_targets, period=period)
 
     active = _missing_target_families(requested, recipient=recipient)
     if selected_regime_evidence:

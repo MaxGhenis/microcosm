@@ -1050,6 +1050,7 @@ def _run_all(
     donor_build_summary: dict[str, object] = {}
     donor = _puf_tax_unit_donor_from_h5(
         args.puf_h5,
+        period=args.target_year,
         source_puf_csv=getattr(args, "puf_source_year_csv", None),
         donor_build_summary=donor_build_summary,
     )
@@ -1064,6 +1065,7 @@ def _run_all(
         imputed, weights_audit = impute_and_audit_us_puf_support(
             expanded,
             donor,
+            period=args.target_year,
             seed=args.seed,
             n_estimators=args.n_estimators,
             tail_bound_diagnostics=tail_bound_diagnostics,
@@ -1072,6 +1074,7 @@ def _run_all(
         imputed, weights_audit = impute_and_audit_us_puf_support(
             expanded,
             donor,
+            period=args.target_year,
             seed=args.seed,
             n_estimators=args.n_estimators,
             raw_predictions_callback=lambda predictions: (
@@ -2213,6 +2216,7 @@ def _clone_feature_extraction_stage(
     donor_build_summary: dict[str, object] = {}
     donor = _puf_tax_unit_donor_from_h5(
         args.puf_h5,
+        period=args.target_year,
         source_puf_csv=args.puf_source_year_csv,
         donor_build_summary=donor_build_summary,
     )
@@ -2232,6 +2236,7 @@ def _clone_feature_extraction_stage(
         expanded,
         donor,
         qrf_dir,
+        period=args.target_year,
         seed=args.seed,
         n_estimators=args.n_estimators,
     )
@@ -2285,6 +2290,7 @@ def _capital_gains_tail_transfer_stage(
     if tail_donor is None:
         tail_donor = _puf_tax_unit_donor_from_h5(
             args.puf_h5,
+            period=args.target_year,
             source_puf_csv=args.puf_source_year_csv,
         )
     transferred, manifest = transfer_puf_capital_gains_tail(
@@ -2964,6 +2970,7 @@ def impute_and_audit_us_puf_support(
     expanded: Frame,
     donor: pd.DataFrame,
     *,
+    period: int | str,
     seed: int,
     n_estimators: int,
     predictors: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
@@ -3016,6 +3023,7 @@ def impute_and_audit_us_puf_support(
     imputed = impute_us_puf_tax_detail_support(
         expanded,
         donor,
+        period=period,
         predictors=predictors,
         person_outputs=person_outputs,
         tax_unit_outputs=tax_unit_outputs,
@@ -3229,6 +3237,7 @@ def _read_h5_arrays(path: Path) -> dict[str, np.ndarray]:
 def _puf_tax_unit_donor_from_h5(
     path: Path,
     *,
+    period: int | str,
     source_puf_csv: Path | None,
     donor_build_summary: dict[str, object] | None = None,
 ) -> pd.DataFrame:
@@ -3247,6 +3256,7 @@ def _puf_tax_unit_donor_from_h5(
     )
     return puf_tax_unit_donor_from_arrays(
         arrays,
+        period=period,
         adjusted_gross_income=adjusted_gross_income,
         donor_build_summary=donor_build_summary,
     )

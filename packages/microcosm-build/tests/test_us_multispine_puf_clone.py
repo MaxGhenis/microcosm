@@ -166,6 +166,7 @@ def test_puf_qrf_preparation_accepts_all_source_spines() -> None:
         ),
         person_outputs=("taxable_interest_income",),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     recipients = cloned.table("tax_unit").loc[inputs.recipient_features.index]

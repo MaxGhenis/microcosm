@@ -91,9 +91,7 @@ def _stacked_capital_gain_table(*, entity: str, output: str) -> pd.DataFrame:
             support_channel_column(entity): np.repeat(
                 ["asec", "acs", "asec", "acs", "asec", "acs"], rows
             ),
-            support_clone_index_column(entity): np.repeat(
-                [0, 0, 1, 1, 2, 2], rows
-            ),
+            support_clone_index_column(entity): np.repeat([0, 0, 1, 1, 2, 2], rows),
             support_source_id_column(entity): np.tile(
                 np.concatenate(
                     [
@@ -109,9 +107,7 @@ def _stacked_capital_gain_table(*, entity: str, output: str) -> pd.DataFrame:
         }
     )
     table[output] = 0.0
-    positives_per_arm = (
-        1 if output == "long_term_capital_gains_on_collectibles" else 4
-    )
+    positives_per_arm = 1 if output == "long_term_capital_gains_on_collectibles" else 4
     for arm in (2, 3, 4, 5):
         table.loc[
             arm * rows : arm * rows + positives_per_arm - 1,
@@ -275,6 +271,7 @@ def test_processed_puf_arrays_preserve_identifiable_tax_unit_totals() -> None:
         },
         person_outputs=("long_term_capital_gains_on_collectibles",),
         tax_unit_outputs=("unrecaptured_section_1250_gain",),
+        period=2024,
     )
 
     assert donor["long_term_capital_gains_on_collectibles"].tolist() == [0.0, 300.0]
@@ -330,12 +327,18 @@ def test_signal_gate_accepts_both_stacked_leaves_with_native_zero() -> None:
     result = us_capital_gain_details_signal_gate(frame)  # type: ignore[arg-type]
 
     assert result.passed, result.failures
-    assert result.details["long_term_capital_gains_on_collectibles"]["channels"][
-        "puf_tax_detail"
-    ]["positive_rows"] == 4
-    assert result.details["unrecaptured_section_1250_gain"]["channels"][
-        "puf_tax_detail"
-    ]["positive_rows"] == 16
+    assert (
+        result.details["long_term_capital_gains_on_collectibles"]["channels"][
+            "puf_tax_detail"
+        ]["positive_rows"]
+        == 4
+    )
+    assert (
+        result.details["unrecaptured_section_1250_gain"]["channels"]["puf_tax_detail"][
+            "positive_rows"
+        ]
+        == 16
+    )
 
 
 @pytest.mark.parametrize(

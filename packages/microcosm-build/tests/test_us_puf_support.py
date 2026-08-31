@@ -358,6 +358,7 @@ def test_puf_tax_unit_donor_from_arrays_aggregates_person_values() -> None:
             "unemployment_compensation",
         ),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["employment_income_before_lsr"].tolist() == [12.0, 11.0]
@@ -448,6 +449,7 @@ def test_puf_tax_unit_donor_quarantines_only_mortgage_fields() -> None:
             "second_home_mortgage_interest",
         ),
         donor_build_summary=summary,
+        period=2024,
     )
 
     assert len(donor) == 3
@@ -571,6 +573,7 @@ def test_puf_tax_unit_donor_rejects_reserved_screen_column_output() -> None:
             },
             person_outputs=("_raw_home_mortgage_interest_for_outlier_screen",),
             tax_unit_outputs=(),
+            period=2024,
         )
 
 
@@ -735,6 +738,7 @@ def test_puf_tax_unit_donor_derives_qualified_tuition_from_raw_fields() -> None:
         },
         person_outputs=("qualified_tuition_expenses",),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["qualified_tuition_expenses"].tolist() == [3_000.0, 4_000.0]
@@ -751,6 +755,7 @@ def test_puf_tax_unit_donor_carries_person_educator_expense() -> None:
         },
         person_outputs=("educator_expense",),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["educator_expense"].tolist() == [300.0, 0.0]
@@ -767,6 +772,7 @@ def test_puf_tax_unit_donor_carries_person_casualty_losses() -> None:
         },
         person_outputs=("casualty_loss",),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["casualty_loss"].tolist() == [3_000.0, 4_000.0]
@@ -784,6 +790,7 @@ def test_puf_tax_unit_donor_carries_both_person_alimony_leaves() -> None:
         },
         person_outputs=("alimony_income", "alimony_expense"),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["alimony_income"].tolist() == [3_000.0, 4_000.0]
@@ -802,6 +809,7 @@ def test_puf_tax_unit_donor_carries_person_misc_itemized_expenses() -> None:
         },
         person_outputs=(output,),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor[output].tolist() == [3_000.0, 4_000.0]
@@ -823,6 +831,7 @@ def test_puf_tax_unit_donor_carries_ald_contribution_leaves() -> None:
             "self_employed_pension_contributions_desired",
         ),
         tax_unit_outputs=("health_savings_account_ald",),
+        period=2024,
     )
 
     assert donor["traditional_ira_contributions_desired"].tolist() == [
@@ -850,6 +859,7 @@ def test_puf_tax_detail_refuses_self_employed_ald_aggregates_as_outputs() -> Non
             arrays,
             person_outputs=("self_employed_pension_contribution_ald",),
             tax_unit_outputs=(),
+            period=2024,
         )
 
 
@@ -867,6 +877,7 @@ def test_puf_tax_detail_refuses_formula_owned_outputs() -> None:
             arrays,
             person_outputs=(),
             tax_unit_outputs=("interest_deduction",),
+            period=2024,
         )
 
     expanded = clone_us_frame_for_puf_support(_minimal_us_frame())
@@ -890,6 +901,7 @@ def test_puf_tax_detail_refuses_formula_owned_outputs() -> None:
             tax_unit_outputs=("interest_deduction",),
             n_estimators=4,
             seed=0,
+            period=2024,
         )
 
 
@@ -907,7 +919,8 @@ class _FakeFormulaOwnedEngine:
     def __init__(self, formula_owned: set[str]) -> None:
         self._formula_owned = set(formula_owned)
 
-    def formula_owned_outputs(self, names) -> set[str]:
+    def formula_owned_outputs(self, names, *, period) -> set[str]:
+        assert period == 2024
         return set(names) & self._formula_owned
 
 
@@ -923,7 +936,7 @@ def test_resolve_formula_owned_outputs_unions_static_seed_with_engine() -> None:
         "employment_income_before_lsr",  # legitimate leaf input
     }
 
-    rejected = resolve_formula_owned_outputs(requested, engine=engine)
+    rejected = resolve_formula_owned_outputs(requested, period=2024, engine=engine)
 
     assert rejected == {"income_tax", "interest_deduction"}
 
@@ -935,7 +948,9 @@ def test_resolve_formula_owned_outputs_always_applies_static_seed() -> None:
     empty_engine = _FakeFormulaOwnedEngine(set())
     requested = {"interest_deduction", "employment_income_before_lsr"}
 
-    assert resolve_formula_owned_outputs(requested, engine=empty_engine) == {
+    assert resolve_formula_owned_outputs(
+        requested, period=2024, engine=empty_engine
+    ) == {
         "interest_deduction",
     }
 
@@ -944,7 +959,7 @@ def test_assert_formula_owned_blocklist_current_passes_when_engine_agrees() -> N
     # Reverse-direction check: every static-seed entry the engine still reports
     # as formula-owned is fine — no drift, no error.
     agreeing_engine = _FakeFormulaOwnedEngine(set(PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS))
-    assert_formula_owned_blocklist_current(agreeing_engine)
+    assert_formula_owned_blocklist_current(agreeing_engine, period=2024)
 
 
 def test_assert_formula_owned_blocklist_current_flags_stale_entries() -> None:
@@ -957,7 +972,7 @@ def test_assert_formula_owned_blocklist_current_flags_stale_entries() -> None:
     drifted_engine = _FakeFormulaOwnedEngine(still_owned)
 
     with pytest.raises(ValueError, match=stale):
-        assert_formula_owned_blocklist_current(drifted_engine)
+        assert_formula_owned_blocklist_current(drifted_engine, period=2024)
 
 
 def test_resolve_formula_owned_outputs_engine_none_falls_back_to_static() -> None:
@@ -968,7 +983,9 @@ def test_resolve_formula_owned_outputs_engine_none_falls_back_to_static() -> Non
     puf_support_module._formula_owned_engine = lambda: None
     try:
         requested = {"interest_deduction", "employment_income_before_lsr"}
-        assert resolve_formula_owned_outputs(requested) == {"interest_deduction"}
+        assert resolve_formula_owned_outputs(requested, period=2024) == {
+            "interest_deduction"
+        }
     finally:
         importlib.reload(puf_support_module)
 
@@ -976,8 +993,15 @@ def test_resolve_formula_owned_outputs_engine_none_falls_back_to_static() -> Non
 class _ImportErrorEngine:
     """An adapter whose lazy policyengine_us import is missing at call time."""
 
-    def formula_owned_outputs(self, names):
+    def formula_owned_outputs(self, names, *, period):
         raise ImportError("No module named 'policyengine_us'")
+
+
+class _UnboundedDelegationEngine:
+    def formula_owned_outputs(self, names, *, period):
+        raise RuntimeError(
+            f"unbounded delegation for {sorted(names)} in period {period}"
+        )
 
 
 def test_resolve_formula_owned_outputs_degrades_on_engine_import_error() -> None:
@@ -987,16 +1011,29 @@ def test_resolve_formula_owned_outputs_degrades_on_engine_import_error() -> None
     # to the static seed exactly like having no engine, not abort the build.
     requested = {"interest_deduction", "employment_income_before_lsr"}
 
-    rejected = resolve_formula_owned_outputs(requested, engine=_ImportErrorEngine())
+    rejected = resolve_formula_owned_outputs(
+        requested,
+        period=2024,
+        engine=_ImportErrorEngine(),
+    )
 
     assert rejected == {"interest_deduction"}
+
+
+def test_resolve_formula_owned_outputs_propagates_unbounded_delegation() -> None:
+    with pytest.raises(RuntimeError, match="unbounded delegation"):
+        resolve_formula_owned_outputs(
+            {"delegated_input"},
+            period=2024,
+            engine=_UnboundedDelegationEngine(),
+        )
 
 
 def test_blocklist_current_check_noops_on_engine_import_error() -> None:
     # Same degradation for the reverse-direction check: a call-time
     # ImportError means no metadata is available, so the check is a no-op
     # rather than a build failure.
-    assert_formula_owned_blocklist_current(_ImportErrorEngine())
+    assert_formula_owned_blocklist_current(_ImportErrorEngine(), period=2024)
 
 
 def test_resolve_formula_owned_outputs_catches_index_output_off_static_list() -> None:
@@ -1013,7 +1050,7 @@ def test_resolve_formula_owned_outputs_catches_index_output_off_static_list() ->
     }
     assert "income_tax" not in PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS
 
-    rejected = resolve_formula_owned_outputs(requested)
+    rejected = resolve_formula_owned_outputs(requested, period=2024)
 
     assert "income_tax" in rejected
     assert "employment_income_before_lsr" not in rejected
@@ -1026,11 +1063,14 @@ def test_static_seed_is_subset_of_index_derived_formula_owned_set() -> None:
     # declares as an input. Equivalently, the drift check passes against the
     # pinned package metadata.
     engine = _installed_variable_metadata_index()
-    engine_derived = engine.formula_owned_outputs(PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS)
+    engine_derived = engine.formula_owned_outputs(
+        PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS,
+        period=2024,
+    )
 
     assert PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS <= set(engine_derived)
     # And the guard's own consistency check agrees.
-    assert_formula_owned_blocklist_current(engine)
+    assert_formula_owned_blocklist_current(engine, period=2024)
 
 
 def test_cps_carried_derivations_create_leaf_inputs_not_aggregates() -> None:
@@ -1291,16 +1331,12 @@ def test_policyengine_broadcasts_annual_reported_enrollment_to_each_month(
         "spm_units": {
             "unit_100": {
                 "members": ["person_1", "person_2"],
-                "receives_tanf": {
-                    "2024": bool(spm_flags.loc[100, "receives_tanf"])
-                },
+                "receives_tanf": {"2024": bool(spm_flags.loc[100, "receives_tanf"])},
                 "receives_snap": {"2024": bool(spm_flags.loc[100, "receives_snap"])},
             },
             "unit_200": {
                 "members": ["person_3"],
-                "receives_tanf": {
-                    "2024": bool(spm_flags.loc[200, "receives_tanf"])
-                },
+                "receives_tanf": {"2024": bool(spm_flags.loc[200, "receives_tanf"])},
                 "receives_snap": {"2024": bool(spm_flags.loc[200, "receives_snap"])},
             },
         },
@@ -1395,6 +1431,7 @@ def test_cps_carried_derivations_unblock_default_puf_predictors() -> None:
         tax_unit_outputs=(),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
 
     puf_people = imputed.table("person")[
@@ -1465,6 +1502,7 @@ def test_puf_tax_detail_snaps_sparse_taxable_interest_to_observed_zero(
         tax_unit_outputs=(),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
 
     puf_people = imputed.table("person")[
@@ -1535,6 +1573,7 @@ def test_puf_tax_detail_preserves_sparse_educator_rate_and_earnings_allocation(
         tax_unit_outputs=(),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
 
     person = imputed.table("person")
@@ -1602,6 +1641,7 @@ def test_puf_tax_unit_donor_derives_partnership_and_s_corp_split_from_raw_fields
             "over_the_counter_health_expenses",
         ),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["partnership_income"].tolist() == [45.0, 60.0]
@@ -1642,6 +1682,7 @@ def test_puf_tax_unit_donor_carries_structural_mortgage_leaves() -> None:
         adjusted_gross_income=[0.0, 10_000_000.0],
         person_outputs=(),
         tax_unit_outputs=PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
+        period=2024,
     )
 
     assert donor["health_savings_account_ald"].tolist() == [1_500.0, 0.0]
@@ -1695,6 +1736,7 @@ def test_puf_tax_unit_donor_carries_processed_partnership_s_corp_as_leaves() -> 
             "partnership_self_employment_net_earnings",
         ),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["partnership_income"].tolist() == [1_000.0, 2_000.0]
@@ -1725,6 +1767,7 @@ def test_puf_tax_detail_imputation_writes_only_puf_channel() -> None:
         tax_unit_outputs=(),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
 
     person = imputed.table("person")
@@ -1786,6 +1829,7 @@ def test_puf_tax_detail_imputation_distributes_contributions_by_earnings() -> No
         tax_unit_outputs=(),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
 
     person = imputed.table("person")
@@ -1882,6 +1926,7 @@ def test_puf_tax_detail_imputation_reconciles_social_security_components(
         tax_unit_outputs=(),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
 
     person = imputed.table("person")
@@ -1960,6 +2005,7 @@ def test_puf_tax_detail_imputation_snaps_origination_years_to_donor_values(
         ),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
 
     puf_tax_units = imputed.table("tax_unit")[
@@ -2009,6 +2055,7 @@ class TestPufSupportWeightsAuditWiring:
             n_estimators=4,
             seed=0,
             fit_records=fit_records,
+            period=2024,
         )
 
     def test_production_fit_records_design_weight_kind(self) -> None:
@@ -2059,6 +2106,7 @@ class TestPufSupportWeightsAuditWiring:
             tax_unit_outputs=(),
             n_estimators=4,
             seed=0,
+            period=2024,
         )
         assert imputed.table("person") is not None
 
@@ -2100,6 +2148,7 @@ class TestPufSupportWeightsAuditWiring:
             n_estimators=4,
             seed=0,
             fit_records=fit_records,
+            period=2024,
         )
 
         assert fit_records == [FitWeightRecord(US_PUF_SUPPORT_FIT_NAME, "design")]
@@ -2265,6 +2314,7 @@ def test_finalize_pins_signed_person_leg_masses_to_loss_heavy_donor(
         tax_unit_outputs=(),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
 
     final_pos, final_neg = _puf_channel_person_legs(imputed, column)
@@ -2345,6 +2395,7 @@ def test_regime_gated_qrf_farm_net_flips_and_calibration_restores_the_source_sig
         raw_predictions_callback=lambda predictions: raw_holder.__setitem__(
             "raw", predictions[column].to_numpy().copy()
         ),
+        period=2024,
     )
 
     # Recover the recipient tax-unit weights to score the raw draw's national net.

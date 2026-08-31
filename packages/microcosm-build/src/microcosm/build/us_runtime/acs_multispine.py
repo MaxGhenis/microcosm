@@ -70,6 +70,7 @@ def build_optional_acs_multispine(
     base: Frame,
     source: AcsPumsSource | None = None,
     *,
+    period: int | str,
     chunksize: int = DEFAULT_CHUNKSIZE,
     acs_share: float = 0.5,
     target_families: TargetFamilies | None = None,
@@ -87,7 +88,9 @@ def build_optional_acs_multispine(
     """Optionally build, transfer, and append the ACS 2024 1-year spine.
 
     The already-built ``base`` is both the ASEC-by-PUF transfer donor and the
-    pool being augmented.  Calibration is intentionally outside this seam.
+    pool being augmented. ``period`` is the dataset period used for ownership
+    classification; it is deliberately independent of the ACS source vintage.
+    Calibration is intentionally outside this seam.
 
     Large intermediate frames are released as soon as the next stage has
     materialized its own frame.  This cannot make the final dense pool small,
@@ -127,6 +130,7 @@ def build_optional_acs_multispine(
     transferred = transfer_acs_inputs(
         mapped_frame,
         base,
+        period=period,
         target_families=target_families,
         donor_spine=donor_spine,
         donor_channel=donor_channel,

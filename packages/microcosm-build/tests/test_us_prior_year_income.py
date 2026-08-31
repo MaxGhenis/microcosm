@@ -411,10 +411,7 @@ def _with_stack_manifest(
     return Frame(
         {entity: frame.table(entity).copy() for entity in frame.entities},
         frame.schema,
-        {
-            entity: frame.weights_for(entity)
-            for entity in frame.weighted_entities
-        },
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
         frame.strata,
         mass_log=frame.mass_log,
         metadata={"us_stacked_spine_manifest": manifest},
@@ -452,9 +449,9 @@ def test_sampled_rung_scales_only_prior_year_availability_floor() -> None:
     assert gate.details[
         "previous_year_income_available_sampled_match_survival_factor"
     ] == pytest.approx(0.25)
-    assert gate.details["previous_year_income_available_applied_floor"] == pytest.approx(
-        0.0125
-    )
+    assert gate.details[
+        "previous_year_income_available_applied_floor"
+    ] == pytest.approx(0.0125)
     assert gate.details["previous_year_income_available_applied_share_band"] == [
         0.0125,
         0.50,
@@ -504,7 +501,9 @@ def test_full_rung_gate_manifest_is_byte_identical_to_legacy_gate() -> None:
 
     assert full_rung == legacy
     assert manifest_bytes(full_rung) == manifest_bytes(legacy)
-    assert not any("applied" in key or "survival_factor" in key for key in full_rung.details)
+    assert not any(
+        "applied" in key or "survival_factor" in key for key in full_rung.details
+    )
 
 
 def test_legacy_acs_only_sampling_does_not_scale_asec_match_floor() -> None:
@@ -624,10 +623,13 @@ def test_release_contract_promotes_both_persisted_inputs_without_wage_formula() 
 @requires_us
 def test_policyengine_17646_input_and_dependency_contract() -> None:
     engine = PolicyEngineUSEngine()
-    assert set(US_PRIOR_YEAR_INCOME_PERSISTED_OUTPUT_COLUMNS) <= set(engine.variables())
-    assert engine.formula_owned_outputs(US_PRIOR_YEAR_INCOME_OUTPUT_COLUMNS) == {
-        "employment_income_last_year"
-    }
+    assert set(US_PRIOR_YEAR_INCOME_PERSISTED_OUTPUT_COLUMNS) <= set(
+        engine.input_variables(period=2024)
+    )
+    assert engine.formula_owned_outputs(
+        US_PRIOR_YEAR_INCOME_OUTPUT_COLUMNS,
+        period=2024,
+    ) == {"employment_income_last_year"}
     system = engine._tax_benefit_system()
     assert system.variables["earned_income_last_year"].adds == [
         "employment_income_last_year",

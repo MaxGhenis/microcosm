@@ -32,6 +32,7 @@ import pandas as pd
 
 from microcosm.frame.adapters._policyengine_us_source_index import (
     ConsumerReceipt,
+    VariableOwnership,
     _PolicyEngineUSSourceIndex,
     _SourceVariableDefinition,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "PolicyEngineUSEngine",
     "PolicyEngineUSVariableMetadataIndex",
     "VariableDependencyClosure",
+    "VariableOwnership",
 ]
 
 _PERSON_TABLE = "person"
@@ -241,7 +243,8 @@ def _index_policyengine_us_generated_variable_sources(
                     dtype=dtype,
                     period="year",
                 ),
-                always_computed=formula_owned,
+                dynamic_formula=formula_owned,
+                aggregation=False,
                 formula_starts=(),
             )
     return MappingProxyType(definitions)
@@ -310,12 +313,46 @@ class PolicyEngineUSVariableMetadataIndex:
         return definition.metadata
 
     def variables(self) -> list[str]:
+        """Return the deliberately static, all-vintage input projection.
+
+        This preserves the shared :class:`RulesEngine` and pinned pool ABI.
+        Dataset-dated ownership callers must use :meth:`input_variables`.
+        """
+
         return sorted(
             name
             for name, definition in self._definitions.items()
             if name not in _FORMULA_OWNED_COMPAT_COLUMNS
             and not definition.formula_owned
         )
+
+    def input_variables(self, *, period: int | str) -> list[str]:
+        """Return input leaves whose formula coverage is inactive in ``period``."""
+
+        return sorted(
+            name
+            for name, definition in self._definitions.items()
+            if name not in _FORMULA_OWNED_COMPAT_COLUMNS
+            and not definition.computed_at(period)
+        )
+
+    def variable_ownership(
+        self,
+        name: str,
+        *,
+        period: int | str,
+    ) -> VariableOwnership:
+        """Return the engine owner, retaining carry-forward delegation.
+
+        This reports source ownership only. Adapter compatibility exclusions
+        remain a separate persistence policy applied by
+        :meth:`formula_owned_outputs` and :meth:`input_variables`.
+        """
+
+        definition = self._definitions.get(name)
+        if definition is None:
+            raise ValueError(f"Unknown PolicyEngine-US source variable {name!r}.")
+        return definition.ownership_at(period)
 
     def consumer_receipts(self, name: str) -> tuple[ConsumerReceipt, ...]:
         """Return immutable external reference sites for an engine variable."""
@@ -325,13 +362,15 @@ class PolicyEngineUSVariableMetadataIndex:
         return self._consumers.get(name, ())
 
     def variable_dependency_closure(self, name: str) -> VariableDependencyClosure:
-        """Return the statically authenticated transitive graph for ``name``.
+        """Return the static, all-vintage dependency graph for ``name``.
 
         The source index records references in the target-to-consumer
         direction.  This method inverts those receipts, walks outward from the
-        requested output, and classifies each reachable definition exactly as
-        :meth:`variables` does.  Multiple source sites for the same reference
-        collapse to one semantic edge.
+        requested output, and classifies each reachable definition using the
+        deliberately all-vintage :meth:`variables` projection. Consumer
+        receipts do not carry formula activation intervals, so this API must
+        not claim period-resolved edge semantics. Multiple source sites for the
+        same reference collapse to one semantic edge.
         """
 
         if name not in self._definitions:
@@ -384,13 +423,18 @@ class PolicyEngineUSVariableMetadataIndex:
             sha256=digest,
         )
 
-    def formula_owned_outputs(self, names: Iterable[str]) -> set[str]:
+    def formula_owned_outputs(
+        self,
+        names: Iterable[str],
+        *,
+        period: int | str,
+    ) -> set[str]:
         requested = set(names)
         return set(requested & _FORMULA_OWNED_COMPAT_COLUMNS) | {
             name
             for name in requested
             if (definition := self._definitions.get(name)) is not None
-            and definition.formula_owned
+            and definition.computed_at(period)
         }
 
     def _engine_computed_columns(
@@ -424,10 +468,20 @@ def _is_engine_computed(variable: Any, period: int | str | None = None) -> bool:
     variables. Formula-owned outputs may be backed by a direct formula or a
     formula mapping keyed by start date.
     """
+    if period is not None:
+        from policyengine_core import periods
+
+        coverage_end = getattr(variable, "end", None)
+        if (
+            coverage_end is not None
+            and periods.period(str(period)).start.date > coverage_end
+        ):
+            return False
+        if getattr(variable, "adds", None) or getattr(variable, "subtracts", None):
+            return True
+        return variable.get_formula(str(period)) is not None
     if getattr(variable, "adds", None) or getattr(variable, "subtracts", None):
         return True
-    if period is not None:
-        return variable.get_formula(str(period)) is not None
     if getattr(variable, "formula", None) is not None:
         return True
     formulas = getattr(variable, "formulas", None)
@@ -515,6 +569,7 @@ class PolicyEngineUSEngine:
         self._contract = contract if contract is not None else ExportContract.empty()
         self._defaults = dict(defaults or {})
         self._system: Any = None
+        self._source_metadata: PolicyEngineUSVariableMetadataIndex | None = None
 
     # ------------------------------------------------------------------
     # Variable metadata
@@ -543,10 +598,12 @@ class PolicyEngineUSEngine:
         )
 
     def variables(self) -> list[str]:
-        """Return the engine's input variable names (those without a formula).
+        """Return the static input projection with all formula vintages removed.
 
-        Computed/formula-owned variables are excluded — a pool produces inputs,
-        not outputs.
+        This periodless method preserves the shared :class:`RulesEngine` ABI
+        and pinned pool identities. Dataset-dated callers must use
+        :meth:`input_variables`; this projection deliberately excludes a
+        variable if the engine computes it in any period.
 
         Raises:
             ImportError: If ``policyengine_us`` is not installed.
@@ -559,8 +616,31 @@ class PolicyEngineUSEngine:
             and not _is_engine_computed(variable)
         )
 
-    def formula_owned_outputs(self, names: Iterable[str]) -> set[str]:
-        """Return which of ``names`` are engine formula-owned, not input leaves.
+    def input_variables(self, *, period: int | str) -> list[str]:
+        """Return the engine input leaves effective in ``period``."""
+
+        return self._source_metadata_index().input_variables(period=period)
+
+    def variable_ownership(
+        self,
+        name: str,
+        *,
+        period: int | str,
+    ) -> VariableOwnership:
+        """Return the dated owner, including carry-forward delegation chains."""
+
+        return self._source_metadata_index().variable_ownership(
+            name,
+            period=period,
+        )
+
+    def formula_owned_outputs(
+        self,
+        names: Iterable[str],
+        *,
+        period: int | str,
+    ) -> set[str]:
+        """Return which ``names`` are engine-computed in ``period``.
 
         A name is formula-owned when the tax-benefit system computes it —
         directly or through an ``adds``/``subtracts`` aggregation or a
@@ -568,10 +648,12 @@ class PolicyEngineUSEngine:
         compatibility-blocked aggregates the adapter refuses to persist even
         though some published wheels still report them as inputs
         (:data:`_FORMULA_OWNED_COMPAT_COLUMNS`). This is the complement of
-        :meth:`variables` restricted to ``names``: persisting a formula-owned
-        variable as a dataset input pins its baseline and masks reforms, so
-        callers deriving an imputation/export surface reject exactly this set
-        instead of maintaining a hand-written blocklist that goes stale as
+        :meth:`input_variables` restricted to ``names``. A pure prior-year
+        self-reference is computed but classified by the source metadata as a
+        delegation to its material owner; it remains unsafe to persist in the
+        delegated period because doing so masks the carry-forward. Callers
+        deriving an imputation/export surface reject exactly this set instead
+        of maintaining a hand-written blocklist that goes stale as
         PolicyEngine-US adds variables (microcosm issue #301).
 
         Names unknown to the tax-benefit system are not flagged: they cannot be
@@ -581,16 +663,10 @@ class PolicyEngineUSEngine:
         Raises:
             ImportError: If ``policyengine_us`` is not installed.
         """
-        variables = self._tax_benefit_system().variables
-        flagged: set[str] = set()
-        for name in names:
-            if name in _FORMULA_OWNED_COMPAT_COLUMNS:
-                flagged.add(name)
-                continue
-            variable = variables.get(name)
-            if variable is not None and _is_engine_computed(variable):
-                flagged.add(name)
-        return flagged
+        return self._source_metadata_index().formula_owned_outputs(
+            names,
+            period=period,
+        )
 
     def take_up_variables(self) -> list[str]:
         """Return the engine's take-up-flag variable names, sorted.
@@ -613,6 +689,10 @@ class PolicyEngineUSEngine:
 
     def take_up_contract(self) -> dict[str, dict[str, object]]:
         """Classify every take-up variable against the installed engine.
+
+        This is a deliberately static, all-vintage ABI used to generate the
+        checked-in take-up contract. It is not a dataset-period ownership
+        classifier; dated input decisions use :meth:`input_variables`.
 
         For each name from :meth:`take_up_variables`, report the engine facts
         that decide whether the dataset must seed the flag:
@@ -683,8 +763,13 @@ class PolicyEngineUSEngine:
             }
         return contract
 
-    def default_values(self, names: Sequence[str]) -> dict[str, object]:
-        """Return engine default values for the given input variable names.
+    def default_values(
+        self,
+        names: Sequence[str],
+        *,
+        period: int | str,
+    ) -> dict[str, object]:
+        """Return defaults for the input variables effective in ``period``.
 
         Only names the tax-benefit system knows as non-formula input
         variables with a declared default are returned; unknown names and
@@ -696,10 +781,11 @@ class PolicyEngineUSEngine:
             ImportError: If ``policyengine_us`` is not installed.
         """
         variables = self._tax_benefit_system().variables
+        input_names = set(self.input_variables(period=period))
         defaults: dict[str, object] = {}
         for name in names:
             variable = variables.get(name)
-            if variable is None or _is_engine_computed(variable):
+            if variable is None or name not in input_names:
                 continue
             default = getattr(variable, "default_value", None)
             if default is None:
@@ -879,6 +965,11 @@ class PolicyEngineUSEngine:
         if self._system is None:
             self._system = self._import_policyengine_us().CountryTaxBenefitSystem()
         return self._system
+
+    def _source_metadata_index(self) -> PolicyEngineUSVariableMetadataIndex:
+        if self._source_metadata is None:
+            self._source_metadata = PolicyEngineUSVariableMetadataIndex()
+        return self._source_metadata
 
     def _variable(self, name: str) -> Any:
         variables = self._tax_benefit_system().variables

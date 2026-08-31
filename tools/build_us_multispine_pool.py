@@ -1117,6 +1117,7 @@ def _load_puf_donor(
     donor = load_puf_tax_unit_donor(
         args.puf_h5,
         args.puf_source_year_csv,
+        period=POOL_TIME_PERIOD,
         donor_build_summary=donor_build,
     )
     return donor, donor_build
@@ -3051,6 +3052,7 @@ def _initialize_or_resume_primary_qrf(
         frame,
         donor,
         checkpoint_dir,
+        period=POOL_TIME_PERIOD,
         seed=POOL_RANDOM_SEED,
         n_estimators=_PRIMARY_QRF_N_ESTIMATORS,
     )
@@ -3116,6 +3118,7 @@ def _impute_pool(
     transferred = transfer_acs_inputs(
         source_completion.frame,
         source_completion.frame,
+        period=POOL_TIME_PERIOD,
         target_families=transfer_families,
         donor_channel=ACS_DONOR_CHANNEL_AUTO,
         seed=POOL_RANDOM_SEED,

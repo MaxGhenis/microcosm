@@ -535,6 +535,8 @@ def us_release_reform_coverage_probes() -> tuple[ReformCoverageProbe, ...]:
 def _degenerate_columns(
     column_values: Mapping[str, Any],
     engine: Any,
+    *,
+    period: int | str,
 ) -> tuple[set[str], set[str]]:
     """Degenerate columns and the subset with no finite/non-null observations.
 
@@ -544,7 +546,7 @@ def _degenerate_columns(
     """
     from microcosm.build.gates import default_valued_columns_gate
 
-    defaults = engine.default_values(sorted(column_values))
+    defaults = engine.default_values(sorted(column_values), period=period)
     classification = default_valued_columns_gate(column_values, defaults)
     return (
         set(classification.details["default_valued_columns"]),
@@ -556,6 +558,7 @@ def us_release_input_coverage_gate(
     frame: Any,
     engine: Any,
     *,
+    period: int | str,
     manifest: ReleaseInputCoverageManifest | None = None,
 ) -> GateResult:
     """Build the named US release input-column coverage gate for an export frame.
@@ -571,6 +574,7 @@ def us_release_input_coverage_gate(
     Args:
         frame: The export :class:`microcosm.frame.Frame`.
         engine: A ``PolicyEngineUSEngine`` (for input-variable defaults).
+        period: Dataset period used to resolve effective engine input defaults.
         manifest: Override the shipped manifest (tests).
 
     Returns:
@@ -597,7 +601,11 @@ def us_release_input_coverage_gate(
         if "household" in frame.weighted_entities:
             present_values["household_weight"] = frame.weights_for("household").values
 
-    degenerate, no_observed = _degenerate_columns(present_values, engine)
+    degenerate, no_observed = _degenerate_columns(
+        present_values,
+        engine,
+        period=period,
+    )
     return input_column_coverage_gate(
         present_values.keys(),
         required_columns=required,
@@ -634,12 +642,8 @@ def _ecps_populated_layers() -> frozenset[str]:
             f"{_ECPS_PARITY_REFERENCE_RESOURCE}: 'nonzero_shares' must be a "
             "non-empty JSON object."
         )
-    historical = {
-        str(name) for name, share in shares.items() if float(share) > 0.0
-    }
-    projected = {
-        REFERENCE_ECPS_LAYER_RENAMES.get(name, name) for name in historical
-    }
+    historical = {str(name) for name, share in shares.items() if float(share) > 0.0}
+    projected = {REFERENCE_ECPS_LAYER_RENAMES.get(name, name) for name in historical}
     if len(projected) != len(historical):
         raise ValueError(
             f"{_ECPS_PARITY_REFERENCE_RESOURCE}: reference-layer rename "
@@ -650,6 +654,7 @@ def _ecps_populated_layers() -> frozenset[str]:
 
 def assert_release_input_coverage_manifest_current(
     *,
+    period: int | str,
     engine: Any | None = None,
     manifest: ReleaseInputCoverageManifest | None = None,
 ) -> None:
@@ -664,9 +669,10 @@ def assert_release_input_coverage_manifest_current(
       reform probes. A change to either surface must be reflected here.
     - The three SSI countable-resource asset inputs must be ``required`` with no
       reviewed exclusion — the #368 red-gate guarantee cannot be quietly undone.
-    - Every declared column must be a real PolicyEngine-US input leaf, and every
-      probe's ``binding_inputs`` / ``budget_measure`` must resolve on the live
-      engine, so the contract cannot guard names the engine no longer has.
+    - Every declared column must be a real PolicyEngine-US input leaf in
+      ``period``, and every probe's ``binding_inputs`` / ``budget_measure``
+      must resolve on the live engine, so the contract cannot guard names the
+      engine no longer has.
 
     A no-op for the engine-graph half when no engine is available (the workspace
     test environment); the checked-in-facts half always runs.
@@ -738,7 +744,7 @@ def assert_release_input_coverage_manifest_current(
         engine = _coverage_engine()
     if engine is not None:
         try:
-            input_variables = set(engine.variables())
+            input_variables = set(engine.input_variables(period=period))
         except ImportError:
             input_variables = None
         if input_variables is not None:

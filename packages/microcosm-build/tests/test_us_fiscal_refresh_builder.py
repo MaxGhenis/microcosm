@@ -11462,7 +11462,11 @@ def test_export_input_mass_gate_defaults_to_base_reference(monkeypatch) -> None:
         id(export): {"long_term_capital_gains": 7.02e11, "employment_income": 1.1e13},
         id(base): {"long_term_capital_gains": 2.12e11, "employment_income": 1.1e13},
     }
-    monkeypatch.setattr(builder, "_engine_input_variables", lambda: ())
+    monkeypatch.setattr(
+        builder,
+        "_engine_input_variables",
+        lambda *, period: () if period == builder.PERIOD else pytest.fail(),
+    )
     monkeypatch.setattr(
         builder,
         "us_input_mass_totals",
@@ -11501,7 +11505,11 @@ def test_export_input_mass_gate_passes_against_certified_reference(monkeypatch) 
         id(base): {"long_term_capital_gains": 2.12e11},
         id(reference): {"long_term_capital_gains": 8.64e11},
     }
-    monkeypatch.setattr(builder, "_engine_input_variables", lambda: ())
+    monkeypatch.setattr(
+        builder,
+        "_engine_input_variables",
+        lambda *, period: () if period == builder.PERIOD else pytest.fail(),
+    )
     monkeypatch.setattr(
         builder,
         "us_input_mass_totals",
@@ -11550,7 +11558,11 @@ def test_export_input_mass_gate_still_fails_genuine_drift_vs_reference(
             "health_savings_account_ald": 1.38e10,
         },
     }
-    monkeypatch.setattr(builder, "_engine_input_variables", lambda: ())
+    monkeypatch.setattr(
+        builder,
+        "_engine_input_variables",
+        lambda *, period: () if period == builder.PERIOD else pytest.fail(),
+    )
     monkeypatch.setattr(
         builder,
         "us_input_mass_totals",

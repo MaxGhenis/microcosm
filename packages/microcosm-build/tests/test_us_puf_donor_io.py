@@ -51,9 +51,11 @@ def test_loader_threads_source_alignment_and_summary(
     def fake_donor(
         actual_arrays,
         *,
+        period,
         adjusted_gross_income,
         donor_build_summary,
     ) -> pd.DataFrame:
+        assert period == 2024
         captured["arrays"] = actual_arrays
         captured["adjusted_gross_income"] = adjusted_gross_income
         captured["donor_build_summary"] = donor_build_summary
@@ -76,6 +78,7 @@ def test_loader_threads_source_alignment_and_summary(
         processed_path,
         source_path,
         donor_build_summary=summary,
+        period=2024,
     )
 
     assert actual is expected
@@ -115,7 +118,7 @@ def test_loader_refuses_missing_source_year_path(tmp_path: Path) -> None:
             "to the published TY2015 SOI AGI bands"
         ),
     ):
-        load_puf_tax_unit_donor(processed_path, None)
+        load_puf_tax_unit_donor(processed_path, None, period=2024)
 
 
 def test_loader_surfaces_source_year_recid_order_refusal(tmp_path: Path) -> None:
@@ -144,4 +147,4 @@ def test_loader_surfaces_source_year_recid_order_refusal(tmp_path: Path) -> None
         ValueError,
         match="Processed PUF regular RECID order does not match the TY2015 source",
     ):
-        load_puf_tax_unit_donor(processed_path, source_path)
+        load_puf_tax_unit_donor(processed_path, source_path, period=2024)

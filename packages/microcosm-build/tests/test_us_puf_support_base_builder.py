@@ -461,6 +461,7 @@ class TestBaseBuildWeightsAudit:
             clone_us_frame_for_puf_support(_minimal_us_puf_support_frame()),
             _support_donor(),
             **_SUPPORT_FIT_KWARGS,
+            period=2024,
         )
 
         assert weights_audit["passed"] is True
@@ -477,6 +478,7 @@ class TestBaseBuildWeightsAudit:
             clone_us_frame_for_puf_support(_minimal_us_puf_support_frame()),
             _support_donor(),
             **_SUPPORT_FIT_KWARGS,
+            period=2024,
         )
         round_tripped = json.loads(json.dumps({"weights_audit": weights_audit}))
 
@@ -724,6 +726,7 @@ class TestBaseBuildWeightsAudit:
                 clone_us_frame_for_puf_support(_minimal_us_frame()),
                 _support_donor(),
                 **_SUPPORT_FIT_KWARGS,
+                period=2024,
             )
 
         assert US_PUF_SUPPORT_FIT_NAME in str(exc.value)
@@ -1238,9 +1241,11 @@ def test_puf_donor_builder_threads_explicit_source_year_agi(
     def fake_donor(
         actual_arrays,
         *,
+        period,
         adjusted_gross_income,
         donor_build_summary,
     ):
+        assert period == 2024
         captured["arrays"] = actual_arrays
         captured["adjusted_gross_income"] = adjusted_gross_income
         captured["donor_build_summary"] = donor_build_summary
@@ -1256,6 +1261,7 @@ def test_puf_donor_builder_threads_explicit_source_year_agi(
             path,
             source_puf_csv=source_path,
             donor_build_summary=donor_build_summary,
+            period=2024,
         )
         == "donor"
     )
@@ -2263,10 +2269,21 @@ def test_main_runs_cps_only_inputs_before_clone_and_after_puf_then_fails_gate(
         "clone_us_frame_for_puf_support",
         lambda frame: "expanded",
     )
+    def fake_puf_donor(
+        _path,
+        *,
+        period,
+        source_puf_csv,
+        donor_build_summary,
+    ):
+        assert period == 2024
+        assert source_puf_csv is not None
+        assert donor_build_summary == {}
+
     monkeypatch.setattr(
         builder,
         "_puf_tax_unit_donor_from_h5",
-        lambda path, *, source_puf_csv, donor_build_summary: None,
+        fake_puf_donor,
     )
     monkeypatch.setattr(
         builder,

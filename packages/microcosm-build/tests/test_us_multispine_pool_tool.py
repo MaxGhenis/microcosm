@@ -1309,13 +1309,11 @@ def _canonical_late_structural_reconciliation_receipts(
     for group in stacked_spine_module.CANONICAL_US_LATE_TRANSFER_GROUPS:
         if group.name not in special_names:
             continue
-        policy = (
-            stacked_spine_module._late_transfer_structural_reconciliation_policy_identity(
-                group_name=group.name,
-                entity=group.entity,
-                family=group.family,
-                targets=group.targets,
-            )
+        policy = stacked_spine_module._late_transfer_structural_reconciliation_policy_identity(
+            group_name=group.name,
+            entity=group.entity,
+            family=group.family,
+            targets=group.targets,
         )
         assert policy is not None
         if frame is None:
@@ -1334,8 +1332,8 @@ def _canonical_late_structural_reconciliation_receipts(
             receipt["sha256"] = stacked_spine_module._canonical_sha256(receipt)
         else:
             table = frame.table(group.entity)
-            producer = table[support_channel_column(group.entity)].astype(str).eq(
-                "asec"
+            producer = (
+                table[support_channel_column(group.entity)].astype(str).eq("asec")
             )
             producer_snapshot = {
                 (group.entity, target): table.loc[producer, target].copy()
@@ -1385,8 +1383,8 @@ def _canonical_late_transfer_receipt(
             "sha256"
         ]
     )
-    structural_reconciliations = (
-        _canonical_late_structural_reconciliation_receipts(frame)
+    structural_reconciliations = _canonical_late_structural_reconciliation_receipts(
+        frame
     )
     for group in pool_tool.CANONICAL_US_LATE_TRANSFER_GROUPS:
         group_targets = {
@@ -6743,6 +6741,7 @@ def test_wired_path_uses_real_raw_preserving_transfer_before_gate(
             target_families={"person": {"fixture": ("fixture_transfer",)}},
             seed=0,
             n_estimators=3,
+            period=2024,
         )
         transfer_receipts.extend(transferred.imputed_inputs)
         return PoolStageOutput(

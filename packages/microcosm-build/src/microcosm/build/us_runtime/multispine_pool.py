@@ -256,7 +256,12 @@ POOL_SIMULATION_HOUSEHOLD_BATCH_SIZE = 5_000
 
 
 class _PoolRulesEngine(Protocol):
-    def default_values(self, names: list[str]) -> Mapping[str, object]: ...
+    def default_values(
+        self,
+        names: list[str],
+        *,
+        period: int | str,
+    ) -> Mapping[str, object]: ...
 
     def variable_metadata(self, name: str) -> object: ...
 
@@ -881,9 +886,8 @@ def _resolve_take_up_program_bindings(
             for program in load_take_up_contract().programs
         )
     for index, binding in enumerate(bindings):
-        if (
-            len(binding) != 3
-            or not all(isinstance(value, str) and value for value in binding)
+        if len(binding) != 3 or not all(
+            isinstance(value, str) and value for value in binding
         ):
             raise ValueError(
                 "Take-up manifest program binding must contain three non-empty "
@@ -1081,7 +1085,7 @@ def pool_engine_input_projection_receipt(
 
         rules_engine = PolicyEngineUSEngine()
     variables = list(rules_engine.variables())
-    defaults = dict(rules_engine.default_values(variables))
+    defaults = dict(rules_engine.default_values(variables, period=POOL_TIME_PERIOD))
     missing_defaults = sorted(set(variables) - set(defaults))
     extra_defaults = sorted(set(defaults) - set(variables))
     if missing_defaults or extra_defaults:
@@ -1353,9 +1357,7 @@ def pool_remaining_stage_input_manifest(
             variable,
             execution_scope="whole_pool",
             provision=provision,
-            available_by=(
-                "transferred" if variable in transfer_owned else "seeded"
-            ),
+            available_by=("transferred" if variable in transfer_owned else "seeded"),
             fallback=fallback,
         )
 
@@ -3059,7 +3061,7 @@ def seed_multispine_pool_inputs(
 
         rules_engine = PolicyEngineUSEngine()
     names = [program.variable for program in contract.programs]
-    defaults = dict(rules_engine.default_values(names))
+    defaults = dict(rules_engine.default_values(names, period=POOL_TIME_PERIOD))
     transfer_owned = {
         column
         for families in pool_transfer_target_families().values()
@@ -3264,7 +3266,7 @@ def _simulation_projection(
         return frame, {}
 
     input_names = list(variables_method())
-    defaults = dict(engine.default_values(input_names))
+    defaults = dict(engine.default_values(input_names, period=POOL_TIME_PERIOD))
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
     fills: dict[str, dict[str, object]] = {}
     for name in input_names:

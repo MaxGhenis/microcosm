@@ -68,9 +68,7 @@ class _PersonGateFrame:
 
 def _stacked_person_support() -> pd.DataFrame:
     rows = _STACKED_ROWS_PER_ARM
-    physical_channels = np.repeat(
-        ["asec", "acs", "asec", "acs", "asec", "acs"], rows
-    )
+    physical_channels = np.repeat(["asec", "acs", "asec", "acs", "asec", "acs"], rows)
     clone_indices = np.repeat([0, 0, 1, 1, 2, 2], rows)
     assembled_source_ids = np.tile(
         np.concatenate(
@@ -208,6 +206,7 @@ def _imputed_frame(monkeypatch: pytest.MonkeyPatch) -> Frame:
         person_outputs=US_FARM_BUSINESS_INCOME_OUTPUT_COLUMNS,
         tax_unit_outputs=(),
         seed=11,
+        period=2024,
     )
 
 
@@ -326,6 +325,7 @@ def test_processed_puf_donor_aggregates_signed_person_values() -> None:
         },
         person_outputs=US_FARM_BUSINESS_INCOME_OUTPUT_COLUMNS,
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor[_OPERATIONS].tolist() == [-1_000.0, -4_000.0]
@@ -414,15 +414,15 @@ def test_signal_gate_accepts_stacked_asec_acs_lineage_with_native_rent_zero() ->
     )
 
     assert gate.passed, gate.failures
-    assert gate.details["columns"][_RENT]["channels"]["asec"][
-        "nonzero_rows"
-    ] == 0
-    assert gate.details["columns"][_RENT]["channels"]["puf_tax_detail"][
-        "positive_rows"
-    ] == 2
-    assert gate.details["columns"][_RENT]["channels"]["puf_tax_detail"][
-        "negative_rows"
-    ] == 2
+    assert gate.details["columns"][_RENT]["channels"]["asec"]["nonzero_rows"] == 0
+    assert (
+        gate.details["columns"][_RENT]["channels"]["puf_tax_detail"]["positive_rows"]
+        == 2
+    )
+    assert (
+        gate.details["columns"][_RENT]["channels"]["puf_tax_detail"]["negative_rows"]
+        == 2
+    )
 
 
 @pytest.mark.parametrize("physical_channel", ["asec", "acs"])

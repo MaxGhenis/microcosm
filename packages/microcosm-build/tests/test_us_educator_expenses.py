@@ -78,9 +78,7 @@ def _stacked_educator_signal() -> pd.DataFrame:
             support_channel_column("person"): np.repeat(
                 ["asec", "acs", "asec", "acs", "asec", "acs"], rows
             ),
-            support_clone_index_column("person"): np.repeat(
-                [0, 0, 1, 1, 2, 2], rows
-            ),
+            support_clone_index_column("person"): np.repeat([0, 0, 1, 1, 2, 2], rows),
             support_source_id_column("person"): np.tile(
                 np.concatenate(
                     [
@@ -266,6 +264,7 @@ def test_processed_puf_person_array_is_available_to_tax_unit_donor() -> None:
         },
         person_outputs=("educator_expense",),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["educator_expense"].tolist() == [300.0, 300.0]
@@ -344,6 +343,7 @@ def test_weighted_qrf_writes_only_puf_channel_and_allocates_by_employment(
         tax_unit_outputs=(),
         n_estimators=4,
         seed=9,
+        period=2024,
     )
 
     person = imputed.table("person")

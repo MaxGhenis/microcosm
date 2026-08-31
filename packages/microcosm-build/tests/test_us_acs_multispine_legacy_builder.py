@@ -516,7 +516,8 @@ class _DefaultsEngine:
         "weekly_hours_worked_before_lsr": 40.0,
     }
 
-    def default_values(self, names):
+    def default_values(self, names, *, period):
+        assert period == 2024
         return {name: self._defaults[name] for name in names if name in self._defaults}
 
 
@@ -528,6 +529,7 @@ def test_dense_donor_ignores_default_runtime_column_not_consumed_by_transfer() -
     builder._require_dense_donor_coverage(
         base,
         engine=_DefaultsEngine(),
+        period=2024,
         donor_channel=None,
         target_families={
             "person": {
@@ -544,6 +546,7 @@ def test_dense_donor_missing_transfer_consumed_column_fails_hard() -> None:
         builder._require_dense_donor_coverage(
             _frame(),
             engine=_DefaultsEngine(),
+            period=2024,
             donor_channel=None,
             target_families={"person": {"health": ("has_esi",)}},
         )
@@ -563,6 +566,7 @@ def test_dense_donor_default_transfer_consumed_column_fails_hard() -> None:
         builder._require_dense_donor_coverage(
             base,
             engine=_DefaultsEngine(),
+            period=2024,
             donor_channel=None,
             target_families={"person": {"health": ("has_esi",)}},
         )
@@ -582,6 +586,7 @@ def test_dense_donor_default_consumed_optional_feature_fails_hard() -> None:
         builder._require_dense_donor_coverage(
             base,
             engine=_DefaultsEngine(),
+            period=2024,
             donor_channel=None,
             target_families={
                 "person": {
@@ -605,6 +610,7 @@ def test_signal_bearing_release_exclusion_is_irrelevant_to_donor_gate(
     builder._require_dense_donor_coverage(
         base,
         engine=_DefaultsEngine(),
+        period=2024,
         donor_channel=None,
         target_families={
             "person": {
@@ -644,6 +650,7 @@ def test_dense_donor_coverage_is_checked_on_resolved_puf_channel(
     builder._require_dense_donor_coverage(
         base,
         engine=_DefaultsEngine(),
+        period=2024,
         target_families={"person": {"test": ("age",)}},
     )
 
@@ -678,6 +685,7 @@ def test_partial_donor_channel_metadata_fails_before_coverage_gate(
         builder._require_dense_donor_coverage(
             base,
             engine=_DefaultsEngine(),
+            period=2024,
             target_families={"person": {"test": ("age",)}},
         )
 
@@ -760,7 +768,8 @@ def test_engine_input_null_audit_includes_float_bool_and_spine_counts() -> None:
     frame.person["takes_up_snap_if_eligible"] = pd.Series([True, np.nan], dtype=object)
 
     class FakeEngine:
-        def variables(self):
+        def input_variables(self, *, period):
+            assert period == 2024
             return ["age", "takes_up_snap_if_eligible"]
 
         def variable_metadata(self, name):
@@ -771,7 +780,11 @@ def test_engine_input_null_audit_includes_float_bool_and_spine_counts() -> None:
                 }[name]
             )
 
-    audit = builder._engine_input_null_audit(frame, FakeEngine())
+    audit = builder._engine_input_null_audit(
+        frame,
+        FakeEngine(),
+        period=2024,
+    )
 
     assert audit == [
         {

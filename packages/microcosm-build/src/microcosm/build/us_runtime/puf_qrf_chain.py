@@ -120,6 +120,7 @@ def initialize_primary_puf_qrf_chain(
     donor_tax_units: pd.DataFrame,
     checkpoint_dir: str | Path,
     *,
+    period: int | str,
     predictors: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
     person_outputs: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     tax_unit_outputs: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
@@ -156,6 +157,7 @@ def initialize_primary_puf_qrf_chain(
     inputs = prepare_us_puf_tax_detail_chain_inputs(
         frame,
         donor_tax_units,
+        period=period,
         predictors=predictors,
         person_outputs=person_outputs,
         tax_unit_outputs=tax_unit_outputs,

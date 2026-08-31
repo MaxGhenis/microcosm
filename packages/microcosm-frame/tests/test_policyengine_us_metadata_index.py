@@ -73,6 +73,57 @@ class aggregate_formula(Variable):
     entity = TaxUnit
     definition_period = MONTH
     adds = ["source_leaf"]
+
+class delegated_input(Variable):
+    value_type = int
+    entity = Person
+    definition_period = YEAR
+
+    def formula_2025(person, period, parameters):
+        return person("delegated_input", period.last_year)
+
+class transformed_prior_value(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+
+    def formula_2025(person, period, parameters):
+        return person("transformed_prior_value", period.last_year) * 1.02
+
+class ended_formula(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+    end = "2025-12-31"
+
+    def formula(person, period, parameters):
+        return 1
+
+class ended_aggregate(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+    end = "2025-12-31"
+    adds = ["source_leaf"]
+
+class material_then_delegated(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+
+    def formula_2020(person, period, parameters):
+        return 1
+
+    def formula_2025(person, period, parameters):
+        return person("material_then_delegated", period.last_year)
+
+class unbounded_delegation(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+
+    def formula(person, period, parameters):
+        return person("unbounded_delegation", period.last_year)
 """,
     )
 
@@ -86,6 +137,67 @@ class aggregate_formula(Variable):
     assert indexed["aggregate_formula"].metadata.entity == "tax_unit"
     assert indexed["aggregate_formula"].metadata.dtype == "bool"
     assert indexed["aggregate_formula"].metadata.period == "month"
+    delegated_2024 = indexed["delegated_input"].ownership_at(2024)
+    delegated_2025 = indexed["delegated_input"].ownership_at(2025)
+    assert delegated_2024.kind == "INPUT"
+    assert delegated_2025.kind == "DELEGATION"
+    assert delegated_2025.owner_kind == "INPUT"
+    assert delegated_2025.owner_period == (2024, 1, 1)
+    assert delegated_2025.delegation_chain == ((2025, 1, 1), (2024, 1, 1))
+    assert indexed["delegated_input"].computed_at(2025)
+    assert indexed["transformed_prior_value"].ownership_at(2025).kind == "FORMULA"
+    assert indexed["ended_formula"].computed_at(2025)
+    assert not indexed["ended_formula"].computed_at(2026)
+    assert indexed["ended_aggregate"].computed_at(2025)
+    assert not indexed["ended_aggregate"].computed_at(2026)
+    delegated_2026 = indexed["material_then_delegated"].ownership_at(2026)
+    assert delegated_2026.kind == "DELEGATION"
+    assert delegated_2026.owner_kind == "FORMULA"
+    assert delegated_2026.owner_period == (2024, 1, 1)
+    assert delegated_2026.delegation_chain == (
+        (2026, 1, 1),
+        (2025, 1, 1),
+        (2024, 1, 1),
+    )
+    with pytest.raises(RuntimeError, match="never reaches a material owner"):
+        indexed["unbounded_delegation"].ownership_at(2024)
+
+
+def test_source_index_rejects_dynamic_end_coverage(tmp_path: Path) -> None:
+    _write_variable_source(
+        tmp_path,
+        """
+class dynamic_end(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+    end = choose_end()
+
+    def formula(person, period, parameters):
+        return 1
+""",
+    )
+
+    with pytest.raises(RuntimeError, match="dynamic end coverage"):
+        module._index_policyengine_us_variable_sources(tmp_path)
+
+
+def test_source_index_rejects_dynamic_formula_activation_metadata(
+    tmp_path: Path,
+) -> None:
+    _write_variable_source(
+        tmp_path,
+        """
+class dynamic_formulas(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+    formulas = build_formula_mapping()
+""",
+    )
+
+    with pytest.raises(RuntimeError, match="dynamic formula activation metadata"):
+        module._index_policyengine_us_variable_sources(tmp_path)
 
 
 def test_source_index_rejects_duplicate_variable_classes(tmp_path: Path) -> None:
@@ -147,12 +259,31 @@ def test_generated_snapshot_covers_the_pinned_default_system() -> None:
     index = module.PolicyEngineUSVariableMetadataIndex()
     assert len(index._definitions) == 6_146
     assert len(index.variables()) == 924
-    assert len(index.formula_owned_outputs(index._definitions)) == 5_222
-    assert index.formula_owned_outputs(["AK", "e00700", "ar_agi", "mi_surtax"]) == {
+    assert len(index.formula_owned_outputs(index._definitions, period=2024)) == 5_218
+    assert len(index.formula_owned_outputs(index._definitions, period=2025)) == 5_219
+    assert index.formula_owned_outputs(
+        ["AK", "e00700", "ar_agi", "mi_surtax"],
+        period=2024,
+    ) == {
         "AK",
         "ar_agi",
         "mi_surtax",
     }
+    assert len(index.input_variables(period=2024)) == 928
+    assert len(index.input_variables(period=2025)) == 927
+    assert index.variable_ownership("weeks_worked", period=2024).kind == "INPUT"
+    delegated = index.variable_ownership("weeks_worked", period=2025)
+    assert delegated.kind == "DELEGATION"
+    assert delegated.owner_kind == "INPUT"
+    assert delegated.owner_period == (2024, 1, 1)
+    delegated_2026 = index.variable_ownership("weeks_worked", period=2026)
+    assert delegated_2026.delegation_chain == (
+        (2026, 1, 1),
+        (2025, 1, 1),
+        (2024, 1, 1),
+    )
+    with pytest.raises(TypeError):
+        index.formula_owned_outputs(["weeks_worked"])
 
 
 @pytest.mark.parametrize("relative_path", module._GENERATED_SOURCE_SHA256)

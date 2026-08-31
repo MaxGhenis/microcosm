@@ -902,7 +902,9 @@ def run_preflight(
         if engine_input_variables is None or export_mass_reviewed_exclusions is None:
             release = _release_tool_module()
             if engine_input_variables is None:
-                engine_input_variables = release._engine_input_variables()
+                engine_input_variables = release._engine_input_variables(
+                    period=target_period
+                )
             if export_mass_reviewed_exclusions is None:
                 export_mass_reviewed_exclusions = (
                     release.US_EXPORT_INPUT_MASS_REVIEWED_EXCLUSIONS

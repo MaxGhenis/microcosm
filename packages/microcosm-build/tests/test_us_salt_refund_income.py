@@ -84,9 +84,7 @@ def _stacked_salt_refund_signal() -> pd.DataFrame:
             support_channel_column("person"): np.repeat(
                 ["asec", "acs", "asec", "acs", "asec", "acs"], rows
             ),
-            support_clone_index_column("person"): np.repeat(
-                [0, 0, 1, 1, 2, 2], rows
-            ),
+            support_clone_index_column("person"): np.repeat([0, 0, 1, 1, 2, 2], rows),
             support_source_id_column("person"): np.tile(
                 np.concatenate(
                     [
@@ -238,6 +236,7 @@ def test_processed_puf_people_aggregate_to_one_tax_unit_refund() -> None:
         },
         person_outputs=("salt_refund_income",),
         tax_unit_outputs=(),
+        period=2024,
     )
 
     assert donor["salt_refund_income"].tolist() == [0.0, 300.0]
@@ -265,6 +264,7 @@ def test_puf_imputation_preserves_tax_unit_total_without_inventing_split() -> No
         tax_unit_outputs=(),
         n_estimators=4,
         seed=0,
+        period=2024,
     )
     person = imputed.table("person")
     channel = support_channel_column("person")

@@ -337,6 +337,7 @@ def test_real_puf_weighted_p999_is_below_build_m_ceiling_draw() -> None:
             _TARGET,
         ),
         tax_unit_outputs=("unrecaptured_section_1250_gain",),
+        period=2024,
     )
     # microcosm#567 retains all rows while quarantining only implicated fields.
     assert len(donor) == 211_677

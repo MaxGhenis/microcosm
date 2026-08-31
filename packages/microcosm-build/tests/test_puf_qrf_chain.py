@@ -239,6 +239,7 @@ def test_primary_qrf_frame_bank_writes_canonical_string_dtypes(
         tax_unit_outputs=_TAX_UNIT_OUTPUTS,
         n_estimators=2,
         seed=3,
+        period=2024,
     )
 
     donor = load_frame_checkpoint(
@@ -289,6 +290,7 @@ def test_primary_qrf_legacy_object_bank_loads_without_rewrite_or_identity_failur
             tax_unit_outputs=_TAX_UNIT_OUTPUTS,
             n_estimators=2,
             seed=3,
+            period=2024,
         )
 
     donor_path = checkpoint_dir / puf_qrf_chain_module.PRIMARY_QRF_DONOR_FILENAME
@@ -349,6 +351,7 @@ def test_primary_qrf_target_fsyncs_file_then_parent_directory_after_rename(
         tax_unit_outputs=_TAX_UNIT_OUTPUTS,
         n_estimators=2,
         seed=3,
+        period=2024,
     )
     events: list[tuple[str, str]] = []
     real_fsync = os.fsync
@@ -395,6 +398,7 @@ def test_target_subprocess_chain_matches_monolith_raw_bits_and_final_frame(
         predictors=_PREDICTORS,
         person_outputs=_PERSON_OUTPUTS,
         tax_unit_outputs=_TAX_UNIT_OUTPUTS,
+        period=2024,
     )
     monolith_raw = (
         QRF(n_estimators=4, seed=17)
@@ -417,6 +421,7 @@ def test_target_subprocess_chain_matches_monolith_raw_bits_and_final_frame(
         tax_unit_outputs=_TAX_UNIT_OUTPUTS,
         n_estimators=4,
         seed=17,
+        period=2024,
     )
     run_primary_puf_qrf_chain(
         checkpoint_dir,
@@ -503,6 +508,7 @@ def test_resumed_earnings_chain_keeps_children_out_of_allocation(
         seed=19,
         require_complete_recipient_predictors=True,
         absent_cells=PUF_ABSENT_CELLS_PRESERVE_NULLS,
+        period=2024,
     )
     allocation = manifest["recipient_predictor_universe"]["person_output_allocation"]
     assert allocation["person_outputs"] == sorted(person_outputs)
@@ -555,6 +561,7 @@ def test_primary_qrf_chain_manifest_binds_stacked_doctrines(
         seed=3,
         require_complete_recipient_predictors=True,
         absent_cells=PUF_ABSENT_CELLS_PRESERVE_NULLS,
+        period=2024,
     )
 
     expected_controls = {
@@ -617,6 +624,7 @@ def test_primary_qrf_chain_stacked_finalization_preserves_unowned_nulls(
         seed=3,
         require_complete_recipient_predictors=True,
         absent_cells=PUF_ABSENT_CELLS_PRESERVE_NULLS,
+        period=2024,
     )
     for target_index in range(len((*_PERSON_OUTPUTS, *_TAX_UNIT_OUTPUTS))):
         run_primary_puf_qrf_target(checkpoint_dir, target_index)
@@ -652,6 +660,7 @@ def test_primary_qrf_chain_legacy_doctrine_defaults_remain_loadable(
         tax_unit_outputs=_TAX_UNIT_OUTPUTS,
         n_estimators=2,
         seed=3,
+        period=2024,
     )
     assert manifest["schema_version"] == 6
     assert "require_complete_recipient_predictors" not in manifest
@@ -698,6 +707,7 @@ def test_primary_qrf_chain_rejects_incomplete_stacked_predictors(
             seed=3,
             require_complete_recipient_predictors=True,
             absent_cells=PUF_ABSENT_CELLS_PRESERVE_NULLS,
+            period=2024,
         )
     assert not (tmp_path / "primary_qrf").exists()
 
@@ -721,6 +731,7 @@ def test_primary_qrf_finalization_rejects_changed_recipient_features(
         seed=3,
         require_complete_recipient_predictors=True,
         absent_cells=PUF_ABSENT_CELLS_PRESERVE_NULLS,
+        period=2024,
     )
     for target_index in range(len((*_PERSON_OUTPUTS, *_TAX_UNIT_OUTPUTS))):
         run_primary_puf_qrf_target(checkpoint_dir, target_index)
@@ -758,6 +769,7 @@ def test_primary_qrf_rejects_every_stale_schema_version(
         tax_unit_outputs=_TAX_UNIT_OUTPUTS,
         n_estimators=2,
         seed=3,
+        period=2024,
     )
     run_primary_puf_qrf_chain(
         checkpoint_dir,
@@ -827,6 +839,7 @@ def test_primary_qrf_resume_rejects_a_gap(
         tax_unit_outputs=_TAX_UNIT_OUTPUTS,
         n_estimators=2,
         seed=3,
+        period=2024,
     )
     manifest_path = checkpoint_dir / "manifest.json"
     original_manifest = json.loads(manifest_path.read_text())

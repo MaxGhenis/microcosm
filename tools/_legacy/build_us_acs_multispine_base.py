@@ -226,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
     transfer_plan = declared_acs_transfer_target_families()
     _require_dense_donor_coverage(
         base,
+        period=args.period,
         donor_channel=args.donor_channel,
         target_families=transfer_plan,
     )
@@ -244,6 +245,7 @@ def main(argv: list[str] | None = None) -> int:
     result = build_optional_acs_multispine(
         base,
         source,
+        period=args.period,
         chunksize=args.chunksize,
         acs_share=args.acs_share,
         target_families=transfer_plan,
@@ -268,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     # writer scratch at once.
     del base
     gc.collect()
-    input_null_audit = _engine_input_null_audit(result.frame)
+    input_null_audit = _engine_input_null_audit(result.frame, period=args.period)
     gc.collect()
 
     args.out_h5.parent.mkdir(parents=True, exist_ok=True)
@@ -345,6 +347,7 @@ def _require_dense_donor_coverage(
     base: Frame,
     engine: Any | None = None,
     *,
+    period: int | str,
     donor_channel: str | None = ACS_DONOR_CHANNEL_AUTO,
     target_families: TargetFamilies | None = None,
 ) -> None:
@@ -398,7 +401,7 @@ def _require_dense_donor_coverage(
             present_values[column] = values
             owners[column] = entity
 
-    defaults = engine.default_values(sorted(present_values))
+    defaults = engine.default_values(sorted(present_values), period=period)
     default_gate = default_valued_columns_gate(present_values, defaults)
     default_valued = default_gate.details["default_valued_columns"]
     for column, default in sorted(default_valued.items()):
@@ -1066,6 +1069,8 @@ def _write_dataset(
 def _engine_input_null_audit(
     frame: Frame,
     engine: Any | None = None,
+    *,
+    period: int | str,
 ) -> list[dict[str, object]]:
     """Inventory nullable engine inputs for the reviewed-limitations summary."""
 
@@ -1073,7 +1078,7 @@ def _engine_input_null_audit(
         from microcosm.frame.adapters.policyengine_us import PolicyEngineUSEngine
 
         engine = PolicyEngineUSEngine()
-    input_names = set(engine.variables())
+    input_names = set(engine.input_variables(period=period))
     entries: list[dict[str, object]] = []
     for entity in frame.entities:
         table = frame.table(entity)

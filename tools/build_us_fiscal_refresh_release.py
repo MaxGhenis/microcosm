@@ -1617,9 +1617,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             len(value) != 64
             or any(character not in "0123456789abcdef" for character in value)
         ):
-            parser.error(
-                f"{flag} must be exactly 64 lowercase hexadecimal characters."
-            )
+            parser.error(f"{flag} must be exactly 64 lowercase hexadecimal characters.")
     if args.evidence_release and args.exact_k is not None:
         parser.error(
             "--evidence-release is incompatible with --exact-k: ladder "
@@ -3866,9 +3864,7 @@ class _SimulationDatasetAuthority:
         self.housing_tenure_household_absence_keys = (
             housing_tenure_household_absence_keys
         )
-        self.housing_tenure_spm_unit_absence_keys = (
-            housing_tenure_spm_unit_absence_keys
-        )
+        self.housing_tenure_spm_unit_absence_keys = housing_tenure_spm_unit_absence_keys
         self.housing_tenure_receipt = housing_tenure_receipt
 
 
@@ -4081,8 +4077,7 @@ def _simulation_dataset_authority(
             )
         if not allowed.index.equals(person.index):
             raise RuntimeError(
-                f"{boundary}: stacked housing-rent absence mask is not "
-                "person-aligned."
+                f"{boundary}: stacked housing-rent absence mask is not person-aligned."
             )
         missing = person["pre_subsidy_rent"].isna()
         unauthorized = missing & ~allowed
@@ -4151,9 +4146,7 @@ def _simulation_engine_copy_tables(
             missing_rent,
             boundary="release simulation dataset rent materialization",
         )
-        unauthorized_keys = (
-            missing_keys - authority.housing_rent_absence_keys
-        )
+        unauthorized_keys = missing_keys - authority.housing_rent_absence_keys
         if unauthorized_keys:
             raise ValueError(
                 "Release simulation person.pre_subsidy_rent is blank outside "
@@ -4217,10 +4210,7 @@ def _simulation_frame_for_dataset_write(
     return Frame(
         tables,
         frame.schema,
-        {
-            entity: frame.weights_for(entity)
-            for entity in frame.weighted_entities
-        },
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
         frame.strata,
         mass_log=frame.mass_log,
         metadata=frame.metadata,
@@ -5599,7 +5589,7 @@ def _degenerate_input_signal_gate(
             if column in structural:
                 continue
             column_values[column] = table[column].to_numpy()
-    defaults = engine.default_values(sorted(column_values))
+    defaults = engine.default_values(sorted(column_values), period=PERIOD)
     gate = default_valued_columns_gate(
         column_values,
         defaults,
@@ -5670,9 +5660,9 @@ def _write_reported_coverage_vintage_gate_receipt(
     return path
 
 
-def _engine_input_variables() -> tuple[str, ...]:
-    """Persistable PolicyEngine input variables (formula-owned excluded)."""
-    return tuple(PolicyEngineUSEngine().variables())
+def _engine_input_variables(*, period: int | str) -> tuple[str, ...]:
+    """Persistable PolicyEngine inputs effective in ``period``."""
+    return tuple(PolicyEngineUSEngine().input_variables(period=period))
 
 
 def _input_mass_reference_gate(
@@ -5692,7 +5682,7 @@ def _input_mass_reference_gate(
     """
     if reference_h5 is None:
         return None
-    input_variables = _engine_input_variables()
+    input_variables = _engine_input_variables(period=PERIOD)
     return input_mass_parity_gate(
         us_input_mass_totals(base_frame, columns=input_variables),
         us_input_mass_totals(load_us_frame(reference_h5), columns=input_variables),
@@ -5726,7 +5716,7 @@ def _ecps_parity_gate(
     """
     reference = reference if reference is not None else load_ecps_parity_reference()
     known_gaps = known_gaps if known_gaps is not None else load_ecps_parity_known_gaps()
-    input_variables = _engine_input_variables()
+    input_variables = _engine_input_variables(period=PERIOD)
     candidate_shares = us_nonzero_shares(base_frame, columns=input_variables)
     gate = parity_gate(
         candidate_shares,
@@ -5984,7 +5974,7 @@ def _export_input_mass_gate(
     zeroing (candidate == 0 or candidate << reference — the #278 signature)
     still fails. ``reviewed_exclusions`` documents any column allowed to drift.
     """
-    input_variables = _engine_input_variables()
+    input_variables = _engine_input_variables(period=PERIOD)
     reference = reference_frame if reference_frame is not None else base_frame
     return input_mass_parity_gate(
         us_input_mass_totals(export_frame, columns=input_variables),
@@ -7073,10 +7063,7 @@ def _release_gate_failures(
             f"Immigration composition failed: {failure}"
             for failure in immigration_gate.failures
         )
-    if (
-        release_weeks_worked_gate is not None
-        and not release_weeks_worked_gate.passed
-    ):
+    if release_weeks_worked_gate is not None and not release_weeks_worked_gate.passed:
         failures.extend(
             f"Stacked release weeks-worked failed: {failure}"
             for failure in release_weeks_worked_gate.failures
@@ -8113,11 +8100,7 @@ def _build_manifests(
         ),
         **({"base_pool": dict(base_pool)} if base_pool is not None else {}),
         **(
-            {
-                "stacked_release_weeks_worked_source": dict(
-                    release_weeks_worked_source
-                )
-            }
+            {"stacked_release_weeks_worked_source": dict(release_weeks_worked_source)}
             if release_weeks_worked_source is not None
             else {}
         ),
@@ -9281,7 +9264,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
     # countable-resource assets as hard requirements, and declare only live
     # PolicyEngine-US input leaves. A drifted manifest fails here before the
     # expensive calibration so a stale contract cannot silently narrow coverage.
-    assert_release_input_coverage_manifest_current()
+    assert_release_input_coverage_manifest_current(period=PERIOD)
     # Preflight (microcosm#377): no column may be required-to-signal by one
     # register (seeded/count-calibrated take-up, health nonconstant, coverage
     # 'required') and excused as absent/degenerate by another (degenerate
@@ -11868,7 +11851,9 @@ def _main(argv: Sequence[str] | None = None) -> None:
     # green); that is the gate doing its job, not a bug.
     try:
         input_coverage_gate = us_release_input_coverage_gate(
-            export_frame, release_engine
+            export_frame,
+            release_engine,
+            period=PERIOD,
         )
     except Exception as exc:
         # Degraded mode only: with earlier pre-export failures on record, a

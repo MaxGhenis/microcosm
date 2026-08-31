@@ -45,8 +45,8 @@ graph was:
 2. Fetch the hash-pinned ACS archives and build an ACS unit frame.
 3. Map ACS-native inputs.
 4. Preflight pooled geography when a PUMA ladder is supplied.
-5. Run `transfer_acs_inputs(mapped_acs, operated_base, ...)`. The operated
-   base is the QRF donor; declared input leaves and deterministic
+5. Run `transfer_acs_inputs(mapped_acs, operated_base, period=args.period, ...)`.
+   The operated base is the QRF donor; declared input leaves and deterministic
    post-transfer structure are added to ACS.
 6. Run `with_optional_acs_spine(operated_base, transferred_acs, ...)`.
    This is the first point at which the two household spines share one

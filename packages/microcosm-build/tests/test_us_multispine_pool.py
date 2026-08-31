@@ -2004,6 +2004,7 @@ def _run_pool_transfer_dtype_producers(
     primary_chain_inputs = puf_support_module.prepare_us_puf_tax_detail_chain_inputs(
         cloned,
         primary_donor,
+        period=2024,
     )
     observations.append(
         {
@@ -2018,6 +2019,7 @@ def _run_pool_transfer_dtype_producers(
         n_estimators=1,
         seed=0,
         tail_bound_diagnostics=[],
+        period=2024,
     )
     produced = multispine_pool_module.complete_multispine_source_inputs(primary).frame
     if stages is not None:
@@ -2041,7 +2043,10 @@ def _assert_pool_transfer_produced_encodings(
         for columns in families.values()
         for target in columns
     }
-    acs_transfer_module.assert_acs_transfer_targets_are_input_leaves(targets)
+    acs_transfer_module.assert_acs_transfer_targets_are_input_leaves(
+        targets,
+        period=2024,
+    )
     donor, role = acs_transfer_module.resolve_acs_donor_channel(
         frame,
         acs_transfer_module.ACS_DONOR_CHANNEL_AUTO,
@@ -2170,6 +2175,7 @@ def test_every_pool_transfer_target_is_an_installed_engine_input_leaf() -> None:
     assert len(targets) == 118
     acs_transfer_module.assert_acs_transfer_targets_are_input_leaves(
         targets,
+        period=2024,
         require_known=True,
     )
 
@@ -2267,6 +2273,7 @@ def test_object_backed_is_female_becomes_nullable_before_production_transfer_fit
             },
         },
         n_estimators=1,
+        period=2024,
     )
 
     transfer_observations = [
@@ -3398,9 +3405,16 @@ def test_formula_owned_source_boundary_matches_installed_source_index() -> None:
         for columns in by_entity.values()
         for column in columns
     }
-    classified = puf_support_module.resolve_formula_owned_outputs(
+    engine = _installed_variable_metadata_index()
+    classified_2024 = puf_support_module.resolve_formula_owned_outputs(
         candidates,
-        engine=_installed_variable_metadata_index(),
+        period=2024,
+        engine=engine,
+    )
+    classified_2025 = puf_support_module.resolve_formula_owned_outputs(
+        candidates,
+        period=2025,
+        engine=engine,
     )
     guarded = {
         column
@@ -3408,7 +3422,14 @@ def test_formula_owned_source_boundary_matches_installed_source_index() -> None:
         for column in columns
     }
 
-    assert classified == guarded
+    assert classified_2024 == guarded - {"weeks_worked"}
+    assert classified_2025 == guarded
+    assert "weeks_worked" in guarded
+    assert engine.variable_ownership("weeks_worked", period=2024).kind == "INPUT"
+    delegated = engine.variable_ownership("weeks_worked", period=2025)
+    assert delegated.kind == "DELEGATION"
+    assert delegated.owner_kind == "INPUT"
+    assert delegated.owner_period == (2024, 1, 1)
 
 
 def test_preclone_hours_signal_gate_rejects_implausible_producer_surface() -> None:
@@ -3793,7 +3814,13 @@ class _FakeEngine:
     def __init__(self) -> None:
         self.materialized_person_ids: list[list[int]] = []
 
-    def default_values(self, names: list[str]) -> dict[str, object]:
+    def default_values(
+        self,
+        names: list[str],
+        *,
+        period: int | str,
+    ) -> dict[str, object]:
+        assert period == multispine_pool_module.POOL_TIME_PERIOD
         programs = load_take_up_contract().program_map()
         return {name: programs[name].default for name in names}
 
@@ -3907,9 +3934,10 @@ def test_pool_seed_stage_preserves_inputs_and_receipts_disclosed_defaults() -> N
         after_person.loc[measured_person, "takes_up_medicare_if_eligible"].tolist()
         == before_person.loc[measured_person, "takes_up_medicare_if_eligible"].tolist()
     )
-    assert after_person["takes_up_wic_if_eligible"].tolist() == before_person[
-        "takes_up_wic_if_eligible"
-    ].tolist()
+    assert (
+        after_person["takes_up_wic_if_eligible"].tolist()
+        == before_person["takes_up_wic_if_eligible"].tolist()
+    )
     assert (
         after_spm.loc[measured_spm, "takes_up_tanf_if_eligible"].tolist()
         == before_spm.loc[measured_spm, "takes_up_tanf_if_eligible"].tolist()
@@ -3969,8 +3997,14 @@ def test_simulation_defaults_are_disposable_and_receipted() -> None:
             assert name == "age"
             return SimpleNamespace(entity="person")
 
-        def default_values(self, names: list[str]) -> dict[str, object]:
+        def default_values(
+            self,
+            names: list[str],
+            *,
+            period: int | str,
+        ) -> dict[str, object]:
             assert names == ["age"]
+            assert period == multispine_pool_module.POOL_TIME_PERIOD
             return {"age": 0.0}
 
         def materialize(
@@ -4013,8 +4047,14 @@ def test_deferred_asset_defaults_exist_only_on_disposable_simulation_view() -> N
             assert name in POOL_DEFERRED_TRANSFER_INPUTS
             return SimpleNamespace(entity="person")
 
-        def default_values(self, names: list[str]) -> dict[str, object]:
+        def default_values(
+            self,
+            names: list[str],
+            *,
+            period: int | str,
+        ) -> dict[str, object]:
             assert names == list(POOL_DEFERRED_TRANSFER_INPUTS)
+            assert period == multispine_pool_module.POOL_TIME_PERIOD
             return {name: 0.0 for name in names}
 
         def materialize(

@@ -1406,6 +1406,7 @@ def _source_ids_sha256(ids: np.ndarray) -> str:
 def puf_tax_unit_donor_from_arrays(
     arrays: Mapping[str, Sequence[Any]],
     *,
+    period: int | str,
     adjusted_gross_income: Sequence[Any] | None = None,
     person_outputs: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     tax_unit_outputs: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
@@ -1420,6 +1421,7 @@ def puf_tax_unit_donor_from_arrays(
 
     Args:
         arrays: Mapping from column name to array-like values.
+        period: Dataset period used to resolve effective output ownership.
         adjusted_gross_income: Explicit tax-unit-grain AGI used to select the
             published TY2015 SOI Table 2.1 component share for each record.
             Required whenever the processed PUF carries nonzero E19200.
@@ -1520,8 +1522,13 @@ def puf_tax_unit_donor_from_arrays(
         person[_MORTGAGE_OUTLIER_SCREEN_COLUMN] = raw_home_mortgage_interest
 
     engine = _formula_owned_engine()
-    assert_formula_owned_blocklist_current(engine)
-    _reject_formula_owned_outputs(person_outputs, tax_unit_outputs, engine=engine)
+    assert_formula_owned_blocklist_current(engine, period=period)
+    _reject_formula_owned_outputs(
+        person_outputs,
+        tax_unit_outputs,
+        period=period,
+        engine=engine,
+    )
     person_source_columns = set(person_outputs)
     if "interest_deduction" in tax_unit_outputs:
         person_source_columns.add("home_mortgage_interest")
@@ -1740,6 +1747,7 @@ def impute_us_puf_tax_detail_support(
     frame: Frame,
     donor_tax_units: pd.DataFrame,
     *,
+    period: int | str,
     predictors: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
     person_outputs: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     tax_unit_outputs: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
@@ -1765,6 +1773,7 @@ def impute_us_puf_tax_detail_support(
     onto one person.
 
     Args:
+        period: Dataset period used to resolve effective output ownership.
         fit_records: An optional sink for the build-level weights audit (microcosm
             #300). When a list is passed, this production fit appends one
             :class:`~microcosm.build.gates.FitWeightRecord`
@@ -1801,8 +1810,13 @@ def impute_us_puf_tax_detail_support(
         raise ValueError("PUF clone metadata is missing from the person table.")
 
     engine = _formula_owned_engine()
-    assert_formula_owned_blocklist_current(engine)
-    _reject_formula_owned_outputs(person_outputs, tax_unit_outputs, engine=engine)
+    assert_formula_owned_blocklist_current(engine, period=period)
+    _reject_formula_owned_outputs(
+        person_outputs,
+        tax_unit_outputs,
+        period=period,
+        engine=engine,
+    )
     predictors = tuple(predictors)
     person_outputs = tuple(person_outputs)
     tax_unit_outputs = tuple(tax_unit_outputs)
@@ -1885,6 +1899,7 @@ def prepare_us_puf_tax_detail_chain_inputs(
     frame: Frame,
     donor_tax_units: pd.DataFrame,
     *,
+    period: int | str,
     predictors: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
     person_outputs: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_PERSON_OUTPUTS,
     tax_unit_outputs: Sequence[str] = PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS,
@@ -1892,7 +1907,8 @@ def prepare_us_puf_tax_detail_chain_inputs(
 ) -> PufTaxDetailChainInputs:
     """Prepare lossless donor and recipient inputs for targetwise QRF workers.
 
-    ``require_complete_recipient_predictors`` is the stacked-spine doctrine
+    ``period`` is required so output ownership is classified against the
+    dataset being built. ``require_complete_recipient_predictors`` is the stacked-spine doctrine
     switch (microcosm#578): recipient features are built null-preserving and a
     missing predictor value on any recipient row is a named terminal failure
     instead of a silent zero-fill.  The legacy default keeps the historical
@@ -1909,8 +1925,13 @@ def prepare_us_puf_tax_detail_chain_inputs(
         raise ValueError("PUF clone metadata is missing from the person table.")
 
     engine = _formula_owned_engine()
-    assert_formula_owned_blocklist_current(engine)
-    _reject_formula_owned_outputs(person_outputs, tax_unit_outputs, engine=engine)
+    assert_formula_owned_blocklist_current(engine, period=period)
+    _reject_formula_owned_outputs(
+        person_outputs,
+        tax_unit_outputs,
+        period=period,
+        engine=engine,
+    )
     predictors = tuple(predictors)
     person_outputs = tuple(person_outputs)
     tax_unit_outputs = tuple(tax_unit_outputs)
@@ -2736,9 +2757,10 @@ def _formula_owned_engine() -> Any | None:
 def resolve_formula_owned_outputs(
     requested: Iterable[str],
     *,
+    period: int | str,
     engine: Any | None = None,
 ) -> set[str]:
-    """Return the formula-owned names among ``requested``.
+    """Return the current-period non-materializable names among ``requested``.
 
     The rejection set is the union of two sources:
 
@@ -2746,10 +2768,10 @@ def resolve_formula_owned_outputs(
       applied, so the guard works even without ``policyengine_us`` installed),
       and
     - the set PolicyEngine-US variable metadata reports as formula-owned for
-      exactly the requested names (a variable with a formula, an
-      ``adds``/``subtracts`` aggregation, or a compatibility-blocked aggregate)
-      — the part that keeps the guard current as the engine adds variables
-      (microcosm issue #301).
+      exactly the requested names (an effective formula, a pure carry-forward
+      delegation, an ``adds``/``subtracts`` aggregation, or a
+      compatibility-blocked aggregate) — the part that keeps the guard current
+      as the engine adds variables (microcosm issue #301).
 
     Deriving the second source from metadata means a newly added formula-owned
     aggregate is rejected the moment it appears in a requested output list, with
@@ -2757,8 +2779,9 @@ def resolve_formula_owned_outputs(
 
     Args:
         requested: The output variable names a fit intends to impute/persist.
-        engine: A metadata source exposing ``formula_owned_outputs(names) ->
-            set[str]`` (a
+        period: Dataset period whose effective formula coverage is classified.
+        engine: A metadata source exposing
+            ``formula_owned_outputs(names, *, period) -> set[str]`` (a
             :class:`~microcosm.frame.adapters.policyengine_us.PolicyEngineUSVariableMetadataIndex`
             in production). ``None`` resolves one lazily, falling back to the
             static seed set when ``policyengine_us`` is not installed.
@@ -2772,7 +2795,9 @@ def resolve_formula_owned_outputs(
         engine = _formula_owned_engine()
     if engine is not None:
         try:
-            rejected |= set(engine.formula_owned_outputs(requested_set))
+            rejected |= set(
+                engine.formula_owned_outputs(requested_set, period=period)
+            )
         except ImportError:
             # An injected metadata source may resolve the optional package
             # lazily; degrade to the static seed exactly as when unavailable.
@@ -2780,7 +2805,11 @@ def resolve_formula_owned_outputs(
     return rejected
 
 
-def assert_formula_owned_blocklist_current(engine: Any | None = None) -> None:
+def assert_formula_owned_blocklist_current(
+    engine: Any | None = None,
+    *,
+    period: int | str,
+) -> None:
     """Fail if the static seed set has drifted from engine metadata.
 
     Every name in :data:`PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS` must still be
@@ -2805,7 +2834,8 @@ def assert_formula_owned_blocklist_current(engine: Any | None = None) -> None:
         return
     try:
         still_formula_owned = engine.formula_owned_outputs(
-            PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS
+            PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS,
+            period=period,
         )
     except ImportError:
         # Missing [us] extra at call time: same no-op as having no engine.
@@ -2823,10 +2853,13 @@ def _reject_formula_owned_outputs(
     person_outputs: Sequence[str],
     tax_unit_outputs: Sequence[str],
     *,
+    period: int | str,
     engine: Any | None = None,
 ) -> None:
     requested = set(person_outputs) | set(tax_unit_outputs)
-    formula_owned = sorted(resolve_formula_owned_outputs(requested, engine=engine))
+    formula_owned = sorted(
+        resolve_formula_owned_outputs(requested, period=period, engine=engine)
+    )
     if formula_owned:
         raise ValueError(
             "PUF tax-detail support outputs must be PolicyEngine leaf inputs, "

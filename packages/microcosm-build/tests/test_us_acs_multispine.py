@@ -47,6 +47,7 @@ def test__given_no_source__then_base_frame_is_an_untouched_identity(
     result = acs_multispine.build_optional_acs_multispine(
         cast(Frame, base),
         source=None,
+        period=2024,
         chunksize=0,
         acs_share=2.0,
         seed=-1,
@@ -157,6 +158,7 @@ def test__given_source__then_stages_run_in_order_and_provenance_is_json_ready(
     result = acs_multispine.build_optional_acs_multispine(
         cast(Frame, base),
         source,
+        period=2025,
         chunksize=25_000,
         acs_share=0.4,
         target_families=target_families,
@@ -174,6 +176,7 @@ def test__given_source__then_stages_run_in_order_and_provenance_is_json_ready(
             mapped_acs,
             base,
             {
+                "period": 2025,
                 "target_families": target_families,
                 "donor_spine": "asec_puf",
                 "donor_channel": "puf_support",
@@ -265,6 +268,7 @@ def test__given_tiny_frames__then_mapping_transfer_and_pool_interoperate(
     result = acs_multispine.build_optional_acs_multispine(
         base,
         source,
+        period=2024,
         chunksize=2,
         acs_share=0.25,
         target_families={"person": {"tax_detail": ("qualified_dividend_income",)}},
@@ -314,6 +318,7 @@ def test__given_ladder__then_multispine_records_geography_assignment(
     result = acs_multispine.build_optional_acs_multispine(
         base,
         source,
+        period=2024,
         chunksize=2,
         acs_share=0.25,
         target_families={"person": {"tax_detail": ("qualified_dividend_income",)}},

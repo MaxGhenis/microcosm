@@ -500,6 +500,7 @@ def _run_bank_fixture(
         n_estimators=1,
         target_bank=target_bank,
         regime_evidence_targets=tuple(("person", target) for target in _BANK_TARGETS),
+        period=2024,
     )
 
 
@@ -577,6 +578,7 @@ def test_default_transfer_preserves_native_fields_and_registers_added_inputs() -
         donor_spine="asec_puf_test",
         seed=17,
         n_estimators=5,
+        period=2024,
     )
 
     person = result.frame.table("person")
@@ -685,6 +687,7 @@ def test_explicit_declared_plan_preserves_deferred_geography(
         donor_channel=None,
         seed=3,
         n_estimators=1,
+        period=2024,
     )
 
     assert result.deferred_inputs == tuple(sorted(ACS_DEFERRED_GEOGRAPHY_INPUTS))
@@ -829,6 +832,7 @@ def test_explicit_transfer_adds_requested_model_inputs(
         seed=4,
         n_estimators=1,
         max_targets_per_fit=1,
+        period=2024,
     )
 
     person = result.frame.person
@@ -894,6 +898,7 @@ def test_large_target_family_is_split_to_bound_retained_qrf_forests(
         target_families={"person": {"wide_numeric": targets}},
         n_estimators=1,
         max_targets_per_fit=3,
+        period=2024,
     )
 
     assert set(targets).issubset(result.frame.person.columns)
@@ -948,6 +953,7 @@ def test_pattern_provenance_records_ordered_exact_donor_target_regimes(
         regime_evidence_targets=tuple(
             ("person", target) for target in selected_targets
         ),
+        period=2024,
     )
 
     expected = (
@@ -990,6 +996,7 @@ def test_selected_regime_fit_keeps_complete_selected_sibling(
         target_families={"person": {"selected_siblings": targets}},
         n_estimators=1,
         regime_evidence_targets=tuple(("person", target) for target in targets),
+        period=2024,
     )
 
     assert [record.column for record in result.imputed_inputs] == [targets[1]]
@@ -1028,6 +1035,7 @@ def test_selected_regime_fit_does_not_expand_mixed_family_or_change_unselected_d
         donor,
         target_families={"person": {"mixed_selection": targets}},
         n_estimators=1,
+        period=2024,
     )
     selected = transfer_acs_inputs(
         recipient,
@@ -1038,6 +1046,7 @@ def test_selected_regime_fit_does_not_expand_mixed_family_or_change_unselected_d
             ("person", targets[0]),
             ("person", targets[1]),
         ),
+        period=2024,
     )
 
     pd.testing.assert_series_equal(
@@ -1186,6 +1195,7 @@ def test_target_bank_resumes_joint_immigration_codec_as_one_model_target(
             seed=37,
             n_estimators=1,
             target_bank=target_bank,
+            period=2024,
         )
 
     monolithic = run()
@@ -1381,6 +1391,7 @@ def test_discrete_year_predictions_snap_to_observed_donor_support(
         },
         seed=2,
         n_estimators=1,
+        period=2024,
     )
 
     values = result.frame.table("tax_unit")["first_home_mortgage_origination_year"]
@@ -1419,6 +1430,7 @@ def test_integer_supported_weeks_predictions_snap_to_observed_donor_support(
         },
         seed=2,
         n_estimators=1,
+        period=2024,
     )
 
     values = result.frame.table("person")["weeks_unemployed"]
@@ -1464,12 +1476,12 @@ def test_pregnancy_draws_once_per_eligible_source_person_and_fans_to_clones(
         donor_channel=None,
         seed=9,
         n_estimators=1,
+        period=2024,
     )
 
     person = result.frame.person
-    eligible = (
-        person["is_female"].astype(bool)
-        & person["age"].between(15, 44, inclusive="both")
+    eligible = person["is_female"].astype(bool) & person["age"].between(
+        15, 44, inclusive="both"
     )
     assert person.loc[eligible, "is_pregnant"].all()
     assert not person.loc[~eligible, "is_pregnant"].any()
@@ -1490,7 +1502,9 @@ def test_pregnancy_draws_once_per_eligible_source_person_and_fans_to_clones(
         .first()
         .sum()
     )
-    record = next(item for item in result.imputed_inputs if item.column == "is_pregnant")
+    record = next(
+        item for item in result.imputed_inputs if item.column == "is_pregnant"
+    )
     receipt = record.structural_receipt
     assert receipt is not None
     assert sum(pattern.recipient_rows for pattern in record.patterns) == (
@@ -1523,6 +1537,7 @@ def test_pregnancy_all_ineligible_recipients_bypass_qrf(
         target_families={"person": {"pregnancy": ("is_pregnant",)}},
         donor_channel=None,
         n_estimators=1,
+        period=2024,
     )
 
     assert not result.frame.person["is_pregnant"].any()
@@ -1563,6 +1578,7 @@ def test_pregnancy_partial_clone_fanout_receipt_categories_are_disjoint(
         target_families={"person": {"pregnancy": ("is_pregnant",)}},
         donor_channel=None,
         n_estimators=1,
+        period=2024,
     )
 
     assert not _MeanQRF.calls
@@ -1576,12 +1592,8 @@ def test_pregnancy_partial_clone_fanout_receipt_categories_are_disjoint(
     record = result.imputed_inputs[0]
     receipt = record.structural_receipt
     assert receipt is not None
-    assert receipt["preexisting_value_fanout_rows"] == int(
-        (missing & eligible).sum()
-    )
-    assert receipt["ineligible_rows_assigned_false"] == int(
-        (missing & ~eligible).sum()
-    )
+    assert receipt["preexisting_value_fanout_rows"] == int((missing & eligible).sum())
+    assert receipt["ineligible_rows_assigned_false"] == int((missing & ~eligible).sum())
     assert (
         receipt["preexisting_value_fanout_rows"]
         + receipt["ineligible_rows_assigned_false"]
@@ -1610,6 +1622,7 @@ def test_pregnancy_invalid_donor_is_refused_before_qrf(
             target_families={"person": {"pregnancy": ("is_pregnant",)}},
             donor_channel=None,
             n_estimators=1,
+            period=2024,
         )
     assert not _MeanQRF.calls
 
@@ -1632,6 +1645,7 @@ def test_pregnancy_near_boolean_recipient_is_refused_before_qrf(
             target_families={"person": {"pregnancy": ("is_pregnant",)}},
             donor_channel=None,
             n_estimators=1,
+            period=2024,
         )
     assert not _MeanQRF.calls
 
@@ -1657,6 +1671,7 @@ def test_pregnancy_complete_invalid_recipient_is_still_refused(
             target_families={"person": {"pregnancy": ("is_pregnant",)}},
             donor_channel=None,
             n_estimators=1,
+            period=2024,
         )
     assert not _MeanQRF.calls
 
@@ -1687,6 +1702,7 @@ def test_complete_invalid_pregnancy_is_refused_before_other_active_target(
             },
             donor_channel=None,
             n_estimators=1,
+            period=2024,
         )
     assert not _MeanQRF.calls
 
@@ -1708,6 +1724,7 @@ def test_pregnancy_complete_valid_recipient_retains_structural_receipt(
         target_families={"person": {"pregnancy": ("is_pregnant",)}},
         donor_channel=None,
         n_estimators=1,
+        period=2024,
     )
 
     assert not _MeanQRF.calls
@@ -1778,6 +1795,7 @@ def test_engine_boolean_metadata_restores_primary_qrf_float_h5_donor(
         target_families={"person": {"puf_tax_itemization": ("business_is_sstb",)}},
         seed=3,
         n_estimators=1,
+        period=2024,
     )
 
     values = result.frame.person["business_is_sstb"]
@@ -1845,6 +1863,7 @@ def test_known_boolean_metadata_rejects_mixed_object_donor_values(
             target_families={"person": {"model_required_boolean": ("is_blind",)}},
             seed=3,
             n_estimators=1,
+            period=2024,
         )
 
     message = str(exc_info.value)
@@ -1949,6 +1968,7 @@ def test_required_semantic_boolean_nulls_are_complete_case_masked(
             "person": {"tax_detail": ("qualified_dividend_income",)},
         },
         n_estimators=1,
+        period=2024,
     )
 
     assert result.frame.person["qualified_dividend_income"].isna().tolist() == [
@@ -2050,6 +2070,7 @@ def test_auto_channel_excludes_artificial_asec_zeros(
         target_families=families,
         seed=5,
         n_estimators=1,
+        period=2024,
     )
 
     assert auto.frame.table("person")["qualified_dividend_income"].eq(100.0).all()
@@ -2069,6 +2090,7 @@ def test_auto_channel_excludes_artificial_asec_zeros(
         donor_channel=None,
         seed=5,
         n_estimators=1,
+        period=2024,
     )
     assert whole.frame.table("person")["qualified_dividend_income"].eq(50.0).all()
     assert whole.resolved_donor_channel is None
@@ -2108,6 +2130,7 @@ def test_auto_role_selects_puf_clones_from_assembled_two_spine_pool(
         },
         seed=5,
         n_estimators=1,
+        period=2024,
     )
 
     assert result.resolved_donor_channel == "puf_tax_detail"
@@ -2141,6 +2164,7 @@ def test_pattern_fits_use_observed_native_and_complete_donor_analogs(
         },
         seed=23,
         n_estimators=1,
+        period=2024,
     )
 
     provenance = result.imputed_inputs[0]
@@ -2189,6 +2213,7 @@ def test_housing_rows_without_tenure_remain_unmodeled() -> None:
         target_families={"person": {"housing": ("pre_subsidy_rent",)}},
         seed=8,
         n_estimators=2,
+        period=2024,
     )
 
     missing_tenure = result.frame.person["person_household_id"] == 1_300
@@ -2219,6 +2244,7 @@ def test_native_income_blanks_remain_absent_and_partition_transfer_patterns() ->
         },
         seed=33,
         n_estimators=3,
+        period=2024,
     )
 
     pd.testing.assert_series_equal(
@@ -2281,6 +2307,7 @@ def test_explicit_family_is_seed_deterministic_and_preserves_recipient_index() -
         donor_channel="puf_tax_detail",
         seed=91,
         n_estimators=5,
+        period=2024,
     )
     second = transfer_acs_inputs(
         recipient,
@@ -2289,6 +2316,7 @@ def test_explicit_family_is_seed_deterministic_and_preserves_recipient_index() -
         donor_channel="puf_tax_detail",
         seed=91,
         n_estimators=5,
+        period=2024,
     )
 
     assert first.frame.table("person").index.equals(recipient.table("person").index)
@@ -2348,6 +2376,7 @@ def test_nullable_recipient_target_fills_only_nulls_and_preserves_metadata(
             },
         },
         n_estimators=1,
+        period=2024,
     )
 
     for target, target_before in before.items():
@@ -2418,6 +2447,7 @@ def test_donor_family_fit_uses_rows_complete_for_every_target(
             },
         },
         n_estimators=1,
+        period=2024,
     )
 
     assert len(_MeanQRF.calls) == 1
@@ -2436,15 +2466,22 @@ def test_formula_owned_target_is_refused_before_fit() -> None:
                 "tax_unit": {"bad": ("interest_deduction",)},
             },
             n_estimators=2,
+            period=2024,
         )
 
 
-def test_weeks_worked_formula_owned_target_reproduces_pool_run_3_failure() -> None:
+def test_weeks_worked_leaf_classification_is_period_resolved() -> None:
     try:
-        PolicyEngineUSVariableMetadataIndex()
+        engine = PolicyEngineUSVariableMetadataIndex()
     except ImportError:
         pytest.skip("requires the policyengine-us [us] extra")
 
+    acs_transfer_module.assert_acs_transfer_targets_are_input_leaves(
+        {"weeks_worked"},
+        period=2024,
+        engine=engine,
+        require_known=True,
+    )
     with pytest.raises(
         ValueError,
         match=(
@@ -2452,13 +2489,11 @@ def test_weeks_worked_formula_owned_target_reproduces_pool_run_3_failure() -> No
             r"formula-owned outputs: \['weeks_worked'\]\."
         ),
     ):
-        transfer_acs_inputs(
-            _recipient_frame(),
-            _donor_frame(),
-            target_families={
-                "person": {"source_operator_hours_worked": ("weeks_worked",)},
-            },
-            n_estimators=2,
+        acs_transfer_module.assert_acs_transfer_targets_are_input_leaves(
+            {"weeks_worked"},
+            period=2025,
+            engine=engine,
+            require_known=True,
         )
 
 
@@ -2483,6 +2518,7 @@ def test_strict_leaf_audit_reports_missing_us_extra(
     ):
         acs_transfer_module.assert_acs_transfer_targets_are_input_leaves(
             {"employment_income"},
+            period=2024,
             require_known=True,
         )
 
@@ -2506,6 +2542,7 @@ def test_all_missing_donor_target_is_refused_without_zero_fill() -> None:
                 "person": {"tax_detail": ("qualified_dividend_income",)},
             },
             n_estimators=2,
+            period=2024,
         )
 
 
@@ -2575,6 +2612,7 @@ def test_schedule_d_post_transfer_fills_only_newly_imputed_rows(
             },
         },
         n_estimators=1,
+        period=2024,
     )
 
     cgd = result.frame.person["schedule_d_capital_gain_distributions"]
@@ -2603,6 +2641,7 @@ def test_schedule_d_post_transfer_fills_only_newly_imputed_rows(
         n_estimators=1,
         derive_schedule_d=False,
         execution_contract=bound_contract,
+        period=2024,
     )
     pd.testing.assert_series_equal(
         suppressed.frame.person["schedule_d_capital_gain_distributions"],
@@ -2666,6 +2705,7 @@ def test_adult_care_reconciliation_changes_only_imputed_expenses(
             },
         },
         n_estimators=1,
+        period=2024,
     )
 
     expenses = result.frame.person["pre_subsidy_care_expenses"]
@@ -2706,6 +2746,7 @@ def test_non_finite_recipient_predictor_is_refused_without_zero_fill() -> None:
                 "person": {"tax_detail": ("qualified_dividend_income",)},
             },
             n_estimators=2,
+            period=2024,
         )
 
 
@@ -2723,6 +2764,7 @@ def test_missing_donor_target_is_refused_without_zero_fill() -> None:
                 "person": {"tax_detail": ("qualified_dividend_income",)},
             },
             n_estimators=2,
+            period=2024,
         )
 
 
@@ -2740,6 +2782,7 @@ def test_missing_recipient_predictor_is_refused_without_zero_fill() -> None:
                 "person": {"tax_detail": ("qualified_dividend_income",)},
             },
             n_estimators=2,
+            period=2024,
         )
 
 
@@ -2757,6 +2800,7 @@ def test_missing_recipient_state_predictor_is_refused_without_national_fill() ->
                 "person": {"tax_detail": ("qualified_dividend_income",)},
             },
             n_estimators=2,
+            period=2024,
         )
 
 
@@ -2777,6 +2821,7 @@ def test_no_missing_targets_returns_identical_recipient_object(
         _donor_frame(),
         target_families=families,
         n_estimators=2,
+        period=2024,
     )
 
     assert isinstance(result, AcsTransferResult)
@@ -2805,6 +2850,7 @@ def test_no_op_transfer_canonicalizes_object_strings(
         _donor_frame(),
         target_families=families,
         n_estimators=2,
+        period=2024,
     )
 
     assert result.frame is not recipient
