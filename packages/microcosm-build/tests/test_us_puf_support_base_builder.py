@@ -2278,7 +2278,9 @@ def test_main_runs_cps_only_inputs_before_clone_and_after_puf_then_fails_gate(
         donor_build_summary,
     ):
         assert period == 2024
-        assert source_puf_csv is not None
+        # This fixture's args namespace omits the optional source-year CSV, so
+        # the builder forwards the documented ``None`` for it.
+        assert source_puf_csv is None
         assert donor_build_summary == {}
 
     monkeypatch.setattr(
