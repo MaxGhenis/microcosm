@@ -197,6 +197,36 @@ publication, push, or PR is authorized.
   recognizer accepts only the exact `return entity(name, period.last_year)`
   body, so a transformed carry-forward stays a material formula.
 
+- Ran the focused corridors the sol lane could not (candidate-26 had the
+  cores) and found three red classes it had left behind, all now fixed:
+  - `test_uk_release_input_coverage.py::test_default_us_coverage_path_is_unchanged`
+    asserted the US default probe receives `['dividend_income']`. The gate
+    probes only manifest-relevant columns and this manifest's single required
+    column is absent from the frame, so the probe receives no names. The stub
+    now records the call and asserts both the empty list and the forwarded
+    2024 period.
+  - `test_us_puf_support_base_builder.py::test_main_runs_cps_only_inputs_before_clone_and_after_puf_then_fails_gate`
+    (ten parametrizations) asserted the builder forwards a non-`None`
+    source-year PUF CSV, but this fixture's args namespace omits it and
+    `_run_all` forwards the documented `None`. Corrected to the value the
+    builder actually passes, keeping the period assertion the fake exists for.
+  - The spec identities moved. `microcosm.build.us_runtime.acs_transfer`,
+    `puf_qrf_chain`, and `puf_support` are attested kernel source modules
+    (`_DIRECT_KERNEL_MODULES` / `_QRF_KERNEL_MODULES` in `spec_engine/seeds.py`,
+    hashed byte-for-byte by `source_inventory_sha256`), and the lane's period
+    plumbing edited all three. Since the branch's last attestation refresh
+    (`deb42a37`) the only commit touching them is the lane's `2fa24e21`, so the
+    move is fully attributable and legitimate. Refreshed exactly the two moved
+    digests — `seed_protocol` `a16b77d7…`→`7ea964c4…` and `seed_map`
+    `44c64c54…`→`2c43e303…` — re-pinned the pool-tool spec-binding fixture
+    (`e9ea75c7…`→`2f08db42…`), and regenerated
+    `docs/evidence/spec-engine/us-f0-coverage.json` with
+    `tools/spec_engine_coverage.py`, whose diff carries those two digests and
+    nothing else. No other pin referenced the old values.
+- Left the five files that were already ruff-format drifted at the lane base
+  untouched and formatted only the three the lane itself drifted, so the lane
+  adds no new drift and reflows no region it did not edit.
+
 ## Next
 
 - Finish the focused build-side corridors and write the final report to
