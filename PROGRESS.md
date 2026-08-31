@@ -145,6 +145,19 @@ in scope.
   omitted only these two goldens. Updated those literals without changing any
   runtime, schema, gate, or country spec. The complete country-bundle file now
   passes 15/15 with focused Ruff and format checks green.
+- The restarted repository run passed the repaired country bundle and reached
+  922 passed plus one skipped before exposing the one remaining stale
+  protocol-bound golden: the rich minimal loader expected its pre-period-
+  classifier semantic hash. Stopped at that first red rather than spend the
+  remainder of a known-invalid full run. An exhaustive literal/history audit
+  found exactly three stale downstream vectors at lane base—the two BE/UK
+  hashes above and this loader hash—and no fourth. Commit `2fa24e21` changed
+  the bytes of three seed-attested ownership modules; `1ba3a592` correctly
+  repinned the shared seed protocol but missed these generic/country test
+  surfaces. Updated the loader golden from `425b4263...3a6445` to the
+  deterministic current `87035900...500b95`, again without runtime or spec
+  changes. All 331 spec-engine and country-spec tests pass together; focused
+  Ruff and format checks are green.
 
 ## Next
 
