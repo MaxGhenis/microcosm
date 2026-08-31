@@ -159,6 +159,29 @@ publication, push, or PR is authorized.
   engine-side surface addition rather than an adapter classifier change. The
   finding is recorded in the adapter docstring instead of a speculative fix.
 
+- Closed the caller audit with an orthogonal proof instead of another grep: an
+  AST sweep over `packages/` and `tools/` for every call to the dated ownership
+  and dated-period entry points (`formula_owned_outputs`, `input_variables`,
+  `variable_ownership`, `default_values`, `resolve_formula_owned_outputs`,
+  `assert_formula_owned_blocklist_current`,
+  `assert_acs_transfer_targets_are_input_leaves`, the release coverage gate and
+  manifest assertions, `assert_validation_leaf_registry_current`,
+  `transfer_acs_inputs`, `build_optional_acs_multispine`, the three PUF
+  tax-detail seams, `initialize_primary_puf_qrf_chain`,
+  `_engine_computed_columns`, `_provision_input_leaves`) reports six call sites
+  without an explicit `period`. Three are the UK path's own periodless
+  `default_values` (the UK adapter has no dated view; deliberately out of this
+  US-scoped fix) and three are the deliberate `pytest.raises(TypeError)` proofs
+  that the period is mandatory. No unintentional periodless US ownership call
+  site remains.
+- Confirmed the two static seed sets against the dated classifier so the fix
+  cannot deadlock a build: all six `PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS`
+  entries are still engine-owned at both 2024 and 2025, so
+  `assert_formula_owned_blocklist_current` passes at the release period, and
+  the twelve-name `FORMULA_OWNED_SOURCE_COLUMNS` pool exclusion diverges only
+  on `weeks_worked` at 2024 — exactly the divergence the parity test now
+  asserts, with the exclusion itself unchanged.
+
 ## Next
 
 - Finish the focused build-side corridors and write the final report to
