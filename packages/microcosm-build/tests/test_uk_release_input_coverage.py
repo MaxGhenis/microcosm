@@ -957,10 +957,11 @@ def test_default_us_coverage_path_is_unchanged() -> None:
     )
     frame = _person_frame({"dividend_income": np.asarray([0.0, 1.0])})
 
+    probed: list[tuple[list[str], int]] = []
+
     class _USStubEngine:
         def default_values(self, names, *, period) -> dict[str, object]:
-            assert names == ["dividend_income"]
-            assert period == 2024
+            probed.append((list(names), period))
             return {}
 
     result = us_release_input_coverage_gate(
@@ -969,6 +970,10 @@ def test_default_us_coverage_path_is_unchanged() -> None:
         period=2024,
         manifest=us_manifest,
     )
+    # The gate probes defaults only for manifest-relevant columns, and this
+    # manifest's one required column is absent from the frame, so the probe
+    # sees no names — while still forwarding the dataset period it was given.
+    assert probed == [([], 2024)]
     assert not result.passed
     assert "required eCPS input column is absent" in result.failures[0]
 
