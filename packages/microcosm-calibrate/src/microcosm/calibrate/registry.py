@@ -37,11 +37,30 @@ from pathlib import Path
 
 from microcosm.calibrate.target import Target, TargetSet
 
-__all__ = ["TargetSpec", "TargetRegistry", "specs_from_pe_surface"]
+__all__ = [
+    "AxiomPolicyTargetSpec",
+    "TargetSpec",
+    "TargetRegistry",
+    "specs_from_pe_surface",
+]
 
 #: Format marker + revision for the JSON artifact.
 _FORMAT_KEY = "populace_target_registry"
 _FORMAT_VERSION = 2
+
+
+def _has_policy_metadata(metadata: object) -> bool:
+    """Whether serialized spec metadata declares Axiom policy provenance."""
+    if not isinstance(metadata, Mapping):
+        return False
+    return bool(
+        "policy_monetary_binding" in metadata
+        or "policy_monetary_binding_sha256" in metadata
+        or (
+            metadata.get("measure_kind") == "policy_derived"
+            and metadata.get("activation_status") == "active"
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -159,14 +178,13 @@ class TargetSpec:
                 f"TargetSpec {self.name!r}: metadata keys and values must be "
                 f"non-empty strings; bad keys {bad_metadata}."
             )
-        if (
-            "policy_monetary_binding" in metadata
-            or "policy_monetary_binding_sha256" in metadata
-            or (
-                metadata.get("measure_kind") == "policy_derived"
-                and metadata.get("activation_status") == "active"
-            )
-        ):
+        if _has_policy_metadata(metadata):
+            if not isinstance(self, AxiomPolicyTargetSpec):
+                raise TypeError(
+                    f"TargetSpec {self.name!r}: authenticated policy metadata "
+                    "must be constructed as AxiomPolicyTargetSpec by the policy "
+                    "binder so provenance survives dataclasses.replace."
+                )
             # Local import avoids making every registry load pay for the Axiom
             # verifier while authenticating fields (family/sign/se/notes) that
             # Target intentionally does not carry before registry selection.
@@ -184,20 +202,17 @@ class TargetSpec:
     def to_target(self) -> Target:
         """Compile the spec into a calibration :class:`Target`."""
         target_type = Target
-        if (
-            "policy_monetary_binding" in self.metadata
-            or "policy_monetary_binding_sha256" in self.metadata
-            or (
-                self.metadata.get("measure_kind") == "policy_derived"
-                and self.metadata.get("activation_status") == "active"
-            )
-        ):
+        if _has_policy_metadata(self.metadata):
             # This nominal type is the non-metadata provenance signal that
             # prevents an authenticated policy row from being demoted by
             # stripping its entire metadata mapping after registry selection.
             from microcosm.calibrate.policy_monetary_binding import AxiomPolicyTarget
 
             target_type = AxiomPolicyTarget
+        return self._to_target_type(target_type)
+
+    def _to_target_type(self, target_type: type[Target]) -> Target:
+        """Compile using one integrity-classified concrete target type."""
         return target_type(
             name=self.name,
             entity=self.entity,
@@ -209,6 +224,26 @@ class TargetSpec:
             source=self.source,
             metadata=self.metadata,
         )
+
+
+@dataclass(frozen=True)
+class AxiomPolicyTargetSpec(TargetSpec):
+    """Nominal policy spec whose provenance survives metadata replacement.
+
+    The authenticated binder emits this subtype only after validating the
+    serialized policy receipt. ``dataclasses.replace(spec, metadata={})``
+    preserves the concrete spec type, so a later :meth:`to_target` call still
+    emits an :class:`AxiomPolicyTarget` and the matrix compiler fails closed on
+    the missing receipt. The subtype is an integrity classification, not an
+    authority: compilation still requires the complete receipt and an
+    independently authenticated acceptance.
+    """
+
+    def to_target(self) -> Target:
+        """Compile to the nominal policy target even if metadata was cleared."""
+        from microcosm.calibrate.policy_monetary_binding import AxiomPolicyTarget
+
+        return self._to_target_type(AxiomPolicyTarget)
 
 
 class TargetRegistry:
@@ -345,7 +380,14 @@ class TargetRegistry:
                 f"{path} is not a microcosm target registry artifact "
                 f"(format revision {_FORMAT_VERSION})."
             )
-        specs = tuple(TargetSpec(**raw) for raw in payload["specs"])
+        specs = tuple(
+            (
+                AxiomPolicyTargetSpec(**raw)
+                if _has_policy_metadata(raw.get("metadata", {}))
+                else TargetSpec(**raw)
+            )
+            for raw in payload["specs"]
+        )
         registry = cls(specs, country=payload["country"])
         stored = payload.get("version")
         if stored != registry.version:

@@ -10,7 +10,7 @@ that a probe compiled before this suite existed.
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+from dataclasses import asdict, replace
 from hashlib import sha256
 
 import numpy as np
@@ -26,8 +26,11 @@ from microcosm.build.policy_monetary_targets import (
     prepare_policy_derived_monetary_measure,
 )
 from microcosm.calibrate import (
+    AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL,
+    AxiomPolicyTargetSpec,
     TargetRegistry,
     TargetSet,
+    TargetSpec,
     build_constraint_matrix,
     calibrate,
     calibrate_l0_refit,
@@ -41,10 +44,12 @@ from microcosm.calibrate.monetary_binding import (
 from microcosm.calibrate.policy_monetary_binding import (
     AxiomPolicyAcceptance,
     AxiomPolicyAcceptanceSet,
+    AxiomPolicyTarget,
     AxiomPolicyTrustRoot,
     axiom_array_identity,
     build_axiom_policy_acceptances,
     sign_axiom_policy_attestation,
+    verify_policy_monetary_binding,
 )
 from microcosm.calibrate.target import Target
 from microcosm.frame import EntitySchema, Frame, WeightKind, Weights
@@ -565,6 +570,19 @@ def test_policy_record_ids_reject_mixed_bool_and_float_families(record_ids):
         _prepared(output_record_ids=record_ids)
 
 
+@pytest.mark.parametrize(
+    "record_ids",
+    (
+        ["p11", 12, "p13"],
+        [b"p11", b"p12", b"p13"],
+        np.array([b"p11", b"p12", b"p13"]),
+    ),
+)
+def test_policy_record_ids_classify_raw_values_before_numpy_coercion(record_ids):
+    with pytest.raises(ValueError, match="only integer IDs or only string IDs"):
+        _prepared(output_record_ids=record_ids)
+
+
 def test_membership_and_target_ids_must_use_one_id_family():
     with pytest.raises(ValueError, match="same integer or string ID family"):
         _string_prepared(output_target_ids=np.array([1, 1, 2]))
@@ -703,6 +721,22 @@ def test_materialized_values_must_be_the_exact_prepared_output_vector():
         output_values=np.array([100.0, 200.0, 301.0])
     )
     with pytest.raises(ValueError, match="differ from the materialized requested"):
+        _prepared(materialization_receipt=materialization)
+
+
+def test_multi_output_materialization_is_rejected_during_preparation():
+    materialization = _materialization_receipt()
+    outputs = materialization["entities"]["person"]["requested_outputs"]
+    outputs["unreplayed_policy_output"] = {
+        **outputs["armenia_personal_income_tax"],
+        "values": _axiom_array_identity(np.array([1.0, 2.0, 3.0])),
+    }
+    raw = {
+        key: value for key, value in materialization.items() if key != "receipt_sha256"
+    }
+    materialization["receipt_sha256"] = monetary_digest(raw)
+
+    with pytest.raises(ValueError, match="exactly one requested output"):
         _prepared(materialization_receipt=materialization)
 
 
@@ -903,6 +937,50 @@ def test_policy_target_cannot_strip_all_metadata_and_omit_acceptance():
         build_constraint_matrix(_frame(), TargetSet([stripped]))
 
 
+def test_policy_spec_provenance_survives_metadata_replacement_through_matrix():
+    spec = _bind()
+    stripped_spec = replace(spec, metadata={})
+    stripped_target = stripped_spec.to_target()
+
+    assert isinstance(spec, AxiomPolicyTargetSpec)
+    assert isinstance(stripped_spec, AxiomPolicyTargetSpec)
+    assert isinstance(stripped_target, AxiomPolicyTarget)
+    with pytest.raises(
+        MonetaryBindingIntegrityError,
+        match="authenticated_policy_target",
+    ):
+        build_constraint_matrix(_frame(), TargetSet([stripped_target]))
+
+
+def test_policy_metadata_cannot_be_rewrapped_in_a_plain_target_spec():
+    with pytest.raises(TypeError, match="must be constructed as AxiomPolicyTargetSpec"):
+        TargetSpec(**asdict(_bind()))
+
+
+def test_policy_registry_round_trip_restores_the_nominal_spec_type(tmp_path):
+    path = TargetRegistry([_bind()], country="am").to_json(tmp_path / "targets.json")
+    restored = TargetRegistry.from_json(path).specs[0]
+
+    assert isinstance(restored, AxiomPolicyTargetSpec)
+    assert isinstance(restored.to_target(), AxiomPolicyTarget)
+
+
+def test_nominal_policy_target_never_enters_direct_monetary_verification():
+    target = replace(
+        _bind().to_target(),
+        metadata={
+            "monetary_binding": "{}",
+            "monetary_binding_sha256": "0" * 64,
+        },
+    )
+
+    with pytest.raises(
+        MonetaryBindingIntegrityError,
+        match="nominal Axiom policy target cannot use a direct monetary receipt",
+    ):
+        build_constraint_matrix(_frame(), TargetSet([target]))
+
+
 def test_an_accepted_target_dropped_from_the_surface_fails_the_compilation():
     spec = _bind()
     ordinary = Target(
@@ -989,6 +1067,18 @@ def test_trust_root_requires_separate_strong_producer_and_observation_keys():
         _trust_root(observation_verification_key=PRODUCER_KEY)
 
 
+def test_acceptance_seal_declares_its_trusted_python_process_boundary():
+    spec = _bind()
+    acceptance = next(iter(_acceptances(spec).acceptances.values()))
+
+    assert AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL == "trusted_in_process_python_v1"
+    assert (
+        acceptance._sealed_fields()["seal_trust_model"]
+        == AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL
+    )
+    assert "trusted in-process Python" in AxiomPolicyAcceptance.__doc__
+
+
 # --- compilation, replay, and stripping ------------------------------------
 
 
@@ -997,6 +1087,26 @@ def test_policy_bound_target_compiles_only_against_exact_receipted_column():
     np.testing.assert_array_equal(problem.estimates(np.array([2.0, 1.0])), [900.0])
     with pytest.raises(MonetaryBindingIntegrityError, match="values differ"):
         _compile(frame=_frame(values=(301.0, 299.0)))
+
+
+def test_matrix_uses_verified_live_policy_vector_without_constraint_redispatch(
+    monkeypatch,
+):
+    spec = _bind()
+    verified = verify_policy_monetary_binding(
+        spec.to_target(),
+        _frame(),
+        acceptance=_acceptances(spec).get(spec.key),
+    )
+    assert verified.flags.owndata
+    assert not verified.flags.writeable
+
+    def reject_redispatch(self, frame):
+        raise AssertionError("policy constraint_row must not be redispatched")
+
+    monkeypatch.setattr(AxiomPolicyTarget, "constraint_row", reject_redispatch)
+    problem = _compile()
+    np.testing.assert_array_equal(problem.estimates(np.array([2.0, 1.0])), [900.0])
 
 
 def test_policy_target_requires_independent_acceptance():
@@ -1174,6 +1284,13 @@ def test_observed_amounts_refuse_bool_and_string_coercion(value):
 def test_observed_amounts_accept_int_and_float_alike():
     assert _bind(value=650_077_932_447).value == 650_077_932_447.0
     assert _bind(value=650_077_932_447.0).value == 650_077_932_447.0
+
+
+@pytest.mark.parametrize("value", (2**53 + 1, -(2**53 + 1)))
+def test_observed_integer_amount_must_be_exactly_representable_as_float(value):
+    reference = _reference(signed=value < 0)
+    with pytest.raises(ValueError, match="exactly representable as float64"):
+        _bind(reference, value=value)
 
 
 @pytest.mark.parametrize("period", (2024.0, True))

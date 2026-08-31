@@ -28,7 +28,7 @@ from numpy.typing import ArrayLike
 
 from microcosm.build.ledger_targets import LedgerTargetReference
 from microcosm.build.monetary_targets import MonetaryBasis
-from microcosm.calibrate import TargetSpec
+from microcosm.calibrate import AxiomPolicyTargetSpec
 from microcosm.calibrate.monetary_binding import (
     monetary_digest,
 )
@@ -119,9 +119,9 @@ class PolicyDerivedMonetaryMeasure:
     """Raw Axiom rows plus their factory-derived calibration projection."""
 
     output_values: np.ndarray = field(repr=False)
-    output_record_ids: np.ndarray = field(repr=False)
-    target_record_ids: np.ndarray = field(repr=False)
-    output_target_ids: np.ndarray | None = field(repr=False)
+    output_record_ids: object = field(repr=False)
+    target_record_ids: object = field(repr=False)
+    output_target_ids: object | None = field(repr=False)
     basis: MonetaryBasis
     identity: AxiomPolicyIdentity
     aggregation_membership_column: str | None
@@ -435,11 +435,12 @@ def prepare_policy_derived_monetary_measure(
     """
     return PolicyDerivedMonetaryMeasure(
         output_values=output_values,
-        output_record_ids=np.asarray(output_record_ids),
-        target_record_ids=np.asarray(target_record_ids),
-        output_target_ids=(
-            None if output_target_ids is None else np.asarray(output_target_ids)
-        ),
+        # Preserve the caller's raw scalar families until the canonical ID
+        # boundary classifies them. ``np.asarray([1, "2"])`` would otherwise
+        # stringify the integer before the mixed-family guard could see it.
+        output_record_ids=output_record_ids,
+        target_record_ids=target_record_ids,
+        output_target_ids=output_target_ids,
         basis=basis,
         identity=identity,
         aggregation_membership_column=aggregation_membership_column,
@@ -458,7 +459,7 @@ def bind_policy_derived_monetary_target(
     observed_source_identity_sha256: str,
     prepared: PolicyDerivedMonetaryMeasure,
     source: str | None = None,
-) -> TargetSpec:
+) -> AxiomPolicyTargetSpec:
     """Bind an observed aggregate to one exact Axiom-derived distribution.
 
     Binding is not admission: the resulting :class:`~microcosm.calibrate.TargetSpec`
@@ -531,7 +532,20 @@ def bind_policy_derived_monetary_target(
             f"{type(value).__name__}; booleans and numeric strings are refused "
             "rather than coerced."
         )
-    value = float(value)
+    if type(value) is int:
+        try:
+            float_value = float(value)
+        except OverflowError:
+            raise ValueError(
+                "Observed integer amount must be exactly representable as float64."
+            ) from None
+        if not math.isfinite(float_value) or int(float_value) != value:
+            raise ValueError(
+                "Observed integer amount must be exactly representable as float64."
+            )
+        value = float_value
+    else:
+        value = float(value)
     if not math.isfinite(value):
         raise ValueError("Observed target amount must be finite.")
     if not reference.signed and (value < 0 or (prepared.values < 0).any()):
@@ -593,7 +607,7 @@ def bind_policy_derived_monetary_target(
         "prepared": prepared.receipt(),
     }
     validate_policy_monetary_binding_payload(binding)
-    return TargetSpec(
+    return AxiomPolicyTargetSpec(
         name=reference.name,
         entity=reference.entity,
         measure=reference.measure or "",

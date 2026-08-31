@@ -7,14 +7,14 @@ current truth.
 
 ## State
 
-Repair implemented, rebased onto the repaired relation prerequisite at
-`952952a1`, and verified locally. All six review findings were first reproduced
-with executable probes, then closed. A follow-up exact audit found that the
-initial stripping regression still supplied the external acceptance: stripping
-both all target metadata and the optional compiler argument demoted the row to
-an ordinary target. The registry now emits a nominal `AxiomPolicyTarget`
-classification outside metadata, and the exact combined stripping probe fails
-closed. Nothing was pushed and no PR was opened.
+Repair implemented and rebased onto the repaired relation prerequisite at
+`952952a1`. A second exact Sol audit of reviewed head `f336b1dc` identified
+seven remaining boundary defects; all now have adversarial regressions and
+local fixes. All directly affected tests and downstream shards pass. The full
+build shard remains red only on failures reproduced unchanged at exact base
+`f336b1dc`; this contained follow-up records rather than modifies those
+inherited blockers. Nothing was rebased, pushed, published, or opened during
+this follow-up.
 
 ## Scope
 
@@ -103,6 +103,46 @@ numeric/string identity contract locally rather than importing private helpers.
   this branch; none of the 15 Python files changed by this relation+policy lane
   are among them.
 
+## Exact Sol follow-up audit of `f336b1dc`
+
+- Added nominal `AxiomPolicyTargetSpec` provenance. The authenticated binder
+  and registry reload path emit it, plain `TargetSpec` construction refuses
+  authenticated policy metadata, and `dataclasses.replace(spec, metadata={})`
+  still produces a nominal `AxiomPolicyTarget` that fails closed at matrix
+  compilation.
+- Refused direct monetary receipts on every nominal policy target. A policy
+  target can therefore neither strip its policy receipt nor swap to the generic
+  direct-receipt parser.
+- Changed policy replay to return an owned immutable copy of the exact verified
+  live target vector. The matrix consumes that vector directly and never calls
+  the target's overridable `constraint_row` after authentication.
+- Classified raw policy record IDs before NumPy conversion. Mixed raw
+  integer/string families and bytes now fail before they can be stringified;
+  canonical integer and Unicode arrays retain their existing identities.
+- Rejected Python integer observations whose exact value cannot survive the
+  required float64 `TargetSpec` representation.
+- Restricted policy preparation to a materialization receipt with exactly one
+  requested output across all executed entities. Complete multi-output replay
+  is not implemented, so partial verification is impossible.
+- Recorded `trusted_in_process_python_v1` in every acceptance seal and
+  documented the threat model: the private seal is defense in depth inside a
+  trusted release interpreter, not a sandbox against hostile same-process
+  Python; signed producer and observation artifacts remain the durable
+  authority.
+- Added adversarial tests for every item above, plus registry JSON restoration
+  of the nominal spec classification. The focused policy file passes 84 tests;
+  full calibrate passes 212; full frame passes 323 with 42 expected dependency
+  skips; and the directly affected build group passes 628.
+- Passed repository-wide Ruff, format checks for every changed Python file,
+  the 318-file CI test-group inventory verifier, and `git diff --check`.
+- Reproduced the full build shard's five failures and six collection/setup
+  errors at an untouched detached worktree on exact base `f336b1dc`. Two
+  release-target parity failures reject an inherited CBO `source_projection`;
+  three country-bundle tests pin stale AM/BE/UK spec digests; six coverage-tool
+  cases cascade from stale seed-protocol/owner-map digests. The baseline and
+  follow-up produce the same failures, so they are residual stacked-branch
+  blockers rather than regressions from this diff.
+
 ## Done
 
 - Read the review, `AGENTS.md`, `CLAUDE.md`, and every file `f6e04467` touched.
@@ -115,12 +155,15 @@ numeric/string identity contract locally rather than importing private helpers.
   `tools/ci_test_groups.py --verify` ok with the test file in `fast/rest` and
   `engine us-am:build`; `git diff --check` clean.
 
-## Known unrelated failure
+## Known unrelated failures
 
-`packages/microcosm-build/tests/test_release_target_parity.py::TestRegeneration`
-fails identically before and after this repair (a CBO `source_projection` fact
-rejected by `ledger_targets.py` assertion policy). Verified by restoring the
-pre-repair files and re-running.
+- Two release-target-parity regeneration cases fail identically at exact base
+  `f336b1dc` because an inherited CBO `source_projection` fact is rejected by
+  the ledger target's `observed_only` assertion policy.
+- Three country-bundle cases pin stale AM/BE/UK spec digests.
+- Six coverage-tool cases cascade from stale seed-protocol and compiled owner-
+  map digests. All eleven outcomes were reproduced in a detached, untouched
+  worktree at `f336b1dc` before this repair was committed.
 
 ## Next
 

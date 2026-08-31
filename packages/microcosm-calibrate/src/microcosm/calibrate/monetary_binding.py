@@ -180,7 +180,7 @@ def verify_monetary_binding(
     frame: Frame,
     *,
     policy_acceptance: object | None = None,
-) -> None:
+) -> np.ndarray | None:
     """Fail closed if an opted-in monetary target no longer matches its receipt.
 
     Targets without receipt keys or monetary-binding markers preserve the
@@ -201,6 +201,11 @@ def verify_monetary_binding(
             f"{target.row_name}: direct and policy-derived monetary receipts "
             "cannot coexist."
         )
+    if policy_target and present_receipt_keys:
+        raise MonetaryBindingIntegrityError(
+            f"{target.row_name}: a nominal Axiom policy target cannot use a "
+            "direct monetary receipt."
+        )
     if present_policy_receipt_keys:
         # Local import keeps the policy verifier independent while preserving
         # one public compiler seam for every authenticated monetary row.
@@ -208,12 +213,11 @@ def verify_monetary_binding(
             verify_policy_monetary_binding,
         )
 
-        verify_policy_monetary_binding(
+        return verify_policy_monetary_binding(
             target,
             frame,
             acceptance=policy_acceptance,
         )
-        return
     if not present_receipt_keys:
         remaining_markers = _BINDING_MARKER_KEYS.intersection(target.metadata)
         policy_semantics = (

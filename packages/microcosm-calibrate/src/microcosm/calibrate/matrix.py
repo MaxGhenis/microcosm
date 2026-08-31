@@ -337,15 +337,18 @@ def build_constraint_matrix(
                     "Axiom policy-derived, but it carries no policy monetary "
                     "receipt."
                 )
-        verify_monetary_binding(
+        verified_policy_row = verify_monetary_binding(
             target,
             frame,
             policy_acceptance=acceptance,
         )
-        monetary = bool(
-            {"monetary_binding", "policy_monetary_binding"}.intersection(
-                target.metadata
+        monetary = (
+            bool(
+                {"monetary_binding", "policy_monetary_binding"}.intersection(
+                    target.metadata
+                )
             )
+            or verified_policy_row is not None
         )
         if monetary and target.entity != weight_entity:
             raise MonetaryBindingIntegrityError(
@@ -360,7 +363,16 @@ def build_constraint_matrix(
                 else nullcontext()
             )
             with errors:
-                row = _entity_row(target, frame, weight_entity)
+                # Policy replay returns an owned, immutable copy of the exact
+                # live target vector it authenticated. Consume it directly:
+                # redispatching the overridable ``constraint_row`` method would
+                # compile a second, potentially different vector after the
+                # receipt check.
+                row = (
+                    verified_policy_row
+                    if verified_policy_row is not None
+                    else _entity_row(target, frame, weight_entity)
+                )
             if row.shape != (n_weights,):
                 raise ValueError(
                     f"compiled row has shape {row.shape}, expected "

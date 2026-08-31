@@ -1,3 +1,47 @@
+# Axiom policy-derived monetary exact-review repair
+
+## State
+
+Completed locally on 2026-08-31 from exact policy head `f336b1dc`, stacked on
+relation prerequisite `952952a1`. Seven exact-review findings are repaired with
+adversarial regressions. All directly affected tests, both complete downstream
+shards, repository Ruff, format, test-inventory, and diff checks pass. The full
+build shard remains red only on failures reproduced unchanged at exact base
+`f336b1dc`; this contained repair records rather than modifies those inherited
+blockers. No rebase, push, PR, merge, artifact publication, or external
+repository change occurred.
+
+## Done
+
+- Preserved authenticated policy provenance through `TargetSpec` metadata
+  replacement with a nominal spec/target classification and registry reload.
+- Kept nominal policy targets out of the direct monetary verifier.
+- Compiled the exact immutable live vector authenticated by policy replay,
+  without a second overridable constraint evaluation.
+- Classified raw record-ID families before NumPy conversion; rejected bytes,
+  heterogeneous families, and non-float64-representable integer observations.
+- Rejected multi-output Axiom receipts until complete replay exists.
+- Documented and receipted the process-private seal's trusted in-process Python
+  assumption; signed artifacts remain the authority boundary.
+- Added adversarial coverage for all seven findings. The focused policy file
+  passes 84 tests; full calibrate passes 212; full frame passes 323 with 42
+  expected dependency skips; and the directly affected build group passes 628.
+- Passed repository-wide Ruff, format checks for every changed Python file,
+  the 318-file CI test-group inventory verifier, and `git diff --check`.
+- Reproduced the full build shard's five failures and six collection/setup
+  errors at untouched detached base `f336b1dc`: two release-target parity
+  failures reject an inherited CBO `source_projection`; three country-bundle
+  tests carry stale AM/BE/UK spec digests; six coverage-tool cases cascade from
+  stale seed-protocol/owner-map digests. None is caused by this diff.
+
+## Next
+
+- Request independent exact-head review of this contained repair. Resolve the
+  inherited full-build blockers separately before treating the stacked branch
+  as repository-wide green; keep the lane local and do not push or publish it.
+
+---
+
 # Axiom relation-adapter review repair
 
 ## State

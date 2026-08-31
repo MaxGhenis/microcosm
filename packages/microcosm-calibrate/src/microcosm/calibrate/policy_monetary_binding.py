@@ -8,12 +8,14 @@ separate authorities therefore have to agree before such a row compiles.
   verification keys that never come from a target, a receipt, or a registry.
   :func:`build_axiom_policy_acceptances` authenticates one *signed producer*
   artifact and one *signed observed-source* artifact per row under those keys
-  and mints :class:`AxiomPolicyAcceptance` values. Acceptances cannot be
-  constructed by callers — each carries a seal under a process-private key held
-  only by this module — so a fabricated target can never mint its own
-  admission, and the accepted set is pinned by typed
+  and mints :class:`AxiomPolicyAcceptance` values. Each acceptance carries a
+  defense-in-depth seal under a process-private key and the accepted set is
+  pinned by typed
   :attr:`~microcosm.calibrate.target.Target.key`, so it can be neither trimmed
-  nor extended.
+  nor extended through the supported API. The seal is not a Python sandbox:
+  compilation assumes trusted in-process Python because hostile code in the
+  same interpreter can inspect or replace private module state. The separately
+  signed producer and observation artifacts remain the authority boundary.
 * **The materialization receipt.** The Axiom receipt is bound to the exact
   target period, output entity, requested output variable, row identities, and
   canonical typed output identity — at preparation, on the serialized payload,
@@ -52,6 +54,7 @@ from microcosm.calibrate.target import Target
 from microcosm.frame import Frame
 
 __all__ = [
+    "AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL",
     "AxiomPolicyAcceptance",
     "AxiomPolicyAcceptanceSet",
     "AxiomPolicyTarget",
@@ -224,6 +227,11 @@ _AXIOM_ARRAY_IDENTITY_KEYS = frozenset(
 _AXIOM_ARRAY_ENCODING = "little_endian_raw_v1"
 _AXIOM_TEXT_ENCODING = "canonical_json_utf8_v1"
 
+#: Explicit threat-model marker sealed into every in-process acceptance. The
+#: seal prevents accidental/direct construction through the supported API; it
+#: is not an isolation boundary against hostile Python in the same interpreter.
+AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL = "trusted_in_process_python_v1"
+
 #: Signed artifact envelopes the trust root authenticates.
 _ATTESTATION_KEYS = frozenset({"document", "signature"})
 _PRODUCER_ATTESTATION_KEYS = frozenset(
@@ -384,13 +392,43 @@ def canonical_policy_record_ids(
     to one of those families. Booleans, floats, bytes mixed with text, and
     integer/string mixtures fail closed rather than being stringified.
     """
-    array = np.asarray(values)
-    _require(
-        array.ndim == 1 and array.size > 0,
-        f"{label} must be a nonempty one-dimensional ID vector",
-    )
-    kind = array.dtype.kind
+    if isinstance(values, np.ndarray):
+        array = values
+        _require(
+            array.ndim == 1 and array.size > 0,
+            f"{label} must be a nonempty one-dimensional ID vector",
+        )
+        kind = array.dtype.kind
+        if kind in ("i", "u"):
+            items: list[object] | None = None
+        elif kind == "U":
+            items = array.tolist()
+        elif kind == "O":
+            items = array.tolist()
+        else:
+            # In particular, NumPy ``S`` is a bytes family. Turning it into
+            # ``str`` would silently change each ID to a repr such as
+            # ``"b'h1'"`` and could make a heterogeneous caller look textual.
+            raise ValueError(
+                f"{label} must contain only integer IDs or only string IDs"
+            )
+    else:
+        if isinstance(values, (str, bytes, bytearray)):
+            raise ValueError(
+                f"{label} must contain only integer IDs or only string IDs"
+            )
+        try:
+            items = list(values)  # type: ignore[arg-type]
+        except TypeError:
+            raise ValueError(
+                f"{label} must be a nonempty one-dimensional ID vector"
+            ) from None
+        _require(bool(items), f"{label} must be a nonempty one-dimensional ID vector")
+        kind = "raw"
+        array = None
+
     if kind in ("i", "u"):
+        assert array is not None
         if kind == "u":
             _require(
                 array.max() <= np.iinfo(np.int64).max,
@@ -399,13 +437,9 @@ def canonical_policy_record_ids(
         canonical = np.frombuffer(
             array.astype("<i8", copy=False).tobytes(), dtype="<i8"
         )
-    elif kind in ("U", "S"):
-        canonical = np.array([str(item) for item in array.tolist()], dtype=str)
-        canonical.setflags(write=False)
-    elif kind == "O":
-        items = array.tolist()
-        if all(isinstance(item, str) for item in items):
-            canonical = np.array(items, dtype=str)
+    elif items is not None:
+        if all(isinstance(item, (str, np.str_)) for item in items):
+            canonical = np.array([str(item) for item in items], dtype=str)
             canonical.setflags(write=False)
         elif all(
             isinstance(item, (int, np.integer))
@@ -427,7 +461,7 @@ def canonical_policy_record_ids(
             raise ValueError(
                 f"{label} must contain only integer IDs or only string IDs"
             )
-    else:
+    else:  # pragma: no cover - exhaustive family classification above
         raise ValueError(f"{label} must contain only integer IDs or only string IDs")
     if unique:
         keys = [_id_key(value) for value in canonical]
@@ -699,14 +733,48 @@ def bind_materialization_output(
         isinstance(entities, dict) and bool(entities),
         "materialization receipt needs executed entities",
     )
+    validated_entities: dict[str, dict] = {}
+    requested: list[tuple[str, str]] = []
+    for entity_name, entity_value in entities.items():
+        _require(
+            type(entity_name) is str and bool(entity_name.strip()),
+            "materialization entity names must be nonempty strings",
+        )
+        checked_entity = _exact_mapping(
+            entity_value,
+            _MATERIALIZATION_ENTITY_KEYS,
+            f"materialization entity {entity_name!r}",
+        )
+        _require(
+            _same(checked_entity["frame_entity"], entity_name),
+            "materialization entity key differs from its frame entity",
+        )
+        entity_outputs = checked_entity["requested_outputs"]
+        _require(
+            isinstance(entity_outputs, dict),
+            "materialization requested outputs must be an object",
+        )
+        for variable_name in entity_outputs:
+            _require(
+                type(variable_name) is str and bool(variable_name.strip()),
+                "materialization output names must be nonempty strings",
+            )
+            requested.append((entity_name, variable_name))
+        validated_entities[entity_name] = checked_entity
     _require(
-        output_entity in entities,
+        output_entity in validated_entities,
         "materialization receipt omits the policy output entity",
     )
-    entity = _exact_mapping(
-        entities[output_entity],
-        _MATERIALIZATION_ENTITY_KEYS,
-        "materialization output entity",
+    entity = validated_entities[output_entity]
+    outputs = entity["requested_outputs"]
+    _require(
+        output_variable in outputs,
+        "materialization receipt omits the requested policy output variable",
+    )
+    _require(
+        requested == [(output_entity, output_variable)],
+        "policy preparation requires exactly one requested output so live replay "
+        "can verify the complete materialization",
     )
     _require(
         _same(entity["frame_entity"], output_entity),
@@ -717,14 +785,9 @@ def bind_materialization_output(
         and entity["current_id_column"].strip(),
         "invalid materialization entity id column",
     )
-    outputs = entity["requested_outputs"]
     _require(
         isinstance(outputs, dict) and bool(outputs),
         "materialization receipt needs requested outputs",
-    )
-    _require(
-        output_variable in outputs,
-        "materialization receipt omits the requested policy output variable",
     )
     output = _exact_mapping(
         outputs[output_variable],
@@ -837,13 +900,18 @@ def _seal(fields: Mapping[str, object]) -> str:
 class AxiomPolicyAcceptance:
     """One trust-root admission of one policy-derived calibration target.
 
-    Callers cannot construct this: ``seal`` is an HMAC under a process-private
-    key held only by this module, so the only way to obtain an acceptance is
-    :func:`build_axiom_policy_acceptances` verifying signed producer and
-    observed-source artifacts. Every pin therefore originates outside the
-    target it admits, and :attr:`accepted_target_keys` fixes the exact set of
-    typed target keys the same verification admitted, so an acceptance cannot
-    be moved to another target, silently dropped, or joined by an extra row.
+    Under the supported API, ``seal`` is an HMAC under a process-private key and
+    an acceptance comes only from :func:`build_axiom_policy_acceptances`
+    verifying signed producer and observed-source artifacts.
+    :attr:`accepted_target_keys` fixes the exact set of typed target keys that
+    verification admitted, so ordinary callers cannot move, drop, or append a
+    row after verification.
+
+    This defense assumes trusted in-process Python. It is not a sandbox or a
+    security boundary against hostile code already executing in this
+    interpreter, which can inspect or replace private module state. Run
+    acceptance minting and compilation only in the trusted release process;
+    the independently signed artifacts are the durable authority boundary.
 
     Acceptances are in-process values: they intentionally do not survive
     pickling or a process boundary, because the seal key does not either.
@@ -926,6 +994,7 @@ class AxiomPolicyAcceptance:
 
     def _sealed_fields(self) -> dict[str, object]:
         return {
+            "seal_trust_model": AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL,
             "target_key": list(self.target_key),
             "accepted_target_keys": [list(key) for key in self.accepted_target_keys],
             "trust_root_id": self.trust_root_id,
@@ -1224,6 +1293,7 @@ def build_axiom_policy_acceptances(
         target = declared[key]
         document = observed[key]
         fields: dict[str, object] = {
+            "seal_trust_model": AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL,
             "target_key": list(key),
             "accepted_target_keys": [list(item) for item in accepted],
             "trust_root_id": trust_root.trust_root_id,
@@ -1559,8 +1629,14 @@ def verify_policy_monetary_binding(
     frame: Frame,
     *,
     acceptance: AxiomPolicyAcceptance | None,
-) -> None:
-    """Require a trust-root acceptance and replay the receipt on the frame."""
+) -> np.ndarray:
+    """Require acceptance, replay the receipt, and return the verified row.
+
+    The returned immutable vector is the exact live target-entity column whose
+    identities and output aggregation were authenticated below. Matrix
+    compilation must consume this vector directly rather than redispatching
+    :meth:`Target.constraint_row`, which is an overridable second evaluation.
+    """
     try:
         _require(
             isinstance(acceptance, AxiomPolicyAcceptance),
@@ -1760,6 +1836,9 @@ def verify_policy_monetary_binding(
             or (observed_value < 0 and (target_values < 0).any()),
             "observed target has no same-sign policy-derived support",
         )
+        verified = np.array(target_values, dtype="<f8", copy=True)
+        verified.setflags(write=False)
+        return verified
     except (
         KeyError,
         TypeError,

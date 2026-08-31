@@ -104,6 +104,7 @@ from microcosm.calibrate.monetary_binding import (  # noqa: E402 - after compat 
     MonetaryBindingIntegrityError,
 )
 from microcosm.calibrate.policy_monetary_binding import (  # noqa: E402
+    AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL,
     AxiomPolicyAcceptance,
     AxiomPolicyAcceptanceSet,
     AxiomPolicyTrustRoot,
@@ -111,6 +112,7 @@ from microcosm.calibrate.policy_monetary_binding import (  # noqa: E402
     sign_axiom_policy_attestation,
 )
 from microcosm.calibrate.registry import (  # noqa: E402 - after the compat gate
+    AxiomPolicyTargetSpec,
     TargetRegistry,
     TargetSpec,
     specs_from_pe_surface,
@@ -139,6 +141,7 @@ from microcosm.calibrate.target import (  # noqa: E402 - after the compat gate
 __version__ = "0.1.0"
 
 __all__ = [
+    "AXIOM_POLICY_ACCEPTANCE_SEAL_TRUST_MODEL",
     "CALIBRATION_DIAGNOSTICS_SCHEMA_VERSION",
     "CONSERVE_MASS",
     "FREE_MASS",
@@ -153,6 +156,7 @@ __all__ = [
     "AxiomPolicyAcceptance",
     "AxiomPolicyAcceptanceSet",
     "AxiomPolicyTrustRoot",
+    "AxiomPolicyTargetSpec",
     "SkippedTarget",
     "Target",
     "TargetDiagnostic",
