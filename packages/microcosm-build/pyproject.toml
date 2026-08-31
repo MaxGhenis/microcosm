@@ -25,6 +25,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The AM extra is the local-only native ILCS ingest surface. It parses the
+# two pinned XLSX workbooks and writes a staging H5; no country policy engine
+# is installed or imported.
+am = ["openpyxl>=3.1", "h5py>=3", "tables>=3"]
 # The US extra adds the rules engine for formula-owned export checks. Source
 # content is declared in packaged manifests and interpreted by shared Microcosm
 # runtimes; country source loaders must not depend on incumbent data packages.

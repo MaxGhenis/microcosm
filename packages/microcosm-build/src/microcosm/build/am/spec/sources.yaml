@@ -1,8 +1,8 @@
 sources:
 - id: am_populace_us_support_contract
   role: am_populace_us_support_pool
-  sha256: b18188b36fdb2f542487ddf271b95b12f77c19943c65dc801c4cc2e6af9e24aa
-  byte_size: 4385
+  sha256: 3c11f9d5086a0906bc2d766c443b6495e886714c9295aaffc54b0121a1493262
+  byte_size: 11913
   loader: kernel:load_populace_us_support_pool
   vintages:
   - vintage:am_support_pool_unpinned
@@ -12,8 +12,8 @@ sources:
     value: HARVEST_REQUIRED
 - id: am_marz_assignment_contract
   role: am_marz_assignment_contract
-  sha256: b18188b36fdb2f542487ddf271b95b12f77c19943c65dc801c4cc2e6af9e24aa
-  byte_size: 4385
+  sha256: 3c11f9d5086a0906bc2d766c443b6495e886714c9295aaffc54b0121a1493262
+  byte_size: 11913
   loader: kernel:assign_am_marz
   vintages:
   - vintage:am_marz_2022
@@ -21,6 +21,17 @@ sources:
   - id: am_marz_2022
     kind: geography_vintage
     value: 2022_marz
+- id: am_ilcs_2024_contract
+  role: am_ilcs_2024_native_source
+  sha256: 3c11f9d5086a0906bc2d766c443b6495e886714c9295aaffc54b0121a1493262
+  byte_size: 11913
+  loader: kernel:ingest_am_ilcs_spine
+  vintages:
+  - vintage:am_ilcs_2024
+  vintage_authorities:
+  - id: am_ilcs_2024
+    kind: survey_period
+    value: 2024
 - id: am_community_spine_contract
   role: am_community_spine_contract
   sha256: 12ee8607f1a222b642cbc251d3fe51c209786b24542084a06249aab8c7ab2fa1
@@ -36,12 +47,11 @@ stage_manifest:
   version: 1
   country: am
   policy: >-
-    Armenia's engine-free pool-reweight demonstrator requires a public
-    populace-US support artifact whose exact identity must still be
-    authenticated. Its records remain US donor support records and are never
-    represented as Armenian microdata. Only direct columns, deterministic
-    direct-column indicators, and the target-derived marz assignment may enter
-    v1; no rules engine is required or permitted.
+    Armenia keeps the engine-free populace-US pool-reweight demonstrator intact
+    and adds a separately selected native ILCS 2024 household/member spine. The
+    native stage authenticates caller-supplied local workbooks and preserves
+    their monthly AMD basis; it does not authorize redistribution, calibration,
+    release, or a rules engine.
 stages:
 - stage: load_populace_us_support_pool
   survey: Populace US support pool (US donor support records)
@@ -142,3 +152,178 @@ stages:
     from public Armenian margins on US donor support records; it is not
     observed Armenian microdata. The exact Statbank table and complete code
     roster are Chronicle harvest items.
+- stage: ingest_am_ilcs_2024
+  survey: ArmStat Integrated Living Conditions Survey 2024 household and present-member files
+  source: https://armstat.am/en/?nid=205
+  grain: person_household
+  artifacts:
+  - role: ilcs_table
+    table: household
+    kind: public_microdata
+    format: xlsx
+    vintage: '2024'
+    locator: households_2024.xlsx
+    sheet: Household - 2024
+    source: https://armstat.am/file/doc/99565003.xlsx
+    sha256: 48527e2de376e7ef88dc04ac9fe2de2fdc1728d34ce2d753ce165ab5c496590e
+    size_bytes: 2186167
+    expected_rows: 5184
+    runtime_sha256_required: true
+    integrity_note: >-
+      The workbook is publicly downloadable, but the raw file remains
+      caller-supplied and local-only. Exact ArmStat redistribution terms remain
+      a release blocker.
+  - role: ilcs_table
+    table: member
+    kind: public_microdata
+    format: xlsx
+    vintage: '2024'
+    locator: members_2024.xlsx
+    sheet: Sheet1
+    source: https://armstat.am/file/doc/99565008.xlsx
+    sha256: 6d52cc9867147043decbc8539dd40ac428468fba0caed60176b28bd7bc1a24f5
+    size_bytes: 8613335
+    expected_rows: 17744
+    runtime_sha256_required: true
+    integrity_note: >-
+      The present-member workbook is joined totally to the household workbook.
+      It remains caller-supplied and local-only pending exact licence review.
+  operations:
+  - kind: read_tables
+    format: xlsx
+    lowercase_columns: false
+    numeric_errors: raise
+    runtime_sha256_required: true
+  - kind: replace_sentinels
+    scope: household and member workbooks
+    sentinels:
+    - -999999999
+  - kind: join
+    left: member
+    right: household
+    keys:
+    - interview__key
+    linkage: ilcs_interview_key
+    validation: many_to_one_total_on_both_sides
+    notes: >-
+      Every present-member row resolves to one household and every household has
+      at least one present member; memnal must equal the joined member count.
+  - kind: declare_income_reference_offset
+    years: 0
+    notes: >-
+      The workbook Labels sheet declares income and expenditure fields as
+      household amounts per survey month in dram. Runtime preserves monthly AMD
+      and applies no annualization.
+  - kind: map_columns
+    mapping:
+      interview__key: ilcs_interview_key
+      mem_001__id: source_person_sequence
+      mem_05: age
+      mem_02: sex
+      mem_03: relationship_to_household_head
+      ed_03: education_level
+      emplj: is_employed
+      unemployed: is_unemployed
+      activ: is_economically_active
+      emp_05: employment_status
+      emp_04: industry_code
+      emp_10: usual_weekly_hours
+      date_q: survey_month
+      hh_02: marz_code_observed
+      settlement: settlement_type
+      members: household_members_reported
+      memnal: present_household_size
+      expend: household_expenditure_monthly
+      monincome: monetary_income_monthly
+      totincome: total_income_monthly
+      nonmoninc: non_monetary_income_monthly
+      'y1_3amd.1.00': employment_income_monthly
+      'y1_3amd.2.00': self_employment_income_monthly
+      'y1_3amd.4.00': pension_income_reported_monthly
+      'y1_3amd.6.00': family_benefit_reported_monthly
+      'y1_3amd.8.00': childbirth_grant_reported_monthly
+      'y1_3amd.9.00': child_under_two_benefit_reported_monthly
+      'y1_3amd.10.00': other_child_benefit_reported_monthly
+      'y1_3amd.12.00': other_benefit_reported_monthly
+      'y1_3amd.17.00': property_and_investment_income_monthly
+      'y1_3amd.18.00': private_transfer_income_domestic_monthly
+      'y1_3amd.19.00': private_transfer_income_abroad_monthly
+      aec_r: adult_equivalent_consumption_monthly
+      poverty: poverty_status_survey
+    notes: >-
+      Identifiers are content-determined dense ids. Monthly AMD receipts remain
+      observed inputs or holdouts; no tax, contribution, or statutory benefit
+      output is simulated here.
+  - kind: derive
+    scope: >-
+      Derive stable dense household/person ids, membership, and is_employee
+      directly from authenticated source keys and emp_05 codes. No policy
+      formula or synthetic allocation is applied.
+  outputs:
+  - person_id
+  - person_household_id
+  - age
+  - sex
+  - relationship_to_household_head
+  - education_level
+  - is_employed
+  - is_employee
+  - is_unemployed
+  - is_economically_active
+  - employment_status
+  - industry_code
+  - usual_weekly_hours
+  - household_id
+  - ilcs_interview_key
+  - survey_month
+  - marz_code_observed
+  - settlement_type
+  - household_members_reported
+  - present_household_size
+  - household_expenditure_monthly
+  - monetary_income_monthly
+  - total_income_monthly
+  - non_monetary_income_monthly
+  - employment_income_monthly
+  - self_employment_income_monthly
+  - pension_income_reported_monthly
+  - family_benefit_reported_monthly
+  - childbirth_grant_reported_monthly
+  - child_under_two_benefit_reported_monthly
+  - other_child_benefit_reported_monthly
+  - other_benefit_reported_monthly
+  - property_and_investment_income_monthly
+  - private_transfer_income_domestic_monthly
+  - private_transfer_income_abroad_monthly
+  - adult_equivalent_consumption_monthly
+  - poverty_status_survey
+  nonnegative_outputs:
+  - age
+  - is_employed
+  - is_employee
+  - is_unemployed
+  - is_economically_active
+  - usual_weekly_hours
+  - household_members_reported
+  - present_household_size
+  - household_expenditure_monthly
+  - monetary_income_monthly
+  - total_income_monthly
+  - non_monetary_income_monthly
+  - employment_income_monthly
+  - self_employment_income_monthly
+  - pension_income_reported_monthly
+  - family_benefit_reported_monthly
+  - childbirth_grant_reported_monthly
+  - child_under_two_benefit_reported_monthly
+  - other_child_benefit_reported_monthly
+  - other_benefit_reported_monthly
+  - property_and_investment_income_monthly
+  - private_transfer_income_domestic_monthly
+  - private_transfer_income_abroad_monthly
+  - adult_equivalent_consumption_monthly
+  notes: >-
+    This separately selected native source channel builds a local design-weight
+    Frame with 5,184 households and 17,744 present members. It neither replaces
+    the donor diagnostic nor enables calibration, release, publication, or a
+    policy engine.

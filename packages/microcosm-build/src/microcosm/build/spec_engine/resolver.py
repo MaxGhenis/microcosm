@@ -164,6 +164,7 @@ F0_CONTRACT_ONLY_KERNEL_IDS = frozenset(
         "be_commune_geography_gate",
         "clone_assign_communities",
         "clone_assign_communes",
+        "ingest_am_ilcs_spine",
         "load_populace_us_support_pool",
         "load_uk_national_frame",
         "silc_load",

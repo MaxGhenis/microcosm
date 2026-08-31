@@ -3744,35 +3744,10 @@
       },
       "mapping": {
        "type": "object",
-       "additionalProperties": false,
-       "properties": {
-        "DB030": {
-         "type": "string"
-        },
-        "DB040": {
-         "type": "string"
-        },
-        "PY010G": {
-         "type": "string"
-        },
-        "RB030": {
-         "type": "string"
-        },
-        "RB080": {
-         "type": "string"
-        },
-        "RB090": {
-         "type": "string"
-        }
-       },
-       "required": [
-        "DB030",
-        "DB040",
-        "PY010G",
-        "RB030",
-        "RB080",
-        "RB090"
-       ]
+       "minProperties": 1,
+       "additionalProperties": {
+        "type": "string"
+       }
       },
       "notes": {
        "type": "string",
@@ -4195,6 +4170,15 @@
       "kind": {
        "const": "public_microdata"
       },
+      "role": {
+       "type": "string"
+      },
+      "table": {
+       "type": "string"
+      },
+      "sheet": {
+       "type": "string"
+      },
       "locator": {
        "type": "string",
        "x-spec-surface": "operational"
@@ -4242,6 +4226,9 @@
       "revision": {
        "type": "string",
        "x-spec-surface": "operational"
+      },
+      "runtime_sha256_required": {
+       "type": "boolean"
       },
       "sha256": {
        "$ref": "defs.schema.json#/$defs/sha256"

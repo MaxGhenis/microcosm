@@ -109,6 +109,7 @@
          {
           "enum": [
            "usd",
+           "amd",
            "count",
            "ratio",
            "boolean",

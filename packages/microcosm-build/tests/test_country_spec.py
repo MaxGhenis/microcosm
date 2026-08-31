@@ -260,6 +260,7 @@ class TestArmenianPackage:
         assert tuple(stages) == (
             "load_populace_us_support_pool",
             "assign_am_marz",
+            "ingest_am_ilcs_2024",
         )
 
         support = stages["load_populace_us_support_pool"]
@@ -279,6 +280,19 @@ class TestArmenianPackage:
         assert [operation.kind for operation in marz.operations] == [
             "sample_categorical_from_count_table"
         ]
+
+        native = stages["ingest_am_ilcs_2024"]
+        assert native.grain == "person_household"
+        assert {artifact["table"] for artifact in native.artifacts} == {
+            "household",
+            "member",
+        }
+        assert {artifact["kind"] for artifact in native.artifacts} == {
+            "public_microdata"
+        }
+        assert all(artifact["runtime_sha256_required"] for artifact in native.artifacts)
+        assert "employment_income_monthly" in native.outputs
+        assert "poverty_status_survey" in native.outputs
 
     def test_geography_spine_is_census_vintage_aware(self, spec) -> None:
         spine = spec.geography_spine.geography_spine

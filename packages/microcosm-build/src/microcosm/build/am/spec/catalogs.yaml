@@ -49,3 +49,333 @@ columns:
     nullable: false
     domain: target_assigned_geography
     public_stability: internal
+- key: person.person_household_id
+  contract:
+    entity: person
+    dtype: int64
+    unit: count
+    definition_period: eternity
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: frame_linkage
+    public_stability: internal
+- key: person.relationship_to_household_head
+  contract:
+    entity: person
+    dtype: category
+    unit: categorical
+    definition_period: year
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_demography
+    public_stability: internal
+- key: person.education_level
+  contract:
+    entity: person
+    dtype: category
+    unit: categorical
+    definition_period: year
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_education
+    public_stability: internal
+- key: person.is_employed
+  contract:
+    entity: person
+    dtype: bool
+    unit: boolean
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_labor
+    public_stability: internal
+- key: person.is_employee
+  contract:
+    entity: person
+    dtype: bool
+    unit: boolean
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_labor
+    public_stability: internal
+- key: person.is_unemployed
+  contract:
+    entity: person
+    dtype: bool
+    unit: boolean
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_labor
+    public_stability: internal
+- key: person.is_economically_active
+  contract:
+    entity: person
+    dtype: bool
+    unit: boolean
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_labor
+    public_stability: internal
+- key: person.employment_status
+  contract:
+    entity: person
+    dtype: category
+    unit: categorical
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_labor
+    public_stability: internal
+- key: person.industry_code
+  contract:
+    entity: person
+    dtype: category
+    unit: categorical
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_labor
+    public_stability: internal
+- key: person.usual_weekly_hours
+  contract:
+    entity: person
+    dtype: float64
+    unit: count
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_labor
+    public_stability: internal
+- key: household.ilcs_interview_key
+  contract:
+    entity: household
+    dtype: string
+    unit: categorical
+    definition_period: eternity
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: source_identity
+    public_stability: internal
+- key: household.survey_month
+  contract:
+    entity: household
+    dtype: int64
+    unit: count
+    definition_period: year
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_period
+    public_stability: internal
+- key: household.marz_code_observed
+  contract:
+    entity: household
+    dtype: category
+    unit: categorical
+    definition_period: year
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_geography
+    public_stability: internal
+- key: household.settlement_type
+  contract:
+    entity: household
+    dtype: category
+    unit: categorical
+    definition_period: year
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_geography
+    public_stability: internal
+- key: household.household_members_reported
+  contract:
+    entity: household
+    dtype: int64
+    unit: count
+    definition_period: year
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_household_structure
+    public_stability: internal
+- key: household.present_household_size
+  contract:
+    entity: household
+    dtype: int64
+    unit: count
+    definition_period: year
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_household_structure
+    public_stability: internal
+- key: household.household_expenditure_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_survey_amount
+    public_stability: internal
+- key: household.monetary_income_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_diagnostic_total
+    public_stability: internal
+- key: household.total_income_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_diagnostic_total
+    public_stability: internal
+- key: household.non_monetary_income_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_survey_amount
+    public_stability: internal
+- key: household.employment_income_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_survey_amount
+    public_stability: internal
+- key: household.self_employment_income_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_survey_amount
+    public_stability: internal
+- key: household.pension_income_reported_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_reported_holdout
+    public_stability: internal
+- key: household.family_benefit_reported_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_reported_holdout
+    public_stability: internal
+- key: household.childbirth_grant_reported_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_reported_holdout
+    public_stability: internal
+- key: household.child_under_two_benefit_reported_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_reported_holdout
+    public_stability: internal
+- key: household.other_child_benefit_reported_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_reported_holdout
+    public_stability: internal
+- key: household.other_benefit_reported_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_reported_holdout
+    public_stability: internal
+- key: household.property_and_investment_income_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_survey_amount
+    public_stability: internal
+- key: household.private_transfer_income_domestic_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_survey_amount
+    public_stability: internal
+- key: household.private_transfer_income_abroad_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_survey_amount
+    public_stability: internal
+- key: household.adult_equivalent_consumption_monthly
+  contract:
+    entity: household
+    dtype: float64
+    unit: amd
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: observed_survey_amount
+    public_stability: internal
+- key: household.poverty_status_survey
+  contract:
+    entity: household
+    dtype: category
+    unit: categorical
+    definition_period: month
+    vintage: vintage:am_ilcs_2024
+    nullable: false
+    domain: survey_diagnostic_holdout
+    public_stability: internal

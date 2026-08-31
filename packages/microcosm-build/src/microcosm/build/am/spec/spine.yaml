@@ -2,6 +2,9 @@ channels:
 - id: populace_us_support
   source: am_populace_us_support_contract
   observed_geography: country
+- id: ilcs_2024_native
+  source: am_ilcs_2024_contract
+  observed_geography: marz
 assembly:
   mass_anchor_channel: populace_us_support
   shared_dtype_policy: canonical_string_storage

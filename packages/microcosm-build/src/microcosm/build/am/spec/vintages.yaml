@@ -14,6 +14,15 @@ records:
     pointer: /dataset_run/target_period
   compatible_with:
   - vintage:am_support_pool_unpinned
+  - vintage:am_ilcs_2024
+- id: am_ilcs_2024
+  kind: survey_period_ref
+  authority_ref:
+    kind: source_record
+    source: source:am_ilcs_2024_contract
+    authority: am_ilcs_2024
+  compatible_with:
+  - vintage:am_target_2024
 - id: am_community_2022
   kind: geography_vintage_ref
   authority_ref:

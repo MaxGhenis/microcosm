@@ -25,7 +25,43 @@ EXPECTED_RESOURCES = {
     "spine",
     "vintages",
 }
-AM_SPEC_SHA256 = "659b6baf5ebbd71fb7786ec4c4d49df565b2bddabeb868a9385ed226c56880f9"
+AM_SPEC_SHA256 = "84953fa8b0ee0b7ab4dc9e32024a8115816b36a63dc3202c769dfc448c86c06d"
+
+AM_NATIVE_COLUMNS = {
+    "household.adult_equivalent_consumption_monthly",
+    "household.child_under_two_benefit_reported_monthly",
+    "household.childbirth_grant_reported_monthly",
+    "household.employment_income_monthly",
+    "household.family_benefit_reported_monthly",
+    "household.household_expenditure_monthly",
+    "household.household_members_reported",
+    "household.ilcs_interview_key",
+    "household.marz_code_observed",
+    "household.monetary_income_monthly",
+    "household.non_monetary_income_monthly",
+    "household.other_benefit_reported_monthly",
+    "household.other_child_benefit_reported_monthly",
+    "household.pension_income_reported_monthly",
+    "household.poverty_status_survey",
+    "household.present_household_size",
+    "household.private_transfer_income_abroad_monthly",
+    "household.private_transfer_income_domestic_monthly",
+    "household.property_and_investment_income_monthly",
+    "household.self_employment_income_monthly",
+    "household.settlement_type",
+    "household.survey_month",
+    "household.total_income_monthly",
+    "person.education_level",
+    "person.employment_status",
+    "person.industry_code",
+    "person.is_economically_active",
+    "person.is_employed",
+    "person.is_employee",
+    "person.is_unemployed",
+    "person.person_household_id",
+    "person.relationship_to_household_head",
+    "person.usual_weekly_hours",
+}
 
 
 @pytest.mark.parametrize(
@@ -34,7 +70,8 @@ AM_SPEC_SHA256 = "659b6baf5ebbd71fb7786ec4c4d49df565b2bddabeb868a9385ed226c56880
         (
             "am",
             AM_SPEC_SHA256,
-            {
+            AM_NATIVE_COLUMNS
+            | {
                 "household.household_id",
                 "person.age",
                 "person.marz_code",
@@ -130,6 +167,7 @@ def test_country_kernel_contract_ids_are_closed_in_the_compiler_registry() -> No
         "am_community_geography_gate",
         "assign_am_marz",
         "clone_assign_communities",
+        "ingest_am_ilcs_spine",
         "load_populace_us_support_pool",
         "silc_load",
         "clone_assign_communes",
@@ -164,6 +202,7 @@ def test_am_generation_zero_views_come_from_the_country_spec_seam() -> None:
     assert tuple(spec.sources.stage_map()) == (
         "load_populace_us_support_pool",
         "assign_am_marz",
+        "ingest_am_ilcs_2024",
     )
     assert spec.geography_spine is not None
     assert spec.geography_spine.geography_spine.stage == "clone_assign_communities"
@@ -279,8 +318,8 @@ def test_be_smoke_build_refuses_without_gated_inputs_and_stage_bindings() -> Non
         country_stage_plan(spec, {})
 
 
-def test_am_smoke_build_refuses_without_harvests_and_stage_bindings() -> None:
-    """Compile succeeds, but engine-free v1 has no runnable AM stage map."""
+def test_am_smoke_build_has_only_the_native_stage_runtime_binding() -> None:
+    """Compile succeeds and native ingest exists without faking later stages."""
 
     spec = load_country_spec("am")
     compiled = compile_spec(spec.resolved_spec)
@@ -294,14 +333,18 @@ def test_am_smoke_build_refuses_without_harvests_and_stage_bindings() -> None:
     assert {artifact["kind"] for artifact in stages["assign_am_marz"].artifacts} == {
         "public_aggregated_counts"
     }
+    assert {
+        artifact["kind"] for artifact in stages["ingest_am_ilcs_2024"].artifacts
+    } == {"public_microdata"}
     build_package = Path(__file__).parents[1] / "src/microcosm/build"
-    assert not (build_package / "am_runtime").exists()
+    assert (build_package / "am_runtime").exists()
 
     with pytest.raises(
         ValueError,
         match=(
             r"missing \['load_populace_us_support_pool', 'assign_am_marz', "
-            r"'clone_assign_communities'\].*There are no stubs or fallbacks"
+            r"'ingest_am_ilcs_2024', 'clone_assign_communities'\].*"
+            r"There are no stubs or fallbacks"
         ),
     ):
         country_stage_plan(spec, {})
