@@ -112,7 +112,8 @@ recorded in the adapter docstring rather than replaced by a speculative fix.
 - `855f40ec` Fix the red US-path stub in the UK coverage test
 - `0c02834d` Correct the PUF donor stub's source-year expectation
 - `1ba3a592` Refresh the seed attestations this lane's kernel edits moved
-- `PLACEHOLDER_REPORT_COMMIT` Report the completed period-aware classifier fix
+- `ff6b57f2` Name the source-index gap instead of implying ownership
+- `7d6ce7be` Report the completed period-aware classifier fix
 
 ## Red tests the sol lane left behind (all fixed)
 
