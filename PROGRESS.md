@@ -84,6 +84,14 @@ authorized.
   dated method definitions. Assigned dated callables are now conservatively
   material formulas (never inferred as pure delegation); the focused synthetic
   regression passes 1/1, focused Ruff is green, and diff hygiene is clean.
+- The same caller audit found three stale test doubles, optional period defaults
+  on the ACS-local dated-classifier wrappers, and no direct preflight forwarding
+  proof. The wrappers (including their materialization entrypoint) now require
+  an explicit period; the mocks assert the forwarded 2024 period; and focused
+  regressions bind the local projection plus preflight's independent 2025
+  target period. The first targeted run exposed one stale expected options
+  dictionary (4 passed / 1 failed); after adding its deliberate `period: 2024`
+  contract, the exact five-case rerun passes 5/5.
 - Focused frame verification passes 59/59 with one existing numerical warning;
   focused Ruff is green across every changed Python file and `git diff --check`
   is clean. Five additional build classifier/pool cases passed before a

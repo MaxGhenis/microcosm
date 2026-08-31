@@ -4533,7 +4533,8 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
             lambda: SimpleNamespace(),
         )
 
-        def fake_input_coverage_gate(frame, engine):
+        def fake_input_coverage_gate(frame, engine, *, period):
+            assert period == builder.PERIOD
             captured["terminal_gate_events"].append("input_coverage")
             return builder.GateResult(
                 name="input_coverage",
@@ -4584,8 +4585,14 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
     monkeypatch.setattr(
         builder, "assert_validation_leaf_registry_current", lambda: None
     )
+
+    def fake_assert_release_input_coverage_manifest_current(*, period):
+        assert period == builder.PERIOD
+
     monkeypatch.setattr(
-        builder, "assert_release_input_coverage_manifest_current", lambda: None
+        builder,
+        "assert_release_input_coverage_manifest_current",
+        fake_assert_release_input_coverage_manifest_current,
     )
     monkeypatch.setattr(builder, "assert_take_up_contract_current", lambda: None)
     monkeypatch.setattr(builder, "assert_take_up_treatments_consistent", lambda: None)

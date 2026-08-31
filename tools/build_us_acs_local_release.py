@@ -209,14 +209,14 @@ class UnregisteredNullError(ValueError):
     """NaN in an engine-input column NOT in reviewed_engine_input_nulls."""
 
 
-def project_input_only(base_frame, period: int = PERIOD):
+def project_input_only(base_frame, *, period: int | str):
     """Hold back every non-input variable so FED SET == ENGINE INPUT SET.
 
     The multispine pool keeps raw/aggregate source columns alongside leaf
     inputs by design, and pe-core refuses NaN inputs, so every variable that
     is not an engine input is held back from the engine pass using one
     classifier — ``PolicyEngineUSEngine.formula_owned_outputs`` — the same
-    complement of ``variables()`` the reviewed-null register is built from.
+    dated input surface the reviewed-null register is built from.
     Structural columns (ids, membership, weights, geography keys) stay.
     The H5 is never touched. Returns (projected_frame, dropped_by_entity).
     """
@@ -277,7 +277,8 @@ def fill_reviewed_nulls(
     frame,
     summary_path: Path,
     manifest_path: Path | None = None,
-    period: int = PERIOD,
+    *,
+    period: int | str,
 ):
     """Apply the nullable-artifact contract for the engine pass (H5 untouched).
 
@@ -403,9 +404,9 @@ def materialize_chunked(
     base_frame,
     specs,
     *,
+    period: int | str,
     hh_chunk: int = 40_000,
     batch: int = 5_000,
-    period: int = PERIOD,
     dropped_manifest_path: Path | None = None,
     summary_path: Path | None = None,
     fills_manifest_path: Path | None = None,

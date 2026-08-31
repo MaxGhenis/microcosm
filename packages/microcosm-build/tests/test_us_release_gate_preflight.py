@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -194,6 +195,71 @@ def _probe(
         issue="PolicyEngine/microcosm#test",
         expected_sign=expected_sign,
     )
+
+
+def test_run_preflight_forwards_target_period_to_engine_input_surface(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import microcosm.build.us_runtime.l0_refit_export as l0_refit_export
+
+    captured: dict[str, object] = {}
+    base = object()
+    reference = object()
+    monkeypatch.setattr(
+        preflight_module,
+        "_load_preflight_base",
+        lambda path, **kwargs: (base, None, None),
+    )
+    monkeypatch.setattr(
+        preflight_module,
+        "load_selection_source_from_manifest",
+        lambda path: object(),
+    )
+    monkeypatch.setattr(
+        preflight_module,
+        "check_selection_carryover",
+        lambda frame, source: (
+            preflight_module.CheckResult("selection", "PASS", "mapped"),
+            None,
+        ),
+    )
+
+    def engine_inputs(*, period):
+        captured["period"] = period
+        return ("weeks_worked",)
+
+    monkeypatch.setattr(
+        preflight_module,
+        "_release_tool_module",
+        lambda: SimpleNamespace(_engine_input_variables=engine_inputs),
+    )
+    monkeypatch.setattr(l0_refit_export, "load_us_frame", lambda path: reference)
+    monkeypatch.setattr(
+        preflight_module,
+        "us_input_mass_totals",
+        lambda frame, *, columns: {"weeks_worked": 1.0},
+    )
+    monkeypatch.setattr(
+        preflight_module,
+        "check_export_mass_parity_risk",
+        lambda *args, **kwargs: preflight_module.CheckResult(
+            "export_mass", "PASS", "matched"
+        ),
+    )
+
+    report = preflight_module.run_preflight(
+        base_h5=tmp_path / "base.h5",
+        selection_source_manifest=tmp_path / "selection.json",
+        export_input_mass_reference_h5=tmp_path / "reference.h5",
+        target_period=2025,
+        engine_input_variables=None,
+        export_mass_reviewed_exclusions={},
+        probes=(),
+    )
+
+    assert report.inputs["target_period"] == 2025
+    assert captured["period"] == 2025
 
 
 _POOL = [

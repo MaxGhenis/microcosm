@@ -304,10 +304,14 @@ def test_main_wires_verified_sources_transfer_audit_export_and_summary(
         "load_us_puma_ladder",
         fake_load_puma_ladder,
     )
+    def fake_engine_input_null_audit(frame, *, period):
+        assert period == 2024
+        return [reviewed_null]
+
     monkeypatch.setattr(
         builder,
         "_engine_input_null_audit",
-        lambda frame: [reviewed_null],
+        fake_engine_input_null_audit,
     )
     monkeypatch.setattr(
         builder,
@@ -352,6 +356,7 @@ def test_main_wires_verified_sources_transfer_audit_export_and_summary(
     assert actual_source.max_households == 7
     assert build_options.pop("puma_ladder") is puma_ladder
     assert build_options == {
+        "period": 2024,
         "chunksize": 2000,
         "acs_share": 0.4,
         "target_families": transfer_plan,

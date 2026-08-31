@@ -6,6 +6,7 @@ import importlib.util
 import json
 import shlex
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,48 @@ def _load_staging_builder_module():
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+def test_dated_engine_input_helpers_require_period() -> None:
+    module = _load_tool_module()
+
+    with pytest.raises(TypeError):
+        module.project_input_only(object())
+    with pytest.raises(TypeError):
+        module.fill_reviewed_nulls(object(), Path("summary.json"))
+    with pytest.raises(TypeError):
+        module.materialize_chunked(object(), ())
+
+
+def test_project_input_only_forwards_required_period(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_tool_module()
+    from microcosm.frame.adapters import policyengine_us
+
+    captured: dict[str, object] = {}
+
+    class _Metadata:
+        @staticmethod
+        def _structural_columns() -> set[str]:
+            return set()
+
+        def formula_owned_outputs(self, names, *, period):
+            captured["names"] = set(names)
+            captured["period"] = period
+            return set()
+
+    monkeypatch.setattr(policyengine_us, "PolicyEngineUSEngine", _Metadata)
+    base = SimpleNamespace(
+        entities=("person",),
+        table=lambda entity: pd.DataFrame({"weeks_worked": [52]}),
+    )
+
+    projected, dropped = module.project_input_only(base, period=2024)
+
+    assert projected is base
+    assert dropped == {}
+    assert captured == {"names": {"weeks_worked"}, "period": 2024}
 
 
 def test_spine_composition_reports_per_spine_weight_and_size() -> None:
