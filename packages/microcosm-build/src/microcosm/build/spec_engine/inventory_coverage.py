@@ -349,12 +349,12 @@ EXPECTED_HASHES = {
     "acs_person_predictors": "878c788a6f037d7aca12b3586ea034eff04f3034ffa11935a736493042551f25",
     "authority": "6e7359c5bbdea0deb3ad5a76812bdc3138a5f78305e8c3c9c220884a83ba2fdb",
     "early_families": "4aa9f736fd76e83955477ad1667e58f48f264783f05bdc7f0102cd32d61323bd",
-    "full_checkpoint": "71ce6fa3d6ead598209cd3d8162f300ae11df53a245764a746bf4fadc7d6d6f2",
+    "full_checkpoint": "75dbc32981adbdbb8c2b7edc156c3bfe309dd8c770b84a88895743bfb3b4914d",
     "gap_fill_schedule": "1c31f9868f7884347cc19cf1ff65da43f950b9114941a715bab168246db414a7",
-    "graph_nodes": "8551198b67644d45dc064d51c5dfbd41a91154c9cdf0665770adc2503f6c10e6",
+    "graph_nodes": "a8a5c5d04fd9526acdedda15ba2e0ea46567dcc80028ddcae27cdc18a6bccb65",
     "geography_assignment": "f49425ca8734ac559c73cf44f6458d86d3162a48956b98a27e6e758959361585",
     "late_families": "0b5134e544c218ba079bcfb1a789e1cd1ff27d4706709163c7e78de52dd1f580",
-    "late_resource_semantics": "0b794410df1a659c143ea0a7423cb504e291de5407a21848c5f9a27da0ce5a89",
+    "late_resource_semantics": "a21682a6ed0f22695890d61e8d3855716a7cf30cc6368510e3811e58dd48ca72",
     "late_schedule": "5222f7329e12723ae809c5ff3cb09b7c06c1a5b2d09571cb3ad7b86cca207aee",
     "ownership": "c154604b6b0e8adaccb3cdea8542836d42d3d52f8fd0e2c3e5c63f0696cb8b1c",
     "primary_tuples": "987b501c695e31f45521c4a178528f75ab3df22c09bc407b182213b2de99ee57",
@@ -1694,9 +1694,7 @@ def build_inventory_coverage(
             "sha256": _operational_free_sha256(geography_assignment),
             "authority_roles": sorted(geography_authorities),
             "target_vintage": _mapping(
-                geography_authorities.get(
-                    "congressional_district_vintage_crosswalk"
-                ),
+                geography_authorities.get("congressional_district_vintage_crosswalk"),
                 "checkpoint geography crosswalk authority",
             ).get("target_vintage"),
         },

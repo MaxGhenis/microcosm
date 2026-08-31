@@ -102,11 +102,31 @@ in scope.
 - The repaired direct corridor passes 3/3 tests (the two WIC/AOTC parameters
   plus the adversarial mismatch). Focused Ruff is green; both edited files are
   Ruff-formatted and `git diff --check` is clean.
+- Recut both formal structural policies to make the write scope explicit.
+  WIC is now the stable-source-person recipient-only redraw; AOTC is the
+  recipient-only positive-tuition identity. Each assignment states that the
+  incumbent Series is copied and only the target-specific complement of
+  declared producer rows receives expected values. The official generator
+  changed only those four policy strings in `imputation.yaml`, producing US
+  spec SHA-256 `72a136ef233f748b0db15d2630f1ee702f34fcfb377b21f1a1e8163a575fcf4a`.
+- The first authority run exposed one expected stale live-spec literal after
+  otherwise green progress; corrected it to the generated identity. The
+  coverage generator then correctly refused the three exact identities whose
+  source-attested content changed. Independently recomputed and re-pinned only
+  producer graph `a8a5c5d0...ccb65`, late resource semantics
+  `a21682a6...8ca72`, and full checkpoint `75dbc329...914d`, then regenerated
+  the committed evidence. This is identity follow-through only: counts,
+  ordering, registry/schema/materializer versions, and seed identities did not
+  move.
+- Clean identity verification passes 220/220 across the US spec bundle,
+  imputation projector, stacked authority, and complete multispine pool-tool
+  file. The compiler/inventory/coverage/seed corridor passes another 42/42
+  with one existing physical-core warning. The US generator `--check`, spec
+  coverage at 41,558/41,558 fields and 41/41 inventory checks, focused Ruff,
+  and diff hygiene are green.
 
 ## Next
 
-- Recut and commit the structural-policy/generated authority identities with
-  focused generator/spec verification and Ruff.
 - Add and commit production-shaped rebuilt/resumed/mismatch regressions, then
   run the complete repository suite, repository Ruff, final anti-rot checks,
   and commit the finished journal plus `out.md` report.

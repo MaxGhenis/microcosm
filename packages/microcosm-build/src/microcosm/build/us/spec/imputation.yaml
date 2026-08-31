@@ -23696,7 +23696,7 @@ producer_graph:
         structural_reconciliation_policy:
           resource_kind: late_transfer_structural_reconciliation_policy
           schema_version: 1
-          policy_id: aotc_flags_equal_positive_qualified_tuition
+          policy_id: aotc_flags_recipient_only_equal_positive_qualified_tuition
           producer: transfer:person/source_operator_education_inputs
           entity: person
           family: source_operator_education_inputs
@@ -23715,7 +23715,7 @@ producer_graph:
           - is_enrolled_at_least_half_time_for_american_opportunity_credit
           - has_american_opportunity_credit_1098_t_or_exception
           - has_american_opportunity_credit_institution_ein
-          assignment: each_output_equals_qualified_tuition_expenses_gt_zero
+          assignment: copy_incumbent_series_then_assign_expected_predicate_only_to_target_specific_complement_of_declared_producer_rows
           preserved_producer_scope: asec_origin_bit_exact
           source_stage_ref:
             asset_id: source_stages
@@ -29591,7 +29591,7 @@ producer_graph:
         structural_reconciliation_policy:
           resource_kind: late_transfer_structural_reconciliation_policy
           schema_version: 1
-          policy_id: wic_claim_stable_source_person_redraw
+          policy_id: wic_claim_stable_source_person_recipient_only_redraw
           producer: transfer:person/source_operator_wic_claim
           entity: person
           family: source_operator_wic_claim
@@ -29606,7 +29606,7 @@ producer_graph:
           - person_source_id
           outputs:
           - takes_up_wic_if_eligible
-          assignment: source_stage_redraw_by_stable_person_source_id
+          assignment: copy_incumbent_series_then_assign_source_stage_expected_values_only_to_target_specific_complement_of_declared_producer_rows
           seed_owner: late_transfer_model_config.seed
           time_period: 2024
           preserved_producer_scope: asec_origin_bit_exact

@@ -6847,14 +6847,17 @@ def _late_transfer_structural_reconciliation_policy_identity(
         payload: dict[str, object] = {
             "resource_kind": "late_transfer_structural_reconciliation_policy",
             "schema_version": 1,
-            "policy_id": "aotc_flags_equal_positive_qualified_tuition",
+            "policy_id": ("aotc_flags_recipient_only_equal_positive_qualified_tuition"),
             "producer": group_name,
             "entity": entity,
             "family": family,
             "ordered_group_targets": list(targets),
             "dependencies": ["qualified_tuition_expenses"],
             "outputs": list(US_AOTC_ELIGIBILITY_OUTPUT_COLUMNS),
-            "assignment": "each_output_equals_qualified_tuition_expenses_gt_zero",
+            "assignment": (
+                "copy_incumbent_series_then_assign_expected_predicate_only_to_"
+                "target_specific_complement_of_declared_producer_rows"
+            ),
             "preserved_producer_scope": "asec_origin_bit_exact",
             "source_stage": _late_source_stage_spec_binding("with_us_education_inputs"),
         }
@@ -6866,7 +6869,7 @@ def _late_transfer_structural_reconciliation_policy_identity(
         payload = {
             "resource_kind": "late_transfer_structural_reconciliation_policy",
             "schema_version": 1,
-            "policy_id": "wic_claim_stable_source_person_redraw",
+            "policy_id": "wic_claim_stable_source_person_recipient_only_redraw",
             "producer": group_name,
             "entity": entity,
             "family": family,
@@ -6876,7 +6879,10 @@ def _late_transfer_structural_reconciliation_policy_identity(
                 "person_source_id",
             ],
             "outputs": ["takes_up_wic_if_eligible"],
-            "assignment": "source_stage_redraw_by_stable_person_source_id",
+            "assignment": (
+                "copy_incumbent_series_then_assign_source_stage_expected_values_"
+                "only_to_target_specific_complement_of_declared_producer_rows"
+            ),
             "seed_owner": "late_transfer_model_config.seed",
             "time_period": POOL_TIME_PERIOD,
             "preserved_producer_scope": "asec_origin_bit_exact",
