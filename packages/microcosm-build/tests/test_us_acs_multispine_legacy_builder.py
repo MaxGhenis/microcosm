@@ -304,6 +304,7 @@ def test_main_wires_verified_sources_transfer_audit_export_and_summary(
         "load_us_puma_ladder",
         fake_load_puma_ladder,
     )
+
     def fake_engine_input_null_audit(frame, *, period):
         assert period == 2024
         return [reviewed_null]

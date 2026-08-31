@@ -2269,6 +2269,7 @@ def test_main_runs_cps_only_inputs_before_clone_and_after_puf_then_fails_gate(
         "clone_us_frame_for_puf_support",
         lambda frame: "expanded",
     )
+
     def fake_puf_donor(
         _path,
         *,
