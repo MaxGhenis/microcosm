@@ -25,6 +25,7 @@ entity-to-weight mapping has its own receipt.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import nullcontext
 from dataclasses import dataclass
 
@@ -35,6 +36,7 @@ from microcosm.calibrate.monetary_binding import (
     MonetaryBindingIntegrityError,
     verify_monetary_binding,
 )
+from microcosm.calibrate.policy_monetary_binding import AxiomPolicyAcceptance
 from microcosm.calibrate.target import Target, TargetSet
 from microcosm.frame import Frame, Weights
 
@@ -252,6 +254,8 @@ def build_constraint_matrix(
     frame: Frame,
     targets: TargetSet,
     weight_entity: str = "household",
+    *,
+    policy_acceptances: Mapping[str, AxiomPolicyAcceptance] | None = None,
 ) -> CalibrationProblem:
     """Compile ``targets`` against ``frame`` into a sparse constraint system.
 
@@ -282,6 +286,20 @@ def build_constraint_matrix(
     """
     if not isinstance(targets, TargetSet):
         raise TypeError(f"targets must be a TargetSet, got {type(targets).__name__}.")
+    if policy_acceptances is not None and not isinstance(policy_acceptances, Mapping):
+        raise TypeError("policy_acceptances must map target row names to acceptances.")
+    acceptances = dict(policy_acceptances or {})
+    bad_acceptances = sorted(
+        key
+        for key, value in acceptances.items()
+        if not isinstance(key, str) or not isinstance(value, AxiomPolicyAcceptance)
+    )
+    if bad_acceptances:
+        raise TypeError(
+            "policy_acceptances must have string keys and "
+            f"AxiomPolicyAcceptance values; invalid keys {bad_acceptances}."
+        )
+    used_acceptances: set[str] = set()
     frame.table(weight_entity)  # validates the entity name
     initial = frame.resolve_weights(weight_entity)
     w0 = initial.values
@@ -296,8 +314,29 @@ def build_constraint_matrix(
     skipped: list[SkippedTarget] = []
 
     for target in targets:
-        verify_monetary_binding(target, frame)
-        monetary = "monetary_binding" in target.metadata
+        policy_semantics = (
+            "policy_monetary_binding" in target.metadata
+            or target.metadata.get("measure_kind") == "policy_derived"
+            or target.metadata.get("activation_status") == "requires_policy_output"
+        )
+        acceptance = acceptances.get(target.row_name)
+        if policy_semantics and acceptance is not None:
+            used_acceptances.add(target.row_name)
+        elif not policy_semantics and acceptance is not None:
+            raise MonetaryBindingIntegrityError(
+                f"{target.row_name}: an Axiom policy acceptance was supplied for a "
+                "non-policy target."
+            )
+        verify_monetary_binding(
+            target,
+            frame,
+            policy_acceptance=acceptance,
+        )
+        monetary = bool(
+            {"monetary_binding", "policy_monetary_binding"}.intersection(
+                target.metadata
+            )
+        )
         if monetary and target.entity != weight_entity:
             raise MonetaryBindingIntegrityError(
                 f"{target.row_name}: cross-entity monetary compilation from "
@@ -340,6 +379,13 @@ def build_constraint_matrix(
         values.append(target.value)
         names.append(target.row_name)
         compiled.append(target)
+
+    unused_acceptances = sorted(set(acceptances) - used_acceptances)
+    if unused_acceptances:
+        raise MonetaryBindingIntegrityError(
+            "Axiom policy acceptances did not match compiled policy targets: "
+            f"{unused_acceptances}."
+        )
 
     if not compiled:
         detail = (

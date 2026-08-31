@@ -140,6 +140,12 @@ from microcosm.build.plan import (  # noqa: E402 - after the compat gate
     StagePlan,
     StageRecord,
 )
+from microcosm.build.policy_monetary_targets import (  # noqa: E402
+    AxiomPolicyIdentity,
+    PolicyDerivedMonetaryMeasure,
+    bind_policy_derived_monetary_target,
+    prepare_policy_derived_monetary_measure,
+)
 from microcosm.build.source_runtime import (  # noqa: E402 - after the compat gate
     SourceRuntimeConfig,
     SourceRuntimeContext,
@@ -200,11 +206,14 @@ __all__ = [
     "MonetaryBasis",
     "MonetaryTargetContract",
     "MonetaryTargetProfile",
+    "AxiomPolicyIdentity",
+    "PolicyDerivedMonetaryMeasure",
     "PreparedMonetaryMeasure",
     "add_ledger_artifact_args",
     "aggregate_admin_gate",
     "apply_ledger_target_profile",
     "bind_monetary_target",
+    "bind_policy_derived_monetary_target",
     "default_valued_columns_gate",
     "enum_domain_gate",
     "export_surface_gate",
@@ -220,6 +229,7 @@ __all__ = [
     "nonnegative_columns_gate",
     "parity_gate",
     "prepare_monetary_measure",
+    "prepare_policy_derived_monetary_measure",
     "per_family_fit_gate",
     "relative_error_loss",
     "resolve_ledger_artifact",

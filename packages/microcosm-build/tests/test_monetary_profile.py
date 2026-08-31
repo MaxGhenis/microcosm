@@ -55,6 +55,25 @@ def test_profile_is_value_free_and_explicitly_inactive():
     assert profile.targets[0].reference.measure == "employment_income"
 
 
+def test_policy_output_profile_accepts_only_policy_derived_measure_kind():
+    payload = copy.deepcopy(_payload())
+    row = payload["targets"][0]
+    row["readiness"] = "requires_policy_output"
+    row["reference"]["metadata"].update(
+        {
+            "activation_status": "requires_policy_output",
+            "measure_kind": "policy_derived",
+        }
+    )
+
+    profile = MonetaryTargetProfile.from_mapping(payload, country="xx")
+    assert profile.targets[0].readiness == "requires_policy_output"
+
+    row["reference"]["metadata"]["measure_kind"] = "prepared_column"
+    with pytest.raises(ValueError, match="policy_derived"):
+        MonetaryTargetProfile.from_mapping(payload, country="xx")
+
+
 @pytest.mark.parametrize(
     ("path", "value"),
     [

@@ -103,6 +103,9 @@ from microcosm.calibrate.matrix import (  # noqa: E402 - after the compat gate
 from microcosm.calibrate.monetary_binding import (  # noqa: E402 - after compat gate
     MonetaryBindingIntegrityError,
 )
+from microcosm.calibrate.policy_monetary_binding import (  # noqa: E402
+    AxiomPolicyAcceptance,
+)
 from microcosm.calibrate.registry import (  # noqa: E402 - after the compat gate
     TargetRegistry,
     TargetSpec,
@@ -143,6 +146,7 @@ __all__ = [
     "CalibrationResult",
     "L0RefitResult",
     "MonetaryBindingIntegrityError",
+    "AxiomPolicyAcceptance",
     "SkippedTarget",
     "Target",
     "TargetDiagnostic",

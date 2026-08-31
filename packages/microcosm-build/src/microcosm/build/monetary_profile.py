@@ -140,8 +140,16 @@ def _contract(raw: Any, context: str) -> MonetaryTargetContract:
         or metadata.get("activation_status") != readiness
     ):
         raise ValueError(f"{context}: reference metadata disagrees with readiness")
-    if metadata.get("measure_kind") != "prepared_column":
-        raise ValueError(f"{context}: monetary references require prepared_column")
+    expected_measure_kind = (
+        "policy_derived"
+        if readiness == "requires_policy_output"
+        else "prepared_column"
+    )
+    if metadata.get("measure_kind") != expected_measure_kind:
+        raise ValueError(
+            f"{context}: readiness {readiness!r} requires measure_kind "
+            f"{expected_measure_kind!r}"
+        )
     return MonetaryTargetContract(
         reference, basis, readiness, raw["source_url"], raw["notes"]
     )

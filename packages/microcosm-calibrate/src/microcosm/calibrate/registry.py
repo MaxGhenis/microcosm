@@ -159,6 +159,19 @@ class TargetSpec:
                 f"TargetSpec {self.name!r}: metadata keys and values must be "
                 f"non-empty strings; bad keys {bad_metadata}."
             )
+        if (
+            "policy_monetary_binding" in metadata
+            or metadata.get("measure_kind") == "policy_derived"
+            and metadata.get("activation_status") == "active"
+        ):
+            # Local import avoids making every registry load pay for the Axiom
+            # verifier while authenticating fields (family/sign/se/notes) that
+            # Target intentionally does not carry before registry selection.
+            from microcosm.calibrate.policy_monetary_binding import (
+                verify_policy_monetary_target_spec,
+            )
+
+            verify_policy_monetary_target_spec(self)
 
     @property
     def key(self) -> tuple[str, int | str]:

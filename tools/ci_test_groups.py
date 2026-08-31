@@ -112,6 +112,8 @@ def is_calibrate_data_fit(path: str) -> bool:
 
 
 def us_bucket(name: str) -> str | None:
+    if name == "test_policy_monetary_targets.py":
+        return "us-am"
     if name == "test_puf_qrf_chain.py":
         return "us-p"
     if not name.startswith("test_us_"):
@@ -135,7 +137,9 @@ def fast_group(path: str) -> str:
         return "engine-only"
     if is_build(path) and name.startswith("test_us_trade_"):
         return "trade"
-    if is_build(path) and (name == "test_us_stacked_spine.py" or name.startswith("test_uk_")):
+    if is_build(path) and (
+        name == "test_us_stacked_spine.py" or name.startswith("test_uk_")
+    ):
         return "spine-uk"
     if path == "packages/microcosm-frame/tests/test_policyengine_uk_adapter.py":
         return "spine-uk"

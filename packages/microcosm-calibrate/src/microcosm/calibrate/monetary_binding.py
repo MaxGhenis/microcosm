@@ -27,6 +27,9 @@ class MonetaryBindingIntegrityError(RuntimeError):
 
 
 _RECEIPT_KEYS = frozenset({"monetary_binding", "monetary_binding_sha256"})
+_POLICY_RECEIPT_KEYS = frozenset(
+    {"policy_monetary_binding", "policy_monetary_binding_sha256"}
+)
 _BINDING_MARKER_KEYS = frozenset(
     {"monetary_source_activation_status", "monetary_target_role"}
 )
@@ -173,7 +176,12 @@ def _validate_basis(value: object) -> dict:
     return basis
 
 
-def verify_monetary_binding(target: Target, frame: Frame) -> None:
+def verify_monetary_binding(
+    target: Target,
+    frame: Frame,
+    *,
+    policy_acceptance: object | None = None,
+) -> None:
     """Fail closed if an opted-in monetary target no longer matches its receipt.
 
     Targets without receipt keys or monetary-binding markers preserve the
@@ -181,12 +189,38 @@ def verify_monetary_binding(target: Target, frame: Frame) -> None:
     receipt was stripped, is an integrity error rather than an opt-out.
     """
     present_receipt_keys = _RECEIPT_KEYS.intersection(target.metadata)
+    present_policy_receipt_keys = _POLICY_RECEIPT_KEYS.intersection(target.metadata)
+    if present_receipt_keys and present_policy_receipt_keys:
+        raise MonetaryBindingIntegrityError(
+            f"{target.row_name}: direct and policy-derived monetary receipts "
+            "cannot coexist."
+        )
+    if present_policy_receipt_keys:
+        # Local import keeps the policy verifier independent while preserving
+        # one public compiler seam for every authenticated monetary row.
+        from microcosm.calibrate.policy_monetary_binding import (
+            verify_policy_monetary_binding,
+        )
+
+        verify_policy_monetary_binding(
+            target,
+            frame,
+            acceptance=policy_acceptance,
+        )
+        return
     if not present_receipt_keys:
         remaining_markers = _BINDING_MARKER_KEYS.intersection(target.metadata)
-        if remaining_markers:
+        policy_semantics = (
+            target.metadata.get("measure_kind") == "policy_derived"
+            or target.metadata.get("activation_status") == "requires_policy_output"
+        )
+        if remaining_markers or policy_semantics:
+            detail = sorted(remaining_markers)
+            if policy_semantics:
+                detail.append("policy_derived_semantics")
             raise MonetaryBindingIntegrityError(
                 f"{target.row_name}: monetary binding markers remain without the "
-                f"required receipt ({sorted(remaining_markers)})."
+                f"required receipt ({detail})."
             )
         return
     try:
