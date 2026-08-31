@@ -1,197 +1,110 @@
-CLASSIFIER-FIX-COMPLETE
+WIC-FIX-COMPLETE
 
-# Period-aware ownership classification — continuation lane
+# WIC reconciliation dtype repair
 
-Date: 2026-08-30
+Date: 2026-08-31
 
 Branch: `stacked-dense-gate-sweep`
 
-Lane base: `1d580e43` (the quota-dead sol lane's last commit; original lane
-base `dc7e09cb`)
+Lane base: `74acf94b`
 
-> The previous lane report this file carried — the authorized stacked
-> `weeks_worked` implementation v3 — remains at commit `5ef9237e`.
+Runtime-complete launcher repin SHA:
+`b8d0980fd8e63b130fe235018b5af887976dda56`
+
+The only later lane commit is this documentation-only `PROGRESS.md`/`out.md`
+handoff; its SHA is reported in the final launcher message, so either commit
+has the same runtime and generated-authority tree.
 
 ## Result
 
-Both parts are complete. The sol lane's classifier core is correct and is now
-independently verified rather than asserted; the one production caller its
-audit missed is fixed; the three red-test classes it left behind (it never got
-CPU to run them) are fixed; the spec attestations its kernel edits legitimately
-moved are refreshed; and part 2's adapter question is adjudicated against read
-engine source on both readings of the ambiguous name.
+Implemented the binding Class-A minimal sound remedy exactly. WIC reconciliation
+still derives deterministic values for the whole pool, but it now proves those
+expected ASEC logical values equal the incumbent ASEC snapshot before any
+write. It copies the incumbent Series and assigns expected values only at the
+declared non-producer/ACS recipient positions. Nullable pandas `boolean`
+storage and the physical ASEC cells are therefore preserved.
 
-### Part 1 — verified, and completed
+The existing post-write `Series.equals` guard, typed dtype hashing, receipt
+validation, and fail-closed behavior are unchanged. No guard, gate, threshold,
+or validator was weakened.
 
-**The core behaves as specified.** Against installed PolicyEngine-US 1.819.0 /
-Core 3.31.0, the import-free source index carries 6,146 variables: 5,218
-computed at 2024, 5,219 at 2025. `weeks_worked` resolves `INPUT` at 2024 and
-`DELEGATION` at 2025/2026/2030, each with material owner `INPUT` at
-`(2024, 1, 1)` and the full year-by-year chain. The chain arithmetic matches
-Core's own `Period.last_year`
-(`start.offset("first-of", "year").period("year").offset(-1)` — the prior
-calendar year beginning 1 January, even from a sub-annual period), the
-recognizer accepts only the exact `return entity(name, period.last_year)` body
-so a transformed carry-forward stays a material formula, and unbounded
-delegation raises rather than resolving (regression present).
+## Sibling audit
 
-**The dated view is a strict widening of the static one.** The static
-all-vintage `variables()` projection holds 924 names; the dated view holds 928
-at 2024 and 927 at 2025, with `variables()` a subset of both. The difference is
-`weeks_worked` plus three New Jersey variables whose only formula commences in
-2026 (`nj_property_tax_relief`, `nj_property_tax_relief_income`,
-`nj_staynj_eligible`). None of the three is referenced anywhere in microcosm, so
-the widening reaches no gate, manifest, transfer target, or pool boundary.
+The complete `_apply_late_transfer_structural_reconciliation` registry contains
+exactly WIC and education/AOTC. AOTC had the same whole-column redraw over five
+nullable boolean source outputs, so it now uses the identical recipient-only
+helper. Receipt validation rejects structural receipts on every other late
+transfer group; there is no third callback to repair.
 
-**The static seed sets cannot deadlock a build.** All six
-`PUF_TAX_DETAIL_FORMULA_OWNED_OUTPUTS` entries are still engine-owned at both
-2024 and 2025, so `assert_formula_owned_blocklist_current` passes at the release
-period. The twelve-name `FORMULA_OWNED_SOURCE_COLUMNS` pool exclusion diverges
-only on `weeks_worked` at 2024 — exactly what the upgraded parity test asserts —
-and the exclusion itself is unchanged.
+## Authority and checkpoint reuse
 
-**The caller audit is closed with an orthogonal proof.** An AST sweep of
-`packages/` and `tools/` for calls to every dated entry point reports six call
-sites without an explicit `period`: three are the UK path's own periodless
-`default_values` (deliberately out of this US-scoped fix) and three are the
-`pytest.raises(TypeError)` proofs that the period is mandatory. No unintentional
-periodless US ownership call site remains.
+Both structural policies now state recipient-only assignment explicitly:
 
-**One production caller was missed, and is fixed.**
-`assert_validation_leaf_registry_current` classified registry leaves with the
-periodless `Variable.is_input_variable()` and carried an implicit `period=2026`
-default that the release tool never passed. Ownership now resolves through the
-adapter's dated `variable_ownership`/`input_variables` APIs, `period` is a
-required keyword, and the release caller passes the new explicit
-`US_VALIDATION_PROVISION_PERIOD` (2026 — the provision evaluation period, which
-is deliberately not the 2024 dataset build period). The change was proved
-behavior-preserving before it was made: exactly zero variables are any-vintage
-formula-owned yet uncomputed at 2026, and all thirteen registry leaves carry no
-formula at any vintage.
+- WIC: stable-source-person expected values are assigned only to the
+  target-specific complement of declared producer rows.
+- AOTC: the positive-qualified-tuition predicate is assigned only to that same
+  declared recipient scope.
 
-**The parity coverage proves dated resolution, not set agreement.**
-`test_formula_owned_source_boundary_matches_installed_source_index` asserts 11
-owners at 2024 and 12 at 2025 with the ownership kinds and the delegated owner
-period; the frame suite adds exact source-vs-live agreement at both periods and
-an end-to-end regression that writes `weeks_worked` as a 2024 input, reloads it
-through a real `Microsimulation`, proves the 2025 carry-forward returns the 2024
-values, and blocks a direct 2025 write.
+The official generator changed only those policy/assignment strings in the US
+imputation spec. Their hashes flow through late resource semantics, checkpoint
+identity, stage identities, and per-target bank identity, so stale checkpoints
+are invalidated by authority identity rather than manual carry-forward logic.
+The final US spec SHA-256 is
+`72a136ef233f748b0db15d2630f1ee702f34fcfb377b21f1a1e8163a575fcf4a`.
 
-### Part 2 — adjudicated on both readings
+## Regression coverage
 
-The lane prompt names "the microcosm-frame PolicyEngine-US adapter's
-`_derived_metadata`", but that identifier exists only in the Axiom adapter, so
-both readings were carried out.
+The production-shaped WIC regression composes the real guarded ASEC-only source
+operator merge, ACS transfer, and structural reconciliation. It proves:
 
-The PolicyEngine-US reading is the metadata index the sol lane made dated and
-this lane verified above.
+- source merge storage is nullable pandas `boolean`;
+- ASEC values are complete while ACS recipient cells are initially null;
+- the cold target-bank path is `rebuilt/missing`;
+- the warm target-bank path is `checkpoint/resumed`;
+- exact ASEC `Series.equals`, dtype, values, and typed SHA-256 are unchanged on
+  both paths;
+- reconciliation changes recipient rows and cold/warm final Series are exact;
+- an adversarial ASEC logical-value mismatch fails before recipient assignment
+  and leaves the input untouched.
 
-The Axiom reading was adjudicated against `axiom-rules-engine` at
-`8430cdea0ba6ce6c5d90cfafaa90b89e0474df76` (the four cited files clean at that
-commit). RuleSpec derived rules *are* effective-dated (`DerivedVersionSpec`
-carries `effective_from`/`effective_to`, `src/spec.rs`), but the dense compiler
-keeps only the single unbounded version's commencement date
-(`CompiledDerived.effective_from`, `src/dense.rs`) and `check_commencement`
-fails the entire execution with `MissingDerivedFormulaVersion` when the period
-starts before *any* plan rule commences. A pre-commencement period therefore has
-no lawful answer the dataset could supply, so the export contract's period-blind
-rejection of derived names cannot reproduce the `weeks_worked` defect class
-there. The commencement date is not exposed to Python (`DerivedMetadata` and its
-pyo3 handle carry name/id/entity/dtype/unit/period/source, where `period` is the
-authored granularity), so relaying a dated pre-commencement message needs an
-engine-side surface addition, not an adapter classifier change. The finding is
-recorded in the adapter docstring rather than replaced by a speculative fix.
+The existing structural fixture now snapshots nullable storage before
+reconciliation for WIC and all five AOTC outputs.
 
-## Commits (this lane, on `1d580e43`)
+## Verification
 
-- `9a9ee665` Require an explicit period for validation leaf ownership
-- `f55898c9` Record the Axiom derived-metadata period verdict
-- `1572e341` Journal the caller-audit completeness proof
-- `f95b0df9` Journal the input-view counts and chain arithmetic proof
-- `0e180d34` Format the three files this lane left drifted
-- `855f40ec` Fix the red US-path stub in the UK coverage test
-- `0c02834d` Correct the PUF donor stub's source-year expectation
-- `1ba3a592` Refresh the seed attestations this lane's kernel edits moved
-- `ff6b57f2` Name the source-index gap instead of implying ownership
-- `7d6ce7be` Report the completed period-aware classifier fix
-
-## Red tests the sol lane left behind (all fixed)
-
-1. `test_uk_release_input_coverage.py::test_default_us_coverage_path_is_unchanged`
-   asserted the US default probe receives `['dividend_income']`. The gate probes
-   only manifest-relevant columns, and this manifest's single required column is
-   absent from the frame, so the probe receives no names. The stub now records
-   the call and asserts both the empty list and the forwarded 2024 period.
-2. `test_us_puf_support_base_builder.py::test_main_runs_cps_only_inputs_before_clone_and_after_puf_then_fails_gate`
-   (ten parametrizations) asserted the builder forwards a non-`None` source-year
-   PUF CSV, but this fixture's args namespace omits it and `_run_all` forwards
-   the documented `None`.
-3. The spec identities moved.
-   `microcosm.build.us_runtime.acs_transfer`, `puf_qrf_chain`, and `puf_support`
-   are attested kernel source modules whose bytes `source_inventory_sha256`
-   hashes into the seed protocol digest, which feeds the compiled seed map and
-   the spec binding; the period plumbing edited all three, and since the
-   branch's last attestation refresh (`deb42a37`) no other commit touches them.
-   Refreshed exactly the two moved digests (`seed_protocol`
-   `a16b77d7…`→`7ea964c4…`, `seed_map` `44c64c54…`→`2c43e303…`), re-pinned the
-   pool-tool spec-binding fixture (`e9ea75c7…`→`2f08db42…`), and regenerated
-   `docs/evidence/spec-engine/us-f0-coverage.json`, whose diff carries those two
-   digests and nothing else. The spec binding is asserted out of every
-   checkpoint identity, so no pool checkpoint is invalidated.
-
-## Focused verification
-
-Focused corridors only — the repository-wide suite is deferred by instruction
-while candidate-26 holds this machine's cores from another worktree. Every run
-below is `uv run pytest` on this lane's tree:
-
-| corridor | result |
+| Check | Result |
 | --- | --- |
-| frame adapter + metadata index (`test_policyengine_us_adapter.py`, `test_policyengine_us_metadata_index.py`) | 59 passed |
-| pool / stacked spine / PUF support (`test_us_multispine_pool.py`, `test_us_stacked_spine.py`, `test_us_puf_support.py`) | 411 passed |
-| ACS + coverage (`test_puf_qrf_chain.py`, `test_release_input_coverage.py`, `test_uk_release_input_coverage.py`, `test_us_acs_local_release_tool.py`, `test_us_acs_multispine.py`, `test_us_acs_multispine_legacy_builder.py`, `test_us_acs_transfer.py`) | 259 passed, 3 skipped, 1 failed → fixed; the failing file re-ran 44 passed, 3 skipped |
-| remaining touched build files + late-producer DAG (16 files) | 727 passed, 11 failed → all fixed; the PUF file re-ran 10 passed, the pool-tool digest test re-ran green |
-| spec engine (`test_spec_engine_seeds.py`, `test_spec_engine_inventory_coverage.py`, `test_country_spec.py`, `test_us_spec_bundle.py`) | 115 passed, 1 failed → fixed by the attestation refresh |
-| post-refresh confirmation (inventory coverage, coverage tool, field usage, pool-tool spec binding) | 36 passed |
-| weeks corridor (`test_us_release_weeks_worked.py`, `test_us_hours_worked.py`, `test_us_org_wages.py`, `test_us_plan.py`, `test_us_l0_refit_export.py`) | 154 passed |
-| validation input coverage (this lane's new regressions) | 18 passed |
+| WIC/AOTC direct + adversarial + rebuilt/resumed corridor | 4 passed |
+| US spec bundle, imputation, stacked authority, pool-tool identities | 220 passed |
+| compiler/inventory/coverage/seed corridor | 42 passed |
+| exhaustive spec-engine and country-spec sweep | 331 passed |
+| repository-wide `pytest` | 7,610 passed, 83 skipped, 2,462 warnings; exit 0; 1:33:07 |
+| repository-wide Ruff | green |
+| CI test inventory | 315 tracked files; `verification=ok` |
+| US generated bundle `--check` | green; spec SHA above |
+| spec-engine coverage | 41,558/41,558 fields; 41/41 inventory checks |
+| diff hygiene | `git diff --check` green |
 
-A consolidated single-process re-run of all 32 files was started as one-tree
-confirmation and deliberately stopped at ~5% after eleven minutes: serialized
-against candidate-26 it projected to hours of contended CPU for coverage this
-tree already has, which is exactly the contention the lane's focused-tests-only
-constraint exists to avoid. Every file it would have covered passed in the
-corridors above, and each file fixed after its corridor ran was re-run
-individually and green.
+Two aborted full runs exposed three stale seed-protocol goldens already present
+at lane base. Archived execution proved the period-classifier's seed-attested
+module edits had moved the shared protocol before this WIC lane: BE and UK
+country-bundle hashes plus the rich-minimal loader hash were the only omitted
+downstream vectors. They were re-pinned in isolated commits, with no runtime,
+schema, gate, or country resource change. An exhaustive digest audit found no
+fourth stale vector, and the 331-test sweep plus the final full suite are green.
 
-Static checks: `ruff check` green on all 48 Python files this lane touched;
-`ruff format --check` flags six of them, and all six were verified already
-drifted at the lane base `dc7e09cb` (checked against the base blobs), so the
-lane leaves no new drift — the three it did drift were formatted, and the
-pre-existing ones are deliberately left unreflowed; `git diff --check` clean;
-`tools/ci_test_groups.py --verify` reports `verification=ok`.
+## Commits
 
-## Deliberately unchanged
+- `5b54c4195db2e978dce8f64ac764a606ecbdfee7` — start the WIC dtype repair journal
+- `f650fc7d2ceb468b952907cf98368032f6239cc8` — record the late reconciliation audit
+- `928e986e45e3fc7f50a8b8ac49db78508ee0039d` — record the production WIC failure prototype
+- `9a4bab1681a6e44edc773968c560d606288a284c` — preserve nullable dtype in late reconciliation
+- `b4852a2129d5ca61c501d27c497f6d3e3490b49b` — recut recipient-only reconciliation identities
+- `2bb3148c7e31d5fe56ca42cda97b541b090f4d32` — test WIC reconciliation across target-bank reuse
+- `c83046762647b5d81e29c1a908e191a5d5f9aa92` — refresh shared country spec-hash goldens
+- `b8d0980fd8e63b130fe235018b5af887976dda56` — refresh the seed-bound loader golden
 
-No gate threshold, pool exclusion list, release path ordering, or authorized
-weeks-stage behavior was touched. Candidate evidence stayed read-only. Nothing
-was pushed, no PR was opened, and no build ran.
+## Boundaries
 
-## Deferred
-
-- **Repository-wide pytest.** The candidate-26 build owns this machine's cores
-  from another worktree; the lane ran focused corridors only, as instructed. The
-  full suite still needs one clean run after that build finishes.
-- **UK ownership classification.** `policyengine_uk._is_engine_computed` and the
-  UK release coverage path (`uk_runtime/release_input_coverage.py`, and
-  `tools/build_uk_efrs_parity_reference.py`) remain periodless — the same defect
-  class, deliberately outside this US-scoped fix. Closing it needs a UK dated
-  view and a UK certification re-run.
-- **Axiom engine surface.** Per-rule commencement dates are not exposed to
-  Python, so the adapter cannot pre-empt a pre-commencement run with a dated
-  message. That is upstream `axiom-rules-engine` work.
-- **Post-`end` semantics, recorded not changed.** A variable past its `end` date
-  classifies as `INPUT` in both the dated source index and the live classifier,
-  while PolicyEngine Core's `set_input` silently drops inputs for such periods —
-  so persisting one is inert rather than harmful. Pre-existing, pinned by an
-  existing regression, and left alone.
+No build, push, PR, publication, release, or candidate mutation was performed.
+Candidate evidence remained read-only. No gate or threshold changed.

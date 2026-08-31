@@ -8,15 +8,14 @@ Lane base: `74acf94b`
 
 ## State
 
-In progress. The binding Class-A diagnosis identifies a deterministic WIC
-reconciliation defect: the whole-pool redraw preserves ASEC logical values but
-replaces nullable pandas `boolean` storage with dense NumPy `bool`, so the
-unchanged dtype-sensitive `Series.equals` guard correctly fails. This lane will
-implement only the prescribed recipient-only redraw, recut the generated
-authority identities, audit sibling structural reconciliations, add composed
-rebuilt/resumed/adversarial regressions, and run focused plus repository-wide
-verification. No gate, threshold, candidate artifact, remote, PR, or build is
-in scope.
+Complete on 2026-08-31. WIC and the one affected sibling (AOTC) now derive
+whole-pool deterministic logical values, prove the incumbent ASEC snapshot
+before writing, and assign only declared recipient positions into a copy of
+the incumbent nullable Series. Exact `Series.equals`, dtype-sensitive hashes,
+and validators remain strict. Recipient-only authority identities are
+regenerated, rebuilt/resumed/adversarial coverage is present, and the complete
+repository suite plus final authority checks are green. No gate, threshold,
+candidate artifact, remote, PR, push, or build changed.
 
 ## Done
 
@@ -158,11 +157,28 @@ in scope.
   deterministic current `87035900...500b95`, again without runtime or spec
   changes. All 331 spec-engine and country-spec tests pass together; focused
   Ruff and format checks are green.
+- The clean repository-wide rerun completed at 100%: 7,610 passed, 83 skipped,
+  and 2,462 warnings in 1:33:07. The warnings are the repository's existing
+  numeric, pandas copy/fragmentation, and sparse-tensor diagnostics; pytest
+  exited 0 with no failure or error.
+- Final anti-rot verification is green: repository-wide Ruff; the 315-file CI
+  test-group inventory (`verification=ok`); the official US generator
+  `--check` at spec SHA
+  `72a136ef233f748b0db15d2630f1ee702f34fcfb377b21f1a1e8163a575fcf4a`;
+  spec-engine coverage at 41,558/41,558 fields and 41/41 inventory checks; and
+  `git diff --check`.
+- The runtime-complete launcher repin is
+  `b8d0980fd8e63b130fe235018b5af887976dda56`. The only successor created to
+  close this lane is the documentation-only `PROGRESS.md`/`out.md` handoff
+  commit, whose SHA is reported in the final message.
 
 ## Next
 
-- Run the complete repository suite, repository Ruff, and final anti-rot
-  checks; then commit the finished journal plus `out.md` report.
+- Launcher: repin to runtime-complete commit
+  `b8d0980fd8e63b130fe235018b5af887976dda56` (or its documentation-only final
+  successor reported in the handoff).
+- No further lane work. Any build, PR, push, or candidate operation remains a
+  separate explicitly authorized action.
 
 ---
 
