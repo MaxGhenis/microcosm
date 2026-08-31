@@ -36,7 +36,12 @@ from microcosm.calibrate.monetary_binding import (
     MonetaryBindingIntegrityError,
     verify_monetary_binding,
 )
-from microcosm.calibrate.policy_monetary_binding import AxiomPolicyAcceptance
+from microcosm.calibrate.policy_monetary_binding import (
+    AxiomPolicyAcceptance,
+    AxiomPolicyAcceptanceSet,
+    has_policy_semantics,
+    normalize_policy_acceptances,
+)
 from microcosm.calibrate.target import Target, TargetSet
 from microcosm.frame import Frame, Weights
 
@@ -255,7 +260,11 @@ def build_constraint_matrix(
     targets: TargetSet,
     weight_entity: str = "household",
     *,
-    policy_acceptances: Mapping[str, AxiomPolicyAcceptance] | None = None,
+    policy_acceptances: (
+        AxiomPolicyAcceptanceSet
+        | Mapping[tuple[str, int | str], AxiomPolicyAcceptance]
+        | None
+    ) = None,
 ) -> CalibrationProblem:
     """Compile ``targets`` against ``frame`` into a sparse constraint system.
 
@@ -271,13 +280,25 @@ def build_constraint_matrix(
         targets: The facts to compile.
         weight_entity: The entity whose weights are calibrated (default
             ``"household"``). Must be declared by the frame's schema.
+        policy_acceptances: The trust-root
+            :class:`~microcosm.calibrate.policy_monetary_binding.AxiomPolicyAcceptanceSet`
+            admitting this compilation's Axiom policy-derived rows (or an
+            equivalent mapping from the typed
+            :attr:`~microcosm.calibrate.target.Target.key` to its acceptance).
+            Only :func:`~microcosm.calibrate.policy_monetary_binding.build_axiom_policy_acceptances`
+            can mint one. The accepted set is exact in both directions: an
+            accepted key whose target is missing, or whose row arrives without
+            its policy receipt, fails the compilation rather than compiling as
+            an ordinary target.
 
     Returns:
         A :class:`CalibrationProblem` carrying the matrix, target vector, row
         names, initial weights, and any skipped targets.
 
     Raises:
-        TypeError: If ``targets`` is not a :class:`TargetSet`.
+        TypeError: If ``targets`` is not a :class:`TargetSet`, or
+            ``policy_acceptances`` is not an acceptance set or a mapping keyed
+            by :attr:`~microcosm.calibrate.target.Target.key`.
         MonetaryBindingIntegrityError: If a receipt-bearing monetary target no
             longer matches its bound frame column or cannot compile safely.
         ValueError: If ``weight_entity`` is not a declared entity, or every
@@ -286,20 +307,8 @@ def build_constraint_matrix(
     """
     if not isinstance(targets, TargetSet):
         raise TypeError(f"targets must be a TargetSet, got {type(targets).__name__}.")
-    if policy_acceptances is not None and not isinstance(policy_acceptances, Mapping):
-        raise TypeError("policy_acceptances must map target row names to acceptances.")
-    acceptances = dict(policy_acceptances or {})
-    bad_acceptances = sorted(
-        key
-        for key, value in acceptances.items()
-        if not isinstance(key, str) or not isinstance(value, AxiomPolicyAcceptance)
-    )
-    if bad_acceptances:
-        raise TypeError(
-            "policy_acceptances must have string keys and "
-            f"AxiomPolicyAcceptance values; invalid keys {bad_acceptances}."
-        )
-    used_acceptances: set[str] = set()
+    acceptances = normalize_policy_acceptances(policy_acceptances)
+    used_acceptances: set[tuple[str, int | str]] = set()
     frame.table(weight_entity)  # validates the entity name
     initial = frame.resolve_weights(weight_entity)
     w0 = initial.values
@@ -314,19 +323,20 @@ def build_constraint_matrix(
     skipped: list[SkippedTarget] = []
 
     for target in targets:
-        policy_semantics = (
-            "policy_monetary_binding" in target.metadata
-            or target.metadata.get("measure_kind") == "policy_derived"
-            or target.metadata.get("activation_status") == "requires_policy_output"
-        )
-        acceptance = acceptances.get(target.row_name)
-        if policy_semantics and acceptance is not None:
-            used_acceptances.add(target.row_name)
-        elif not policy_semantics and acceptance is not None:
-            raise MonetaryBindingIntegrityError(
-                f"{target.row_name}: an Axiom policy acceptance was supplied for a "
-                "non-policy target."
-            )
+        # Acceptances are keyed by the typed (name, period) identity, never the
+        # lossy 'name@period' label under which ('t', 2024) and ('t', '2024')
+        # collide, so two valid targets can hold their own distinct receipts.
+        acceptance = None if acceptances is None else acceptances.get(target.key)
+        if acceptance is not None:
+            used_acceptances.add(target.key)
+            if not has_policy_semantics(target.metadata):
+                # Stripping the receipt must not demote an accepted policy row
+                # to an unverified ordinary target.
+                raise MonetaryBindingIntegrityError(
+                    f"{target.row_name}: the trust root accepted this row as "
+                    "Axiom policy-derived, but it carries no policy monetary "
+                    "receipt."
+                )
         verify_monetary_binding(
             target,
             frame,
@@ -380,12 +390,15 @@ def build_constraint_matrix(
         names.append(target.row_name)
         compiled.append(target)
 
-    unused_acceptances = sorted(set(acceptances) - used_acceptances)
-    if unused_acceptances:
-        raise MonetaryBindingIntegrityError(
-            "Axiom policy acceptances did not match compiled policy targets: "
-            f"{unused_acceptances}."
+    if acceptances is not None:
+        unused_acceptances = sorted(
+            set(acceptances.keys()) - used_acceptances, key=repr
         )
+        if unused_acceptances:
+            raise MonetaryBindingIntegrityError(
+                "Axiom policy acceptances did not match compiled policy targets: "
+                f"{unused_acceptances}."
+            )
 
     if not compiled:
         detail = (

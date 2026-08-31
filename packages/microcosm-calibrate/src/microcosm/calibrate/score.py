@@ -7,6 +7,10 @@ from collections.abc import Mapping
 import numpy as np
 
 from microcosm.calibrate.matrix import build_constraint_matrix
+from microcosm.calibrate.policy_monetary_binding import (
+    AxiomPolicyAcceptance,
+    AxiomPolicyAcceptanceSet,
+)
 from microcosm.calibrate.solve import (
     CalibrationResult,
     TargetDiagnostic,
@@ -60,6 +64,11 @@ def score_targets(
     target_loss_weights: np.ndarray | None = None,
     target_loss_scales: np.ndarray | None = None,
     target_loss_cap: float = 10.0,
+    policy_acceptances: (
+        AxiomPolicyAcceptanceSet
+        | Mapping[tuple[str, int | str], AxiomPolicyAcceptance]
+        | None
+    ) = None,
     options: Mapping[str, object] | None = None,
 ) -> CalibrationResult:
     """Evaluate a target surface under an existing dataset's weights.
@@ -68,8 +77,18 @@ def score_targets(
     same sparse target matrix, evaluates ``A @ weights``, and returns a
     :class:`CalibrationResult` so diagnostics and dashboards can consume scores
     and calibrations through the same schema.
+
+    ``policy_acceptances`` is the trust-root acceptance set admitting any Axiom
+    policy-derived rows in ``targets``, forwarded verbatim to
+    :func:`~microcosm.calibrate.matrix.build_constraint_matrix`. Scoring a
+    policy row without it fails closed, exactly as calibration does.
     """
-    problem = build_constraint_matrix(frame, targets, weight_entity)
+    problem = build_constraint_matrix(
+        frame,
+        targets,
+        weight_entity,
+        policy_acceptances=policy_acceptances,
+    )
     initial_weights = problem.initial_weights.values.astype(np.float64, copy=True)
     score_weights = (
         initial_weights.copy()

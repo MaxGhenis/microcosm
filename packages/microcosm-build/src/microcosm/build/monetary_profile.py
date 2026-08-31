@@ -141,15 +141,27 @@ def _contract(raw: Any, context: str) -> MonetaryTargetContract:
     ):
         raise ValueError(f"{context}: reference metadata disagrees with readiness")
     expected_measure_kind = (
-        "policy_derived"
-        if readiness == "requires_policy_output"
-        else "prepared_column"
+        "policy_derived" if readiness == "requires_policy_output" else "prepared_column"
     )
     if metadata.get("measure_kind") != expected_measure_kind:
         raise ValueError(
             f"{context}: readiness {readiness!r} requires measure_kind "
             f"{expected_measure_kind!r}"
         )
+    if readiness == "requires_policy_output":
+        # The policy binder admits exactly one shape: an annual flow matched to
+        # its own model year. Accepting anything else here would inventory a
+        # contract that bind_policy_derived_monetary_target always rejects.
+        if reference.period_match_policy != "exact":
+            raise ValueError(
+                f"{context}: readiness 'requires_policy_output' requires "
+                "period_match_policy 'exact'"
+            )
+        if basis.temporal_basis != "annual_flow":
+            raise ValueError(
+                f"{context}: readiness 'requires_policy_output' requires an "
+                "annual_flow accounting basis"
+            )
     return MonetaryTargetContract(
         reference, basis, readiness, raw["source_url"], raw["notes"]
     )

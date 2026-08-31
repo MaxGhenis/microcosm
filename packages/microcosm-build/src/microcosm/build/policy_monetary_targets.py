@@ -3,11 +3,16 @@
 This lane is intentionally separate from :mod:`microcosm.build.monetary_targets`.
 The direct-measure binder must never admit a policy output merely because both
 are numeric columns.  A policy-derived receipt binds the legal artifact,
-runtime, input frame, parameter world, raw output rows, any entity aggregation,
-and the observed aggregate used as the calibration target.
+runtime, input frame, parameter world, the exact requested output the Axiom
+materialization receipt recorded (its period, entity, variable, rows, and
+canonical typed identity), any entity aggregation, and the observed aggregate
+used as the calibration target.
 
-The hashes here detect drift.  Provenance authenticity belongs to the signed
-producer or outer release manifest that carries the complete receipt.
+The hashes here detect drift; they are not an authority.  Compiling one of
+these targets additionally requires a trust-root acceptance minted by
+:func:`microcosm.calibrate.policy_monetary_binding.build_axiom_policy_acceptances`
+from separately signed producer and observed-source artifacts, so a receipt
+can never authenticate itself.
 """
 
 from __future__ import annotations
@@ -30,6 +35,8 @@ from microcosm.calibrate.monetary_binding import (
     monetary_digest,
 )
 from microcosm.calibrate.policy_monetary_binding import (
+    axiom_array_identity,
+    bind_materialization_output,
     validate_policy_monetary_binding_payload,
 )
 
@@ -151,6 +158,8 @@ class PolicyDerivedMonetaryMeasure:
     aggregation_kind: str = field(init=False)
     output_identity: Mapping[str, object] = field(init=False)
     output_record_ids_identity: Mapping[str, object] = field(init=False)
+    materialized_output_identity: Mapping[str, object] = field(init=False)
+    materialized_record_ids_identity: Mapping[str, object] = field(init=False)
     output_target_ids_identity: Mapping[str, object] = field(init=False)
     values_identity: Mapping[str, object] = field(init=False)
     record_ids_identity: Mapping[str, object] = field(init=False)
@@ -176,27 +185,6 @@ class PolicyDerivedMonetaryMeasure:
         if not isinstance(self.materialization_receipt, Mapping):
             raise TypeError("materialization_receipt must be a mapping.")
         materialization = dict(self.materialization_receipt)
-        raw_materialization = {
-            key: value
-            for key, value in materialization.items()
-            if key != "receipt_sha256"
-        }
-        if (
-            monetary_digest(raw_materialization)
-            != self.identity.materialization_receipt_sha256
-            or materialization.get("receipt_sha256")
-            != self.identity.materialization_receipt_sha256
-        ):
-            raise ValueError(
-                "materialization_receipt does not match the policy identity."
-            )
-        if (
-            materialization.get("input_frame_sha256")
-            != self.identity.input_frame_sha256
-        ):
-            raise ValueError(
-                "materialization receipt input identity differs from policy identity."
-            )
 
         outputs = _immutable_f64(
             _axiom_output_vector(self.output_values, "Axiom output values")
@@ -207,6 +195,7 @@ class PolicyDerivedMonetaryMeasure:
             raise ValueError(
                 "output_record_ids must align one-to-one with Axiom outputs."
             )
+        materialized = self._bind_materialization(materialization, outputs, output_ids)
 
         if self.identity.output_entity == self.identity.target_entity:
             if self.output_target_ids is not None:
@@ -293,6 +282,51 @@ class PolicyDerivedMonetaryMeasure:
         )
         object.__setattr__(self, "values_identity", _array_identity(immutable_values))
         object.__setattr__(self, "record_ids_identity", _array_identity(target_ids))
+        object.__setattr__(
+            self,
+            "materialized_output_identity",
+            materialized["values"],
+        )
+        object.__setattr__(
+            self,
+            "materialized_record_ids_identity",
+            materialized["record_ids"],
+        )
+
+    def _bind_materialization(
+        self,
+        materialization: Mapping[str, object],
+        outputs: np.ndarray,
+        output_ids: np.ndarray,
+    ) -> dict[str, object]:
+        """Pin this measure to the exact output the Axiom receipt materialized.
+
+        Requires the receipt to describe this identity's period, output entity,
+        and requested output variable, then requires the values and entity rows
+        it recorded to be byte-identical to the vectors being frozen here. An
+        unrelated output, a different period, or an entity/variable the run
+        never produced cannot reach a calibration target.
+        """
+        materialized = bind_materialization_output(
+            materialization,
+            period=self.basis.period,
+            output_entity=self.identity.output_entity,
+            output_variable=self.identity.output_variable,
+            materialization_receipt_sha256=(
+                self.identity.materialization_receipt_sha256
+            ),
+            input_frame_sha256=self.identity.input_frame_sha256,
+            n_records=len(outputs),
+        )
+        if materialized["values"] != axiom_array_identity(outputs):
+            raise ValueError(
+                "Axiom output values differ from the materialized requested output."
+            )
+        if materialized["record_ids"] != axiom_array_identity(output_ids):
+            raise ValueError(
+                "Axiom output rows differ from the materialized entity rows."
+            )
+        return materialized
 
     def _check_vector_metadata(self) -> None:
         if (
@@ -324,16 +358,14 @@ class PolicyDerivedMonetaryMeasure:
         )
         if any(actual != expected for actual, expected in expected_identities):
             raise ValueError("Policy-derived array identity metadata was mutated.")
-        raw_materialization = {
-            key: value
-            for key, value in self.materialization_receipt.items()
-            if key != "receipt_sha256"
-        }
+        materialized = self._bind_materialization(
+            self.materialization_receipt,
+            self.output_values,
+            self.output_record_ids,
+        )
         if (
-            monetary_digest(raw_materialization)
-            != self.identity.materialization_receipt_sha256
-            or self.materialization_receipt.get("receipt_sha256")
-            != self.identity.materialization_receipt_sha256
+            materialized["values"] != self.materialized_output_identity
+            or materialized["record_ids"] != self.materialized_record_ids_identity
         ):
             raise ValueError("Axiom materialization receipt was mutated.")
 
@@ -341,13 +373,15 @@ class PolicyDerivedMonetaryMeasure:
         """Return the self-contained policy-output derivation receipt."""
         self._check_vector_metadata()
         receipt = {
-            "schema_version": 2,
+            "schema_version": 3,
             "identity": asdict(self.identity),
             "basis": asdict(self.basis),
             "output": {
                 "n_records": len(self.output_values),
                 "values": self.output_identity,
                 "record_ids": self.output_record_ids_identity,
+                "materialized_values": self.materialized_output_identity,
+                "materialized_record_ids": self.materialized_record_ids_identity,
             },
             "aggregation": {
                 "kind": self.aggregation_kind,
@@ -414,7 +448,16 @@ def bind_policy_derived_monetary_target(
     prepared: PolicyDerivedMonetaryMeasure,
     source: str | None = None,
 ) -> TargetSpec:
-    """Bind an observed aggregate to one exact Axiom-derived distribution."""
+    """Bind an observed aggregate to one exact Axiom-derived distribution.
+
+    Binding is not admission: the resulting :class:`~microcosm.calibrate.TargetSpec`
+    still compiles only under a trust-root
+    :class:`~microcosm.calibrate.policy_monetary_binding.AxiomPolicyAcceptance`
+    for its typed target key.  Scalar fields fail closed before coercion here —
+    a bool or numeric string amount, a float or bool period tag, and a non-float
+    ``se``/``tolerance`` are refused rather than normalized, because the
+    compiled spec is later compared against this receipt by exact type.
+    """
     if not isinstance(reference, LedgerTargetReference):
         raise TypeError("reference must be LedgerTargetReference.")
     if not isinstance(observed_basis, MonetaryBasis) or not isinstance(
@@ -454,10 +497,29 @@ def bind_policy_derived_monetary_target(
         raise ValueError(
             "Policy-derived targets do not permit implicit transformations."
         )
+    if type(reference.period) is not int and type(reference.period) is not str:
+        raise ValueError(
+            "Reference period must be an explicit int or str period tag; a bool "
+            "or float tag is refused rather than coerced."
+        )
     if str(reference.period) != observed_basis.period:
         raise ValueError("Reference period differs from the policy-output period.")
-    if not isinstance(reference.signed, bool):
+    if type(reference.signed) is not bool:
         raise ValueError("Reference signed must be an explicit boolean.")
+    for name in ("se", "tolerance"):
+        declared = getattr(reference, name)
+        if declared is not None and type(declared) is not float:
+            raise ValueError(
+                f"Reference {name} must be an explicit float or None: the compiled "
+                "TargetSpec stores floats, so any other numeric type would drift "
+                "from the receipt it is checked against."
+            )
+    if type(value) is not int and type(value) is not float:
+        raise ValueError(
+            "Observed target amount must be an int or float, got "
+            f"{type(value).__name__}; booleans and numeric strings are refused "
+            "rather than coerced."
+        )
     value = float(value)
     if not math.isfinite(value):
         raise ValueError("Observed target amount must be finite.")

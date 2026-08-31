@@ -55,22 +55,48 @@ def test_profile_is_value_free_and_explicitly_inactive():
     assert profile.targets[0].reference.measure == "employment_income"
 
 
-def test_policy_output_profile_accepts_only_policy_derived_measure_kind():
+def _policy_payload() -> dict[str, object]:
+    """A policy-output inventory row the policy binder can actually bind."""
     payload = copy.deepcopy(_payload())
     row = payload["targets"][0]
     row["readiness"] = "requires_policy_output"
+    row["reference"]["period_match_policy"] = "exact"
     row["reference"]["metadata"].update(
         {
             "activation_status": "requires_policy_output",
             "measure_kind": "policy_derived",
         }
     )
+    return payload
 
+
+def test_policy_output_profile_accepts_only_policy_derived_measure_kind():
+    payload = _policy_payload()
     profile = MonetaryTargetProfile.from_mapping(payload, country="xx")
     assert profile.targets[0].readiness == "requires_policy_output"
+    assert profile.targets[0].reference.period_match_policy == "exact"
 
-    row["reference"]["metadata"]["measure_kind"] = "prepared_column"
+    payload["targets"][0]["reference"]["metadata"]["measure_kind"] = "prepared_column"
     with pytest.raises(ValueError, match="policy_derived"):
+        MonetaryTargetProfile.from_mapping(payload, country="xx")
+
+
+def test_policy_output_profile_requires_an_exact_period_match():
+    """The binder requires exact matching, so the inventory must too."""
+    payload = _policy_payload()
+    payload["targets"][0]["reference"]["period_match_policy"] = "latest_not_after"
+    with pytest.raises(ValueError, match="requires period_match_policy 'exact'"):
+        MonetaryTargetProfile.from_mapping(payload, country="xx")
+
+
+def test_policy_output_profile_requires_an_annual_flow_basis():
+    """Closing-stock policy contracts are unbindable, so they are refused."""
+    payload = _policy_payload()
+    payload["targets"][0]["basis"] |= {
+        "temporal_basis": "closing_stock",
+        "period": "2024-12-31",
+    }
+    with pytest.raises(ValueError, match="requires an annual_flow"):
         MonetaryTargetProfile.from_mapping(payload, country="xx")
 
 

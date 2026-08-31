@@ -161,8 +161,11 @@ class TargetSpec:
             )
         if (
             "policy_monetary_binding" in metadata
-            or metadata.get("measure_kind") == "policy_derived"
-            and metadata.get("activation_status") == "active"
+            or "policy_monetary_binding_sha256" in metadata
+            or (
+                metadata.get("measure_kind") == "policy_derived"
+                and metadata.get("activation_status") == "active"
+            )
         ):
             # Local import avoids making every registry load pay for the Axiom
             # verifier while authenticating fields (family/sign/se/notes) that

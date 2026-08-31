@@ -82,6 +82,11 @@ from microcosm.calibrate.matrix import (
     SkippedTarget,
     build_constraint_matrix,
 )
+from microcosm.calibrate.policy_monetary_binding import (
+    AxiomPolicyAcceptance,
+    AxiomPolicyAcceptanceSet,
+    axiom_policy_target_rows,
+)
 from microcosm.calibrate.target import TargetSet
 from microcosm.frame import Frame, MassChange, WeightKind, Weights
 
@@ -1353,6 +1358,11 @@ def calibrate(
     target_loss_scales: np.ndarray | None = None,
     target_loss_cap: float = _DEFAULT_TARGET_LOSS_CAP,
     warm_start_weights: np.ndarray | None = None,
+    policy_acceptances: (
+        AxiomPolicyAcceptanceSet
+        | Mapping[tuple[str, int | str], AxiomPolicyAcceptance]
+        | None
+    ) = None,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
 ) -> CalibrationResult:
     """Calibrate ``weight_entity``'s weights to ``targets`` over ``frame``.
@@ -1457,6 +1467,12 @@ def calibrate(
             diagnostics' initial estimates, and release provenance. Warm starts
             are not yet supported with L0 gates or record-budget search because
             that would also need persisted gate state.
+        policy_acceptances: The trust-root acceptance set admitting this
+            calibration's Axiom policy-derived targets, forwarded verbatim to
+            :func:`~microcosm.calibrate.matrix.build_constraint_matrix`. Only
+            :func:`~microcosm.calibrate.policy_monetary_binding.build_axiom_policy_acceptances`
+            can mint one; policy rows compiled without their acceptance fail
+            closed. Ordinary targets ignore it.
         progress_callback: Optional observer called during optimization with
             JSON-serializable dictionaries such as ``{"kind":
             "calibration_epoch", "epoch": 1, "epochs": 256, "loss": ...}``.
@@ -1587,7 +1603,12 @@ def calibrate(
             targets=np.asarray([target.value for target in targets], dtype=np.float64),
         )
     )
-    problem = build_constraint_matrix(frame, targets, weight_entity)
+    problem = build_constraint_matrix(
+        frame,
+        targets,
+        weight_entity,
+        policy_acceptances=policy_acceptances,
+    )
     initial = problem.initial_weights
     w0 = initial.values
     prune_atol = _PRUNE_REL_ATOL * float(np.mean(w0))
@@ -1942,6 +1963,27 @@ def _with_exact_k_full_pool_weights(
     )
 
 
+def _reject_policy_targets_for_frozen_support(api: str, targets: TargetSet) -> None:
+    """Fail closed on Axiom policy rows in a frozen-support refit.
+
+    A policy receipt binds the exact full-pool Axiom output rows, entity row
+    IDs, and aggregation the measure was materialized over. A frozen-support
+    refit recompiles the same targets against a *subset* frame, which no longer
+    reproduces any of them, and no authenticated subset receipt exists yet.
+    Refusing here by name beats letting the row fail later as an opaque
+    integrity error — or, worse, admitting a subset it never attested.
+    """
+    policy_rows = axiom_policy_target_rows(targets)
+    if policy_rows:
+        raise ValueError(
+            f"{api} does not support authenticated Axiom policy-derived targets: "
+            "their receipts bind the exact full-pool output rows, which an L0 "
+            f"subset frame cannot reproduce. Offending rows: {list(policy_rows)}. "
+            "Calibrate policy targets on the full frame, or drop them from the "
+            "frozen-support surface."
+        )
+
+
 def refit_l0_selection(
     frame: Frame,
     targets: TargetSet,
@@ -2001,6 +2043,10 @@ def refit_l0_selection(
     real design weights rather than a uniform reset. On the explicit exact-k
     path, the starting weights and design anchor instead use the original-frame
     design weights after the same normalized Horvitz--Thompson projection.
+
+    Authenticated Axiom policy-derived targets are refused by name: their
+    receipts bind the exact full-pool output rows, which a subset frame cannot
+    reproduce, and no authenticated subset receipt exists yet.
     """
     if l2_anchor not in ("initial", "uniform", "design"):
         raise ValueError(
@@ -2018,6 +2064,7 @@ def refit_l0_selection(
             "refit_l0_selection requires a selection result produced with "
             "positive L0 pruning."
         )
+    _reject_policy_targets_for_frozen_support("refit_l0_selection", targets)
 
     if (support is None) != (k is None):
         raise ValueError(
@@ -2194,12 +2241,18 @@ def calibrate_l0_refit(
     refit starts from the selection stage's concentrated weights, so a
     penalized refit whose goal is spreading the shipped weights should anchor
     ``"uniform"`` (see :func:`refit_l0_selection`).
+
+    Like :func:`refit_l0_selection`, this refuses authenticated Axiom
+    policy-derived targets — before the expensive selection stage, not at the
+    refit call.
     """
     if target_records is None and not (math.isfinite(l0_lambda) and l0_lambda > 0.0):
         raise ValueError(
             "calibrate_l0_refit requires L0 pruning: pass target_records or a "
             "positive fixed l0_lambda."
         )
+    # Fail before the expensive selection stage, not at the refit call.
+    _reject_policy_targets_for_frozen_support("calibrate_l0_refit", targets)
     if not math.isfinite(l0_lambda) or l0_lambda < 0.0:
         raise ValueError(
             f"l0_lambda must be finite and non-negative, got {l0_lambda!r}."
