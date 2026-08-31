@@ -17,8 +17,10 @@ import pytest
 from microcosm.build.us_runtime import (
     US_QBI_OUTPUT_COLUMNS,
     US_VALIDATION_PROVISION_INPUT_LEAVES,
+    US_VALIDATION_PROVISION_PERIOD,
     ValidationInputLeaf,
     assert_validation_leaf_registry_current,
+    registered_leaf_ownership,
     us_source_stage_outputs,
     us_validation_input_coverage_gate,
 )
@@ -255,4 +257,75 @@ class TestValidationInputLeafRegistry:
         # The anti-rot check: each registered leaf is a pure input leaf and a
         # dependency of its provision variable per the live PolicyEngine-US
         # graph. Runs only where the [us] extra is installed.
-        assert_validation_leaf_registry_current()
+        assert_validation_leaf_registry_current(period=US_VALIDATION_PROVISION_PERIOD)
+
+    def test_registry_check_requires_an_explicit_period(self) -> None:
+        # The provision evaluation period is not the dataset build period, so
+        # no caller may inherit a default (microcosm issue #301).
+        with pytest.raises(TypeError):
+            assert_validation_leaf_registry_current()
+
+
+class _OwnershipStub:
+    """Minimal dated-ownership engine mirroring the adapter's contract."""
+
+    def __init__(self, ownership: dict[str, dict[int, object]]) -> None:
+        self._ownership = ownership
+
+    def variable_ownership(self, name: str, *, period: int) -> object:
+        by_period = self._ownership.get(name)
+        if by_period is None:
+            raise ValueError(f"Unknown PolicyEngine-US source variable {name!r}.")
+        return by_period[period]
+
+
+class _Ownership:
+    def __init__(self, kind: str) -> None:
+        self.kind = kind
+
+    @property
+    def computed(self) -> bool:
+        return self.kind != "INPUT"
+
+
+class TestRegisteredLeafOwnership:
+    """The dated ownership view the registry check classifies leaves with."""
+
+    def test_future_formula_leaf_is_an_input_before_it_commences(self) -> None:
+        engine = _OwnershipStub(
+            {
+                "later_formula_leaf": {
+                    2026: _Ownership("INPUT"),
+                    2030: _Ownership("FORMULA"),
+                }
+            }
+        )
+
+        assert (
+            registered_leaf_ownership(engine, ["later_formula_leaf"], period=2026) == {}
+        )
+        assert registered_leaf_ownership(
+            engine, ["later_formula_leaf"], period=2030
+        ) == {"later_formula_leaf": "FORMULA"}
+
+    def test_carry_forward_delegation_is_reported_as_owned(self) -> None:
+        engine = _OwnershipStub(
+            {
+                "weeks_worked": {
+                    2024: _Ownership("INPUT"),
+                    2025: _Ownership("DELEGATION"),
+                }
+            }
+        )
+
+        assert registered_leaf_ownership(engine, ["weeks_worked"], period=2024) == {}
+        assert registered_leaf_ownership(engine, ["weeks_worked"], period=2025) == {
+            "weeks_worked": "DELEGATION"
+        }
+
+    def test_name_absent_from_the_source_index_is_reported_not_assumed(self) -> None:
+        engine = _OwnershipStub({})
+
+        assert registered_leaf_ownership(engine, ["mystery"], period=2026) == {
+            "mystery": "UNKNOWN"
+        }

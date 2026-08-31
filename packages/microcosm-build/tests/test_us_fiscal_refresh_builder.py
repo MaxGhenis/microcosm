@@ -1744,20 +1744,16 @@ def test_builder_base_h5_pool_loader_receives_explicit_terminal_gate_policy(
             )
         return
 
-    loaded_frame, receipt, loaded_identity = (
-        builder._load_base_pool_if_identified(
-            pool_h5,
-            allow_gate_failed_base_pool=allow_gate_failed,
-        )
+    loaded_frame, receipt, loaded_identity = builder._load_base_pool_if_identified(
+        pool_h5,
+        allow_gate_failed_base_pool=allow_gate_failed,
     )
 
     assert loaded_frame is frame
     assert loaded_identity is authenticated
     assert receipt["status"] == status
     assert receipt["allow_gate_failed_base_pool"] is allow_gate_failed
-    assert receipt["agreement_gate_reference"]["failure_count"] == len(
-        gate_failures
-    )
+    assert receipt["agreement_gate_reference"]["failure_count"] == len(gate_failures)
 
 
 def test_builder_refuses_actual_red_base_h5_pool_sidecar_without_opt_in(
@@ -1778,7 +1774,9 @@ def test_builder_refuses_actual_red_base_h5_pool_sidecar_without_opt_in(
     )
     out = tmp_path / "out"
     monkeypatch.setattr(builder, "_git_dirty", lambda: False)
-    monkeypatch.setattr(builder, "_refuse_certified_release_dir_reuse", lambda path: None)
+    monkeypatch.setattr(
+        builder, "_refuse_certified_release_dir_reuse", lambda path: None
+    )
     monkeypatch.setattr(
         builder,
         "_load_frame",
@@ -1827,7 +1825,9 @@ def test_builder_refuses_bare_stamped_pool_h5_before_generic_load(
         )
     out = tmp_path / "out"
     monkeypatch.setattr(builder, "_git_dirty", lambda: False)
-    monkeypatch.setattr(builder, "_refuse_certified_release_dir_reuse", lambda path: None)
+    monkeypatch.setattr(
+        builder, "_refuse_certified_release_dir_reuse", lambda path: None
+    )
     monkeypatch.setattr(
         builder,
         "_load_frame",
@@ -2000,7 +2000,9 @@ def test_stacked_release_weeks_precedes_selection_and_unchanged_hours_gate() -> 
     weeks_assignment = source.index("base_frame = release_weeks_result.frame")
     selection = source.index("base_frame, selection_report = select_frozen_support(")
     hours_gate = source.index("hours_worked_gate = us_hours_worked_signal_gate(")
-    predictor_join = source.index("acs_predictor_join_result = join_acs_release_predictors(")
+    predictor_join = source.index(
+        "acs_predictor_join_result = join_acs_release_predictors("
+    )
 
     assert (
         base_load
@@ -2012,7 +2014,7 @@ def test_stacked_release_weeks_precedes_selection_and_unchanged_hours_gate() -> 
         < predictor_join
     )
     assert (
-        'authenticated_pool_h5.verified_digest(\n'
+        "authenticated_pool_h5.verified_digest(\n"
         '            consumer="stacked release weeks_worked source stage"'
     ) in source
     assert '"pool_manifest_sha256": authenticated_pool_h5.manifest_sha256' in source
@@ -4580,10 +4582,16 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
             "_qrf_tail_concentration_gate",
             fake_qrf_tail_concentration_gate,
         )
+
     # The consistency/contract preflights hit the installed policyengine-us
     # (absent in CI); this test pins diagnostics ordering, not engine metadata.
+    def fake_assert_validation_leaf_registry_current(*, period):
+        assert period == builder.US_VALIDATION_PROVISION_PERIOD
+
     monkeypatch.setattr(
-        builder, "assert_validation_leaf_registry_current", lambda: None
+        builder,
+        "assert_validation_leaf_registry_current",
+        fake_assert_validation_leaf_registry_current,
     )
 
     def fake_assert_release_input_coverage_manifest_current(*, period):
@@ -5738,9 +5746,7 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
         simulation_dataset_authority=None,
     ):
         captured["health_stage_events"].append("medicaid")
-        captured["medicaid_stage_simulation_authority"] = (
-            simulation_dataset_authority
-        )
+        captured["medicaid_stage_simulation_authority"] = simulation_dataset_authority
         return frame, {}
 
     def fake_medicaid_gate(diagnostics):
@@ -5955,9 +5961,7 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
         simulation_dataset_authority=None,
     ):
         captured["final_medicaid_diagnostics_called"] = True
-        captured["final_medicaid_simulation_authority"] = (
-            simulation_dataset_authority
-        )
+        captured["final_medicaid_simulation_authority"] = simulation_dataset_authority
         return {}
 
     monkeypatch.setattr(builder, "_with_l0_refit_weights", fake_l0_refit_weights)
@@ -6452,9 +6456,7 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
         == builder.DEFAULT_MAXIMUM_MICROSIM_BATCH_SIZE
     )
     assert captured["ssi_take_up_stage_called"] is True
-    stage_authority, selected_export_authority = captured[
-        "ssi_simulation_authorities"
-    ]
+    stage_authority, selected_export_authority = captured["ssi_simulation_authorities"]
     assert stage_authority is full_base_simulation_authority
     assert selected_export_authority is stage_authority
     assert captured["simulation_authority_boundaries"] == [
@@ -9177,8 +9179,7 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
         },
     }
     assert (
-        build_manifest["stacked_release_weeks_worked_source"]
-        == expected_weeks_source
+        build_manifest["stacked_release_weeks_worked_source"] == expected_weeks_source
     )
     assert (
         manifest["build"]["stacked_release_weeks_worked_source"]
@@ -9383,9 +9384,7 @@ def test_exact_k_receipt_stays_strict_even_when_base_h5_opt_in_is_present() -> N
     builder = _load_builder_module()
 
     with pytest.raises(RuntimeError, match="lost its passing agreement gate"):
-        builder._exact_k_ladder_manifest_payload(
-            **_gate_failed_exact_k_inputs(builder)
-        )
+        builder._exact_k_ladder_manifest_payload(**_gate_failed_exact_k_inputs(builder))
 
 
 def _gate_failed_base_pool_receipt() -> dict[str, object]:
@@ -10056,18 +10055,14 @@ def test_export_dataset_frame_materializes_only_the_engine_copy(
     person["ssi_reported"] = np.asarray([np.nan, 900.0, np.nan])
     person["pre_subsidy_rent"] = np.asarray([np.nan, 700.0, 800.0])
     household["tenure_type"] = pd.Series([np.nan, "RENTED"], dtype="object")
-    spm_unit["spm_unit_tenure_type"] = pd.Series(
-        [np.nan, "RENTER"], dtype="object"
-    )
+    spm_unit["spm_unit_tenure_type"] = pd.Series([np.nan, "RENTER"], dtype="object")
     for table, entity, source_ids in (
         (person, "person", [101, 102, 103]),
         (household, "household", [201, 202]),
         (spm_unit, "spm_unit", [301, 302]),
     ):
         table[f"{entity}_support_channel"] = ["acs"] * len(table)
-        table[f"{entity}_support_clone_index"] = np.zeros(
-            len(table), dtype=np.int64
-        )
+        table[f"{entity}_support_clone_index"] = np.zeros(len(table), dtype=np.int64)
         table[f"{entity}_source_id"] = np.asarray(source_ids)
     source_tables = {
         entity: frame.table(entity).copy(deep=True) for entity in frame.entities
@@ -10260,10 +10255,7 @@ def test_dataset_from_frame_uses_full_frame_authority_for_selected_batch(
     damaged_batch = Frame(
         tables,
         batch.schema,
-        {
-            entity: batch.weights_for(entity)
-            for entity in batch.weighted_entities
-        },
+        {entity: batch.weights_for(entity) for entity in batch.weighted_entities},
         batch.strata,
         mass_log=batch.mass_log,
         metadata=batch.metadata,
@@ -10322,9 +10314,7 @@ def test_dataset_from_frame_uses_full_frame_tenure_authority_for_selected_batch(
     household = frame.table("household")
     spm_unit = frame.table("spm_unit")
     household["tenure_type"] = pd.Series([np.nan, "RENTED"], dtype="object")
-    spm_unit["spm_unit_tenure_type"] = pd.Series(
-        [np.nan, "RENTER"], dtype="object"
-    )
+    spm_unit["spm_unit_tenure_type"] = pd.Series([np.nan, "RENTER"], dtype="object")
     for table, entity, source_ids in (
         (household, "household", [101, 202]),
         (spm_unit, "spm_unit", [1001, 2002]),
@@ -10379,9 +10369,7 @@ def test_dataset_from_frame_uses_full_frame_tenure_authority_for_selected_batch(
 
     assert validated_frames == [frame]
     assert dataset.tables["household"]["tenure_type"].tolist() == ["NONE"]
-    assert dataset.tables["spm_unit"]["spm_unit_tenure_type"].tolist() == [
-        "RENTER"
-    ]
+    assert dataset.tables["spm_unit"]["spm_unit_tenure_type"].tolist() == ["RENTER"]
     for entity, source in source_tables.items():
         pd.testing.assert_frame_equal(frame.table(entity), source, check_exact=True)
 
@@ -10393,10 +10381,7 @@ def test_dataset_from_frame_uses_full_frame_tenure_authority_for_selected_batch(
     damaged_batch = Frame(
         tables,
         batch.schema,
-        {
-            entity: batch.weights_for(entity)
-            for entity in batch.weighted_entities
-        },
+        {entity: batch.weights_for(entity) for entity in batch.weighted_entities},
         batch.strata,
         mass_log=batch.mass_log,
         metadata=batch.metadata,
@@ -10419,9 +10404,7 @@ def test_dataset_from_frame_materializes_only_authorized_group_quarters_tenure(
     household = frame.table("household")
     spm_unit = frame.table("spm_unit")
     household["tenure_type"] = pd.Series([np.nan, "RENTED"], dtype="object")
-    spm_unit["spm_unit_tenure_type"] = pd.Series(
-        [np.nan, "RENTER"], dtype="object"
-    )
+    spm_unit["spm_unit_tenure_type"] = pd.Series([np.nan, "RENTER"], dtype="object")
     for table, entity, source_ids in (
         (household, "household", [101, 202]),
         (spm_unit, "spm_unit", [1001, 2002]),
@@ -10489,9 +10472,7 @@ def test_dataset_from_frame_refuses_tenure_null_outside_authorized_absence(
     household = frame.table("household")
     spm_unit = frame.table("spm_unit")
     household["tenure_type"] = pd.Series([np.nan, np.nan], dtype="object")
-    spm_unit["spm_unit_tenure_type"] = pd.Series(
-        [np.nan, "RENTER"], dtype="object"
-    )
+    spm_unit["spm_unit_tenure_type"] = pd.Series([np.nan, "RENTER"], dtype="object")
     for table, entity, source_ids in (
         (household, "household", [101, 202]),
         (spm_unit, "spm_unit", [1001, 2002]),
@@ -12987,9 +12968,7 @@ def test_evidence_mode_conversion_is_pinned_structurally() -> None:
     )
 
 
-def test_release_gate_roster_exactly_classifies_support_and_source_semantics() -> (
-    None
-):
+def test_release_gate_roster_exactly_classifies_support_and_source_semantics() -> None:
     """Every direct release gate is executable-ledgered, not prose-classified.
 
     The #794 sweep found the farm gate but called it unchanged after static
@@ -13020,10 +12999,7 @@ def test_release_gate_roster_exactly_classifies_support_and_source_semantics() -
         for node in ast.walk(main_fn)
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
-        and (
-            node.func.id.endswith("_gate")
-            or node.func.id in special_boundaries
-        )
+        and (node.func.id.endswith("_gate") or node.func.id in special_boundaries)
     )
 
     # verdicts: old candidate-25 replay where valid; otherwise the exact
@@ -13222,8 +13198,7 @@ def test_release_gate_roster_exactly_classifies_support_and_source_semantics() -
         "us_validation_input_coverage_gate": ("validation_input_coverage", 1),
     }
     reviewed_identities = {
-        name: (module, count)
-        for name, (module, count, _verdict) in relevant.items()
+        name: (module, count) for name, (module, count, _verdict) in relevant.items()
     } | out_of_class
     actual_identities = {
         name: (
@@ -13301,7 +13276,9 @@ def test_release_gate_roster_exactly_classifies_support_and_source_semantics() -
         ),
     }
     assert {
-        gate for gate, (_module, _count, verdict) in relevant.items() if verdict == "fixed_writer"
+        gate
+        for gate, (_module, _count, verdict) in relevant.items()
+        if verdict == "fixed_writer"
     } == set(fixed_gate_tests)
     tests_root = Path(__file__).resolve().parent
     for _gate, (filename, pass_case, contamination_case) in fixed_gate_tests.items():

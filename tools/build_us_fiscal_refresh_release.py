@@ -89,6 +89,7 @@ from microcosm.build.us_runtime import (
     US_MEDICAID_ENROLLMENT_TARGET_TABLE,
     US_MEDICAID_TAKE_UP_VARIABLE,
     US_SOURCE_MANIFEST,
+    US_VALIDATION_PROVISION_PERIOD,
     apply_us_medicaid_enrollment_substitutions,
     assert_release_input_coverage_manifest_current,
     assert_take_up_contract_current,
@@ -9249,7 +9250,9 @@ def _main(argv: Sequence[str] | None = None) -> None:
     # validation row can ship a silent structural zero. The registry is first
     # checked against the live PolicyEngine-US graph so a stale entry cannot mask
     # a real gap.
-    assert_validation_leaf_registry_current()
+    assert_validation_leaf_registry_current(
+        period=US_VALIDATION_PROVISION_PERIOD,
+    )
     validation_input_coverage_gate = us_validation_input_coverage_gate()
     if not validation_input_coverage_gate.passed:
         raise RuntimeError(

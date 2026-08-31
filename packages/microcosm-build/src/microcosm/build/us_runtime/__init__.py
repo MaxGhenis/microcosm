@@ -998,8 +998,10 @@ from microcosm.build.us_runtime.take_up_contract import (
 )
 from microcosm.build.us_runtime.validation_input_coverage import (
     US_VALIDATION_PROVISION_INPUT_LEAVES,
+    US_VALIDATION_PROVISION_PERIOD,
     ValidationInputLeaf,
     assert_validation_leaf_registry_current,
+    registered_leaf_ownership,
     us_source_stage_outputs,
     us_validation_input_coverage_gate,
 )
@@ -1923,8 +1925,10 @@ __all__ = [
     "us_source_stage_outputs",
     "us_validation_input_coverage_gate",
     "US_VALIDATION_PROVISION_INPUT_LEAVES",
+    "US_VALIDATION_PROVISION_PERIOD",
     "ValidationInputLeaf",
     "assert_validation_leaf_registry_current",
+    "registered_leaf_ownership",
     "SSI_COUNTABLE_RESOURCE_ASSETS",
     "POST_REFERENCE_ECPS_REQUIRED_INPUTS",
     "US_CGD_ROUTE_REQUIRED_INPUTS",

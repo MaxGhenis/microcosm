@@ -8,11 +8,12 @@ Lane base: `dc7e09cb`
 
 ## State
 
-Implementation complete; focused verification is in progress. The build-side
-and frame-adapter classifiers now resolve ownership for the required dataset
-period, including pure carry-forward delegation. Candidate-26 is running in
-another worktree and remains read-only; no build, publication, push, or PR is
-authorized.
+Continuation lane (opus, after the sol lane exhausted its quota at `1d580e43`).
+The sol lane's classifier core is independently verified; this lane closes the
+one production caller its audit missed, resolves part 2's adapter question
+against read engine source, and records the focused-test evidence.
+Candidate-26 is running in another worktree and remains read-only; no build,
+publication, push, or PR is authorized.
 
 ## Done
 
@@ -99,13 +100,51 @@ authorized.
   collection is currently CPU-starved by candidate-26 and remains to be rerun
   after this implementation checkpoint.
 
+## Done (opus continuation)
+
+- Re-read `PROGRESS.md`, the four sol commits, and the original lane prompt
+  before touching the tree; confirmed `1d580e43`, a clean worktree, and sole
+  writership.
+- Independently verified the classifier core against the installed engine
+  rather than trusting the journal. The pinned PolicyEngine-US 1.819.0 source
+  index carries 6,146 variables; 5,218 are computed at 2024 and 5,219 at 2025.
+  `weeks_worked` resolves `INPUT` at 2024 and `DELEGATION` at 2025/2026/2030
+  with material owner `INPUT` at `(2024, 1, 1)` and the full year-by-year
+  delegation chain, so the carry-forward chase and its fail-closed floor
+  behave as specified.
+- Found that the period-aware fix also reclassifies three New Jersey variables
+  (`nj_property_tax_relief`, `nj_property_tax_relief_income`,
+  `nj_staynj_eligible`, each with a single 2026 formula start) from
+  formula-owned to 2024/2025 input leaves. None is referenced anywhere in
+  microcosm, so the widening reaches no gate, manifest, transfer target, or
+  pool boundary; recorded here so the count change is not mistaken for drift.
+- Re-audited every ownership call site directly. The build/tool/adapter
+  surfaces the sol lane converted all pass a dataset period
+  (`POOL_TIME_PERIOD`, release `PERIOD`, or an explicit `--period`), and the
+  deliberately static all-vintage views (`RulesEngine.variables()`, the pinned
+  pool input projection, the dependency closure, the take-up ABI) are each
+  documented as such and are supersets-safe: a name in `variables()` has no
+  formula in any period, so it is an input leaf in every period.
+- Closed the one production caller the audit missed:
+  `assert_validation_leaf_registry_current` classified registry leaves with the
+  periodless `Variable.is_input_variable()` and inherited an implicit
+  `period=2026` default while the release tool called it with no period at all.
+  Ownership is now resolved through the adapter's dated
+  `variable_ownership`/`input_variables` APIs, `period` is a required keyword,
+  and the release caller passes the new explicit `US_VALIDATION_PROVISION_PERIOD`
+  (2026, the provision evaluation period — deliberately not the dataset build
+  period, which is 2024).
+- Proved that change behavior-preserving against the pinned engine before
+  making it: exactly zero variables are any-vintage formula-owned yet
+  uncomputed at 2026, and all thirteen registry leaves carry no formula at any
+  vintage. The live-engine registry assertion still passes unchanged.
+
 ## Next
 
-- Run the remaining focused changed-file/weeks/adapter/parity corridors once
-  candidate-26 releases enough CPU, recording exact pass counts; do not run the
-  repository-wide suite in this lane.
-- Replace `out.md` with the required final classifier-fix report and journal
-  repository-wide pytest as deferred rather than running it in this lane.
+- Resolve part 2's adapter question (`_derived_metadata`) against read source
+  and record the verdict.
+- Finish the focused build-side corridors and write the final report to
+  `out.md`, journaling repository-wide pytest as deferred.
 
 ---
 

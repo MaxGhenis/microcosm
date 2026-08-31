@@ -48,8 +48,10 @@ from microcosm.build.source_manifest import SourceManifest
 
 __all__ = [
     "US_VALIDATION_PROVISION_INPUT_LEAVES",
+    "US_VALIDATION_PROVISION_PERIOD",
     "ValidationInputLeaf",
     "assert_validation_leaf_registry_current",
+    "registered_leaf_ownership",
     "us_source_stage_outputs",
     "us_validation_input_coverage_gate",
     "us_validation_input_leaf_requirements",
@@ -96,6 +98,13 @@ class ValidationInputLeaf:
                 f"ValidationInputLeaf {self.leaf!r}: validation_rows is required so "
                 "a failure can name the affected rows."
             )
+
+
+#: Period the registry check evaluates provisions at. This is the *provision
+#: evaluation* period the shipped validation rows score (post-OBBBA law), NOT
+#: the dataset build period: the two differ deliberately, so every caller states
+#: which one it means rather than inheriting a default.
+US_VALIDATION_PROVISION_PERIOD = 2026
 
 
 #: The provision-critical input leaves the shipped US validation configs depend
@@ -276,13 +285,23 @@ def _provision_input_leaves(
     *,
     period: int,
     tax_benefit_system: Any,
+    input_names: frozenset[str],
 ) -> set[str]:
     """Input-leaf dependency set of ``provision_variable`` via the engine tracer.
 
     Traces a minimal one-person simulation computing the provision and returns
-    the touched variables that are engine input leaves (no formula). This is the
-    engine's own dependency graph, not a source parse, so it stays correct as
-    formulas change.
+    the touched variables that are engine input leaves *in* ``period``. This is
+    the engine's own dependency graph, not a source parse, so it stays correct
+    as formulas change.
+
+    ``input_names`` is the adapter's period-resolved input view
+    (``PolicyEngineUSEngine.input_variables(period=...)``), not the periodless
+    ``Variable.is_input_variable()`` predicate: a variable whose only formula
+    commences after ``period`` is a plain input there, and classifying it as
+    formula-owned would drop it from the dependency set and fail a legitimate
+    registry entry (microcosm issue #301, the ``weeks_worked`` defect class).
+    That view also withholds the four adapter compatibility aggregates, which
+    are engine-owned totals no registry entry may claim as a leaf.
     """
     from policyengine_us import Simulation
 
@@ -300,24 +319,49 @@ def _provision_input_leaves(
     simulation.calculate(provision_variable, period)
     touched = {key.split("<", 1)[0] for key in simulation.tracer.get_flat_trace()}
     variables = tax_benefit_system.variables
-    return {
-        name
-        for name in touched
-        if name in variables and variables[name].is_input_variable()
-    }
+    return {name for name in touched if name in variables and name in input_names}
+
+
+def registered_leaf_ownership(
+    engine: Any,
+    names: Iterable[str],
+    *,
+    period: int | str,
+) -> dict[str, str]:
+    """Return the engine-owned subset of ``names`` as ``name -> ownership kind``.
+
+    Ownership is resolved for ``period`` through the adapter's dated
+    :meth:`~microcosm.frame.adapters.policyengine_us.PolicyEngineUSEngine.variable_ownership`
+    API, so a formula that commences after ``period`` (or a pure prior-year
+    carry-forward whose material owner is an earlier input) is classified the
+    way the engine actually behaves in that period instead of "has any formula
+    ⇒ owned". A name the pinned source index does not know is reported with the
+    ``"UNKNOWN"`` kind rather than silently treated as an input leaf.
+    """
+
+    owned: dict[str, str] = {}
+    for name in names:
+        try:
+            ownership = engine.variable_ownership(name, period=period)
+        except ValueError:
+            owned[name] = "UNKNOWN"
+            continue
+        if ownership.computed:
+            owned[name] = ownership.kind
+    return owned
 
 
 def assert_validation_leaf_registry_current(
     *,
+    period: int,
     engine: Any | None = None,
-    period: int = 2026,
 ) -> None:
     """Fail if a registry entry has drifted from the PolicyEngine-US graph.
 
     Every :class:`ValidationInputLeaf` in
     :data:`US_VALIDATION_PROVISION_INPUT_LEAVES` must, per the live engine:
 
-    - name a variable that exists and is a *pure input leaf* (no formula); and
+    - name a variable that exists and is a *pure input leaf in* ``period``; and
     - be an input-leaf dependency of at least one of its ``provision_variables``.
 
     A leaf the engine has turned into a formula-owned output, or that is no
@@ -325,6 +369,13 @@ def assert_validation_leaf_registry_current(
     coverage gate would guard a requirement the graph no longer has. This is the
     reverse-direction, anti-rot check the engine-derived guards carry
     (cf. :func:`microcosm.build.us_runtime.puf_support.assert_formula_owned_blocklist_current`).
+
+    ``period`` is required and carries no default: it is the *provision
+    evaluation* period the validation rows score
+    (:data:`US_VALIDATION_PROVISION_PERIOD`), which is deliberately not the
+    dataset build period, and ownership is resolved for exactly that period. A
+    leaf whose only formula commences later stays a legitimate input leaf here
+    instead of being rejected as engine-owned (microcosm issue #301).
 
     A no-op when no engine is available or the adapter's lazy ``policyengine_us``
     import is missing at call time (the workspace test environment), so it runs
@@ -348,6 +399,12 @@ def assert_validation_leaf_registry_current(
     variables = tax_benefit_system.variables
     failures: list[str] = []
     leaves_by_provision: dict[str, set[str]] = {}
+    owned = registered_leaf_ownership(
+        engine,
+        (entry.leaf for entry in US_VALIDATION_PROVISION_INPUT_LEAVES),
+        period=period,
+    )
+    input_names = frozenset(engine.input_variables(period=period))
     for entry in US_VALIDATION_PROVISION_INPUT_LEAVES:
         variable = variables.get(entry.leaf)
         if variable is None:
@@ -356,10 +413,12 @@ def assert_validation_leaf_registry_current(
                 "unknown to PolicyEngine-US; remove or rename it."
             )
             continue
-        if not variable.is_input_variable():
+        ownership_kind = owned.get(entry.leaf)
+        if ownership_kind is not None:
             failures.append(
                 f"{entry.leaf}: registered as a pure input leaf but PolicyEngine-US "
-                "now computes it with a formula; it is no longer a dataset input."
+                f"resolves it as {ownership_kind} at period {period}; it is no "
+                "longer a dataset input there."
             )
             continue
         depended_on = False
@@ -369,6 +428,7 @@ def assert_validation_leaf_registry_current(
                     provision,
                     period=period,
                     tax_benefit_system=tax_benefit_system,
+                    input_names=input_names,
                 )
             if entry.leaf in leaves_by_provision[provision]:
                 depended_on = True
