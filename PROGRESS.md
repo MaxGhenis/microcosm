@@ -70,6 +70,20 @@ in scope.
   carry-forward, registry version, materializer version, or schema weakening
   is needed. The official US bundle generator must author the resulting
   `imputation.yaml` changes.
+- Prototyped the missing production composition read-only through the guarded
+  public source-operator path. The ASEC-only WIC operator merged 11 observed
+  ASEC values as nullable pandas `boolean` and left 19 ACS recipient cells
+  missing. A real one-target `AcsTransferTargetBankStore` then rebuilt its
+  checkpoint successfully before current reconciliation reproduced the exact
+  dtype-sensitive `Series.equals` producer failure. The regression can reuse
+  this fixture for a cold `rebuilt/missing` path and a warm
+  `checkpoint/resumed` path, asserting the nullable dtype, exact ASEC Series,
+  and typed producer hash before and after.
+- Defined the adversarial proof independently of the outer preservation guard:
+  flip one incumbent ASEC logical value while retaining nullable dtype, take
+  the producer snapshot from that tampered Series, and require reconciliation
+  to reject the deterministic-expected/ASEC-snapshot mismatch before any
+  recipient assignment.
 
 ## Next
 
