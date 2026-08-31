@@ -229,6 +229,19 @@ nothing was pushed, published, or built.
   untouched and formatted only the three the lane itself drifted, so the lane
   adds no new drift and reflows no region it did not edit.
 
+- Recorded the focused-test evidence per corridor: frame adapter/metadata index
+  59 passed; pool/stacked-spine/PUF-support 411 passed; ACS+coverage 259 passed
+  and 3 skipped (its one red fixed, the file re-running 44 passed / 3 skipped);
+  the sixteen remaining touched build files plus the late-producer DAG 727
+  passed (its eleven reds fixed, the PUF file re-running 10 passed and the
+  pool-tool digest test green); spec engine 115 passed (its one red fixed by
+  the attestation refresh, re-confirmed with 36 passed); weeks corridor 154
+  passed; validation input coverage 18 passed. A consolidated single-process
+  re-run of all 32 files was started and deliberately stopped at ~5% after
+  eleven minutes — serialized against candidate-26 it projected to hours of
+  contended CPU for coverage this tree already has, which is the contention the
+  focused-tests-only constraint exists to avoid.
+
 ## Next
 
 - Run the repository-wide suite once candidate-26 releases the machine; this
