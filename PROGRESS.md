@@ -8,12 +8,14 @@ Lane base: `dc7e09cb`
 
 ## State
 
-Continuation lane (opus, after the sol lane exhausted its quota at `1d580e43`).
-The sol lane's classifier core is independently verified; this lane closes the
-one production caller its audit missed, resolves part 2's adapter question
-against read engine source, and records the focused-test evidence.
-Candidate-26 is running in another worktree and remains read-only; no build,
-publication, push, or PR is authorized.
+Complete. The continuation lane (opus, after the sol lane exhausted its quota
+at `1d580e43`) independently verified the classifier core, closed the one
+production caller the sol audit missed, fixed the three red-test classes that
+lane never got CPU to run, refreshed the spec attestations its kernel edits
+legitimately moved, and adjudicated part 2 against read engine source.
+Repository-wide pytest is deferred by instruction while candidate-26 owns this
+machine's cores from another worktree; candidate evidence stayed read-only and
+nothing was pushed, published, or built.
 
 ## Done
 
@@ -229,8 +231,16 @@ publication, push, or PR is authorized.
 
 ## Next
 
-- Finish the focused build-side corridors and write the final report to
-  `out.md`, journaling repository-wide pytest as deferred.
+- Run the repository-wide suite once candidate-26 releases the machine; this
+  lane ran focused corridors only, as instructed.
+- Decide whether to close the same defect class on the UK side
+  (`policyengine_uk._is_engine_computed`, `uk_runtime/release_input_coverage.py`,
+  `tools/build_uk_efrs_parity_reference.py` are all still periodless). That
+  needs a UK dated view and a UK certification re-run, so it was deliberately
+  left outside this US-scoped lane.
+- Upstream `axiom-rules-engine`: expose per-rule commencement dates on the
+  dense Python surface so the adapter can pre-empt a pre-commencement run with
+  a dated message instead of letting the engine refuse mid-execution.
 
 ---
 
