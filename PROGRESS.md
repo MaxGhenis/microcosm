@@ -139,10 +139,28 @@ publication, push, or PR is authorized.
   uncomputed at 2026, and all thirteen registry leaves carry no formula at any
   vintage. The live-engine registry assertion still passes unchanged.
 
+- Resolved part 2. The lane prompt names "the microcosm-frame PolicyEngine-US
+  adapter's derived metadata layer" but the literal `_derived_metadata` exists
+  only in the Axiom adapter, so both readings were carried out. The
+  PolicyEngine-US reading is the metadata index the sol lane made dated and
+  this lane verified. The Axiom reading was adjudicated against
+  `axiom-rules-engine` at `8430cdea0ba6ce6c5d90cfafaa90b89e0474df76` (the four
+  cited files clean at that commit): RuleSpec derived rules are effective-dated
+  (`DerivedVersionSpec`, `src/spec.rs`), but the dense compiler keeps only the
+  single unbounded version's commencement date (`CompiledDerived`,
+  `src/dense.rs`) and `check_commencement` fails the entire execution with
+  `MissingDerivedFormulaVersion` for any period starting before any plan rule
+  commences. A pre-commencement period therefore has no lawful answer the
+  dataset could supply, so the period-blind rejection of derived names cannot
+  reproduce the `weeks_worked` defect class there. The commencement date is not
+  exposed to Python (`DerivedMetadata` and its pyo3 handle carry
+  name/id/entity/dtype/unit/period/source, `period` being authored
+  granularity), so relaying a dated pre-commencement message needs an
+  engine-side surface addition rather than an adapter classifier change. The
+  finding is recorded in the adapter docstring instead of a speculative fix.
+
 ## Next
 
-- Resolve part 2's adapter question (`_derived_metadata`) against read source
-  and record the verdict.
 - Finish the focused build-side corridors and write the final report to
   `out.md`, journaling repository-wide pytest as deferred.
 

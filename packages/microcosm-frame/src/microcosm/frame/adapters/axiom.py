@@ -447,7 +447,39 @@ class AxiomEngine:
         return program
 
     def _derived_metadata(self) -> dict[str, Any]:
-        """Name -> authoring metadata for every derived rule in the module."""
+        """Name -> authoring metadata for every derived rule in the module.
+
+        Deliberately period-invariant, unlike the PolicyEngine-US adapter's
+        dated ownership view (microcosm issue #301, where a variable carrying
+        only a later-dated formula is a plain input for an earlier dataset).
+        The Axiom dense surface does not admit that case, verified against
+        ``axiom-rules-engine`` at ``8430cde``:
+
+        - RuleSpec derived rules *are* effective-dated (``DerivedVersionSpec``
+          carries ``effective_from``/``effective_to``, ``src/spec.rs``), but the
+          dense compiler compiles the single unbounded version and keeps only
+          its commencement date (``CompiledDerived.effective_from``,
+          ``src/dense.rs``), because one compiled program executes for many
+          periods.
+        - Commencement is then enforced per execution over *every* derived rule
+          in the plan, not merely the requested outputs: ``check_commencement``
+          fails the whole run with ``MissingDerivedFormulaVersion`` when the
+          period starts before a rule commences (``src/dense.rs``).
+
+        So a pre-commencement period has no lawful answer at all rather than
+        one the dataset could supply, and no period exists in which a derived
+        name is a legitimate dataset input. Rejecting every derived name in the
+        export contract therefore cannot mis-classify a period-resolved input
+        the way a periodless PolicyEngine-US classifier could.
+
+        The engine's Python surface exposes no commencement date to relay
+        (``DerivedMetadata`` carries name/id/entity/dtype/unit/period/source,
+        where ``period`` is the authored granularity, and the pyo3
+        ``DerivedMetadataHandle`` exposes exactly those fields), so this
+        adapter cannot pre-empt a pre-commencement run with a dated message;
+        that needs an engine-side surface addition, not a classifier change
+        here.
+        """
         if self._metadata is None:
             for frame_entity in self._schema.entities:
                 if self._program(frame_entity, missing_ok=True) is not None:
