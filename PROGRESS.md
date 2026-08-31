@@ -134,6 +134,17 @@ in scope.
   exact. Together with the logical-mismatch refusal and both registered
   callbacks, the focused reconciliation corridor passes 4/4 tests. Focused
   Ruff, format verification, and diff hygiene are green.
+- The first repository-wide run reached 863 passed and one skipped before
+  exposing two BE/UK spec-hash golden failures and was stopped at 11% to keep
+  the repair loop bounded. Archived-source execution proves these are latent
+  at lane base rather than caused by WIC: commit `268ad8949` produces the old
+  test literals, while the later seed-attestation commit `1ba3a592` and lane
+  base `74acf94b` both deterministically produce BE
+  `3569dfd2...68930` and UK `4a3441b2...06222`. The shared resolved seed
+  protocol is normative in every country's spec envelope; its prior repin
+  omitted only these two goldens. Updated those literals without changing any
+  runtime, schema, gate, or country spec. The complete country-bundle file now
+  passes 15/15 with focused Ruff and format checks green.
 
 ## Next
 
