@@ -2,10 +2,11 @@
 
 ## State
 
-Complete locally on 2026-08-31, including a second hard-review repair pass
-atop exact adapter commit `952952a1`. The original six findings and the six
-second-pass findings are repaired or fail closed at their true owner
-boundary. No merge, publication, or external Axiom repository change occurred.
+Complete locally on 2026-08-31, including a third hard-review repair pass
+atop exact adapter commit `e7ff9859`. The original six findings, the six
+second-pass findings, and the four downstream coherence findings are repaired
+or fail closed at their true owner boundary. No merge, publication, or
+external Axiom repository change occurred.
 
 ## Done
 
@@ -63,9 +64,28 @@ boundary. No merge, publication, or external Axiom repository change occurred.
 - Split ordinary relation-free execution from the narrower receipt ID domain;
   entity IDs above signed-int64 remain compatible when no relation or receipt
   consumes them, while the receipted surface still fails closed.
-- Focused adapter verification passes with the native extension: 69 passed,
+- Ran a third exact downstream audit of `e7ff9859`; it reproduced a
+  multi-output lazy-coercion mutate/observe/restore bypass, an unrelated
+  relation binding narrowing relation-free ID compatibility, repeated native
+  relation declarations accepted by the standalone verifier, and one output
+  name claimed by two equal-cardinality entities. All four correctly blocked
+  approval despite the prior focused and full-shard checks being green.
+- Build every requested entity's owned root and relation snapshots and commit
+  the input-frame digest before invoking the first executor. Snapshot checks
+  now run immediately after each output coercion, so one output cannot mutate
+  an input that a later output or entity observes and restores. Adversarial
+  tests cover both the two-output and cross-entity forms.
+- Route ordinary relation-free execution according to bindings relevant to
+  the executed entities, not global adapter configuration. A binding for an
+  unexecuted household no longer narrows high-`uint64` person IDs; an extra
+  binding on an executed entity remains fail-closed.
+- Require exactly one schema-v2 declaration per runtime relation key in both
+  producer and verifier until Axiom exposes an authenticated union capability,
+  and require every verified output name to have exactly one frame-entity
+  owner. Fully re-digested forged receipts exercise both refusal paths.
+- Focused adapter verification passes with the native extension: 89 passed,
   4 skipped (only the expected missing rulespec-be pilot and installed-engine
-  inverse skip). The complete frame shard passes 303 tests with 25 dependency
+  inverse skip). The complete frame shard passes 323 tests with 25 dependency
   skips. Repository Ruff, focused Ruff format, `git diff --check`, and the
   317-file CI inventory verifier all pass.
 

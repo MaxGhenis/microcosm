@@ -154,6 +154,23 @@ class AxiomRelationBinding:
                 raise ValueError(f"AxiomRelationBinding.{name} must be non-empty.")
 
 
+@dataclass(frozen=True)
+class _AxiomExecutionPlan:
+    """Owned call-start inputs for one entity's dense execution."""
+
+    frame_entity: str
+    names: tuple[str, ...]
+    program: Any
+    current_id_column: str
+    current_id_receipt: dict[str, object]
+    declared_root_inputs: tuple[str, ...]
+    inputs: dict[str, np.ndarray]
+    root_input_receipts: dict[str, object]
+    relations: dict[str, Any]
+    relation_receipts: dict[str, object]
+    expected_rows: int
+
+
 class AxiomEngine:
     """RulesEngine adapter backed by the Axiom dense vectorized surface.
 
@@ -419,7 +436,12 @@ class AxiomEngine:
         programs = {
             item.entity: self._program(item.entity) for item in metadata.values()
         }
-        if not self._relation_bindings and all(
+        executed_entities = set(programs)
+        has_relevant_binding = any(
+            binding.current_entity in executed_entities
+            for binding in self._relation_bindings.values()
+        )
+        if not has_relevant_binding and all(
             not program.relations for program in programs.values()
         ):
             return self._materialize_relation_free(
@@ -491,6 +513,15 @@ class AxiomEngine:
                         f"{expected} row(s)."
                     )
                 results[name] = values
+                # Coercing a lazy output can run arbitrary native/Python
+                # ``__array__`` code. Refuse its mutation before coercing a
+                # later output that could observe and then restore the input.
+                _verify_execution_snapshots(
+                    inputs=inputs,
+                    input_receipts=input_receipts,
+                    relations={},
+                    relation_receipts={},
+                )
             bundle.revalidate()
             _verify_execution_snapshots(
                 inputs=inputs,
@@ -541,10 +572,13 @@ class AxiomEngine:
             metadata_by_name[name] = metadata
             by_entity.setdefault(metadata.entity, []).append(name)
 
-        results: dict[str, np.ndarray] = {}
-        entity_receipts: dict[str, object] = {}
+        # Assemble every owned root/relation snapshot before invoking any
+        # entity program. A first entity's executor therefore cannot change
+        # the inputs a later entity observes, and the input-frame digest is a
+        # call-start commitment rather than a post-output sample.
+        plans: list[_AxiomExecutionPlan] = []
         for frame_entity in sorted(by_entity):
-            names = sorted(by_entity[frame_entity])
+            names = tuple(sorted(by_entity[frame_entity]))
             program = self._program(frame_entity)
             expected_root = self._entity_names[frame_entity]
             if program.root_entity != expected_root:
@@ -576,33 +610,75 @@ class AxiomEngine:
             root_input_receipts = {
                 name: _array_identity(inputs[name]) for name in sorted(inputs)
             }
+            plans.append(
+                _AxiomExecutionPlan(
+                    frame_entity=frame_entity,
+                    names=names,
+                    program=program,
+                    current_id_column=current_id_column,
+                    current_id_receipt=current_id_receipt,
+                    declared_root_inputs=declared_root_inputs,
+                    inputs=inputs,
+                    root_input_receipts=root_input_receipts,
+                    relations=relations,
+                    relation_receipts=relation_receipts,
+                    expected_rows=bundle.n(frame_entity),
+                )
+            )
+
+        bundle.revalidate()
+        entity_receipts: dict[str, dict[str, object]] = {
+            plan.frame_entity: {
+                "frame_entity": plan.frame_entity,
+                "engine_entity": plan.program.root_entity,
+                "current_id_column": plan.current_id_column,
+                "current_ids": plan.current_id_receipt,
+                "declared_root_inputs": list(plan.declared_root_inputs),
+                "provided_root_inputs": plan.root_input_receipts,
+                "relations": plan.relation_receipts,
+                "requested_outputs": {},
+            }
+            for plan in plans
+        }
+        period_receipt = {"kind": period_kind, "start": start, "end": end}
+        input_projection = _input_projection_receipt(
+            period=period_receipt,
+            arithmetic=self._arithmetic,
+            entity_names=self._entity_names,
+            entities=entity_receipts,
+        )
+        input_frame_sha256 = _canonical_digest(input_projection)
+
+        results: dict[str, np.ndarray] = {}
+        for plan in plans:
             execute = (
-                program.execute_f64 if self._arithmetic == "f64" else program.execute
+                plan.program.execute_f64
+                if self._arithmetic == "f64"
+                else plan.program.execute
             )
             outputs = execute(
                 period_kind=period_kind,
                 start=start,
                 end=end,
-                inputs=inputs,
-                relations=relations or None,
-                outputs=list(names),
+                inputs=plan.inputs,
+                relations=plan.relations or None,
+                outputs=list(plan.names),
             )["outputs"]
             bundle.revalidate()
             _verify_execution_snapshots(
-                inputs=inputs,
-                input_receipts=root_input_receipts,
-                relations=relations,
-                relation_receipts=relation_receipts,
+                inputs=plan.inputs,
+                input_receipts=plan.root_input_receipts,
+                relations=plan.relations,
+                relation_receipts=plan.relation_receipts,
             )
-            expected = bundle.n(frame_entity)
             output_receipts: dict[str, object] = {}
-            for name in names:
+            for name in plan.names:
                 values = np.array(outputs[name], copy=True)
-                if values.shape != (expected,):
+                if values.shape != (plan.expected_rows,):
                     raise ValueError(
                         f"Materialized variable {name!r} has shape "
-                        f"{values.shape} but entity {frame_entity!r} has "
-                        f"{expected} row(s)."
+                        f"{values.shape} but entity {plan.frame_entity!r} has "
+                        f"{plan.expected_rows} row(s)."
                     )
                 results[name] = values
                 metadata = metadata_by_name[name]
@@ -615,36 +691,18 @@ class AxiomEngine:
                     "declared_period": metadata.period,
                     "values": _typed_array_identity(values),
                 }
+                # Check immediately, not after the output loop: output A may
+                # mutate an input and output B may otherwise observe the
+                # transient value, restore it, and defeat an end-only check.
+                _verify_execution_snapshots(
+                    inputs=plan.inputs,
+                    input_receipts=plan.root_input_receipts,
+                    relations=plan.relations,
+                    relation_receipts=plan.relation_receipts,
+                )
 
-            # Output coercion may call user/native ``__array__`` code. Repeat
-            # the owned-snapshot check after every output has been copied and
-            # hashed so a lazy output cannot mutate an input after the first
-            # post-execution check.
-            _verify_execution_snapshots(
-                inputs=inputs,
-                input_receipts=root_input_receipts,
-                relations=relations,
-                relation_receipts=relation_receipts,
-            )
+            entity_receipts[plan.frame_entity]["requested_outputs"] = output_receipts
 
-            entity_receipts[frame_entity] = {
-                "frame_entity": frame_entity,
-                "engine_entity": program.root_entity,
-                "current_id_column": current_id_column,
-                "current_ids": current_id_receipt,
-                "declared_root_inputs": list(declared_root_inputs),
-                "provided_root_inputs": root_input_receipts,
-                "relations": relation_receipts,
-                "requested_outputs": output_receipts,
-            }
-
-        period_receipt = {"kind": period_kind, "start": start, "end": end}
-        input_projection = _input_projection_receipt(
-            period=period_receipt,
-            arithmetic=self._arithmetic,
-            entity_names=self._entity_names,
-            entities=entity_receipts,
-        )
         receipt: dict[str, object] = {
             "schema_version": 2,
             "receipt_kind": "axiom_dense_materialization",
@@ -652,7 +710,7 @@ class AxiomEngine:
             "arithmetic": self._arithmetic,
             "entity_names": dict(sorted(self._entity_names.items())),
             "entities": entity_receipts,
-            "input_frame_sha256": _canonical_digest(input_projection),
+            "input_frame_sha256": input_frame_sha256,
         }
         complete_receipt = {
             **receipt,
@@ -1648,7 +1706,14 @@ def verify_axiom_materialization_receipt(
             live_outputs=outputs,
         )
         recomputed_entities[entity_key] = entity
-        verified_output_names.update(entity["requested_outputs"])
+        entity_output_names = set(entity["requested_outputs"])
+        repeated_outputs = sorted(verified_output_names & entity_output_names)
+        if repeated_outputs:
+            raise ValueError(
+                "Axiom output names must have one owning frame entity; "
+                f"repeated={repeated_outputs}."
+            )
+        verified_output_names.update(entity_output_names)
 
     if set(outputs) != verified_output_names:
         raise ValueError(
@@ -1859,6 +1924,12 @@ def _verify_relation_receipt(
     raw_declarations = relation["declarations"]
     if not isinstance(raw_declarations, list) or not raw_declarations:
         raise ValueError(f"Axiom relation {relation_key!r} needs declarations.")
+    if len(raw_declarations) != 1:
+        raise ValueError(
+            f"Axiom relation {relation_key!r} must carry exactly one "
+            "declaration until the runtime exposes an authenticated repeated-key "
+            "union capability."
+        )
     declarations: list[dict[str, object]] = []
     for raw in raw_declarations:
         declaration = _exact_mapping(

@@ -76,6 +76,32 @@ FIXTURE_RULESPEC_ROOTS = (FIXTURE_RULESPEC_ROOT,)
 RULESPEC_BE = os.environ.get("POPULACE_RULESPEC_BE")
 
 
+def _reseal_materialization_receipt(receipt: dict[str, object]) -> None:
+    """Recompute both receipt digests after an adversarial schema mutation."""
+
+    entities = receipt["entities"]
+    assert isinstance(entities, dict)
+    projected_entities = {}
+    for name, raw_entity in entities.items():
+        assert isinstance(raw_entity, dict)
+        projected_entities[name] = {
+            key: value
+            for key, value in raw_entity.items()
+            if key != "requested_outputs"
+        }
+    input_projection = {
+        "schema_version": 2,
+        "receipt_kind": "axiom_dense_input_projection",
+        "period": receipt["period"],
+        "arithmetic": receipt["arithmetic"],
+        "entity_names": receipt["entity_names"],
+        "entities": projected_entities,
+    }
+    receipt["input_frame_sha256"] = _canonical_digest(input_projection)
+    unsigned = {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    receipt["receipt_sha256"] = _canonical_digest(unsigned)
+
+
 def _toy_bundle(
     incomes=(5_000.0, 10_000.0, 20_000.0),
     exempt=(False, False, False),
@@ -664,6 +690,30 @@ class TestRelationBindings:
             )
         assert program.last_relations is None
 
+    def test_verifier_rejects_repeated_runtime_key_declarations(
+        self, monkeypatch
+    ) -> None:
+        adapter = _relation_adapter(monkeypatch)
+        frame = _relation_bundle()
+        outputs, receipt = adapter.materialize_with_receipt(
+            frame, ["toy_household_income"], period=2025
+        )
+        forged = json.loads(json.dumps(receipt))
+        relation = forged["entities"]["household"]["relations"][
+            "member_of_household:1:0"
+        ]
+        relation["declarations"].append(
+            json.loads(json.dumps(relation["declarations"][0]))
+        )
+        unsigned_relation = {
+            key: value for key, value in relation.items() if key != "receipt_sha256"
+        }
+        relation["receipt_sha256"] = _canonical_digest(unsigned_relation)
+        _reseal_materialization_receipt(forged)
+
+        with pytest.raises(ValueError, match="exactly one declaration"):
+            verify_axiom_materialization_receipt(frame, forged, outputs)
+
     def test_current_to_related_lookup_uses_explicit_edge(self, monkeypatch) -> None:
         program = _RecordingLookupProgram()
         adapter = AxiomEngine(
@@ -1068,6 +1118,67 @@ class TestRelationBindings:
                 _toy_bundle(), ["toy_income_tax"], period=2025
             )
 
+    def test_first_lazy_output_cannot_mutate_then_use_later_output_to_restore(
+        self, monkeypatch
+    ) -> None:
+        state = {"observer_coerced": False}
+
+        class MutatingOutput:
+            def __init__(self, inputs) -> None:
+                self.inputs = inputs
+
+            def __array__(self, dtype=None, copy=None):
+                self.inputs["toy_taxable_income"][0] = 999.0
+                return np.asarray([1.0, 2.0, 3.0], dtype=dtype)
+
+        class ObservingRestoringOutput:
+            def __init__(self, inputs) -> None:
+                self.inputs = inputs
+
+            def __array__(self, dtype=None, copy=None):
+                state["observer_coerced"] = True
+                observed = np.asarray(
+                    self.inputs["toy_taxable_income"], dtype=dtype
+                ).copy()
+                self.inputs["toy_taxable_income"][0] = 5_000.0
+                return observed
+
+        class MultiLazyOutputProgram:
+            root_entity = "Person"
+            root_inputs = ("toy_taxable_income",)
+            relations = ()
+
+            @staticmethod
+            def execute(*, inputs, **_kwargs):
+                return {
+                    "outputs": {
+                        "a_mutating_output": MutatingOutput(inputs),
+                        "b_observing_output": ObservingRestoringOutput(inputs),
+                    }
+                }
+
+            execute_f64 = execute
+
+        adapter = AxiomEngine(FIXTURE_MODULE, rulespec_roots=FIXTURE_RULESPEC_ROOTS)
+        monkeypatch.setattr(
+            adapter, "_program", lambda _entity: MultiLazyOutputProgram()
+        )
+        monkeypatch.setattr(
+            adapter,
+            "variable_metadata",
+            lambda name: VariableMetadata(
+                name=name, entity="person", dtype="float", period="year"
+            ),
+        )
+
+        with pytest.raises(ValueError, match="mutated an owned root-input"):
+            adapter.materialize_with_receipt(
+                _toy_bundle(),
+                ["a_mutating_output", "b_observing_output"],
+                period=2025,
+            )
+        assert state["observer_coerced"] is False
+
     def test_unsigned_root_input_cannot_wrap_to_negative(self, monkeypatch) -> None:
         class IntegerProgram:
             root_entity = "Person"
@@ -1136,6 +1247,55 @@ class TestRelationBindings:
         with pytest.raises(ValueError, match="outside signed int64 range"):
             adapter.materialize_with_receipt(frame, ["toy_income_tax"], period=2025)
 
+    def test_unexecuted_entity_binding_does_not_narrow_relation_free_ids(
+        self, monkeypatch
+    ) -> None:
+        class RelationFreePersonProgram:
+            root_entity = "Person"
+            root_inputs = ("toy_taxable_income",)
+            relations = ()
+
+            @staticmethod
+            def execute(*, inputs, **_kwargs):
+                return {
+                    "outputs": {"toy_income_tax": inputs["toy_taxable_income"] * 0.1}
+                }
+
+            execute_f64 = execute
+
+        adapter = AxiomEngine(
+            FIXTURE_MODULE,
+            rulespec_roots=FIXTURE_RULESPEC_ROOTS,
+            relation_bindings={
+                "member_of_household:1:0": AxiomRelationBinding(
+                    current_entity="household",
+                    related_entity="person",
+                    edge_table="person",
+                    edge_current_id_column="person_household_id",
+                    edge_related_id_column="person_id",
+                )
+            },
+        )
+        monkeypatch.setattr(
+            adapter, "_program", lambda _entity: RelationFreePersonProgram()
+        )
+        monkeypatch.setattr(
+            adapter,
+            "variable_metadata",
+            lambda name: VariableMetadata(
+                name=name, entity="person", dtype="float", period="year"
+            ),
+        )
+        frame = _toy_bundle()
+        frame.table("person")["person_id"] = np.asarray(
+            [2**63, 2**63 + 1, 2**63 + 2], dtype=np.uint64
+        )
+
+        outputs = adapter.materialize(frame, ["toy_income_tax"], period=2025)
+        np.testing.assert_allclose(outputs["toy_income_tax"], [500, 1_000, 2_000])
+        with pytest.raises(ValueError, match="outside signed int64 range"):
+            adapter.materialize_with_receipt(frame, ["toy_income_tax"], period=2025)
+
     def test_live_frame_mutation_during_execution_is_refused(self, monkeypatch) -> None:
         frame = _toy_bundle()
 
@@ -1164,6 +1324,77 @@ class TestRelationBindings:
 
         with pytest.raises(ValueError, match="provided inputs.*differ"):
             adapter.materialize_with_receipt(frame, ["toy_income_tax"], period=2025)
+
+    def test_all_entity_inputs_are_owned_before_the_first_executor(
+        self, monkeypatch
+    ) -> None:
+        frame = _toy_bundle()
+        observed = {"person_input": None}
+
+        class HouseholdMutatorProgram:
+            root_entity = "Household"
+            root_inputs = ("toy_household_rent",)
+            relations = ()
+
+            @staticmethod
+            def execute(*, inputs, **_kwargs):
+                frame.table("person").loc[0, "toy_taxable_income"] = 999_999.0
+                return {
+                    "outputs": {
+                        "household_result": np.array(
+                            inputs["toy_household_rent"], copy=True
+                        )
+                    }
+                }
+
+            execute_f64 = execute
+
+        class PersonObserverProgram:
+            root_entity = "Person"
+            root_inputs = ("toy_taxable_income",)
+            relations = ()
+
+            @staticmethod
+            def execute(*, inputs, **_kwargs):
+                observed["person_input"] = inputs["toy_taxable_income"][0]
+                return {
+                    "outputs": {
+                        "person_result": np.array(
+                            inputs["toy_taxable_income"], copy=True
+                        )
+                    }
+                }
+
+            execute_f64 = execute
+
+        programs = {
+            "household": HouseholdMutatorProgram(),
+            "person": PersonObserverProgram(),
+        }
+        output_entities = {
+            "household_result": "household",
+            "person_result": "person",
+        }
+        adapter = AxiomEngine(FIXTURE_MODULE, rulespec_roots=FIXTURE_RULESPEC_ROOTS)
+        monkeypatch.setattr(adapter, "_program", lambda entity: programs[entity])
+        monkeypatch.setattr(
+            adapter,
+            "variable_metadata",
+            lambda name: VariableMetadata(
+                name=name,
+                entity=output_entities[name],
+                dtype="float",
+                period="year",
+            ),
+        )
+
+        with pytest.raises(ValueError, match="provided inputs.*differ"):
+            adapter.materialize_with_receipt(
+                frame,
+                ["household_result", "person_result"],
+                period=2025,
+            )
+        assert observed["person_input"] == 5_000.0
 
     def test_materialize_revalidates_mutated_frame(self, monkeypatch) -> None:
         adapter = _relation_adapter(monkeypatch)
@@ -1210,6 +1441,87 @@ class TestRelationBindings:
         assert identity["encoding"] == "canonical_json_utf8_v1"
         assert identity["dtype"] == "string"
         verify_axiom_materialization_receipt(_relation_bundle(), receipt, outputs)
+
+    def test_verifier_rejects_one_output_name_owned_by_two_entities(
+        self, monkeypatch
+    ) -> None:
+        frame = Frame(
+            {
+                "person": pd.DataFrame(
+                    {
+                        "person_id": [1, 2],
+                        "person_household_id": [1, 2],
+                        "person_input": [1.0, 2.0],
+                    }
+                ),
+                "household": pd.DataFrame(
+                    {
+                        "household_id": [1, 2],
+                        "household_input": [1.0, 2.0],
+                    }
+                ),
+            },
+            BE_SCHEMA,
+            {"household": Weights(values=np.ones(2), kind=WeightKind.DESIGN)},
+        )
+
+        class EchoProgram:
+            relations = ()
+
+            def __init__(self, root_entity, input_name, output_name) -> None:
+                self.root_entity = root_entity
+                self.root_inputs = (input_name,)
+                self.input_name = input_name
+                self.output_name = output_name
+
+            def execute(self, *, inputs, outputs, **_kwargs):
+                assert outputs == [self.output_name]
+                return {
+                    "outputs": {
+                        self.output_name: np.array(inputs[self.input_name], copy=True)
+                    }
+                }
+
+            execute_f64 = execute
+
+        programs = {
+            "person": EchoProgram("Person", "person_input", "person_output"),
+            "household": EchoProgram(
+                "Household", "household_input", "household_output"
+            ),
+        }
+        output_entities = {
+            "person_output": "person",
+            "household_output": "household",
+        }
+        adapter = AxiomEngine(FIXTURE_MODULE, rulespec_roots=FIXTURE_RULESPEC_ROOTS)
+        monkeypatch.setattr(adapter, "_program", lambda entity: programs[entity])
+        monkeypatch.setattr(
+            adapter,
+            "variable_metadata",
+            lambda name: VariableMetadata(
+                name=name,
+                entity=output_entities[name],
+                dtype="float",
+                period="year",
+            ),
+        )
+        _, receipt = adapter.materialize_with_receipt(
+            frame, ["person_output", "household_output"], period=2025
+        )
+        forged = json.loads(json.dumps(receipt))
+        person_outputs = forged["entities"]["person"]["requested_outputs"]
+        household_outputs = forged["entities"]["household"]["requested_outputs"]
+        person_outputs["shared"] = person_outputs.pop("person_output")
+        household_outputs["shared"] = household_outputs.pop("household_output")
+        _reseal_materialization_receipt(forged)
+
+        with pytest.raises(ValueError, match="one owning frame entity"):
+            verify_axiom_materialization_receipt(
+                frame,
+                forged,
+                {"shared": np.asarray([1.0, 2.0])},
+            )
 
 
 @needs_engine
