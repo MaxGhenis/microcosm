@@ -84,10 +84,27 @@ in scope.
   the producer snapshot from that tampered Series, and require reconciliation
   to reject the deterministic-expected/ASEC-snapshot mismatch before any
   recipient assignment.
+- Implemented one shared recipient-only boolean reconciler for WIC and AOTC.
+  Each callback first derives complete whole-pool expected logical values; the
+  helper validates the expected ASEC values against the incumbent producer
+  snapshot and verifies the live incumbent still equals that snapshot before
+  it copies anything. It then copies each incumbent output Series, assigns
+  only the complement-of-ASEC recipient positions, asserts the dtype is
+  unchanged, and proves ASEC storage is still exact. The original post-write
+  `Series.equals` guard, typed pre/post hashes, and receipt validation remain
+  unchanged.
+- Closed the existing fixture gap for both registered callbacks by storing the
+  discordant flags as nullable pandas `boolean` before the ASEC snapshot. The
+  direct regression now requires nullable dtype preservation on WIC and all
+  five AOTC outputs. Added an adversarial WIC case whose tampered incumbent
+  ASEC logical value and matching snapshot are rejected by the new pre-write
+  deterministic proof without mutating the input frame.
+- The repaired direct corridor passes 3/3 tests (the two WIC/AOTC parameters
+  plus the adversarial mismatch). Focused Ruff is green; both edited files are
+  Ruff-formatted and `git diff --check` is clean.
 
 ## Next
 
-- Implement and commit the minimal runtime repair with focused tests and Ruff.
 - Recut and commit the structural-policy/generated authority identities with
   focused generator/spec verification and Ruff.
 - Add and commit production-shaped rebuilt/resumed/mismatch regressions, then

@@ -11013,6 +11013,94 @@ def _late_structural_producer_binding(
     return _late_table_values_sha256(table.loc[producer, list(targets)])
 
 
+def _reconcile_late_structural_boolean_recipients(
+    frame: Frame,
+    *,
+    group_name: str,
+    entity: str,
+    expected_outputs: Mapping[str, pd.Series | np.ndarray],
+    producer_snapshot: Mapping[tuple[str, str], pd.Series],
+) -> Frame:
+    """Assign expected booleans only outside the declared ASEC producer."""
+
+    table = frame.table(entity)
+    producer_mask = (
+        table[support_channel_column(entity)].astype(str).eq(BASE_ASEC_SUPPORT_CHANNEL)
+    )
+    producer_rows = producer_mask.to_numpy(dtype=bool)
+    recipient_positions = np.flatnonzero(~producer_rows)
+    replacements: dict[str, pd.Series] = {}
+    for column, expected in expected_outputs.items():
+        expected_series = pd.Series(expected, index=table.index, name=column)
+        expected_values = _strict_housing_boolean_values(
+            expected_series,
+            boundary=(
+                f"Late structural reconciliation {group_name!r} expected "
+                f"{entity}.{column}"
+            ),
+        )
+        snapshot = producer_snapshot[(entity, column)]
+        expected_producer_index = table.index[producer_rows]
+        if not snapshot.index.equals(expected_producer_index):
+            raise ValueError(
+                f"Late structural reconciliation {group_name!r} ASEC producer "
+                f"snapshot index differs for {entity}.{column}."
+            )
+        snapshot_values = _strict_housing_boolean_values(
+            snapshot,
+            boundary=(
+                f"Late structural reconciliation {group_name!r} incumbent ASEC "
+                f"snapshot for {entity}.{column}"
+            ),
+        )
+        if not np.array_equal(expected_values[producer_rows], snapshot_values):
+            raise ValueError(
+                f"Late structural reconciliation {group_name!r} deterministic "
+                f"expected values disagree with the incumbent ASEC producer "
+                f"snapshot for {entity}.{column}; refusing recipient assignment."
+            )
+
+        incumbent = table[column]
+        incumbent_producer = incumbent.loc[producer_mask]
+        if not snapshot.equals(incumbent_producer):
+            raise ValueError(
+                f"Late structural reconciliation {group_name!r} incumbent ASEC "
+                f"producer bytes differ from the snapshot for {entity}.{column} "
+                "before recipient assignment."
+            )
+        replacement = incumbent.copy(deep=True)
+        replacement.iloc[recipient_positions] = expected_values[recipient_positions]
+        if replacement.dtype != incumbent.dtype:
+            raise AssertionError(
+                f"Late structural reconciliation {group_name!r} changed the "
+                f"Series dtype for {entity}.{column}."
+            )
+        if not replacement.loc[producer_mask].equals(incumbent_producer):
+            raise AssertionError(
+                f"Late structural reconciliation {group_name!r} changed ASEC "
+                f"producer storage while assigning {entity}.{column} recipients."
+            )
+        replacements[column] = replacement
+
+    tables = {
+        frame_entity: frame.table(frame_entity).copy(deep=True)
+        for frame_entity in frame.entities
+    }
+    for column, replacement in replacements.items():
+        tables[entity][column] = replacement
+    return Frame(
+        tables,
+        frame.schema,
+        {
+            weighted_entity: frame.weights_for(weighted_entity)
+            for weighted_entity in frame.weighted_entities
+        },
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+
 def _apply_late_transfer_structural_reconciliation(
     frame: Frame,
     *,
@@ -11064,33 +11152,27 @@ def _apply_late_transfer_structural_reconciliation(
                 f"qualified tuition; invalid_rows={int(invalid.sum())}."
             )
         expected = tuition > 0.0
-        tables = {
-            frame_entity: frame.table(frame_entity).copy(deep=True)
-            for frame_entity in frame.entities
-        }
-        for column in output_columns:
-            tables["person"][column] = expected
-        reconciled = Frame(
-            tables,
-            frame.schema,
-            {
-                weighted_entity: frame.weights_for(weighted_entity)
-                for weighted_entity in frame.weighted_entities
-            },
-            frame.strata,
-            mass_log=frame.mass_log,
-            metadata=frame.metadata,
-        )
+        expected_outputs = {column: expected for column in output_columns}
     elif group_name == _WIC_LATE_RECONCILIATION_GROUP:
         from microcosm.build.us_runtime.wic_claim import with_us_wic_claim_input
 
-        reconciled = with_us_wic_claim_input(
+        expected_frame = with_us_wic_claim_input(
             frame,
             seed=seed,
             time_period=POOL_TIME_PERIOD,
         )
+        expected_outputs = {
+            column: expected_frame.table(entity)[column] for column in output_columns
+        }
     else:  # pragma: no cover - group resolution rejects this first.
         raise AssertionError(f"Unhandled structural group {group_name!r}.")
+    reconciled = _reconcile_late_structural_boolean_recipients(
+        frame,
+        group_name=group_name,
+        entity=entity,
+        expected_outputs=expected_outputs,
+        producer_snapshot=producer_snapshot,
+    )
 
     changed_rows = {
         column: int(

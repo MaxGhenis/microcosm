@@ -4019,8 +4019,13 @@ def _late_structural_fixture(
         expected = tuition > 0.0
         for column in group.targets:
             if column != "educational_assistance":
-                person[column] = expected
-                person.loc[~asec, column] = ~expected[~asec.to_numpy()]
+                values = pd.Series(
+                    pd.array(expected, dtype="boolean"),
+                    index=person.index,
+                    name=column,
+                )
+                values.loc[~asec] = ~expected[~asec.to_numpy()]
+                person[column] = values
     else:
         from microcosm.build.us_runtime.wic_claim import with_us_wic_claim_input
 
@@ -4044,9 +4049,13 @@ def _late_structural_fixture(
         frame = with_us_wic_claim_input(prepared, seed=578, time_period=2022)
         person = frame.table("person").copy(deep=True)
         asec = person[support_channel_column("person")].eq("asec")
-        person.loc[~asec, "takes_up_wic_if_eligible"] = ~person.loc[
-            ~asec, "takes_up_wic_if_eligible"
-        ].astype(bool)
+        values = pd.Series(
+            pd.array(person["takes_up_wic_if_eligible"], dtype="boolean"),
+            index=person.index,
+            name="takes_up_wic_if_eligible",
+        )
+        values.loc[~asec] = ~values.loc[~asec].astype(bool)
+        person["takes_up_wic_if_eligible"] = values
     tables = {entity: frame.table(entity) for entity in frame.entities}
     tables["person"] = person
     discordant = Frame(
@@ -4099,9 +4108,11 @@ def test_late_structural_reconciliation_restores_source_identity(
         person = reconciled.table("person")
         expected = person["qualified_tuition_expenses"].gt(0.0).to_numpy()
         for column in receipt["changed_rows"]:
+            assert person[column].dtype == pd.BooleanDtype()
             assert np.array_equal(person[column].astype(bool).to_numpy(), expected)
     else:
         person = reconciled.table("person")
+        assert person["takes_up_wic_if_eligible"].dtype == pd.BooleanDtype()
         assert (
             person.groupby("person_source_id", sort=False)["takes_up_wic_if_eligible"]
             .nunique()
@@ -4134,6 +4145,48 @@ def test_late_structural_reconciliation_restores_source_identity(
             boundary=f"forged {group_name} reconciliation",
             frame=reconciled,
         )
+
+
+def test_wic_structural_reconciliation_rejects_asec_logical_mismatch_before_write() -> (
+    None
+):
+    frame, group, _producer_snapshot = _late_structural_fixture(
+        stacked_spine_module._WIC_LATE_RECONCILIATION_GROUP
+    )
+    person = frame.table("person").copy(deep=True)
+    asec = person[support_channel_column("person")].eq("asec")
+    target = "takes_up_wic_if_eligible"
+    tampered_row = person.index[asec][0]
+    person.loc[tampered_row, target] = not bool(person.loc[tampered_row, target])
+    tables = {entity: frame.table(entity) for entity in frame.entities}
+    tables["person"] = person
+    tampered = Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+    producer_snapshot = {
+        (group.entity, target): tampered.table(group.entity)
+        .loc[asec, target]
+        .copy(deep=True)
+    }
+    before = tampered.table("person")[target].copy(deep=True)
+
+    with pytest.raises(
+        ValueError,
+        match=r"deterministic expected values disagree with the incumbent ASEC",
+    ):
+        stacked_spine_module._apply_late_transfer_structural_reconciliation(
+            tampered,
+            group=group,
+            seed=578,
+            producer_snapshot=producer_snapshot,
+        )
+
+    pd.testing.assert_series_equal(tampered.table("person")[target], before)
 
 
 def test_bounded_transfer_group_remaps_canonical_producer_roles() -> None:
