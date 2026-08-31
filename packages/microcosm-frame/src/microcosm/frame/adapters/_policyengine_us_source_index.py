@@ -573,6 +573,16 @@ def _variable_definition(
                 f"PolicyEngine variable {node.name!r} in {source_path} has "
                 "dynamic formula activation metadata."
             )
+        elif name.startswith("formula_") and not (
+            isinstance(value, ast.Constant) and value.value is None
+        ):
+            # PolicyEngine accepts dated formula callables assigned as class
+            # attributes as well as methods. Their bodies are not locally
+            # inspectable, so conservatively classify them as material
+            # formulas rather than risking a false input-leaf result.
+            start = _formula_start(name)
+            if start is not None:
+                formula_starts.append(start)
         elif name in {"adds", "subtracts"}:
             aggregation |= _is_nonempty_source_value(value)
 

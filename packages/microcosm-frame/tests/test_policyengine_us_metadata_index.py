@@ -68,6 +68,12 @@ class future_formula(Variable):
     def formula_2025(person, period, parameters):
         return 0
 
+class assigned_future_formula(Variable):
+    value_type = int
+    entity = Person
+    definition_period = YEAR
+    formula_2025 = imported_formula
+
 class aggregate_formula(Variable):
     value_type = bool
     entity = TaxUnit
@@ -133,6 +139,11 @@ class unbounded_delegation(Variable):
     assert indexed["future_formula"].formula_owned
     assert not indexed["future_formula"].computed_at(2024)
     assert indexed["future_formula"].computed_at(2025)
+    assert indexed["assigned_future_formula"].formula_owned
+    assert not indexed["assigned_future_formula"].computed_at(2024)
+    assigned_2025 = indexed["assigned_future_formula"].ownership_at(2025)
+    assert assigned_2025.kind == "FORMULA"
+    assert assigned_2025.owner_period == (2025, 1, 1)
     assert indexed["aggregate_formula"].always_computed
     assert indexed["aggregate_formula"].metadata.entity == "tax_unit"
     assert indexed["aggregate_formula"].metadata.dtype == "bool"

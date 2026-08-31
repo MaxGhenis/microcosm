@@ -78,6 +78,12 @@ authorized.
   bug, remaining release/legacy periodless views, live/source ownership API
   divergence, incomplete mocks, and the shared-UK stub regression. Their final
   audits report no remaining material semantic or signature issue.
+- A fresh read-only audit found one fail-open parser edge beyond the pinned
+  engine surface: PolicyEngine permits a dated callable assigned as
+  `formula_2025 = imported_formula`, while the source index recognized only
+  dated method definitions. Assigned dated callables are now conservatively
+  material formulas (never inferred as pure delegation); the focused synthetic
+  regression passes 1/1, focused Ruff is green, and diff hygiene is clean.
 - Focused frame verification passes 59/59 with one existing numerical warning;
   focused Ruff is green across every changed Python file and `git diff --check`
   is clean. Five additional build classifier/pool cases passed before a
