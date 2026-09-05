@@ -68,6 +68,13 @@ with that namespace is reserved to the executor; historical free-form
 `execution` diagnostics remain compatible. Cached and portable blocker
 provenance is validated before use.
 
+After correcting a transient gate failure, replay the full graph with
+`resume="forbid"` to recompute the gate and refresh the affected cache records.
+Subsequent `auto` and `require` runs can reuse the recovered results. Deleting
+only the gate's cached receipt leaves stale descendant records, which the
+executor refuses. Invalid receipts returned by a kernel reject the node;
+they are not converted into gate-failure evidence.
+
 Numeric contracts are deliberately restrictive: bitwise artifacts permit any
 consumer class; platform-bitwise artifacts require platform-bitwise consumers;
 tolerance-bound artifacts require tolerance-bound consumers with their own

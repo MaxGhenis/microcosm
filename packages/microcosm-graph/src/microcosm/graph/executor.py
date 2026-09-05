@@ -2024,6 +2024,7 @@ def _unreached_node(
             requires_decisions=list(_required_decision_names(node)),
         )
     hit = False
+    replace_stale_record = False
     if resume != "forbid":
         try:
             record = _load_record(
@@ -2040,6 +2041,7 @@ def _unreached_node(
                 )
             hit = True
         except StoreMiss:
+            replace_stale_record = store.has(_cache_record_key(key))
             if resume == "require":
                 raise
     if not hit:
@@ -2061,7 +2063,7 @@ def _unreached_node(
             _cache_record_key(key),
             record,
             node_key=key,
-            verify_existing=resume != "forbid",
+            verify_existing=resume != "forbid" and not replace_stale_record,
         )
     return NodeReceipt(
         key=key,
@@ -2301,10 +2303,6 @@ def run_graph(
             before = _context_digest(context)
             try:
                 result = kernel.run(context)
-                if isinstance(result, KernelResult) and has_execution(result.receipt):
-                    raise NodeRejected(
-                        "Kernel receipts may not author executor execution metadata."
-                    )
             except Exception as error:
                 if kernel.capabilities.role is KernelRole.GATE:
                     result = _failed_gate_result(node, incumbent, error)
@@ -2314,6 +2312,17 @@ def run_graph(
                     raise NodeRejected(
                         f"Node {node.id!r} kernel {node.kernel!r} failed: {error}"
                     ) from error
+            else:
+                # Invalid returned metadata is a contract rejection, not an
+                # exception raised while a gate was computing its evidence.
+                if (
+                    isinstance(result, KernelResult)
+                    and isinstance(result.receipt, Mapping)
+                    and has_execution(result.receipt)
+                ):
+                    raise NodeRejected(
+                        "Kernel receipts may not author executor execution metadata."
+                    )
             after = _context_digest(context)
             if before != after:
                 raise NodeRejected(f"Node {node.id!r} mutated its input context.")

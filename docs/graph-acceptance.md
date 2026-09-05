@@ -334,7 +334,10 @@ Amendments so far (each re-locked):
     required receipt and artifact before execution and rederives blockers
     from the compiled graph; manifests validate failure roots, producer keys,
     typed availability, and acyclic blocker ancestry. Kernels may not author
-    the namespaced executor metadata. Exceptional cache records use schema
+    the namespaced executor metadata: an invalid returned receipt rejects
+    the node, including a gate, rather than becoming exception evidence.
+    Only an exception raised by the gate computation is converted to a
+    failed gate. Exceptional cache records use schema
     3 and manifests containing them use schema 4: older readers must refuse,
     because they cannot represent declared outputs that were never created.
     Healthy typed cache/manifest schemas remain 2/3, legacy schemas and node

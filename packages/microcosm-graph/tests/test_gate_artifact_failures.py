@@ -17,6 +17,7 @@ from microcosm.graph import (
     Determinism,
     Graph,
     KernelBase,
+    KernelResult,
     Node,
     NodeRejectedError,
     Owned,
@@ -296,3 +297,159 @@ def test_unreached_cannot_claim_an_empty_product_key(tmp_path, field):
     cold = run_graph(compiled, sources=sources, store=store, kernels=registry)
     with pytest.raises(ValueError, match="products"):
         replace(cold.nodes["consumer"], **{field: ""})
+
+
+class InvalidReceipt(KernelBase):
+    ref = "test.invalid-receipt@1"
+
+    def __init__(self, role, receipt):
+        self.capabilities = Capabilities(Determinism.DETERMINISTIC, role=role)
+        self.receipt = receipt
+
+    def run(self, context):
+        return KernelResult(artifacts={"evidence": b"computed"}, receipt=self.receipt)
+
+
+@pytest.mark.parametrize("role", [KernelRole.GATE, KernelRole.COMPUTE])
+@pytest.mark.parametrize("shape", ["namespace", "nonmapping"])
+def test_invalid_returned_receipt_rejects_without_caching_failed_evidence(
+    tmp_path, role, shape
+):
+    from microcosm.graph.executor import _all_node_keys, _cache_record_key
+    from microcosm.graph.keys import source_content_key
+
+    _, sources, store, registry, _, _ = fixture(tmp_path)
+    receipt = (
+        {"execution": {"schema": EXECUTION_SCHEMA, "state": "unreached"}}
+        if shape == "namespace"
+        else []
+    )
+    kernel = InvalidReceipt(role, receipt)
+    registry.register(kernel)
+    node = Node(
+        "invalid",
+        kernel.ref,
+        population="survey",
+        artifact_outputs=(ArtifactOutput("evidence", EVIDENCE),),
+    )
+    compiled = compile_graph(Graph("toy", (toy.SOURCE,), (toy.CREATE, node)))
+    keys, _ = _all_node_keys(
+        compiled,
+        registry,
+        {name: source_content_key(name, path) for name, path in sources.items()},
+    )
+    message = (
+        "executor execution metadata"
+        if shape == "namespace"
+        else "receipt is not a mapping"
+    )
+    with pytest.raises(NodeRejectedError, match=message):
+        run_graph(compiled, sources=sources, store=store, kernels=registry)
+    assert not store.has(_cache_record_key(keys[node.id]))
+
+
+@pytest.mark.parametrize("stale", ["legacy", "different"])
+def test_auto_replaces_stale_unreached_receipt_before_required_replay(tmp_path, stale):
+    from microcosm.graph.executor import _cache_record_key
+
+    compiled, sources, store, registry, gate, consumer = fixture(tmp_path)
+    cold = run_graph(compiled, sources=sources, store=store, kernels=registry)
+    key = cold.nodes["consumer"].key
+    record_key = _cache_record_key(key)
+    record = store.load_json(record_key)
+    correct_capabilities = dict(record["capabilities"])
+    if stale == "legacy":
+        del record["capabilities"]["tolerance"]
+    else:
+        record["capabilities"]["role"] = "gate"
+    store.put_json(record_key, record, node_key=key, verify_existing=False)
+    repaired = run_graph(compiled, sources=sources, store=store, kernels=registry)
+    assert not repaired.nodes["consumer"].hit
+    assert store.load_json(record_key)["capabilities"] == correct_capabilities
+    required = run_graph(
+        compiled, sources=sources, store=store, kernels=registry, resume="require"
+    )
+    assert required.key == cold.key
+    assert all(node.hit for node in required.nodes.values())
+    assert gate.calls == 1 and consumer.calls == 0
+
+
+class TransientGate(KernelBase):
+    ref = "test.transient-typed-gate@1"
+    capabilities = Capabilities(Determinism.DETERMINISTIC, role=KernelRole.GATE)
+    unavailable = True
+    calls = 0
+
+    def run(self, context):
+        self.calls += 1
+        if self.unavailable:
+            raise RuntimeError("Temporary evidence failure")
+        return KernelResult(
+            artifacts={"evidence": b"available"},
+            receipt={"outcome": "pass", "evidence": {"checked": True}},
+        )
+
+
+class AvailableConsumer(KernelBase):
+    ref = "test.available-evidence-consumer@1"
+    capabilities = Capabilities(Determinism.DETERMINISTIC)
+    calls = 0
+
+    def run(self, context):
+        self.calls += 1
+        assert context.artifacts["evidence"].payload == b"available"
+        return KernelResult(receipt={"outcome": "pass"})
+
+
+def test_full_forbid_replay_recovers_after_transient_gate_failure(tmp_path):
+    import shutil
+
+    from microcosm.graph.executor import _cache_record_key
+
+    _, sources, store, registry, _, _ = fixture(tmp_path)
+    gate, consumer = TransientGate(), AvailableConsumer()
+    registry.register(gate)
+    registry.register(consumer)
+    compiled = compile_graph(
+        Graph(
+            "toy",
+            (toy.SOURCE,),
+            (
+                toy.CREATE,
+                Node(
+                    "gate",
+                    gate.ref,
+                    population="survey",
+                    artifact_outputs=(ArtifactOutput("evidence", EVIDENCE),),
+                ),
+                Node(
+                    "consumer",
+                    consumer.ref,
+                    population="survey",
+                    artifact_inputs=(
+                        ArtifactInput("evidence", "gate", "evidence", EVIDENCE),
+                    ),
+                ),
+            ),
+        )
+    )
+    cold = run_graph(compiled, sources=sources, store=store, kernels=registry)
+    gate.unavailable = False
+    cached = run_graph(compiled, sources=sources, store=store, kernels=registry)
+    assert cached.nodes["gate"].receipt["outcome"] == "fail"
+    assert gate.calls == 1 and consumer.calls == 0
+    # Selective eviction cannot make cached descendants appear available.
+    shutil.rmtree(store.object_path(_cache_record_key(cold.nodes["gate"].key)))
+    with pytest.raises(StoreCorruptError, match="no unavailable input blocker"):
+        run_graph(compiled, sources=sources, store=store, kernels=registry)
+    fresh = run_graph(
+        compiled, sources=sources, store=store, kernels=registry, resume="forbid"
+    )
+    assert fresh.nodes["gate"].receipt["outcome"] == "pass"
+    assert fresh.nodes["consumer"].receipt["outcome"] == "pass"
+    required = run_graph(
+        compiled, sources=sources, store=store, kernels=registry, resume="require"
+    )
+    assert all(node.hit for node in required.nodes.values())
+    assert required.key == fresh.key
+    assert gate.calls == 3 and consumer.calls == 1
