@@ -1,0 +1,1 @@
+Exercise the actual UK source graph, national count calibration, HDF round-trip, and shared population quality evidence on a tiny explicitly synthetic fixture without policy calculations or release claims.
