@@ -226,6 +226,7 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         "acs_sources.py",
         "acs_transfer_bank.py",  # Bounded checkpoint I/O; no population treatment.
         "asec_checkpoint.py",  # Bounded checkpoint I/O; no population treatment.
+        "asec_raw_stage_v4.py",  # Authenticated source restoration; no treatment.
         "asec_pool.py",
         "base_pool.py",
         "block_ladder_sources.py",
@@ -257,6 +258,7 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         "pregnancy.py",
         # Pinned-archive sidecar restore (PAW_TYP); no population treatment.
         "public_assistance_type_source.py",
+        "reported_coverage_source.py",  # Exact observed-source join; no treatment.
         "puf_aggregate_records.py",
         "puf_capital_gains_tail.py",
         "puf_donor_io.py",  # Bounded donor artifact I/O; no population treatment.
@@ -3402,8 +3404,9 @@ def test_pool_build_tool_import_graph_is_source_spine_blind() -> None:
 
     for tool in _SPINE_BLIND_BUILD_TOOLS:
         runtime_graph, missing_modules = _us_runtime_import_graph(tool)
-        assert len(runtime_graph) == 69, (
-            f"{tool.name} must reach the pinned 69-module runtime graph; "
+        # The measured-coverage source join is the seventieth dependency.
+        assert len(runtime_graph) == 70, (
+            f"{tool.name} must reach the pinned 70-module runtime graph; "
             f"reached {len(runtime_graph)}"
         )
         assert not missing_modules, (

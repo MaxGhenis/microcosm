@@ -21,6 +21,9 @@ from microcosm.build.us_runtime.public_assistance_type_source import (
     PAW_TYPE_TANF_CODES,
     fill_asec_public_assistance_type_source,
 )
+from microcosm.build.us_runtime.reported_coverage_source import (
+    fill_asec_reported_coverage_source,
+)
 from microcosm.frame import US_SCHEMA, Frame
 
 __all__ = [
@@ -137,12 +140,18 @@ def derive_us_cps_carried_inputs(
     frame: Frame,
     *,
     public_assistance_type_source: pd.DataFrame | None = None,
+    reported_coverage_source: pd.DataFrame | None = None,
 ) -> Frame:
     """Carry raw CPS ASEC values onto PE input leaves.
 
     Existing leaf input columns are preserved, making the transform idempotent.
     The transform refuses to run on a non-US frame and never creates
     formula-owned aggregate variables.
+
+    Optional ``reported_coverage_source`` restores seven measured at-interview
+    recodes before deriving coverage leaves. It requires an exact source join;
+    conflicting observations fail. Native ``NOW_GRP`` and ``NOW_MRK`` remain
+    unchanged. These observed inputs do not certify a fitted model or release.
 
     ``PAW_VAL``, ``SPM_SNAPSUB``, and ``WICYN`` are annual reported facts,
     while the engine's ``receives_tanf``, ``receives_snap``, and
@@ -165,6 +174,9 @@ def derive_us_cps_carried_inputs(
         raise ValueError("CPS-carried derivations require the US schema.")
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
     person = tables["person"]
+    if reported_coverage_source is not None:
+        person = fill_asec_reported_coverage_source(person, reported_coverage_source)
+        tables["person"] = person
 
     _fill_missing(person, "age", _source(person, "A_AGE"))
     _fill_bool_missing(person, "is_female", _integer_source(person, "A_SEX") == 2)
