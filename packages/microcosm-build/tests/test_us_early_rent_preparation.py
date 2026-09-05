@@ -134,6 +134,54 @@ def test_recipient_unknown_category_refuses_against_donor_encoding():
         rent.prepare_acs_rent_recipient(frame, donor_context=donor.context)
 
 
+def test_rent_is_scattered_by_household_identity_when_head_order_differs(monkeypatch):
+    base = fixtures._frame()
+    tables = {entity: base.table(entity).copy() for entity in base.entities}
+    # Person IDs stay ordered and unique; household membership need not follow
+    # that order. A non-head row also proves placement uses original positions.
+    tables["person"]["person_household_id"] = np.roll(np.arange(1, 21), 1)
+    nonhead = tables["person"].iloc[[0]].copy()
+    nonhead["person_id"] = 999
+    nonhead["is_household_head"] = False
+    tables["person"] = pd.concat([tables["person"], nonhead], ignore_index=True)
+    tables["person"].index = pd.Index(np.arange(21) * 3 + 101, name="original_person")
+    frame = rent.derive_us_housing_inputs(
+        Frame(tables, base.schema, {"household": base.weights_for("household")})
+    )
+    donor = rent.prepare_acs_rent_donor(fixtures._donor())
+    recipient = rent.prepare_acs_rent_recipient(frame, donor_context=donor.context)
+    raw = pd.Series(
+        recipient.predictors.index.to_numpy(dtype=float) * 100,
+        index=recipient.predictors.index,
+        name="rent",
+    )
+    expected = np.r_[frame.person["person_household_id"].to_numpy()[:20] * 100, 0.0]
+    # The old person_rent[head_mask] = raw placed household 1's 100 on household
+    # 20's head. Distinct draws expose that error without any model uncertainty.
+    old_placement = np.r_[raw.to_numpy(), 0.0]
+    assert old_placement[0] == 100.0 and expected[0] == 2_000.0
+    np.testing.assert_array_equal(rent.finalize_acs_rent(recipient, raw), expected)
+    np.testing.assert_array_equal(recipient.head_positions, np.r_[np.arange(1, 20), 0])
+    assert recipient.person_index.equals(frame.person.index)
+    assert recipient.predictors.index.tolist() == list(range(1, 21))
+
+    class DistinctRent:
+        def __init__(self, **kwargs):
+            pass
+
+        def fit(self, training, **kwargs):
+            return self
+
+        def predict(self, features):
+            assert features.index.equals(raw.index)
+            return raw.to_frame()
+
+    monkeypatch.setattr(rent, "QRF", DistinctRent)
+    np.testing.assert_array_equal(
+        rent.impute_us_pre_subsidy_rent(frame, fixtures._donor(), seed=31), expected
+    )
+
+
 def test_actual_two_tree_composition_matches_pinned_legacy_raw_bits(monkeypatch):
     frame = rent.derive_us_housing_inputs(fixtures._frame())
     source = fixtures._donor()

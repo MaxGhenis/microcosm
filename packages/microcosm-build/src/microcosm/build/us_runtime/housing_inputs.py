@@ -837,7 +837,11 @@ class AcsRentDonorPreparation:
 
 @dataclass(frozen=True)
 class AcsRentRecipientPreparation:
-    """Encoded household-indexed predictors and original person placement."""
+    """Predictor rows and their household heads' original person positions.
+
+    ``head_positions[i]`` belongs to household ``predictors.index[i]``; it
+    need not be sorted when person and household table orders differ.
+    """
 
     predictors: pd.DataFrame
     head_positions: np.ndarray
@@ -853,7 +857,7 @@ class AcsRentRecipientPreparation:
             or len(positions) != len(self.predictors)
             or (positions < 0).any()
             or (positions >= len(self.person_index)).any()
-            or (np.diff(positions) <= 0).any()
+            or len(np.unique(positions)) != len(positions)
         ):
             raise ValueError(
                 "ACS rent head positions must align to the original person rows."
@@ -870,9 +874,16 @@ def prepare_acs_rent_recipient(
     """Encode actual head predictors against donor-owned categorical levels."""
     context = _validated_rent_encoding_context(donor_context)
     features, head_mask = _recipient_head_features(frame)
+    head_positions = np.flatnonzero(head_mask)
+    head_households = pd.Index(
+        frame.person["person_household_id"].to_numpy()[head_positions]
+    )
+    household_order = head_households.get_indexer(features.index)
+    if (household_order < 0).any():
+        raise ValueError("ACS rent predictor household has no selected person head.")
     return AcsRentRecipientPreparation(
         _encode_rent_predictors(features, context=context),
-        np.flatnonzero(head_mask),
+        head_positions[household_order],
         frame.person.index,
     )
 
@@ -880,7 +891,7 @@ def prepare_acs_rent_recipient(
 def finalize_acs_rent(
     prepared: AcsRentRecipientPreparation, raw_rent: pd.Series | pd.DataFrame
 ) -> np.ndarray:
-    """Apply the existing clipping and positional head placement to raw draws."""
+    """Clip raw draws and scatter each household's value to its own head."""
     if not isinstance(prepared, AcsRentRecipientPreparation):
         raise TypeError("ACS rent finalization requires recipient preparation.")
     if isinstance(raw_rent, pd.DataFrame) and tuple(raw_rent.columns) == ("rent",):
