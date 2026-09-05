@@ -53,6 +53,21 @@ manifest schema 3. Legacy nodes omit the new empty declarations from keys and
 JSON, and legacy runs retain manifest schema 2. Cache reload validates the same
 contracts as fresh execution.
 
+If a gate raises while producing typed evidence, its ordinary failed verdict
+and exception receipt remain available, but its declared byte artifacts do
+not exist. The executor records their names in `receipt.execution` under
+`schema="microcosm.graph.execution.v1"`; required
+consumers and their causal descendants are `unreached` and execute no kernel.
+They produce no replacement columns, weights, frames, or model bytes.
+Independent branches and readers of the available verdict still run. An
+unreached release remains evidence-tier. These outcomes are cached and replay
+under `resume="require"` with no kernel calls. Exceptional cache records use
+schema 3 and exceptional run manifests use schema 4, which older readers must
+refuse; healthy typed records/manifests retain schemas 2/3. Execution metadata
+with that namespace is reserved to the executor; historical free-form
+`execution` diagnostics remain compatible. Cached and portable blocker
+provenance is validated before use.
+
 Numeric contracts are deliberately restrictive: bitwise artifacts permit any
 consumer class; platform-bitwise artifacts require platform-bitwise consumers;
 tolerance-bound artifacts require tolerance-bound consumers with their own

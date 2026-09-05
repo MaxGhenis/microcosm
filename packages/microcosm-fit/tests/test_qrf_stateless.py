@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from microcosm.fit import fit
+from microcosm.fit.qrf import Regime
 
 
 @pytest.fixture(scope="module")
@@ -116,3 +117,43 @@ def test_zero_uniform_skips_a_zero_probability_sign(model, monkeypatch):
     draws["sign_uniforms"]["mixed"] = np.zeros(2)
     actual = model.predict_from_uniforms(pd.DataFrame({"x": [1.0, 2.0]}), **draws)
     assert (actual.mixed == 3.0).all()
+
+
+def test_stateless_replays_legacy_uniforms_across_all_regimes(model):
+    """Ordinary uniforms preserve legacy draws; exact CDF ties differ deliberately.
+
+    The zero-uniform test above pins the intentional strict-CDF boundary.
+    This independent RNG replay detects swapped or inverted quantile streams.
+    """
+    legacy = copy.deepcopy(model)
+    recipient = pd.DataFrame({"x": np.arange(20, dtype=float)})
+    assert set(legacy.regimes().values()) == {
+        Regime.POSITIVE_ONLY,
+        Regime.NEGATIVE_ONLY,
+        Regime.DEGENERATE_ZERO,
+        Regime.THREE_SIGN,
+        Regime.ZERO_INFLATED_POSITIVE,
+        Regime.ZERO_INFLATED_NEGATIVE,
+        Regime.SIGN_ONLY,
+    }
+    for _ in range(4):
+        replay = np.random.default_rng()
+        replay.bit_generator.state = copy.deepcopy(legacy._rng.bit_generator.state)
+        quantiles, signs = {}, {}
+        for target in legacy.targets:
+            target_model = legacy._target_models[target]
+            quantiles[target] = (
+                replay.random(len(recipient))
+                if target_model.regime != Regime.DEGENERATE_ZERO
+                else np.zeros(len(recipient))
+            )
+            signs[target] = (
+                replay.random(len(recipient))
+                if target_model.gate is not None
+                else np.zeros(len(recipient))
+            )
+        expected = legacy.predict(recipient)
+        actual = legacy.predict_from_uniforms(
+            recipient, quantiles=quantiles, sign_uniforms=signs
+        )
+        pd.testing.assert_frame_equal(expected, actual, check_exact=True)

@@ -315,6 +315,34 @@ Amendments so far (each re-locked):
     records the interface amendment for owner review, not a claim of code
     approval or release certification.
 
+20. **Failed typed evidence remains a failed gate, not invented bytes.**
+    A population-bound ordinary gate that raises keeps the existing failed
+    string-verdict columns and exception evidence. Its declared typed byte
+    outputs are unavailable: executor-owned `receipt.execution` records
+    `schema="microcosm.graph.execution.v1"`, `state="gate_exception"`, and
+    their names. Other historical `execution` diagnostics remain free-form
+    and retain their existing behavior. A direct consumer of those bytes
+    is recorded `unreached`, with `blocked_by` binding the producer IDs and
+    keys; unavailability propagates through causal descendants. Such a node
+    executes no kernel and creates no columns, weights, frame, or byte
+    artifacts. Independent nodes and consumers of the available failed
+    verdict columns still run. An unreached release remains evidence-tier.
+    No model-typed exception payload is fabricated.
+
+    The executor caches these exceptional outcomes under node keys, so warm
+    and `resume="require"` runs execute no kernels. Preflight validates every
+    required receipt and artifact before execution and rederives blockers
+    from the compiled graph; manifests validate failure roots, producer keys,
+    typed availability, and acyclic blocker ancestry. Kernels may not author
+    the namespaced executor metadata. Exceptional cache records use schema
+    3 and manifests containing them use schema 4: older readers must refuse,
+    because they cannot represent declared outputs that were never created.
+    Healthy typed cache/manifest schemas remain 2/3, legacy schemas and node
+    keys remain unchanged, and no field in the frozen declaration/context
+    interface changes. `test_gate_artifact_failures.py` covers this amendment.
+    This closes the typed-output interaction with F4/amendment 7 identified
+    in the independent review of PR #873.
+
 Adding a normative field with a default changes the canonical projection
 of every node that carries it, so node keys moved with amendments 11 and
 13's sibling field `entrants`; no released artifact pins a graph key yet.
