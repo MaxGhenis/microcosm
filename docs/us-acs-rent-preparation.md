@@ -12,11 +12,13 @@ entry point composes them around the ordinary weighted QRF fit and prediction.
    recipient nor fits a model.
 2. `prepare_acs_rent_recipient(frame, donor_context=...)` returns
    `AcsRentRecipientPreparation`: the encoded household-head predictors with
-   their household-ID index, selected person positions, and original person
-   index. Unsupported recipient categories fail against the donor's levels.
+   their household-ID index, corresponding head positions in the original
+   person table, and original person index. `head_positions[i]` is the head
+   for household `predictors.index[i]`; this position vector may be a
+   permutation. Unsupported recipient categories fail against the donor's levels.
 3. `finalize_acs_rent(prepared, raw_rent)` checks the named raw prediction and
    exact household index, clips negative predictions to zero, and places the
-   results on selected person heads. Non-head values remain zero.
+   each household's result on its own head. Non-head values remain zero.
 
 The encoding context has schema `microcosm.us.acs_rent_encoding.v1`. It records
 the sorted donor levels for `tenure_type` and `state_code_str`, and the exact
@@ -39,7 +41,10 @@ model. These tests start from honest prepared source populations. Production
 derived-recipient graph wiring needs a declared model-input layout that retains
 the household-ID index; it must not substitute the population table's index.
 
-The refactor retains the legacy positional correspondence between household
-draw order and selected head order. The pinned aligned-order fixture verifies
-encoded training, prediction and final draw bytes against the pre-refactor
-implementation.
+An identity-scatter correction follows the pure refactor: the legacy code
+assigned household-ordered draws to person-ordered heads, which could place rent
+on another household's head. Preparation now records the actual household-to-head
+association without changing predictor order, model fitting, sampling or random
+draws. A shuffled membership fixture with distinct draws proves the correction;
+the pinned aligned-order fixture retains its exact encoded training, prediction
+and final draw bytes against the pre-refactor implementation.
