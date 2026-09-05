@@ -101,6 +101,11 @@ _SOURCE_SPINE_PROVENANCE_OWNERS = frozenset(
         # stage validators can inspect them; no graph kernel reads or mutates
         # them, and the stage kernels stay under the operator guard below.
         "graph.py",
+        # Production pre-operator graph owner: declares source-channel views
+        # for actual source DESIGN preparation and importance harmonization.
+        # It applies no post-assembly population treatment; those graph
+        # operators remain subject to the source-blind guard.
+        "graph_sources.py",
         # Enumerates provenance columns only to reject preassembled source frames.
         "operator_boundary.py",
         "puf_qrf_chain.py",  # Carries provenance into resumable checkpoints.
@@ -312,6 +317,11 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         # nothing with the source registry and treats no population itself.
         "graph.py",
         "graph_kernels.py",
+        # Typed metadata codec and source-blind geography graph adapter.
+        "graph_context.py",
+        "graph_geography.py",
+        # Source import/assembly/harmonization owner, classified above.
+        "graph_sources.py",
     }
 )
 _CLASSIFIED_US_RUNTIME_MODULES = frozenset(_SPINE_BLIND_OPERATOR_MODULES).union(
