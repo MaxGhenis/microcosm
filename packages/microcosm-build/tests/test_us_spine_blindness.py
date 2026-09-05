@@ -320,6 +320,8 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         # Typed metadata codec and source-blind geography graph adapter.
         "graph_context.py",
         "graph_geography.py",
+        # Measured-hours adapter; still subject to the all-runtime AST scan.
+        "graph_early_preparation.py",
         # Source import/assembly/harmonization owner, classified above.
         "graph_sources.py",
     }
