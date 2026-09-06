@@ -30,7 +30,15 @@ ENGINE_ONLY = (
 # Shared-engine behavioral contracts that deliberately do not carry a country
 # prefix or the spec-engine ``test_spec_*`` prefix. Listing them makes their
 # shared-lane placement reviewed rather than a silent classifier default.
+#
+# The BE Axiom slice belongs here for a different reason: it is engine-gated,
+# but its engine is the Axiom rules engine over a rulespec-be checkout, not
+# PolicyEngine-US or -UK. Routing it into either country lane would attach a
+# Belgian test to another country's release surface, so it stays shared and
+# skips wherever the Axiom engine and the checkout are absent -- which is
+# everywhere in CI today.
 EXPLICIT_SHARED_SPEC = (
+    "packages/microcosm-build/tests/test_be_axiom_graph_quality_integration.py",
     "packages/microcosm-build/tests/test_cross_grain.py",
     "packages/microcosm-build/tests/test_quality_aggregates.py",
 )
