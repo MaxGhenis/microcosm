@@ -985,6 +985,31 @@ def test_region_codes_survive_the_round_trip_as_strings(run) -> None:
     assert spine.code_column not in reloaded.table("household").columns
 
 
+def test_rewriting_the_same_frame_reloads_identically(run, tmp_path) -> None:
+    """Content survives a rewrite; the file's digest is not a content digest.
+
+    Two writes of the same frame reload to identical tables. Their *bytes* are
+    identical only when both writes land in the same wall-clock second:
+    measured out of band, two writes 1.3 s apart differed in 133 of 363,496
+    bytes at identical length, identical reloaded values, and identical node
+    keys. A ``population_sha256`` therefore identifies the artifact that was
+    written, not the content that was computed. Nothing in this file asserts
+    digest reproducibility, and no assertion here depends on timing.
+    """
+    frame = _input_only(run["calibrated"])
+    adapter = _adapter(_export_contract())
+    with pd.option_context("mode.string_storage", "python"):
+        first = tmp_path / "rewrite-a.h5"
+        second = tmp_path / "rewrite-b.h5"
+        adapter.write_dataset(frame, first, period=LEGAL_PERIOD)
+        adapter.write_dataset(frame, second, period=LEGAL_PERIOD)
+        left = AxiomEntityTableDataset(file_path=first)
+        right = AxiomEntityTableDataset(file_path=second)
+    assert left.time_period == right.time_period == LEGAL_PERIOD
+    for entity in ("person", "household"):
+        pd.testing.assert_frame_equal(left.table(entity), right.table(entity))
+
+
 def test_export_does_not_persist_the_weight_kind(run) -> None:
     """A limitation, pinned: the entity-table format carries values, not kind.
 
