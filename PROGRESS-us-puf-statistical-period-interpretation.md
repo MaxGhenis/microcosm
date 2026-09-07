@@ -128,3 +128,71 @@ follows the same shape as the existing `src/microcosm/build/us/*.json` data
 directory, and the repo's `wheels` lane runs the suite against installed
 wheels, where `test_packaged_resource_states_the_adjudicated_period` would fail
 loudly if the resource were omitted.
+
+---
+
+# Successor session — root/independent review fixes (2026-09-07)
+
+Everything above this line is the first session's journal, historical as
+written. This section is the successor session's own state; check git for
+current truth.
+
+## Mandate
+
+Continue from clean `db0ed2859440347a4ef1e198e3af1d4bdb74bdb0`. The original
+source, report and proofs stay frozen — this session fixes the two actionable
+P2 findings of the independent review and nothing else.
+
+Governing review (hash-verified this session):
+
+- `/Users/maxghenis/architecture-reviews/microcosm-20260904/us-puf-period-interpretation-independent-review-final-20260907.json`
+  sha256 `07daf3be573cd11c60367a401f301fe1820affb6c84d489831ae64b060834b9c`
+  — matches the mandate's pin exactly.
+- companion markdown `…-final-20260907.md`
+  sha256 `1b19fb70ab1c25e2d491baea80364c1d5838a06fa919fe3dd8abb86799e03921`
+- the first session's governing plan is unchanged:
+  `us-puf-statistical-period-adjudication-plan-20260907.md` sha256
+  `2138216029d6e341a054ed785e692a7738268291a03a25812250ea399247ec6d`
+  — re-verified on disk this session.
+
+Verdict under repair: REQUEST_CHANGES, two P2 findings, growth refusal already
+unconditional and not in question.
+
+- **P2A** `documentary_display` trusts any `DocumentaryVerification`. The
+  verdict binds neither the resource it was issued for nor the complete pin
+  roster, and the class is publicly constructible, so a verdict issued for
+  interpretation A authenticates a changed interpretation B, and a single
+  hand-built successful `PinCheck` authenticates anything.
+- **P2B** `load_interpretation` validates every other block but omits
+  `disagreement_record`, so the published schema's requirement that the
+  code-page conflict stay `unresolved_and_recorded_verbatim` with
+  `corrected: false` is unenforced at the actual loader.
+
+## Scope held from the prior session
+
+Unchanged and re-asserted: growth refused unconditionally for every input;
+the convention stays `proposed` with a null review; no PUF, price, factor,
+target, store, H5 or ZIP data is read; no opaque price acceptance; no B19001,
+B25003, derived or shared-holdout use; the old source period, dataset and
+recipes are untouched; no external publication, push, PR, merge, cloud call,
+message or dependency install. Named public documentary files retained under
+prior authority may be rehashed only if needed — no repeated full PDF
+extraction.
+
+## State
+
+- [x] Review `.md` + `.json` read; JSON sha256 matches the mandate pin
+- [x] Successor journal seeded and committed
+- [ ] Red-before proof reproducing both findings at `db0ed285`
+- [ ] P2A fix — verifier-issued, resource-and-roster-bound verdict
+- [ ] P2B fix — loader enforcement of the revision-1 conflict fields
+- [ ] Actual-source invented tests for both
+- [ ] Green-after proof, same harness
+- [ ] Existing interpretation suite re-run once
+- [ ] Frozen report at `/private/tmp/us-puf-period-root-review-fixes-REPORT.{md,json}`
+- [ ] Root/independent peer review of the final source
+
+## Next
+
+Reproduce both findings before changing any production line, so the fix is
+demonstrated against a witnessed failure rather than asserted.
