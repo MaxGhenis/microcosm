@@ -940,7 +940,7 @@ def test_display_refuses_a_non_verdict_without_calling_its_methods(payload) -> N
         reasons=(),
         binding_failures=lambda interpretation: calls.append(interpretation) or (),
     )
-    with pytest.raises(VerificationIssuanceError, match="issued documentary verdict"):
+    with pytest.raises(VerificationIssuanceError, match="issued by"):
         documentary_display(load_interpretation(payload), fabricated)
     assert calls == []
 
