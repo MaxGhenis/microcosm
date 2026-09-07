@@ -90,6 +90,43 @@
     ],
     "does_not_establish": "Not an amount-growth base of 2016."
   },
+  "publisher_disclosure_avoidance": {
+    "basis": "publisher_documented",
+    "document_page_ref": "disclosure_avoidance_fiscal_conversion_and_aggregate_records",
+    "pdf_page": 4,
+    "printed_page": 3,
+    "treatments": [
+      {
+        "id": "fiscal_period_conversion",
+        "publisher_statement": "First, fiscal year returns have been converted to reflect the most recent year-end Tax Year and returns filed for years earlier than Tax Year 2012 have been removed from the file."
+      },
+      {
+        "id": "extreme_value_aggregation",
+        "publisher_statement": "Second, returns that contain one or more amount fields with values deemed extremely large have been excluded from the microdata sample and are aggregated into one of four records.",
+        "RECID": [999996, 999997, 999998, 999999]
+      },
+      {
+        "id": "high_income_no_tax_resubsampling",
+        "publisher_statement": "Third, returns that were sampled as a high income no tax return, at a rate of 100 percent, have been placed back in their regular strata based on total income and subsampled at the corresponding strata rate."
+      },
+      {
+        "id": "high_rate_subsampling",
+        "publisher_statement": "Fourth, all remaining returns sampled at rates greater than 10 percent have been subsampled at 10 percent."
+      },
+      {
+        "id": "multivariate_blurring",
+        "publisher_statement": "Multivariate blurring has been applied to these returns with nonzero values in at least two of the following fields: wages and salaries, state and local income taxes, and real estate taxes.",
+        "applies_to": "records sampled at a rate greater than 0.07 percent",
+        "also_altered": [
+          "alimony paid, alimony received and the State sales tax deduction removed",
+          "marital status modified",
+          "personal exemption amounts modified according to the phase-out limitations and moved to other items"
+        ]
+      }
+    ],
+    "later_audit_obligation": "State blurring and aggregate-record treatment explicitly; neither may be assumed away or silently repaired.",
+    "does_not_establish": "Recording these publisher treatments does not quantify their effect on any distribution, and this resource performs no such quantification."
+  },
   "geographic_meaning": {
     "national_only": true,
     "basis": "publisher_documented",
@@ -379,7 +416,7 @@
       "implemented": false,
       "calculated_here": false,
       "requires_separate_authorization": true,
-      "description": "Report the ordinary-return row count and S006-weighted share with FLPDYR other than 2015, with disclosure aggregates identified separately; reconcile S006-weighted FLPDYR counts to the publisher's page-40 Public Use Sample column in hundredths; reconcile the S006-weighted sum of RECID 999996-999999 separately to the published 1,233 population returns; cross-check the FDED total of 150,827,847 against FLPDMO=12; predeclare a rounding allowance; report each residual and the one-weighted-return-unit displayed-total discrepancy.",
+      "description": "Report the ordinary-return row count and S006-weighted share with FLPDYR other than 2015, with disclosure aggregates identified separately; reconcile S006-weighted FLPDYR counts to the publisher's page-40 Public Use Sample column in hundredths; reconcile the S006-weighted sum of RECID 999996-999999 separately to the published 1,233 population returns; cross-check the FDED total of 150,827,847 against FLPDMO=12; state blurring and aggregate-record treatment; predeclare a rounding rule and allowance consistent with the publisher's displayed integer precision; report each residual and the one-weighted-return-unit displayed-total discrepancy.",
       "blocking": "A residual beyond the declared rounding allowance remains unresolved and blocks scientific admission pending an explanation."
     },
     {
@@ -432,6 +469,14 @@
       "id": "historical_public_archive_copy",
       "url": "https://github.com/user-attachments/files/17535835/2015.Public.Use.Booklet.pdf",
       "observation": "Previously byte-matched to the retained September 2022 document in a pinned local URL-check receipt; its fetch failed during the adjudicating review.",
+      "prior_url_match_receipt": {
+        "receipt_id": "us-puf-public-booklet-url-check",
+        "sha256": "34d5fa333b703da7a76b889b8b4b957a2b22a19e0fd64f6d4cdaa2556cce4529",
+        "bytes": 649,
+        "attests_document_id": "main-2022",
+        "attests_sha256": "dfb2a6c85f98cba95624ece7c2bd239a0fd09457ca2498777c8242208ff7295b",
+        "attests_bytes": 23417059
+      },
       "current_evidence": "the authenticated local primary documents"
     }
   ],

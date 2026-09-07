@@ -142,6 +142,7 @@ _ALLOWED_TOP_LEVEL: Final = frozenset(
         "statistical_reference_period",
         "reported_period_preservation",
         "processing_window",
+        "publisher_disclosure_avoidance",
         "geographic_meaning",
         "distinct_items",
         "convention",
@@ -166,6 +167,36 @@ _ALLOWED_TOP_LEVEL: Final = frozenset(
 #: Keys that would serialize a verification verdict. The verdict is computed.
 _FORBIDDEN_VERIFIED_KEYS: Final = frozenset(
     {"documentary_pins_verified", "pins_verified"}
+)
+
+#: The publisher disclosure-avoidance treatments the adjudication enumerates.
+#: Blurring is listed explicitly: a later audit must state its treatment rather
+#: than assume it away.
+_REQUIRED_DISCLOSURE_TREATMENTS: Final = frozenset(
+    {
+        "fiscal_period_conversion",
+        "extreme_value_aggregation",
+        "multivariate_blurring",
+    }
+)
+
+#: Keys the convention block may carry. An unreviewed extra field -- a
+#: "review_record" riding along, say -- cannot enter through a versioned
+#: contract that only accepts a proposal.
+_ALLOWED_CONVENTION_KEYS: Final = frozenset(
+    {
+        "convention_id",
+        "convention_status",
+        "convention_review",
+        "growth_admitted",
+        "label",
+        "basis",
+        "description",
+        "treats",
+        "does_not_claim",
+        "compounding_with_row_specific_price_conversion",
+        "review_required_before_any_use",
+    }
 )
 
 #: Convention statuses that assert a review this revision cannot honour.
@@ -538,6 +569,8 @@ def _reject_serialized_verification(payload: Any, location: str = "") -> None:
 
 def _validate_convention(payload: Mapping[str, Any]) -> ConventionProposal:
     convention = _mapping(payload, "convention", "")
+    unknown = sorted(set(convention) - _ALLOWED_CONVENTION_KEYS)
+    _require(not unknown, "unknown_convention_key", "convention", ", ".join(unknown))
     _require(
         "convention_status" in convention,
         "convention_status_missing",
@@ -996,6 +1029,107 @@ def _validate_methods(payload: Mapping[str, Any]) -> None:
     )
 
 
+def _validate_disclosure_avoidance(payload: Mapping[str, Any]) -> None:
+    """Every page-4 treatment the adjudication enumerates must be recorded.
+
+    Blurring in particular: the later audit is required to state blurring and
+    aggregate-record treatment, so a resource that quietly drops it would let
+    that obligation disappear.
+    """
+    block = _mapping(payload, "publisher_disclosure_avoidance", "")
+    at = "publisher_disclosure_avoidance"
+    _require(
+        block.get("basis") == "publisher_documented",
+        "disclosure_avoidance_basis_must_be_publisher_documented",
+        f"{at}/basis",
+        repr(block.get("basis")),
+    )
+    treatments = block.get("treatments")
+    _require(
+        isinstance(treatments, (list, tuple)) and len(treatments) >= 1,
+        "disclosure_treatments_required",
+        f"{at}/treatments",
+    )
+    identifiers = set()
+    for index, row in enumerate(treatments):
+        _require(
+            isinstance(row, Mapping), "object_required", f"{at}/treatments/{index}"
+        )
+        identifier = row.get("id")
+        _require(
+            isinstance(identifier, str) and identifier.strip() != "",
+            "disclosure_treatment_id_required",
+            f"{at}/treatments/{index}/id",
+        )
+        statement = row.get("publisher_statement")
+        _require(
+            isinstance(statement, str) and statement.strip() != "",
+            "disclosure_treatment_statement_required",
+            f"{at}/treatments/{index}/publisher_statement",
+        )
+        identifiers.add(identifier)
+    missing = sorted(_REQUIRED_DISCLOSURE_TREATMENTS - identifiers)
+    _require(
+        not missing,
+        "disclosure_treatment_missing",
+        f"{at}/treatments",
+        ", ".join(missing),
+    )
+    obligation = block.get("later_audit_obligation")
+    _require(
+        isinstance(obligation, str) and "blurring" in obligation,
+        "later_audit_must_state_blurring_treatment",
+        f"{at}/later_audit_obligation",
+        repr(obligation),
+    )
+
+
+def _validate_public_references(
+    payload: Mapping[str, Any], documents: tuple[DocumentPin, ...]
+) -> None:
+    """A pinned prior receipt must attest the document identity it claims to."""
+    by_id = {pin.document_id: pin for pin in documents}
+    for index, row in enumerate(payload.get("public_references", ())):
+        _require(
+            isinstance(row, Mapping), "object_required", f"public_references/{index}"
+        )
+        receipt = row.get("prior_url_match_receipt")
+        if receipt is None:
+            continue
+        at = f"public_references/{index}/prior_url_match_receipt"
+        _require(isinstance(receipt, Mapping), "object_required", at)
+        _require(
+            _is_sha256(receipt.get("sha256")),
+            "receipt_sha256_malformed",
+            f"{at}/sha256",
+        )
+        _require(
+            _is_int(receipt.get("bytes")) and receipt["bytes"] > 0,
+            "receipt_bytes_invalid",
+            f"{at}/bytes",
+        )
+        document_id = receipt.get("attests_document_id")
+        _require(
+            document_id in by_id,
+            "receipt_attests_unknown_document",
+            f"{at}/attests_document_id",
+            repr(document_id),
+        )
+        pin = by_id[document_id]
+        _require(
+            receipt.get("attests_sha256") == pin.pdf_sha256,
+            "receipt_attestation_does_not_match_the_document_pin",
+            f"{at}/attests_sha256",
+            f"receipt {receipt.get('attests_sha256')}, document {pin.pdf_sha256}",
+        )
+        _require(
+            receipt.get("attests_bytes") == pin.pdf_bytes,
+            "receipt_attestation_does_not_match_the_document_pin",
+            f"{at}/attests_bytes",
+            f"receipt {receipt.get('attests_bytes')}, document {pin.pdf_bytes}",
+        )
+
+
 def load_interpretation(payload: Mapping[str, Any]) -> StatisticalPeriodInterpretation:
     """Validate a payload against revision 1 and return a frozen view.
 
@@ -1212,9 +1346,11 @@ def load_interpretation(payload: Mapping[str, Any]) -> StatisticalPeriodInterpre
 
     _validate_methods(payload)
     _validate_page40(payload)
+    _validate_disclosure_avoidance(payload)
     convention = _validate_convention(payload)
     documents = _validate_documents(payload)
     renders = _validate_renders(payload, documents)
+    _validate_public_references(payload, documents)
 
     return StatisticalPeriodInterpretation(
         interpretation_id=interpretation_id,

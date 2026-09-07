@@ -128,6 +128,17 @@ def synthetic_payload() -> dict[str, Any]:
             "calendar_year": PROCESSING_CALENDAR_YEAR,
             "basis": "publisher_documented",
         },
+        "publisher_disclosure_avoidance": {
+            "basis": "publisher_documented",
+            "pdf_page": 4,
+            "printed_page": 3,
+            "treatments": [
+                {"id": "fiscal_period_conversion", "publisher_statement": "invented"},
+                {"id": "extreme_value_aggregation", "publisher_statement": "invented"},
+                {"id": "multivariate_blurring", "publisher_statement": "invented"},
+            ],
+            "later_audit_obligation": "State blurring and aggregate-record treatment.",
+        },
         "geographic_meaning": {"national_only": True, "basis": "publisher_documented"},
         "distinct_items": [{"item": "invented"}],
         "convention": {
@@ -1316,6 +1327,144 @@ def test_the_full_soi_column_is_never_the_reconciliation_target() -> None:
         "substitute the full SOI Individual Sample column as the PUF reconciliation target"
         in list(table["must_not"])
     )
+
+
+def test_a_page_pin_that_disagrees_with_an_authentic_container_is_caught(
+    payload, resolver_bytes
+) -> None:
+    """The container authenticates; one page pin points at another page's hash."""
+    broken = copy.deepcopy(payload)
+    pages = broken["documents"][0]["pages"]
+    pages[0]["text_sha256"], pages[2]["text_sha256"] = (
+        pages[2]["text_sha256"],
+        pages[0]["text_sha256"],
+    )
+    verification = verify_documentary_pins(
+        load_interpretation(broken), resolver_from(resolver_bytes)
+    )
+    assert verification.verified is False
+    assert verification.reasons == ("hash_mismatch",)
+    container_checks = [
+        check for check in verification.checks if check.kind == "retained_text"
+    ]
+    assert all(check.ok for check in container_checks)
+    failed_pages = {check.logical_id for check in verification.failures}
+    assert failed_pages == {"invented-doc-text#2", "invented-doc-text#5"}
+
+
+def test_packaged_resource_records_every_page4_disclosure_treatment() -> None:
+    block = load_packaged_interpretation().payload["publisher_disclosure_avoidance"]
+    identifiers = {treatment["id"] for treatment in block["treatments"]}
+    assert {
+        "fiscal_period_conversion",
+        "extreme_value_aggregation",
+        "multivariate_blurring",
+    } <= identifiers
+    assert block["basis"] == "publisher_documented"
+    assert block["pdf_page"] == 4 and block["printed_page"] == 3
+    assert "blurring" in block["later_audit_obligation"]
+    blurring = next(
+        treatment
+        for treatment in block["treatments"]
+        if treatment["id"] == "multivariate_blurring"
+    )
+    assert "wages and salaries" in blurring["publisher_statement"]
+
+
+def test_the_deferred_audit_must_state_blurring_treatment() -> None:
+    audit = next(
+        row
+        for row in load_packaged_interpretation().payload["deferred_required_work"]
+        if row["id"] == "source_period_audit"
+    )
+    assert "blurring" in audit["description"]
+    assert "aggregate-record treatment" in audit["description"]
+    assert audit["implemented"] is False
+
+
+@pytest.mark.parametrize(
+    ("mutate", "reason"),
+    [
+        (
+            lambda body: body["publisher_disclosure_avoidance"]["treatments"].pop(2),
+            "disclosure_treatment_missing",
+        ),
+        (
+            lambda body: body["publisher_disclosure_avoidance"].__setitem__(
+                "later_audit_obligation", "State aggregate-record treatment."
+            ),
+            "later_audit_must_state_blurring_treatment",
+        ),
+        (
+            lambda body: body["publisher_disclosure_avoidance"].__setitem__(
+                "basis", "modeling_choice"
+            ),
+            "disclosure_avoidance_basis_must_be_publisher_documented",
+        ),
+        (
+            lambda body: body["convention"].__setitem__(
+                "review_record", {"reviewer": "invented"}
+            ),
+            "unknown_convention_key",
+        ),
+    ],
+)
+def test_disclosure_and_convention_refusals(payload, mutate, reason) -> None:
+    broken = copy.deepcopy(payload)
+    mutate(broken)
+    with pytest.raises(ResourceValidationError) as error:
+        load_interpretation(broken)
+    assert error.value.reason == reason
+
+
+def test_the_packaged_prior_url_receipt_attests_the_2022_document() -> None:
+    interpretation = load_packaged_interpretation()
+    reference = next(
+        row
+        for row in interpretation.payload["public_references"]
+        if "prior_url_match_receipt" in row
+    )
+    receipt = reference["prior_url_match_receipt"]
+    document = interpretation.document(receipt["attests_document_id"])
+    assert receipt["attests_sha256"] == document.pdf_sha256
+    assert receipt["attests_bytes"] == document.pdf_bytes
+    assert len(receipt["sha256"]) == 64
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "reason"),
+    [
+        (
+            "attests_sha256",
+            "0" * 64,
+            "receipt_attestation_does_not_match_the_document_pin",
+        ),
+        ("attests_bytes", 1, "receipt_attestation_does_not_match_the_document_pin"),
+        ("attests_document_id", "no-such-doc", "receipt_attests_unknown_document"),
+        ("sha256", "short", "receipt_sha256_malformed"),
+    ],
+)
+def test_a_prior_receipt_that_attests_the_wrong_bytes_is_refused(
+    payload, field, value, reason
+) -> None:
+    broken = copy.deepcopy(payload)
+    broken["public_references"] = [
+        {
+            "id": "invented-archive-copy",
+            "prior_url_match_receipt": {
+                "receipt_id": "invented-receipt",
+                "sha256": sha256(b"invented url receipt"),
+                "bytes": 20,
+                "attests_document_id": "invented-doc",
+                "attests_sha256": broken["documents"][0]["pdf"]["sha256"],
+                "attests_bytes": broken["documents"][0]["pdf"]["bytes"],
+            },
+        }
+    ]
+    broken["public_references"][0]["prior_url_match_receipt"][field] = value
+    with pytest.raises(ResourceValidationError) as error:
+        load_interpretation(broken)
+    assert error.value.reason == reason
 
 
 # ---------------------------------------------------------------------------
