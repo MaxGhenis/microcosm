@@ -76,7 +76,7 @@ capped by `RLIMIT_CPU` (kernel-enforced on macOS) and wall time and RSS by a
 supervisor that polls and SIGKILLs the child process group. No cap is claimed
 that is not applied.
 
-- Tests: 148 passed, 11.6s child CPU, 12.4s wall, 0.82 GiB peak RSS, one thread.
+- Tests: 148 passed, 12.3s child CPU, 12.4s wall, 0.76 GiB peak RSS, one thread.
 - Loaded-source git-byte proof: 125 of 125 loaded worktree source files match
   their `HEAD` blob SHA-1 exactly, including the module and the test file.
 - Document authenticity: 20 pin checks pass — 2 PDFs, 2 retained texts, 14
