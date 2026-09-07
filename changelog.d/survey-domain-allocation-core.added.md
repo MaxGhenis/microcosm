@@ -1,0 +1,1 @@
+Add an explicit domain allocation primitive that preserves one weight per household row, accounts for declared unit counts, and refuses unsupported coverage. Existing survey assembly and graph allocation remain unchanged.
