@@ -2015,6 +2015,10 @@ def documentary_display(
         verified = False
         reasons: tuple[str, ...] = ()
     else:
+        if type(verification) is not DocumentaryVerification:
+            raise VerificationIssuanceError(
+                "documentary_display requires an issued documentary verdict"
+            )
         binding = verification.binding_failures(interpretation)
         verified = verification.verified and not binding
         reasons = verification.reasons + binding
