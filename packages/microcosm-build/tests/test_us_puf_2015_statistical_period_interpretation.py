@@ -37,11 +37,14 @@ from microcosm.build.puf_2015_statistical_period_interpretation import (
     DocumentaryVerification,
     GrowthRefusedError,
     PageTextHashError,
+    PinCheck,
     ResourceValidationError,
+    VerificationIssuanceError,
     annotate_reported_period,
     canonical_resource_sha256,
     classify_convention_status,
     documentary_display,
+    documentary_pin_roster,
     grants_authority,
     graph_annotations,
     growth_admission,
@@ -786,8 +789,230 @@ def test_a_display_without_any_verification_is_explicitly_unverified(payload) ->
     assert display["unverified_reasons"] == ()
 
 
-def test_an_empty_verification_is_not_verified() -> None:
-    assert DocumentaryVerification(checks=()).verified is False
+# ---------------------------------------------------------------------------
+# A verdict authenticates only the interpretation it was issued for
+# ---------------------------------------------------------------------------
+
+
+def test_a_proper_interpretation_authenticates_its_own_display(
+    payload, resolver_bytes
+) -> None:
+    interpretation = load_interpretation(payload)
+    verification = verify_documentary_pins(
+        interpretation, resolver_from(resolver_bytes)
+    )
+    display = documentary_display(interpretation, verification)
+    assert verification.authenticates(interpretation) is True
+    assert verification.binding_failures(interpretation) == ()
+    assert display["provenance_authenticated"] is True
+    assert display["documentary_pins_verified"] is True
+    assert display["documentary_pins_status"] == "verified"
+    assert display["unverified_reasons"] == ()
+    # The record still names the resource it describes.
+    assert display["interpretation_id"] == interpretation.interpretation_id
+
+
+def test_the_verdict_covers_the_complete_declared_pin_roster(
+    payload, resolver_bytes
+) -> None:
+    """The roster is derived from the payload here, not read back from the module."""
+    expected: list[str] = []
+    for document in payload["documents"]:
+        expected.append(document["document_id"])
+        text_id = document["retained_text"]["text_id"]
+        expected.append(text_id)
+        expected.extend(f"{text_id}#{page['pdf_page']}" for page in document["pages"])
+    expected.extend(render["render_id"] for render in payload["renders"])
+
+    interpretation = load_interpretation(payload)
+    verification = verify_documentary_pins(
+        interpretation, resolver_from(resolver_bytes)
+    )
+    assert documentary_pin_roster(interpretation) == tuple(expected)
+    assert verification.pin_roster == tuple(expected)
+    assert [check.logical_id for check in verification.checks] == expected
+
+
+@pytest.mark.parametrize(
+    ("label", "path"),
+    [
+        ("pdf", ("documents", 0, "pdf", "sha256")),
+        ("page", ("documents", 0, "pages", 0, "text_sha256")),
+        ("render", ("renders", 0, "sha256")),
+    ],
+)
+def test_a_changed_pin_cannot_reuse_another_interpretations_verdict(
+    payload, resolver_bytes, label, path
+) -> None:
+    resolve = resolver_from(resolver_bytes)
+    proper = load_interpretation(payload)
+    proper_verification = verify_documentary_pins(proper, resolve)
+    assert proper_verification.verified is True
+
+    changed = copy.deepcopy(payload)
+    cursor: Any = changed
+    for step in path[:-1]:
+        cursor = cursor[step]
+    cursor[path[-1]] = "f" * 64
+    other = load_interpretation(changed)
+
+    # It fails its own verification, as it must.
+    own = verify_documentary_pins(other, resolve)
+    assert own.verified is False
+    assert "hash_mismatch" in own.reasons
+
+    # And it cannot borrow the passing verdict of the interpretation it changed.
+    assert proper_verification.authenticates(other) is False
+    display = documentary_display(other, proper_verification)
+    assert display["provenance_authenticated"] is False
+    assert display["documentary_pins_verified"] is False
+    assert display["documentary_pins_status"] == "declared"
+    assert (
+        "verification_issued_for_other_resource_bytes"
+        in (display["unverified_reasons"])
+    ), label
+
+
+def test_a_changed_resource_identity_cannot_reuse_a_verdict_either(
+    payload, resolver_bytes
+) -> None:
+    """Every edited byte moves the resource identity, not only a changed pin."""
+    resolve = resolver_from(resolver_bytes)
+    proper = load_interpretation(payload)
+    proper_verification = verify_documentary_pins(proper, resolve)
+
+    renamed = copy.deepcopy(payload)
+    renamed["interpretation_id"] = "invented_changed_interpretation.v1"
+    other = load_interpretation(renamed)
+    other_verification = verify_documentary_pins(other, resolve)
+    # Its own bytes are untouched, so its own verdict passes.
+    assert other_verification.verified is True
+
+    # The refusal is symmetric and says which binding failed.
+    assert proper_verification.authenticates(other) is False
+    assert other_verification.authenticates(proper) is False
+    reasons = documentary_display(other, proper_verification)["unverified_reasons"]
+    assert "verification_issued_for_another_interpretation_id" in reasons
+    assert "verification_issued_for_other_resource_bytes" in reasons
+    assert (
+        documentary_display(proper, other_verification)["provenance_authenticated"]
+        is False
+    )
+
+
+def test_an_added_pin_moves_the_roster_out_from_under_an_older_verdict(
+    payload, resolver_bytes
+) -> None:
+    proper = load_interpretation(payload)
+    verification = verify_documentary_pins(proper, resolver_from(resolver_bytes))
+
+    extended = copy.deepcopy(payload)
+    extended["renders"].append(
+        {**copy.deepcopy(extended["renders"][0]), "render_id": "invented-render-2"}
+    )
+    wider = load_interpretation(extended)
+    assert len(documentary_pin_roster(wider)) == len(verification.pin_roster) + 1
+    assert verification.authenticates(wider) is False
+    assert "verification_roster_is_not_this_resource_roster" in (
+        verification.binding_failures(wider)
+    )
+
+
+def test_a_directly_constructed_verification_is_refused(payload) -> None:
+    """A verdict nobody issued has re-authenticated nothing, whatever it says."""
+    interpretation = load_interpretation(payload)
+    roster = documentary_pin_roster(interpretation)
+    with pytest.raises(VerificationIssuanceError):
+        DocumentaryVerification(
+            tuple(PinCheck(logical_id, "forged", True, None) for logical_id in roster),
+            interpretation_id=interpretation.interpretation_id,
+            resource_sha256=interpretation.resource_sha256,
+            pin_roster=roster,
+        )
+
+
+def test_a_copy_constructed_verification_is_refused(payload, resolver_bytes) -> None:
+    """Copying every public field of a genuine verdict does not re-issue it."""
+    interpretation = load_interpretation(payload)
+    genuine = verify_documentary_pins(interpretation, resolver_from(resolver_bytes))
+    assert genuine.authenticates(interpretation) is True
+    for issuance in ({}, {"issued_by": None}, {"issued_by": object()}):
+        with pytest.raises(VerificationIssuanceError):
+            DocumentaryVerification(
+                genuine.checks,
+                interpretation_id=genuine.interpretation_id,
+                resource_sha256=genuine.resource_sha256,
+                pin_roster=genuine.pin_roster,
+                **issuance,
+            )
+
+
+def test_an_incomplete_or_empty_verification_is_refused(
+    payload, resolver_bytes
+) -> None:
+    interpretation = load_interpretation(payload)
+    genuine = verify_documentary_pins(interpretation, resolver_from(resolver_bytes))
+    for checks in ((), genuine.checks[:1], genuine.checks[:-1]):
+        with pytest.raises(VerificationIssuanceError):
+            DocumentaryVerification(
+                checks,
+                interpretation_id=genuine.interpretation_id,
+                resource_sha256=genuine.resource_sha256,
+                pin_roster=genuine.pin_roster,
+            )
+    # A hand-built successful check is refused the same way.
+    with pytest.raises(VerificationIssuanceError):
+        DocumentaryVerification(
+            (PinCheck("unresolved-invented-pin", "pdf", True, None),),
+            interpretation_id=genuine.interpretation_id,
+            resource_sha256=genuine.resource_sha256,
+            pin_roster=genuine.pin_roster,
+        )
+
+
+def test_an_issued_verdict_cannot_be_edited(payload, resolver_bytes) -> None:
+    verification = verify_documentary_pins(
+        load_interpretation(payload), resolver_from(resolver_bytes)
+    )
+    for name in ("checks", "_checks", "interpretation_id", "pin_roster"):
+        with pytest.raises(AttributeError):
+            setattr(verification, name, ())
+        with pytest.raises(AttributeError):
+            delattr(verification, name)
+    assert verification.verified is True
+
+
+def test_a_display_can_verify_the_resolved_bytes_itself(
+    payload, resolver_bytes
+) -> None:
+    """The narrow alternative: the display authenticates bytes, not a verdict."""
+    interpretation = load_interpretation(payload)
+    assert documentary_display(interpretation, resolve=resolver_from(resolver_bytes))[
+        "provenance_authenticated"
+    ]
+
+    corrupted = dict(resolver_bytes)
+    corrupted["invented-doc"] = b"%PDF-1.7 invented main documenT\n"
+    mutated = documentary_display(interpretation, resolve=resolver_from(corrupted))
+    assert mutated["provenance_authenticated"] is False
+    assert "hash_mismatch" in mutated["unverified_reasons"]
+
+    absent = documentary_display(interpretation, resolve=lambda logical_id: None)
+    assert absent["provenance_authenticated"] is False
+    assert "unresolved_bytes" in absent["unverified_reasons"]
+
+
+def test_a_display_refuses_both_a_verification_and_a_resolver(
+    payload, resolver_bytes
+) -> None:
+    interpretation = load_interpretation(payload)
+    resolve = resolver_from(resolver_bytes)
+    with pytest.raises(period.InterpretationError):
+        documentary_display(
+            interpretation,
+            verify_documentary_pins(interpretation, resolve),
+            resolve=resolve,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1350,6 +1575,197 @@ def test_a_page_pin_that_disagrees_with_an_authentic_container_is_caught(
     assert all(check.ok for check in container_checks)
     failed_pages = {check.logical_id for check in verification.failures}
     assert failed_pages == {"invented-doc-text#2", "invented-doc-text#5"}
+
+
+# ---------------------------------------------------------------------------
+# The revision-1 unresolved code-page conflict, enforced at the loader
+# ---------------------------------------------------------------------------
+
+
+def _code_page(payload: dict[str, Any]) -> dict[str, Any]:
+    return payload["disagreement_record"]["code_page_printed_domain"]
+
+
+def _edition_difference(payload: dict[str, Any]) -> dict[str, Any]:
+    return payload["disagreement_record"]["page3_page4_edition_difference"]
+
+
+@pytest.mark.parametrize(
+    ("mutate", "reason"),
+    [
+        (
+            lambda body: _code_page(body).__setitem__("corrected", True),
+            "code_page_conflict_must_not_be_corrected",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("corrected", 1),
+            "code_page_conflict_must_not_be_corrected",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("corrected", "false"),
+            "code_page_conflict_must_not_be_corrected",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("corrected", None),
+            "code_page_conflict_must_not_be_corrected",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("status", "resolved_by_caller"),
+            "code_page_conflict_must_remain_unresolved",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("status", "resolved"),
+            "code_page_conflict_must_remain_unresolved",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("status", "unknown"),
+            "code_page_conflict_must_remain_unresolved",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("status", None),
+            "code_page_conflict_must_remain_unresolved",
+        ),
+        (
+            lambda body: _code_page(body).pop("status"),
+            "conflict_field_required",
+        ),
+        (
+            lambda body: _code_page(body).pop("corrected"),
+            "conflict_field_required",
+        ),
+        (
+            lambda body: _code_page(body).pop("printed_text"),
+            "conflict_field_required",
+        ),
+        (
+            lambda body: _code_page(body).pop("delivered_domain"),
+            "conflict_field_required",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("printed_text", ""),
+            "printed_code_page_text_required",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("printed_text", 20112014),
+            "printed_code_page_text_required",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("delivered_domain", []),
+            "delivered_domain_invalid",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("delivered_domain", ["2012"]),
+            "delivered_domain_invalid",
+        ),
+        (
+            lambda body: _code_page(body).__setitem__("delivered_domain", [True]),
+            "delivered_domain_invalid",
+        ),
+        (
+            lambda body: body["disagreement_record"].pop("code_page_printed_domain"),
+            "disagreement_block_required",
+        ),
+        (
+            lambda body: body["disagreement_record"].pop("two_edition_evidence"),
+            "disagreement_block_required",
+        ),
+        (
+            lambda body: body["disagreement_record"].pop(
+                "page3_page4_edition_difference"
+            ),
+            "disagreement_block_required",
+        ),
+        (
+            lambda body: body["disagreement_record"].__setitem__(
+                "code_page_printed_domain", "unresolved"
+            ),
+            "object_required",
+        ),
+        (
+            lambda body: _edition_difference(body).__setitem__(
+                "byte_pins_normalized", True
+            ),
+            "edition_difference_must_not_normalize_byte_pins",
+        ),
+        (
+            lambda body: _edition_difference(body).pop("byte_pins_normalized"),
+            "edition_difference_must_not_normalize_byte_pins",
+        ),
+        (
+            lambda body: _edition_difference(body).__setitem__(
+                "substantive_wording_change", True
+            ),
+            "edition_difference_must_not_claim_a_wording_change",
+        ),
+        (
+            lambda body: _edition_difference(body).pop("substantive_wording_change"),
+            "edition_difference_must_not_claim_a_wording_change",
+        ),
+    ],
+)
+def test_the_unresolved_code_page_conflict_cannot_be_declared_away(
+    payload, mutate, reason
+) -> None:
+    """The published schema constrains this block; the loader now does too."""
+    mutate(payload)
+    with pytest.raises(ResourceValidationError) as error:
+        load_interpretation(payload)
+    assert error.value.reason == reason
+    assert error.value.location.startswith("disagreement_record")
+
+
+def test_the_conflict_survives_loading_exactly_as_written(payload) -> None:
+    record = load_interpretation(payload).payload["disagreement_record"][
+        "code_page_printed_domain"
+    ]
+    assert record["status"] == "unresolved_and_recorded_verbatim"
+    assert record["corrected"] is False
+    assert record["printed_text"] == "invented printed domain"
+    assert tuple(record["delivered_domain"]) == (2012, 2013, 2014, 2015)
+
+
+def test_the_loader_never_reconciles_the_printed_and_delivered_domains(
+    payload,
+) -> None:
+    """It enforces that the conflict is recorded, not which side is right.
+
+    The printed wording and the delivered domain are kept separate and are
+    never compared, so a resource whose two sides happen to agree and one whose
+    sides disagree both load unchanged.
+    """
+    agreeing = copy.deepcopy(payload)
+    _code_page(agreeing)["printed_text"] = "Tax Year ... 2012-2015"
+    _code_page(agreeing)["delivered_domain"] = [2012, 2013, 2014, 2015]
+    loaded = load_interpretation(agreeing)
+    assert (
+        loaded.payload["disagreement_record"]["code_page_printed_domain"][
+            "printed_text"
+        ]
+        == "Tax Year ... 2012-2015"
+    )
+
+    disagreeing = copy.deepcopy(payload)
+    _code_page(disagreeing)["delivered_domain"] = [1999]
+    still = load_interpretation(disagreeing)
+    assert tuple(
+        still.payload["disagreement_record"]["code_page_printed_domain"][
+            "delivered_domain"
+        ]
+    ) == (1999,)
+    # And neither side leaked into the preserved delivered FLPDYR domain.
+    assert still.delivered_flpdyr_domain == (2012, 2013, 2014, 2015)
+
+
+def test_the_packaged_conflict_still_loads_and_still_disagrees() -> None:
+    record = load_packaged_interpretation().payload["disagreement_record"][
+        "code_page_printed_domain"
+    ]
+    assert record["status"] == "unresolved_and_recorded_verbatim"
+    assert record["corrected"] is False
+    assert "2011-2014" in record["printed_text"]
+    assert tuple(record["delivered_domain"]) == (2012, 2013, 2014, 2015)
+    # The publisher's printed domain and the delivered domain still differ.
+    assert "2012-2015" not in record["printed_text"]
 
 
 def test_packaged_resource_records_every_page4_disclosure_treatment() -> None:

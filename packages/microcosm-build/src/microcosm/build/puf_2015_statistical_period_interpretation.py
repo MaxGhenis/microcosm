@@ -23,8 +23,11 @@ Three properties are structural rather than documentary, so they cannot be
 asserted away by an edited resource:
 
 * ``GrowthAdmission.admitted`` is a read-only property returning ``False``.
-* ``DocumentaryVerification.verified`` is computed from re-authenticated bytes;
-  the resource may not carry a serialized verified flag at all.
+* ``DocumentaryVerification`` is issued only by :func:`verify_documentary_pins`,
+  from re-authenticated bytes, bound to the exact resource and to the complete
+  pin roster it covered. The resource may not carry a serialized verified flag
+  at all, a caller cannot build a verdict, and a verdict issued for one
+  interpretation cannot authenticate another.
 * The interpretation binds the frozen raw source definition by identity and
   hash only. It never imports it, never rewrites it, and never touches its
   ``period_semantics`` value of ``unresolved_raw_FLPDYR``.
@@ -79,10 +82,12 @@ __all__ = [
     "RetainedText",
     "STATISTICAL_REFERENCE_TAX_YEAR",
     "StatisticalPeriodInterpretation",
+    "VerificationIssuanceError",
     "annotate_reported_period",
     "canonical_resource_sha256",
     "classify_convention_status",
     "documentary_display",
+    "documentary_pin_roster",
     "grants_authority",
     "graph_annotations",
     "growth_admission",
@@ -251,6 +256,21 @@ class GrowthRefusedError(InterpretationRefusalError):
             + ", ".join(admission.reasons)
         )
         self.admission = admission
+
+
+class VerificationIssuanceError(InterpretationRefusalError):
+    """A documentary verdict was assembled outside the verifier.
+
+    :class:`DocumentaryVerification` is what :func:`verify_documentary_pins`
+    returns, never something a caller builds: a verdict that nobody issued has
+    re-authenticated nothing, whatever its checks say.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "DocumentaryVerification is issued by verify_documentary_pins from "
+            "resolved bytes; a directly constructed verdict authenticates nothing"
+        )
 
 
 class AuthorityRefusedError(InterpretationRefusalError):
@@ -494,6 +514,8 @@ class StatisticalPeriodInterpretation:
     """A validated interpretation resource."""
 
     interpretation_id: str
+    #: Canonical identity of the exact payload this view was loaded from.
+    resource_sha256: str
     schema_version: int
     statistical_reference_tax_year: int
     processing_calendar_year: int
@@ -1084,6 +1106,77 @@ def _validate_disclosure_avoidance(payload: Mapping[str, Any]) -> None:
     )
 
 
+def _validate_disagreement_record(payload: Mapping[str, Any]) -> None:
+    """The recorded contradictions must stay recorded, exactly as published.
+
+    Revision 1 of the schema constrains this block: the printed code-page
+    domain disagrees with the delivered domain, that disagreement stays
+    ``unresolved_and_recorded_verbatim``, and ``corrected`` stays ``False``.
+    The loader enforces the schema's own contract so a resource cannot declare
+    the conflict away and still load.
+
+    Nothing here decides *which* domain is right. The publisher's printed
+    wording and the delivered domain are required to be present and separate,
+    and are never compared, reconciled or repaired.
+    """
+    at = "disagreement_record"
+    record = _mapping(payload, at, "")
+    for block in (
+        "code_page_printed_domain",
+        "two_edition_evidence",
+        "page3_page4_edition_difference",
+    ):
+        _require(block in record, "disagreement_block_required", f"{at}/{block}")
+
+    code_page = _mapping(record, "code_page_printed_domain", at)
+    where = f"{at}/code_page_printed_domain"
+    for field in ("printed_text", "delivered_domain", "status", "corrected"):
+        _require(field in code_page, "conflict_field_required", f"{where}/{field}")
+    printed = code_page["printed_text"]
+    _require(
+        isinstance(printed, str) and printed.strip() != "",
+        "printed_code_page_text_required",
+        f"{where}/printed_text",
+        repr(printed),
+    )
+    delivered = code_page["delivered_domain"]
+    _require(
+        isinstance(delivered, (list, tuple))
+        and len(delivered) >= 1
+        and all(_is_int(year) for year in delivered),
+        "delivered_domain_invalid",
+        f"{where}/delivered_domain",
+        repr(delivered),
+    )
+    _require(
+        code_page["status"] == "unresolved_and_recorded_verbatim",
+        "code_page_conflict_must_remain_unresolved",
+        f"{where}/status",
+        repr(code_page["status"]),
+    )
+    _require(
+        code_page["corrected"] is False,
+        "code_page_conflict_must_not_be_corrected",
+        f"{where}/corrected",
+        repr(code_page["corrected"]),
+    )
+
+    difference = _mapping(record, "page3_page4_edition_difference", at)
+    where = f"{at}/page3_page4_edition_difference"
+    _require(
+        difference.get("byte_pins_normalized") is False,
+        "edition_difference_must_not_normalize_byte_pins",
+        f"{where}/byte_pins_normalized",
+        repr(difference.get("byte_pins_normalized")),
+    )
+    _require(
+        difference.get("substantive_wording_change") is False,
+        "edition_difference_must_not_claim_a_wording_change",
+        f"{where}/substantive_wording_change",
+        repr(difference.get("substantive_wording_change")),
+    )
+
+
 def _validate_public_references(
     payload: Mapping[str, Any], documents: tuple[DocumentPin, ...]
 ) -> None:
@@ -1347,13 +1440,16 @@ def load_interpretation(payload: Mapping[str, Any]) -> StatisticalPeriodInterpre
     _validate_methods(payload)
     _validate_page40(payload)
     _validate_disclosure_avoidance(payload)
+    _validate_disagreement_record(payload)
     convention = _validate_convention(payload)
     documents = _validate_documents(payload)
     renders = _validate_renders(payload, documents)
     _validate_public_references(payload, documents)
 
+    frozen = _freeze(payload)
     return StatisticalPeriodInterpretation(
         interpretation_id=interpretation_id,
+        resource_sha256=canonical_resource_sha256(frozen),
         schema_version=RESOURCE_SCHEMA_VERSION,
         statistical_reference_tax_year=STATISTICAL_REFERENCE_TAX_YEAR,
         processing_calendar_year=PROCESSING_CALENDAR_YEAR,
@@ -1371,7 +1467,7 @@ def load_interpretation(payload: Mapping[str, Any]) -> StatisticalPeriodInterpre
         ),
         documents=documents,
         renders=renders,
-        payload=_freeze(payload),
+        payload=frozen,
     )
 
 
@@ -1420,19 +1516,101 @@ class PinCheck:
     detail: str = ""
 
 
-@dataclass(frozen=True, slots=True)
-class DocumentaryVerification:
-    """The computed verdict over a resource's documentary pins.
+def documentary_pin_roster(
+    interpretation: StatisticalPeriodInterpretation,
+) -> tuple[str, ...]:
+    """Every documentary pin the resource declares, in verification order.
 
-    ``verified`` is a property derived from the checks, so no serialized flag
-    and no caller-set attribute can assert it.
+    The roster is the completeness contract. A verdict covers this exact list
+    or it covers nothing, so a subset of passing checks can never stand in for
+    a whole resource.
+    """
+    roster: list[str] = []
+    for document in interpretation.documents:
+        roster.append(document.document_id)
+        roster.append(document.retained_text.text_id)
+        roster.extend(
+            f"{document.retained_text.text_id}#{locator.pdf_page}"
+            for locator in document.pages
+        )
+    roster.extend(render.render_id for render in interpretation.renders)
+    return tuple(roster)
+
+
+#: Handed to :class:`DocumentaryVerification` by the verifier and by nothing
+#: else, so a verdict exists only where bytes were actually re-authenticated.
+_VERIFIER_ISSUANCE: Final = object()
+
+
+class DocumentaryVerification:
+    """The computed verdict over one interpretation's documentary pins.
+
+    Only :func:`verify_documentary_pins` issues one, and every verdict records
+    the exact resource it was issued for together with the complete pin roster
+    it covered. ``verified`` says the whole roster was re-authenticated;
+    :meth:`authenticates` additionally requires the verdict to belong to the
+    interpretation in hand. A serialized flag, a hand-built check, a copy of a
+    genuine verdict's checks, a partial roster and a verdict issued for another
+    resource therefore all authenticate nothing.
     """
 
-    checks: tuple[PinCheck, ...]
+    __slots__ = ("_checks", "_interpretation_id", "_pin_roster", "_resource_sha256")
+
+    def __init__(
+        self,
+        checks: Sequence[PinCheck],
+        *,
+        interpretation_id: str,
+        resource_sha256: str,
+        pin_roster: Sequence[str],
+        issued_by: object = None,
+    ) -> None:
+        if issued_by is not _VERIFIER_ISSUANCE:
+            raise VerificationIssuanceError()
+        object.__setattr__(self, "_checks", tuple(checks))
+        object.__setattr__(self, "_interpretation_id", interpretation_id)
+        object.__setattr__(self, "_resource_sha256", resource_sha256)
+        object.__setattr__(self, "_pin_roster", tuple(pin_roster))
+
+    def __setattr__(self, name: str, value: object) -> NoReturn:
+        raise AttributeError("DocumentaryVerification is immutable")
+
+    def __delattr__(self, name: str) -> NoReturn:
+        raise AttributeError("DocumentaryVerification is immutable")
+
+    def __repr__(self) -> str:
+        return (
+            f"DocumentaryVerification(interpretation_id="
+            f"{self._interpretation_id!r}, status={self.status!r}, "
+            f"checks={len(self._checks)})"
+        )
+
+    @property
+    def checks(self) -> tuple[PinCheck, ...]:
+        return self._checks
+
+    @property
+    def interpretation_id(self) -> str:
+        """The ``interpretation_id`` this verdict was issued for."""
+        return self._interpretation_id
+
+    @property
+    def resource_sha256(self) -> str:
+        """Canonical identity of the exact resource this verdict was issued for."""
+        return self._resource_sha256
+
+    @property
+    def pin_roster(self) -> tuple[str, ...]:
+        """The complete pin roster this verdict covered."""
+        return self._pin_roster
 
     @property
     def verified(self) -> bool:
-        return bool(self.checks) and all(check.ok for check in self.checks)
+        return (
+            bool(self._pin_roster)
+            and tuple(check.logical_id for check in self._checks) == self._pin_roster
+            and all(check.ok for check in self._checks)
+        )
 
     @property
     def status(self) -> str:
@@ -1440,7 +1618,7 @@ class DocumentaryVerification:
 
     @property
     def failures(self) -> tuple[PinCheck, ...]:
-        return tuple(check for check in self.checks if not check.ok)
+        return tuple(check for check in self._checks if not check.ok)
 
     @property
     def reasons(self) -> tuple[str, ...]:
@@ -1449,6 +1627,28 @@ class DocumentaryVerification:
             if check.reason and check.reason not in seen:
                 seen.append(check.reason)
         return tuple(seen)
+
+    def binding_failures(
+        self, interpretation: StatisticalPeriodInterpretation
+    ) -> tuple[str, ...]:
+        """Why this verdict does not belong to ``interpretation``.
+
+        Empty when it does. Each reason is as specific as the mismatch: a
+        changed pin or any other edited byte moves the canonical resource
+        identity, and an added or removed pin moves the roster.
+        """
+        reasons: list[str] = []
+        if self._interpretation_id != interpretation.interpretation_id:
+            reasons.append("verification_issued_for_another_interpretation_id")
+        if self._resource_sha256 != interpretation.resource_sha256:
+            reasons.append("verification_issued_for_other_resource_bytes")
+        if self._pin_roster != documentary_pin_roster(interpretation):
+            reasons.append("verification_roster_is_not_this_resource_roster")
+        return tuple(reasons)
+
+    def authenticates(self, interpretation: StatisticalPeriodInterpretation) -> bool:
+        """True only for the exact interpretation this verdict was issued for."""
+        return self.verified and not self.binding_failures(interpretation)
 
 
 def _check_bytes(
@@ -1500,6 +1700,10 @@ def verify_documentary_pins(
     or empty bytes leave the verdict unverified — they are never repaired by a
     fresh extraction, and an unverified verdict still permits an explicitly
     unverified documentary display while refusing every growth use.
+
+    The verdict is issued against *this* interpretation: it carries the
+    resource's canonical identity and its complete pin roster, so it cannot be
+    carried across to a different interpretation later.
     """
     checks: list[PinCheck] = []
     for document in interpretation.documents:
@@ -1562,7 +1766,13 @@ def verify_documentary_pins(
                 render.bytes_,
             )
         )
-    return DocumentaryVerification(checks=tuple(checks))
+    return DocumentaryVerification(
+        checks,
+        interpretation_id=interpretation.interpretation_id,
+        resource_sha256=interpretation.resource_sha256,
+        pin_roster=documentary_pin_roster(interpretation),
+        issued_by=_VERIFIER_ISSUANCE,
+    )
 
 
 # --------------------------------------------------------------------------
@@ -1724,15 +1934,36 @@ def annotate_reported_period(
 def documentary_display(
     interpretation: StatisticalPeriodInterpretation,
     verification: DocumentaryVerification | None = None,
+    *,
+    resolve: Resolver | None = None,
 ) -> Mapping[str, Any]:
     """A display record that states its own verification status.
 
-    With no verification, or a failed one, the record is explicitly labelled
-    unverified and reports ``provenance_authenticated`` as ``False``. It never
-    reports authenticated documentary provenance on the strength of the
-    resource's own assertions.
+    Provenance is reported as authenticated only when a verdict issued by
+    :func:`verify_documentary_pins` *for this exact resource and its complete
+    pin roster* passed every check. Pass ``resolve`` instead of a verdict to
+    have the display re-authenticate the resolved bytes itself.
+
+    With no verification, a failed one, or one issued for another
+    interpretation, the record is explicitly labelled unverified, reports
+    ``provenance_authenticated`` as ``False`` and keeps every refusal reason.
+    It never reports authenticated documentary provenance on the strength of
+    the resource's own assertions.
     """
-    verified = bool(verification is not None and verification.verified)
+    if resolve is not None:
+        if verification is not None:
+            raise InterpretationError(
+                "documentary_display takes either a verification or a resolver, "
+                "not both"
+            )
+        verification = verify_documentary_pins(interpretation, resolve)
+    if verification is None:
+        verified = False
+        reasons: tuple[str, ...] = ()
+    else:
+        binding = verification.binding_failures(interpretation)
+        verified = verification.verified and not binding
+        reasons = verification.reasons + binding
     return _freeze(
         {
             "interpretation_id": interpretation.interpretation_id,
@@ -1750,7 +1981,7 @@ def documentary_display(
             "documentary_pins_status": "declared" if not verified else "verified",
             "documentary_pins_verified": verified,
             "provenance_authenticated": verified,
-            "unverified_reasons": list(verification.reasons) if verification else [],
+            "unverified_reasons": list(reasons),
             "growth_admitted": False,
             "scientific_admission": False,
             "release_admission": False,
