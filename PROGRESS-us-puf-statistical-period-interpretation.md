@@ -38,9 +38,10 @@ parent. No existing checkout is edited, reset, rebased or cleaned.
 - [x] Fresh worktree from `origin/main`, PROGRESS journal seeded
 - [x] Interpretation resource JSON + versioned JSON Schema
 - [x] Source-only validator + shared growth-refusal guard
-- [x] Source/invented test proof — 136 tests, all passing
+- [x] Source/invented test proof — 148 tests, all passing
 - [x] Named-document authenticity run under the pinned bounded runtime
-- [ ] Reports at `/private/tmp/us-puf-period-interpretation-REPORT.{md,json}`
+- [x] Adversarial clause audit: 235 verdicts, 232 satisfied, 3 claimed gaps
+- [x] Reports at `/private/tmp/us-puf-period-interpretation-REPORT.{md,json}`
 
 ## What landed
 
@@ -75,16 +76,55 @@ capped by `RLIMIT_CPU` (kernel-enforced on macOS) and wall time and RSS by a
 supervisor that polls and SIGKILLs the child process group. No cap is claimed
 that is not applied.
 
-- Tests: 136 passed, 11.7s child CPU, 13.5s wall, 0.82 GiB peak RSS, one thread.
+- Tests: 148 passed, 11.6s child CPU, 12.4s wall, 0.82 GiB peak RSS, one thread.
 - Loaded-source git-byte proof: 125 of 125 loaded worktree source files match
   their `HEAD` blob SHA-1 exactly, including the module and the test file.
 - Document authenticity: 20 pin checks pass — 2 PDFs, 2 retained texts, 14
-  page-text hashes recomputed under the declared method, 2 renders — plus 4
+  page-text hashes recomputed under the declared method, 2 renders — plus 5
   side pins (raw source definition, historical extraction receipt, independent
-  reproduction, historical report). A one-substring mutation control fails
-  closed, and growth stays refused with verified pins and with a claimed review.
+  reproduction, prior URL-match receipt, historical report). A one-substring
+  mutation control fails closed, and growth stays refused with verified pins
+  and with a claimed review. That run imported no numpy, pandas, rules engine,
+  frame, graph or calibrate module at all.
+
+## Adversarial clause audit
+
+The adjudication's plan and companion evidence were decomposed into 235 atomic
+normative clauses and audited against the committed artifacts, with each
+claimed gap put to three independent refuters. 232 satisfied, 3 claimed gaps,
+all 3 refuted 3/3. Two of those refutations were not accepted at face value and
+were fixed anyway in `93b5fb49`:
+
+- The plan enumerates **blurring** among the four things PDF page 4 describes
+  and requires the later audit to "State blurring and aggregate-record
+  treatment". The resource had recorded the other three treatments and dropped
+  blurring. It now carries all of them in the publisher's own wording, the
+  validator refuses a resource that drops one, and the deferred audit protocol
+  carries the requirement verbatim.
+- The resource claimed the public archive copy had been byte-matched in a
+  pinned URL-check receipt without pinning that receipt. It now binds the
+  receipt (`34d5fa33…`, 649 bytes) together with the document identity it
+  attests, and the validator refuses an attestation that disagrees with the
+  document pin it names. The authenticity run re-authenticates it as a fifth
+  side pin.
+
+Two ride-along paths the audit noted are also closed: unknown keys inside the
+`convention` block are refused by both the schema and the validator, and the
+page-level hash-mismatch branch of documentary verification — previously
+unexercised — now has a test that keeps the container authentic while a page
+pin disagrees.
 
 ## Next
 
-Write the reports, then hand to root for source review before any integration.
-No push, PR, merge or deploy from this branch.
+Root reviews the source before any integration. Nothing was pushed; there is no
+PR, no merge, no deploy, and no release or growth authority anywhere in this
+branch. The later source-period audit and the mandatory convention sensitivity
+comparison remain described, unauthorized and uncalculated.
+
+One packaging check could not be run locally: hatchling is absent from the
+pinned environment and dependency installs are out of scope, so wheel inclusion
+of `us_source_interpretation/*.json` was not built and confirmed here. It
+follows the same shape as the existing `src/microcosm/build/us/*.json` data
+directory, and the repo's `wheels` lane runs the suite against installed
+wheels, where `test_packaged_resource_states_the_adjudicated_period` would fail
+loudly if the resource were omitted.
