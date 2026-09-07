@@ -184,11 +184,11 @@ extraction.
 - [x] Review `.md` + `.json` read; JSON sha256 matches the mandate pin
 - [x] Successor journal seeded and committed
 - [x] Red-before proof reproducing both findings at `db0ed285`
-- [ ] P2A fix — verifier-issued, resource-and-roster-bound verdict
-- [ ] P2B fix — loader enforcement of the revision-1 conflict fields
-- [ ] Actual-source invented tests for both
-- [ ] Green-after proof, same harness
-- [ ] Existing interpretation suite re-run once
+- [x] P2A fix — verifier-issued, resource-and-roster-bound verdict
+- [x] P2B fix — loader enforcement of the revision-1 conflict fields
+- [x] Actual-source invented tests for both — 188 pass, up from 148
+- [x] Green-after proof, same probe bytes, against the committed fix
+- [x] Existing interpretation suite re-run once, exit 0
 - [ ] Frozen report at `/private/tmp/us-puf-period-root-review-fixes-REPORT.{md,json}`
 - [ ] Root/independent peer review of the final source
 
@@ -234,7 +234,89 @@ findings against the reviewed bytes:
   status, every missing required conflict field, a missing sub-block, and both
   `page3_page4_edition_difference` constants flipped true.
 
+## What changed
+
+`4f30255ec33c5e5eb235c6e2f836cd79ab414746`, two files, +667/-20.
+
+**P2A.** `DocumentaryVerification` is no longer a value a caller can build. Its
+constructor requires the verifier's own issuance token — which is never stored
+on the instance, so copying every public field of a genuine verdict does not
+re-issue it — and every issued verdict carries the canonical identity of the
+resource it verified plus the complete pin roster it covered.
+`documentary_display` authenticates only through
+`verification.authenticates(interpretation)`, so a verdict issued for one
+interpretation cannot authenticate another; the display reports the specific
+binding that failed in `unverified_reasons` rather than going quiet. As the
+review's stated alternative, `documentary_display(..., resolve=…)` will
+re-authenticate the resolved bytes itself, and refuses to be handed both a
+verdict and a resolver. `documentary_pin_roster` and `VerificationIssuanceError`
+are the only new public names; there is no new trust framework, no admission
+path and no serialized boolean anywhere.
+
+**P2B.** `_validate_disagreement_record` enforces the published schema's own
+contract and stops there: the three sub-blocks must be present, the four
+conflict fields must be present, `status` must stay
+`unresolved_and_recorded_verbatim`, `corrected` must stay `False`, and both
+`page3_page4_edition_difference` constants must stay `False`. `printed_text`
+must be a real string and `delivered_domain` a real integer domain — the two
+are kept separate and are **never compared**, so the loader records that they
+disagree without deciding which is right. No publisher text moved; the packaged
+resource is byte-unchanged and still loads.
+
+## Green-after proof
+
+The extended probe (`…-probe2.py`, sha256 `ac977f4b…`, 32 witnesses) runs
+against either the worktree files or a revision's Git blobs, so the *same probe
+bytes* witness the reviewed source and the fixed source.
+
+| Run | Source under probe | Result |
+| --- | --- | --- |
+| red | `db0ed285` blobs, materialized and hashed | `all_expected_after_fix: false`, 17 of 32 witnesses fail |
+| green | worktree files at `4f30255e`, each matching its `HEAD` blob | `all_expected_after_fix: true`, 0 fail |
+
+- red `…-red2.json` sha256 `254e04b5…`, receipt `505d5c38…`
+  (exit 0, 0.30s CPU, 0.37s wall, 36.5 MiB peak)
+- green `…-green.json` sha256 `73245939…`, receipt `64fe772b…`
+  (exit 0, 0.28s CPU, 0.31s wall, 36.0 MiB peak)
+
+Probe 1 (`71c0e00d…`, 21 witnesses, red `c845102e…`) is retained as first
+evidence; probe 2 supersedes it by adding the strongest construction attacks —
+a verdict copying every public field of a genuine one, and a complete roster of
+passing checks forged from the resource's own declared pins without resolving a
+single byte. Both are refused by name with `VerificationIssuanceError`.
+
+Two witnesses are recorded as holding *both* before and after, so the fix is
+shown not to have quietly lost them: an issued verdict stays immutable, and the
+packaged resource still loads with its printed-versus-delivered contradiction
+intact.
+
+## Test evidence
+
+188 tests pass, up from the first session's 148 — 40 new. Collected count
+independently confirmed at 188 by a separate `--collect-only` run.
+
+- receipt `…-test-receipt.json` sha256 `2875558f…`: exit 0, 12.0s user +0.7s
+  system child CPU, 12.8s wall, 0.76 GiB peak RSS, nothing killed.
+- loaded-source proof `…-test-source-proof.json` sha256 `c963e8e1…`: **125 of
+  125** loaded worktree source files match their `HEAD` blob SHA-1, one thread
+  at exit, and neither `policyengine_us` nor `policyengine_uk` was imported.
+
+Runtime is the first session's, unchanged: pinned 3.14.4 (`bf4ea262…`) under
+`-I -B -S` with a fresh absent absolute `pycache_prefix` that stays absent
+afterwards, 180s `RLIMIT_CPU`, 240s wall and 2 GiB RSS by supervisor poll and
+process-group SIGKILL. No cap was raised for any run. `RLIMIT_AS` is still
+unsettable on this host and is reported as unenforced rather than claimed.
+
+## Scope deviation, reverted
+
+One `uv run ruff` invocation created a `.venv/` in this worktree and installed
+three packages, which the mandate excludes. It was removed immediately and
+every later lint used the already-present pinned runtime's ruff 0.15.16. The
+directory is git-ignored; nothing entered a commit. Both changed files pass
+`ruff check` and `ruff format --check`.
+
 ## Next
 
-Fix P2A, then P2B, then extend the actual-source invented tests, then re-run
-this probe unchanged and the existing interpretation suite once.
+Freeze the report, then have root and an independent peer review the final
+source before any integration. Still nothing pushed: no PR, no merge, no
+deploy, no release, and no growth authority anywhere in this branch.
