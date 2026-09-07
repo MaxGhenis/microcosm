@@ -2024,6 +2024,8 @@ def documentary_display(
         verified = False
         reasons: tuple[str, ...] = ()
     else:
+        if type(verification) is not DocumentaryVerification:
+            raise VerificationIssuanceError()
         binding = verification.binding_failures(interpretation)
         verified = verification.verified and not binding
         reasons = verification.reasons + binding

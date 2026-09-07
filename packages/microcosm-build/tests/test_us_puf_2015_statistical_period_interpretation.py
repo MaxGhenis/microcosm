@@ -22,6 +22,7 @@ import json
 import pickle
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -930,6 +931,18 @@ def test_a_directly_constructed_verification_is_refused(payload) -> None:
             interpretation=interpretation,
             pin_roster=roster,
         )
+
+
+def test_display_refuses_a_non_verdict_without_calling_its_methods(payload) -> None:
+    calls = []
+    fabricated = SimpleNamespace(
+        verified=True,
+        reasons=(),
+        binding_failures=lambda interpretation: calls.append(interpretation) or (),
+    )
+    with pytest.raises(VerificationIssuanceError, match="issued by"):
+        documentary_display(load_interpretation(payload), fabricated)
+    assert calls == []
 
 
 def test_a_copy_constructed_verification_is_refused(payload, resolver_bytes) -> None:
