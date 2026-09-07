@@ -1043,11 +1043,14 @@ def test_a_verdict_cannot_be_copied_pickled_or_compared_by_value(
     verification = verify_documentary_pins(
         interpretation, resolver_from(resolver_bytes)
     )
+    # ``copy`` is refused by the immutable ``__setattr__``; ``deepcopy`` and
+    # ``pickle`` are refused earlier still, by the frozen payload the verdict
+    # holds. Both are refusals, and the reason differs by route.
     with pytest.raises(AttributeError):
         copy.copy(verification)
-    with pytest.raises(AttributeError):
+    with pytest.raises((AttributeError, TypeError)):
         copy.deepcopy(verification)
-    with pytest.raises(AttributeError):
+    with pytest.raises((AttributeError, TypeError)):
         pickle.loads(pickle.dumps(verification))
     again = verify_documentary_pins(interpretation, resolver_from(resolver_bytes))
     assert again is not verification
