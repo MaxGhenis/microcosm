@@ -1470,7 +1470,10 @@ def load_interpretation(payload: Mapping[str, Any]) -> StatisticalPeriodInterpre
         # a stable reason rather than escaping as a bare ValueError from the
         # JSON encoder later, when ``resource_sha256`` recomputes it.
         canonical_resource_sha256(frozen)
-    except ValueError as error:
+    except (TypeError, ValueError) as error:
+        # ValueError covers NaN and the infinities; TypeError covers a non-JSON
+        # value or a non-string key, which a Mapping can carry even though
+        # ``json.loads`` never produces one.
         raise ResourceValidationError(
             "resource_is_not_canonically_identifiable", "", str(error)
         ) from error
@@ -1756,9 +1759,12 @@ def verify_documentary_pins(
     fresh extraction, and an unverified verdict still permits an explicitly
     unverified documentary display while refusing every growth use.
 
-    The verdict is issued against *this* interpretation: it carries the
-    resource's canonical identity and its complete pin roster, so it cannot be
-    carried across to a different interpretation later.
+    The verdict is issued against *this* interpretation: it holds the exact
+    object it verified, alongside that resource's canonical identity and its
+    complete pin roster, so it cannot be carried across to a different
+    interpretation later. Holding the object is what makes that hold — the
+    recorded values alone do not, because an edited copy of a view inherits
+    every one of them.
     """
     checks: list[PinCheck] = []
     for document in interpretation.documents:
@@ -1994,9 +2000,12 @@ def documentary_display(
     """A display record that states its own verification status.
 
     Provenance is reported as authenticated only when a verdict issued by
-    :func:`verify_documentary_pins` *for this exact resource and its complete
-    pin roster* passed every check. Pass ``resolve`` instead of a verdict to
-    have the display re-authenticate the resolved bytes itself.
+    :func:`verify_documentary_pins` *for this exact interpretation object and
+    its complete pin roster* passed every check. "Exact" is literal: a second,
+    byte-identical load of the same resource is a different object and its
+    verdict does not carry over, so a cached verdict is re-verified rather than
+    reused. Pass ``resolve`` instead of a verdict to have the display
+    re-authenticate the resolved bytes itself.
 
     With no verification, a failed one, or one issued for another
     interpretation, the record is explicitly labelled unverified, reports

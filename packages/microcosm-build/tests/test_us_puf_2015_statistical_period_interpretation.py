@@ -1803,11 +1803,26 @@ def test_the_unresolved_code_page_conflict_cannot_be_declared_away(
     assert error.value.location.startswith("disagreement_record")
 
 
-@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param(float("nan"), id="nan"),
+        pytest.param(float("inf"), id="inf"),
+        pytest.param(float("-inf"), id="negative_inf"),
+        pytest.param({1, 2}, id="set"),
+        pytest.param(object(), id="opaque_object"),
+        pytest.param({(1, 2): "tuple key"}, id="non_string_key"),
+    ],
+)
 def test_a_resource_that_cannot_be_canonically_identified_is_refused(
     payload, value
 ) -> None:
-    """Binding a verdict needs a canonical identity, so it is required to exist."""
+    """Binding a verdict needs a canonical identity, so it is required to exist.
+
+    ``json.loads`` never produces the last three, but ``load_interpretation``
+    takes any ``Mapping``, so the refusal covers the encoder's ``TypeError``
+    as well as its ``ValueError``.
+    """
     payload["scope"]["invented_non_json_value"] = value
     with pytest.raises(ResourceValidationError) as error:
         load_interpretation(payload)
