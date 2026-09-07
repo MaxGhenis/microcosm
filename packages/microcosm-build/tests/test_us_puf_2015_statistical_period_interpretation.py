@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import ast
 import copy
+import dataclasses
 import hashlib
 import importlib.util
 import json
+import pickle
 import sys
 from pathlib import Path
 from typing import Any
@@ -925,8 +927,7 @@ def test_a_directly_constructed_verification_is_refused(payload) -> None:
     with pytest.raises(VerificationIssuanceError):
         DocumentaryVerification(
             tuple(PinCheck(logical_id, "forged", True, None) for logical_id in roster),
-            interpretation_id=interpretation.interpretation_id,
-            resource_sha256=interpretation.resource_sha256,
+            interpretation=interpretation,
             pin_roster=roster,
         )
 
@@ -940,8 +941,7 @@ def test_a_copy_constructed_verification_is_refused(payload, resolver_bytes) -> 
         with pytest.raises(VerificationIssuanceError):
             DocumentaryVerification(
                 genuine.checks,
-                interpretation_id=genuine.interpretation_id,
-                resource_sha256=genuine.resource_sha256,
+                interpretation=interpretation,
                 pin_roster=genuine.pin_roster,
                 **issuance,
             )
@@ -956,18 +956,104 @@ def test_an_incomplete_or_empty_verification_is_refused(
         with pytest.raises(VerificationIssuanceError):
             DocumentaryVerification(
                 checks,
-                interpretation_id=genuine.interpretation_id,
-                resource_sha256=genuine.resource_sha256,
+                interpretation=interpretation,
                 pin_roster=genuine.pin_roster,
             )
     # A hand-built successful check is refused the same way.
     with pytest.raises(VerificationIssuanceError):
         DocumentaryVerification(
             (PinCheck("unresolved-invented-pin", "pdf", True, None),),
-            interpretation_id=genuine.interpretation_id,
-            resource_sha256=genuine.resource_sha256,
+            interpretation=interpretation,
             pin_roster=genuine.pin_roster,
         )
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        pytest.param(
+            lambda view: dataclasses.replace(view, statistical_reference_tax_year=1999),
+            id="scalar_field",
+        ),
+        pytest.param(
+            lambda view: dataclasses.replace(
+                view,
+                documents=(
+                    dataclasses.replace(view.documents[0], pdf_sha256="f" * 64),
+                ),
+            ),
+            id="changed_pdf_pin",
+        ),
+        pytest.param(
+            lambda view: dataclasses.replace(view, interpretation_id="invented.other"),
+            id="interpretation_id",
+        ),
+    ],
+)
+def test_an_edited_copy_of_the_view_cannot_reuse_its_verdict(
+    payload, resolver_bytes, edit
+) -> None:
+    """``dataclasses.replace`` is a public stdlib call, not a private bypass.
+
+    An edited copy inherits every value the verdict recorded, so the binding
+    cannot rest on those values alone: the verdict authenticates the exact
+    interpretation object it was issued for.
+    """
+    interpretation = load_interpretation(payload)
+    verification = verify_documentary_pins(
+        interpretation, resolver_from(resolver_bytes)
+    )
+    assert verification.authenticates(interpretation) is True
+
+    edited = edit(interpretation)
+    assert verification.authenticates(edited) is False
+    assert "verification_issued_for_a_different_interpretation" in (
+        verification.binding_failures(edited)
+    )
+    display = documentary_display(edited, verification)
+    assert display["provenance_authenticated"] is False
+    assert display["documentary_pins_status"] == "declared"
+
+
+def test_the_resource_identity_is_recomputed_not_carried_over(
+    payload, resolver_bytes
+) -> None:
+    """An edited payload moves the identity even on a hand-made copy of the view."""
+    interpretation = load_interpretation(payload)
+    verification = verify_documentary_pins(
+        interpretation, resolver_from(resolver_bytes)
+    )
+    edited = copy.deepcopy(payload)
+    edited["disagreement_record"]["code_page_printed_domain"]["printed_text"] = "moved"
+    forged = dataclasses.replace(interpretation, payload=period._freeze(edited))
+    assert forged.resource_sha256 != interpretation.resource_sha256
+    assert "verification_issued_for_other_resource_bytes" in (
+        verification.binding_failures(forged)
+    )
+    assert (
+        documentary_display(forged, verification)["provenance_authenticated"] is False
+    )
+
+
+def test_a_verdict_cannot_be_copied_pickled_or_compared_by_value(
+    payload, resolver_bytes
+) -> None:
+    """A copy of a verdict would be a verdict nobody issued, so there is none."""
+    interpretation = load_interpretation(payload)
+    verification = verify_documentary_pins(
+        interpretation, resolver_from(resolver_bytes)
+    )
+    with pytest.raises(AttributeError):
+        copy.copy(verification)
+    with pytest.raises(AttributeError):
+        copy.deepcopy(verification)
+    with pytest.raises(AttributeError):
+        pickle.loads(pickle.dumps(verification))
+    again = verify_documentary_pins(interpretation, resolver_from(resolver_bytes))
+    assert again is not verification
+    assert again != verification
+    # Both are genuine, so both authenticate the interpretation they were issued for.
+    assert again.authenticates(interpretation) is True
 
 
 def test_an_issued_verdict_cannot_be_edited(payload, resolver_bytes) -> None:

@@ -24,13 +24,21 @@ asserted away by an edited resource:
 
 * ``GrowthAdmission.admitted`` is a read-only property returning ``False``.
 * ``DocumentaryVerification`` is issued only by :func:`verify_documentary_pins`,
-  from re-authenticated bytes, bound to the exact resource and to the complete
-  pin roster it covered. The resource may not carry a serialized verified flag
-  at all, a caller cannot build a verdict, and a verdict issued for one
-  interpretation cannot authenticate another.
+  from re-authenticated bytes, and authenticates only the exact interpretation
+  object it was issued for together with the complete pin roster it covered.
+  The resource may not carry a serialized verified flag at all, and a caller
+  cannot assemble a verdict.
 * The interpretation binds the frozen raw source definition by identity and
   hash only. It never imports it, never rewrites it, and never touches its
   ``period_semantics`` value of ``unresolved_raw_FLPDYR``.
+
+What that does **not** claim: a caller who fabricates a
+:class:`StatisticalPeriodInterpretation` outside :func:`load_interpretation`,
+or edits one with ``dataclasses.replace``, and then verifies *that* against
+bytes it resolves itself, is describing its own fabrication. No verdict is
+reused and nothing is forged — the display simply reports the view it was
+handed. The guarantees above are about verdicts, not about the provenance of a
+view a caller built; use :func:`load_interpretation` for that.
 
 The module is deliberately stdlib-only and lives outside
 ``microcosm.build.us_runtime``, whose package initialization eagerly imports
@@ -514,8 +522,6 @@ class StatisticalPeriodInterpretation:
     """A validated interpretation resource."""
 
     interpretation_id: str
-    #: Canonical identity of the exact payload this view was loaded from.
-    resource_sha256: str
     schema_version: int
     statistical_reference_tax_year: int
     processing_calendar_year: int
@@ -532,6 +538,17 @@ class StatisticalPeriodInterpretation:
     @property
     def schema(self) -> str:
         return RESOURCE_SCHEMA_ID
+
+    @property
+    def resource_sha256(self) -> str:
+        """Canonical identity of this resource, recomputed from the payload.
+
+        Derived rather than stored, so it cannot be carried over unchanged onto
+        an edited copy of this view. :func:`load_interpretation` proves the
+        payload is canonically encodable before returning, so this cannot raise
+        for a loaded view.
+        """
+        return canonical_resource_sha256(self.payload)
 
     @property
     def documentary_pins_status(self) -> str:
@@ -1448,18 +1465,18 @@ def load_interpretation(payload: Mapping[str, Any]) -> StatisticalPeriodInterpre
 
     frozen = _freeze(payload)
     try:
-        resource_sha256 = canonical_resource_sha256(frozen)
+        # Proved here, not stored: a resource that cannot be canonically
+        # identified cannot be bound to a verdict either, so it is refused with
+        # a stable reason rather than escaping as a bare ValueError from the
+        # JSON encoder later, when ``resource_sha256`` recomputes it.
+        canonical_resource_sha256(frozen)
     except ValueError as error:
-        # A resource that cannot be canonically identified cannot be bound to
-        # a verdict either, so it is refused here with a stable reason rather
-        # than escaping as a bare ValueError from the JSON encoder.
         raise ResourceValidationError(
             "resource_is_not_canonically_identifiable", "", str(error)
         ) from error
 
     return StatisticalPeriodInterpretation(
         interpretation_id=interpretation_id,
-        resource_sha256=resource_sha256,
         schema_version=RESOURCE_SCHEMA_VERSION,
         statistical_reference_tax_year=STATISTICAL_REFERENCE_TAX_YEAR,
         processing_calendar_year=PROCESSING_CALENDAR_YEAR,
@@ -1555,31 +1572,41 @@ _VERIFIER_ISSUANCE: Final = object()
 class DocumentaryVerification:
     """The computed verdict over one interpretation's documentary pins.
 
-    Only :func:`verify_documentary_pins` issues one, and every verdict records
-    the exact resource it was issued for together with the complete pin roster
-    it covered. ``verified`` says the whole roster was re-authenticated;
-    :meth:`authenticates` additionally requires the verdict to belong to the
-    interpretation in hand. A serialized flag, a hand-built check, a copy of a
-    genuine verdict's checks, a partial roster and a verdict issued for another
-    resource therefore all authenticate nothing.
+    Only :func:`verify_documentary_pins` issues one, and every verdict holds
+    the exact interpretation it was issued for together with the complete pin
+    roster it covered. ``verified`` says the whole roster was re-authenticated;
+    :meth:`authenticates` additionally requires the verdict to be presented
+    with that same interpretation. A serialized flag, a hand-built check, a
+    copy of a genuine verdict's checks, a partial roster, an edited copy of the
+    view and a verdict issued for another resource therefore all authenticate
+    nothing.
+
+    A verdict is deliberately not copyable, picklable or comparable by value:
+    a copy of a verdict is a verdict nobody issued.
     """
 
-    __slots__ = ("_checks", "_interpretation_id", "_pin_roster", "_resource_sha256")
+    __slots__ = (
+        "_checks",
+        "_interpretation",
+        "_interpretation_id",
+        "_pin_roster",
+        "_resource_sha256",
+    )
 
     def __init__(
         self,
         checks: Sequence[PinCheck],
         *,
-        interpretation_id: str,
-        resource_sha256: str,
+        interpretation: StatisticalPeriodInterpretation,
         pin_roster: Sequence[str],
         issued_by: object = None,
     ) -> None:
         if issued_by is not _VERIFIER_ISSUANCE:
             raise VerificationIssuanceError()
         object.__setattr__(self, "_checks", tuple(checks))
-        object.__setattr__(self, "_interpretation_id", interpretation_id)
-        object.__setattr__(self, "_resource_sha256", resource_sha256)
+        object.__setattr__(self, "_interpretation", interpretation)
+        object.__setattr__(self, "_interpretation_id", interpretation.interpretation_id)
+        object.__setattr__(self, "_resource_sha256", interpretation.resource_sha256)
         object.__setattr__(self, "_pin_roster", tuple(pin_roster))
 
     def __setattr__(self, name: str, value: object) -> NoReturn:
@@ -1643,11 +1670,20 @@ class DocumentaryVerification:
     ) -> tuple[str, ...]:
         """Why this verdict does not belong to ``interpretation``.
 
-        Empty when it does. Each reason is as specific as the mismatch: a
-        changed pin or any other edited byte moves the canonical resource
-        identity, and an added or removed pin moves the roster.
+        Empty when it does. The load-bearing clause is the first: the verdict
+        authenticates the exact object the verifier was handed, so an edited
+        copy of that view — ``dataclasses.replace`` produces one, and it is a
+        public stdlib call — is a different interpretation and is refused even
+        though it inherited every value the verdict recorded.
+
+        The remaining clauses are not redundant. ``resource_sha256`` is
+        recomputed from the payload on every read rather than compared against
+        a stored copy, so they also catch a view edited in place after the
+        verdict was issued, and they say which binding moved.
         """
         reasons: list[str] = []
+        if interpretation is not self._interpretation:
+            reasons.append("verification_issued_for_a_different_interpretation")
         if self._interpretation_id != interpretation.interpretation_id:
             reasons.append("verification_issued_for_another_interpretation_id")
         if self._resource_sha256 != interpretation.resource_sha256:
@@ -1778,8 +1814,7 @@ def verify_documentary_pins(
         )
     return DocumentaryVerification(
         checks,
-        interpretation_id=interpretation.interpretation_id,
-        resource_sha256=interpretation.resource_sha256,
+        interpretation=interpretation,
         pin_roster=documentary_pin_roster(interpretation),
         issued_by=_VERIFIER_ISSUANCE,
     )
