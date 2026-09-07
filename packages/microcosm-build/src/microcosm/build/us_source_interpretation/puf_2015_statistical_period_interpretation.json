@@ -1,0 +1,452 @@
+{
+  "schema": "microcosm.us.puf_2015_statistical_period_interpretation",
+  "schema_version": 1,
+  "interpretation_id": "us_puf_2015_statistical_period.v1",
+  "authority": "documentary_interpretation_only",
+  "grants": {
+    "growth_authority": false,
+    "scientific_admission": false,
+    "release_admission": false,
+    "tax_law_authority": false,
+    "district_estimation_authority": false,
+    "calibration_authority": false
+  },
+  "scope": {
+    "question": "Whether the 2015 PUF's mixed reported FLPDYR values leave its statistical reference period unknown.",
+    "answer": "No. The publisher documents an explicit substitution convention; the statistical reference period is Tax Year 2015 while each reported accounting period is preserved verbatim.",
+    "resolves": "A narrower question than complete PUF scientific admission.",
+    "supersedes_nothing": true,
+    "predecessor_relationship": "stands_beside_never_replaces",
+    "reading_note": "Documentary facts carry basis publisher_documented. The modeling convention is a proposal and is labelled separately."
+  },
+  "alternatives_considered": [
+    {
+      "alternative": "statistical_reference_period_unresolved",
+      "held_by": "the earlier raw-source factor-admission plan",
+      "status": "superseded_as_the_period_description_only",
+      "reason": "It correctly preserved raw years but omitted the publisher's explicit prior-year substitution paragraph when describing the statistical period as unresolved.",
+      "older_report_disposition": "kept_as_history_and_linked_as_additional_evidence"
+    },
+    {
+      "alternative": "row_specific_price_conversion_using_reviewed_annual_indices",
+      "status": "open_required_comparison",
+      "reason": "A different sensitivity specification that could change the publisher's delivered distribution.",
+      "constraint": "Must never be added silently or compounded with an overlapping nominal factor; the comparison is mandatory before any donor recipe receives scientific admission."
+    },
+    {
+      "alternative": "treat_processing_year_2016_as_the_amount_growth_base",
+      "status": "rejected",
+      "reason": "PDF page 28 establishes the processing window, not an amount-growth base."
+    }
+  ],
+  "raw_source_binding": {
+    "definition_schema": "microcosm.us.puf_2015_raw_source_definition",
+    "definition_schema_version": 1,
+    "artifact_type_name": "microcosm.us.puf_2015_raw_return_status",
+    "artifact_type_version": 1,
+    "definition_sha256": "5664bfb87e804bfe220a8635a863866a0ede8f6143295e6b08bfc354114376dd",
+    "definition_bytes": 9707,
+    "preserved_period_semantics": "unresolved_raw_FLPDYR",
+    "binding_kind": "identity_and_hash_only",
+    "imports_predecessor_module": false,
+    "retroactive_mutation": false,
+    "note": "The predecessor records the delivered raw period semantics as unresolved_raw_FLPDYR. This interpretation does not rewrite that field, that definition, or any older receipt. A consumer may combine an authenticated raw artifact with this interpretation artifact; neither substitutes for the other."
+  },
+  "statistical_reference_period": {
+    "tax_year": 2015,
+    "basis": "publisher_documented",
+    "publisher_statement": "The records found in this file are intended to represent all returns filed for Tax Year 2015.",
+    "substitution_convention": "Returns for prior years were used in place of 2015 returns received and processed after December 31, 2016.",
+    "evidence_pages": [
+      {"document_page_ref": "sample_description_domain_of_study", "pdf_page": 28, "printed_page": 27}
+    ],
+    "does_not_establish": [
+      "Not proof that every amount was earned in 2015.",
+      "Not proof that the amounts on prior-year returns were restated into 2015 prices.",
+      "Not permission to repair or overwrite any reported accounting-period token."
+    ]
+  },
+  "reported_period_preservation": {
+    "fields": ["FLPDYR", "FLPDMO"],
+    "rule": "Preserve each delivered token exactly as delivered.",
+    "delivered_FLPDYR_domain": [2012, 2013, 2014, 2015],
+    "delivered_FLPDMO_domain": [12],
+    "delivered_domain_basis": "observed_in_root_verified_header_audit_recorded_by_the_predecessor_definition",
+    "automatic_row_year_repair": false,
+    "inference_from_statistical_reference_period": false,
+    "does_not_establish": "Not a single common observation period, and not permission to repair source tokens."
+  },
+  "processing_window": {
+    "calendar_year": 2016,
+    "basis": "publisher_documented",
+    "publisher_statement": "The data in this file are estimates from a probability sample of unaudited Individual Income Tax Returns, Forms 1040, 1040A, 1040EZ (including electronic returns) filed by U.S. citizens and residents during Calendar Year 2016.",
+    "exclusions": [
+      "tentative returns were not subjected to sampling",
+      "amended returns were excluded because the original returns had already been subjected to sampling",
+      "returns with no income information or frivolous or fraudulent income information were excluded in calculating estimates",
+      "this file excludes returns older than four years (Tax Year 2011 or less)",
+      "fiscal year returns have been converted to reflect the most recent year-end Tax Year",
+      "returns filed for years earlier than Tax Year 2012 have been removed from the file"
+    ],
+    "does_not_establish": "Not an amount-growth base of 2016."
+  },
+  "geographic_meaning": {
+    "national_only": true,
+    "basis": "publisher_documented",
+    "publisher_statement": "Subsequently, the 2015 Public Use Tax File is only appropriate for national level estimates.",
+    "evidence_pages": [{"document_page_ref": "introduction_national_estimates", "pdf_page": 3, "printed_page": 2}],
+    "does_not_establish": "Preserving the source's national interpretation does not validate transport to congressional districts."
+  },
+  "distinct_items": [
+    {
+      "item": "reported_accounting_period",
+      "proposed_representation": "Preserve exact raw FLPDYR and FLPDMO, fiscal-period processing and the documentary conflict.",
+      "does_not_establish": "Not a single common observation period, and not permission to repair source tokens."
+    },
+    {
+      "item": "statistical_reference_period",
+      "proposed_representation": "Tax year 2015, supported by the publisher's substitution convention.",
+      "does_not_establish": "Not proof that every amount was earned or price-adjusted in 2015."
+    },
+    {
+      "item": "processing_window",
+      "proposed_representation": "Calendar 2016, with the stated exclusions and substitution procedure.",
+      "does_not_establish": "Not an amount-growth base of 2016."
+    },
+    {
+      "item": "later_transport_convention",
+      "proposed_representation": "A separately reviewed statistical-baseline growth rule, with its factor basis and target reference period explicit.",
+      "does_not_establish": "Not an IRS recommendation for QRF, calibration, or Microcosm's 2024 dataset."
+    },
+    {
+      "item": "tax_benefit_law_period",
+      "proposed_representation": "Established by the actual later rules engine.",
+      "does_not_establish": "Never obtained by scaling a 2015 tax liability or credit."
+    }
+  ],
+  "convention": {
+    "convention_id": "us_puf_2015_statistical_baseline_growth.proposed.v1",
+    "convention_status": "proposed",
+    "convention_review": null,
+    "growth_admitted": false,
+    "label": "proposed_modeling_convention",
+    "basis": "modeling_choice_not_publisher_documented",
+    "description": "Preserve the publisher's 2015 statistical baseline when constructing a later-year donor distribution, applying a reviewed 2015-to-target statistical growth index to eligible source amounts without first applying another row-specific inflation factor.",
+    "treats": "The publisher's earlier-return substitutions as part of the delivered 2015 baseline.",
+    "does_not_claim": "Uniform observed 2015 prices.",
+    "compounding_with_row_specific_price_conversion": false,
+    "review_required_before_any_use": true
+  },
+  "growth_contract": {
+    "first_revision_refuses_all_growth": true,
+    "accepted_convention_status": ["proposed"],
+    "accepted_convention_review": [null],
+    "invalid_convention_states": ["missing", "unknown", "claimed_reviewed", "reviewed_modeling_convention"],
+    "refusal_is_unconditional": true,
+    "note": "Agreement on the governing plan grants no growth approval. Growth is refused for every resource under this schema revision, including any value labelled reviewed_modeling_convention, and including well-formed self-supplied hashes and review fields."
+  },
+  "future_positive_admission": {
+    "implemented": false,
+    "review_fingerprint_mechanism_defined": false,
+    "external_caller_trust_channel_defined": false,
+    "comparison_evidence_binding_defined": false,
+    "requires": [
+      "the mandatory statistical-baseline versus row-specific-price-conversion comparison",
+      "a separate schema revision that canonically defines a review fingerprint",
+      "a defined external caller trust channel",
+      "an exact comparison-evidence binding"
+    ],
+    "note": "None of this positive-admission path is implemented in this revision, and no fingerprint mechanism is invented here."
+  },
+  "documentary_pins": {
+    "status": "declared",
+    "verified_flag_is_computed_never_serialized": true,
+    "resolver": "caller_supplied_by_logical_id",
+    "archived_absolute_paths": "evidence locators in the review archive; not read authority and not recorded in this resource",
+    "silent_fresh_extraction_repair": false,
+    "unverified_display": "permitted only when explicitly labelled unverified"
+  },
+  "documents": [
+    {
+      "document_id": "main-2022",
+      "edition": "2022-09",
+      "title": "2015 Statistics of Income Public Use Tax File",
+      "publisher": "Internal Revenue Service, Statistics of Income Division",
+      "role": "primary_public_irs_document",
+      "pdf": {"sha256": "dfb2a6c85f98cba95624ece7c2bd239a0fd09457ca2498777c8242208ff7295b", "bytes": 23417059},
+      "retained_text": {
+        "text_id": "main-2022-text",
+        "sha256": "c2446b589f60592f337ed45f0d82406593fddafd16ec45d06440c07c35418765",
+        "bytes": 93855,
+        "segment_count": 88
+      },
+      "pages": [
+        {"pdf_page": 3, "printed_page": 2, "text_sha256": "c73eb7d8b4f4d13ed607c4ad1e8d6a4a992497b2276423a9bcbe42c10cea884c", "role": "introduction_national_estimates", "cross_edition_text_identical": false},
+        {"pdf_page": 4, "printed_page": 3, "text_sha256": "fc9ea1f8ca8951b54c28c3ec44dd5c2460326813c3da4739b1268929f36e6ad4", "role": "disclosure_avoidance_fiscal_conversion_and_aggregate_records", "cross_edition_text_identical": false},
+        {"pdf_page": 14, "printed_page": 13, "text_sha256": "7a984846853565dbe4cd6a91fa3fb0504b4babdfcb04ead7be0958dad043d9fa", "role": "code_page_flpdyr_flpdmo_printed_domain", "cross_edition_text_identical": true},
+        {"pdf_page": 28, "printed_page": 27, "text_sha256": "f85339d5c0c712b7e07fc37dd38c4d2948ebd62dfbb6d95415b10b80cb60a610", "role": "sample_description_domain_of_study", "cross_edition_text_identical": true},
+        {"pdf_page": 29, "printed_page": 28, "text_sha256": "55f61a3d7b043d53321edb57cc340ab2b6b7193d7bb31a7f28ec90bf06a6008d", "role": "sample_design_selection_and_data_capture", "cross_edition_text_identical": true},
+        {"pdf_page": 30, "printed_page": 29, "text_sha256": "a67c062d2725060bd269f698103388e4d0af335fc7c662de90fe031da9bb5ba0", "role": "method_of_estimation_weights", "cross_edition_text_identical": true},
+        {"pdf_page": 40, "printed_page": 39, "text_sha256": "d02c71e6a164a85c8c44d8f7de8c4a4ba9612300760f191478628275cd527b97", "role": "weighted_sum_for_each_code_field", "cross_edition_text_identical": true}
+      ]
+    },
+    {
+      "document_id": "main-2023",
+      "edition": "2023-02",
+      "title": "2015 Statistics of Income Public Use Tax File",
+      "publisher": "Internal Revenue Service, Statistics of Income Division",
+      "role": "primary_public_irs_document",
+      "cited_edition_for_page3_and_page4_wording": true,
+      "pdf": {"sha256": "93a1d863b5a4af21b624714fb2bb3f9d30509defdd8f2c052c2c5ca4d9cce35c", "bytes": 23413549},
+      "retained_text": {
+        "text_id": "main-2023-text",
+        "sha256": "c7f84a1ec266d341b713ed1251c7056b6636e6a8ac23ef1124f21fe367f34353",
+        "bytes": 94017,
+        "segment_count": 88
+      },
+      "pages": [
+        {"pdf_page": 3, "printed_page": 2, "text_sha256": "2473c4eab1c02b983089840784ff7e7b1fc37ff5d6b20a0a1f39b1a44bc2ed0b", "role": "introduction_national_estimates", "cross_edition_text_identical": false},
+        {"pdf_page": 4, "printed_page": 3, "text_sha256": "bd1f72c42a07485f49048ee3f5c7bd430813f059c1561041c805be50ac4095d2", "role": "disclosure_avoidance_fiscal_conversion_and_aggregate_records", "cross_edition_text_identical": false},
+        {"pdf_page": 14, "printed_page": 13, "text_sha256": "7a984846853565dbe4cd6a91fa3fb0504b4babdfcb04ead7be0958dad043d9fa", "role": "code_page_flpdyr_flpdmo_printed_domain", "cross_edition_text_identical": true},
+        {"pdf_page": 28, "printed_page": 27, "text_sha256": "f85339d5c0c712b7e07fc37dd38c4d2948ebd62dfbb6d95415b10b80cb60a610", "role": "sample_description_domain_of_study", "cross_edition_text_identical": true},
+        {"pdf_page": 29, "printed_page": 28, "text_sha256": "55f61a3d7b043d53321edb57cc340ab2b6b7193d7bb31a7f28ec90bf06a6008d", "role": "sample_design_selection_and_data_capture", "cross_edition_text_identical": true},
+        {"pdf_page": 30, "printed_page": 29, "text_sha256": "a67c062d2725060bd269f698103388e4d0af335fc7c662de90fe031da9bb5ba0", "role": "method_of_estimation_weights", "cross_edition_text_identical": true},
+        {"pdf_page": 40, "printed_page": 39, "text_sha256": "d02c71e6a164a85c8c44d8f7de8c4a4ba9612300760f191478628275cd527b97", "role": "weighted_sum_for_each_code_field", "cross_edition_text_identical": true}
+      ]
+    }
+  ],
+  "renders": [
+    {
+      "render_id": "main-2023-pdf-page28-render",
+      "document_id": "main-2023",
+      "pdf_page": 28,
+      "printed_page": 27,
+      "sha256": "e7ae0250350219992c726d00060c97e125a6c82e5f1bce73cdc504896044f602",
+      "bytes": 348512,
+      "visually_inspected": true
+    },
+    {
+      "render_id": "main-2023-pdf-page40-render",
+      "document_id": "main-2023",
+      "pdf_page": 40,
+      "printed_page": 39,
+      "sha256": "acdde03ad5da38b6b13a2fa9ecee23fd00c7f5ecec668e75ea923abd6f9a0a68",
+      "bytes": 209277,
+      "visually_inspected": true
+    }
+  ],
+  "page_text_hash_method": {
+    "id": "retained_utf8_formfeed_pdf_page_sha256.v1",
+    "authenticate_container": "sha256 of exact retained text file bytes must match the declared retained_text sha256 first",
+    "decode": "utf-8 strict",
+    "split": "literal U+000C formfeed",
+    "index": "one-based pdf_page; zero-based segment pdf_page - 1",
+    "locator_validation": "non-boolean integer; 1 <= pdf_page <= segment_count; actual segment count must equal the declared segment_count; the selected segment must not be empty",
+    "preserve": "all whitespace, newlines, headers and footers exactly; no stripping and no normalization",
+    "encode": "utf-8 strict",
+    "hash": "sha256 of the selected encoded segment bytes, excluding the formfeed separators",
+    "append_separator": false,
+    "fresh_pdf_extraction": false
+  },
+  "document_and_render_hash_method": {
+    "id": "exact_file_bytes_sha256.v1",
+    "hash": "sha256 of the exact retained file bytes",
+    "normalization": null,
+    "pixel_hash": false,
+    "bit_identical_render_regeneration_claimed": false
+  },
+  "canonical_resource_hash_method": "sha256 of json.dumps(payload, sort_keys=True, separators=(\",\",\":\"), ensure_ascii=True, allow_nan=False).encode(\"ascii\")",
+  "extraction_provenance": {
+    "historical_receipt": {
+      "receipt_id": "us-puf-raw-source-documents-receipt",
+      "sha256": "022dbc66b0de1432f1fdeff2f0b87bf4fe4ad724a25ec3cded02cc8dc82bcbe6",
+      "bytes": 7876,
+      "tool": "pypdf",
+      "version": "6.11.0",
+      "python": "3.14.4",
+      "strict": true,
+      "extract_text_kwargs": null,
+      "extract_text_kwargs_note": "not recorded in the historical receipt",
+      "mutated_by_this_resource": false
+    },
+    "independent_reproduction": {
+      "reproduction_id": "root-extraction-reproduction-20260907",
+      "sha256": "88533af3bd98d29c4e136bf1cac5945d45fe7d5c5ee44a49960fe4df75ee3843",
+      "bytes": 1466,
+      "label": "separately_pinned_independent_reproduction",
+      "tool": "pypdf",
+      "version": "6.11.0",
+      "strict": true,
+      "extract_text": {"orientations": [0, 90, 180, 270], "space_width": 200, "extraction_mode": "plain"},
+      "missing_page_text": "empty_string",
+      "join": "literal U+000C, no trailing separator",
+      "encoding": "utf-8",
+      "both_full_text_hashes_reproduced": true,
+      "rewrites_historical_receipt": false,
+      "replaces_retained_evidence": false
+    }
+  },
+  "disagreement_record": {
+    "code_page_printed_domain": {
+      "printed_text": "Tax Year ........................................................................ 2011-2014",
+      "document_page_ref": "code_page_flpdyr_flpdmo_printed_domain",
+      "pdf_page": 14,
+      "printed_page": 13,
+      "delivered_domain": [2012, 2013, 2014, 2015],
+      "status": "unresolved_and_recorded_verbatim",
+      "corrected": false,
+      "note": "The printed code-page domain contradicts the delivered domain recorded by the predecessor definition as an earlier audit finding. The discrepancy is preserved, never repaired, and no microdata was reread to produce this resource."
+    },
+    "two_edition_evidence": {
+      "editions": ["main-2022", "main-2023"],
+      "code_page_identical_across_editions": true,
+      "sample_description_identical_across_editions": true,
+      "page40_identical_across_editions": true,
+      "comparison_scope": "Hash equality of extracted PDF page text, not PDF page bytes."
+    },
+    "page3_page4_edition_difference": {
+      "cited_edition": "main-2023",
+      "differs": true,
+      "cause": "extraction whitespace within and between words",
+      "identical_after_whitespace_removal_for_comparison_only": true,
+      "byte_pins_normalized": false,
+      "substantive_wording_change": false,
+      "note": "This comparison does not normalize the bytes used by either documentary pin."
+    }
+  },
+  "page40_weighted_tabulation": {
+    "document_page_ref": "weighted_sum_for_each_code_field",
+    "pdf_page": 40,
+    "printed_page": 39,
+    "column": "2015 Public Use Sample",
+    "kind": "published_rounded_weighted_counts",
+    "identical_across_editions": true,
+    "FLPDYR": {
+      "2005_or_earlier": 0,
+      "2006": 0,
+      "2007": 0,
+      "2008": 0,
+      "2009": 0,
+      "2010": 0,
+      "2011": 0,
+      "2012": 401514,
+      "2013": 886494,
+      "2014": 2653671,
+      "2015": 146886167,
+      "2016": 0
+    },
+    "positive_period_displayed_sum": 150827846,
+    "FLPDMO_12_displayed": 150827847,
+    "FLPDMO_less_than_12_displayed": null,
+    "missing_cell_semantics": "blank on the rendered page, not a publisher-printed zero",
+    "displayed_total_discrepancy": {
+      "value": 1,
+      "units": "one displayed weighted return, not one sample record",
+      "location": "the FLPDYR column",
+      "consistent_with": "group-sum rounding",
+      "proves": null,
+      "note": "Consistent with group-sum rounding but not proof of a particular rounding operator."
+    },
+    "aggregate_records": {
+      "RECID": [999996, 999997, 999998, 999999],
+      "sampled_returns_before_aggregation": 1124,
+      "represented_population_returns": 1233,
+      "FDED_0_weighted_public_count": 1233,
+      "FDED_public_counts": [1233, 44704299, 104093159, 2029156],
+      "FDED_displayed_total": 150827847,
+      "note": "The 1,124 figure is a sampled-return count before aggregation, not a replacement weight total."
+    },
+    "rounding_operator": null,
+    "rounding_operator_status": "not established by these pages; a later audit must predeclare and explain it rather than present an assumed operator as a source fact",
+    "corroborates": "The delivered 2012-2015 FLPDYR domain, while leaving the contradictory code-page text intact.",
+    "must_not": [
+      "substitute the full SOI Individual Sample column as the PUF reconciliation target",
+      "quote the blank Public Use FLPDMO-less-than-12 cell as a numerical zero",
+      "treat displayed integer totals as automatically exactly equal",
+      "silently repair weights or widen tolerance to pass"
+    ],
+    "comparison_units": {
+      "delivered_S006": "int64 hundredths, never divided",
+      "published_counts": "integer returns multiplied by 100 in exact integer arithmetic",
+      "residuals_and_tolerances": "hundredths of a weighted return"
+    },
+    "reconciliation_status": "documentary_reconciliation_deferred_to_a_separately_authorized_audit",
+    "is_a_calibration_objective": false
+  },
+  "deferred_required_work": [
+    {
+      "id": "source_period_audit",
+      "implemented": false,
+      "calculated_here": false,
+      "requires_separate_authorization": true,
+      "description": "Report the ordinary-return row count and S006-weighted share with FLPDYR other than 2015, with disclosure aggregates identified separately; reconcile S006-weighted FLPDYR counts to the publisher's page-40 Public Use Sample column in hundredths; reconcile the S006-weighted sum of RECID 999996-999999 separately to the published 1,233 population returns; cross-check the FDED total of 150,827,847 against FLPDMO=12; predeclare a rounding allowance; report each residual and the one-weighted-return-unit displayed-total discrepancy.",
+      "blocking": "A residual beyond the declared rounding allowance remains unresolved and blocks scientific admission pending an explanation."
+    },
+    {
+      "id": "mandatory_convention_sensitivity_comparison",
+      "implemented": false,
+      "calculated_here": false,
+      "requires_separate_authorization": true,
+      "description": "Explicitly compare the proposed statistical-baseline convention against row-specific price conversion using reviewed annual indices, reporting changes in the eligible donor feature/target distribution and any relevant fit diagnostics; record the results and the reason for choosing a convention.",
+      "constraint": "The sensitivity is not optional, and both adjustments must never be added together."
+    },
+    {
+      "id": "factor_derivation_and_production_donor_recipe",
+      "implemented": false,
+      "calculated_here": false,
+      "requires_separate_authorization": true,
+      "description": "The actual factor derivation and a production donor recipe remain later, separate approvals, which must also address the appropriate amount series and denominator, signed components, wage-concept mismatch, potential versus observed filing units, disclosure aggregates, national validation and conditional-model adequacy."
+    }
+  ],
+  "unchanged_historical_records": {
+    "e00900_diagnostic": {
+      "status": "unchanged_historical_truth",
+      "two_trees": true,
+      "seed": 578,
+      "signed_and_zero_values": "all",
+      "cpi_u_ratio": "313689/237017",
+      "weights": "source S006 design weights",
+      "features": "current reported wage/MARS features",
+      "development_price_label": "retained",
+      "source_fit_nonadmission": "retained",
+      "output_name": "retained",
+      "source_period_metadata": "retained",
+      "relabelled_as_scientifically_admitted_donor_build": false,
+      "cpi_approved_as_final_nominal_growth_model": false
+    },
+    "historical_report": {
+      "report_id": "us-puf-raw-source-factor-admission-plan",
+      "sha256": "5807fa8c461e70da0123bd6b86f3921a50b95108c99586cbc59ee1b192dd99a7",
+      "bytes": 20583,
+      "disposition": "kept_as_history; this adjudication is linked as additional evidence"
+    }
+  },
+  "public_references": [
+    {
+      "id": "irs_availability_notice",
+      "url": "https://www.irs.gov/statistics/soi-tax-stats-individual-public-use-microdata-files",
+      "observation": "States that the 2012-2015 PUFs are withdrawn while a synthetic replacement is prepared.",
+      "determines_period_semantics_of_retained_files": false
+    },
+    {
+      "id": "historical_public_archive_copy",
+      "url": "https://github.com/user-attachments/files/17535835/2015.Public.Use.Booklet.pdf",
+      "observation": "Previously byte-matched to the retained September 2022 document in a pinned local URL-check receipt; its fetch failed during the adjudicating review.",
+      "current_evidence": "the authenticated local primary documents"
+    }
+  ],
+  "non_claims": {
+    "growth_factor_admission": false,
+    "factor_generation": false,
+    "model_or_dataset_update": false,
+    "donor_recipe_change": false,
+    "calibration_target_change": false,
+    "release_eligibility": false,
+    "period_repair": false,
+    "microdata_read": false,
+    "amounts_decoded": false,
+    "irs_recommendation_for_qrf_calibration_or_the_2024_dataset": false,
+    "congressional_district_transport_validated": false,
+    "tax_law_period_established": false
+  }
+}

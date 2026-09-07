@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microcosm.institute/schemas/us/puf_2015_statistical_period_interpretation/1.json",
+  "title": "PUF 2015 statistical period interpretation, revision 1",
+  "description": "Portable contract for the documentary interpretation of the 2015 IRS SOI Public Use File's statistical reference period. This revision accepts only a proposed convention with a null review and grants no growth authority under any input. Cross-field identities that JSON Schema cannot express -- exact integer reconciliation of the page-40 displayed counts, recomputation of page-text hashes from resolved bytes, uniqueness of logical identifiers, and the computed documentary_pins_verified state -- are enforced by the source-only validator in microcosm.build.puf_2015_statistical_period_interpretation, which is authoritative wherever the two could disagree.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "interpretation_id",
+    "authority",
+    "grants",
+    "scope",
+    "alternatives_considered",
+    "raw_source_binding",
+    "statistical_reference_period",
+    "reported_period_preservation",
+    "processing_window",
+    "geographic_meaning",
+    "distinct_items",
+    "convention",
+    "growth_contract",
+    "future_positive_admission",
+    "documentary_pins",
+    "documents",
+    "renders",
+    "page_text_hash_method",
+    "document_and_render_hash_method",
+    "canonical_resource_hash_method",
+    "extraction_provenance",
+    "disagreement_record",
+    "page40_weighted_tabulation",
+    "deferred_required_work",
+    "unchanged_historical_records",
+    "public_references",
+    "non_claims"
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "byteCount": {"type": "integer", "minimum": 1},
+    "pdfPage": {"type": "integer", "minimum": 1},
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pdf_page", "printed_page", "text_sha256", "role", "cross_edition_text_identical"],
+      "properties": {
+        "pdf_page": {"$ref": "#/$defs/pdfPage"},
+        "printed_page": {"type": "integer", "minimum": 1},
+        "text_sha256": {"$ref": "#/$defs/sha256"},
+        "role": {"type": "string", "minLength": 1},
+        "cross_edition_text_identical": {"type": "boolean"}
+      }
+    }
+  },
+  "properties": {
+    "schema": {"const": "microcosm.us.puf_2015_statistical_period_interpretation"},
+    "schema_version": {"const": 1},
+    "interpretation_id": {"type": "string", "minLength": 1},
+    "authority": {"const": "documentary_interpretation_only"},
+    "grants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "growth_authority",
+        "scientific_admission",
+        "release_admission",
+        "tax_law_authority",
+        "district_estimation_authority",
+        "calibration_authority"
+      ],
+      "properties": {
+        "growth_authority": {"const": false},
+        "scientific_admission": {"const": false},
+        "release_admission": {"const": false},
+        "tax_law_authority": {"const": false},
+        "district_estimation_authority": {"const": false},
+        "calibration_authority": {"const": false}
+      }
+    },
+    "scope": {"type": "object"},
+    "alternatives_considered": {"type": "array", "minItems": 1},
+    "raw_source_binding": {
+      "type": "object",
+      "required": [
+        "definition_schema",
+        "definition_schema_version",
+        "definition_sha256",
+        "definition_bytes",
+        "preserved_period_semantics",
+        "binding_kind",
+        "imports_predecessor_module",
+        "retroactive_mutation"
+      ],
+      "properties": {
+        "definition_schema": {"const": "microcosm.us.puf_2015_raw_source_definition"},
+        "definition_schema_version": {"type": "integer", "minimum": 1},
+        "definition_sha256": {"$ref": "#/$defs/sha256"},
+        "definition_bytes": {"$ref": "#/$defs/byteCount"},
+        "preserved_period_semantics": {"const": "unresolved_raw_FLPDYR"},
+        "binding_kind": {"const": "identity_and_hash_only"},
+        "imports_predecessor_module": {"const": false},
+        "retroactive_mutation": {"const": false}
+      }
+    },
+    "statistical_reference_period": {
+      "type": "object",
+      "required": ["tax_year", "basis", "does_not_establish"],
+      "properties": {
+        "tax_year": {"const": 2015},
+        "basis": {"const": "publisher_documented"},
+        "does_not_establish": {"type": "array", "minItems": 1}
+      }
+    },
+    "reported_period_preservation": {
+      "type": "object",
+      "required": [
+        "fields",
+        "delivered_FLPDYR_domain",
+        "delivered_FLPDMO_domain",
+        "automatic_row_year_repair",
+        "inference_from_statistical_reference_period"
+      ],
+      "properties": {
+        "fields": {"const": ["FLPDYR", "FLPDMO"]},
+        "delivered_FLPDYR_domain": {"type": "array", "minItems": 1, "items": {"type": "integer"}},
+        "delivered_FLPDMO_domain": {"type": "array", "minItems": 1, "items": {"type": "integer"}},
+        "automatic_row_year_repair": {"const": false},
+        "inference_from_statistical_reference_period": {"const": false}
+      }
+    },
+    "processing_window": {
+      "type": "object",
+      "required": ["calendar_year", "basis"],
+      "properties": {
+        "calendar_year": {"const": 2016},
+        "basis": {"const": "publisher_documented"}
+      }
+    },
+    "geographic_meaning": {
+      "type": "object",
+      "required": ["national_only", "basis"],
+      "properties": {
+        "national_only": {"const": true},
+        "basis": {"const": "publisher_documented"}
+      }
+    },
+    "distinct_items": {"type": "array", "minItems": 1},
+    "convention": {
+      "type": "object",
+      "required": [
+        "convention_id",
+        "convention_status",
+        "convention_review",
+        "growth_admitted",
+        "label",
+        "basis",
+        "review_required_before_any_use"
+      ],
+      "properties": {
+        "convention_id": {"type": "string", "minLength": 1},
+        "convention_status": {
+          "const": "proposed",
+          "description": "Revision 1 accepts only 'proposed'. Missing, unknown and claimed-reviewed states are invalid."
+        },
+        "convention_review": {
+          "type": "null",
+          "description": "Must be explicitly null. A serialized review record is invalid in revision 1."
+        },
+        "growth_admitted": {"const": false},
+        "label": {"const": "proposed_modeling_convention"},
+        "basis": {"const": "modeling_choice_not_publisher_documented"},
+        "review_required_before_any_use": {"const": true}
+      }
+    },
+    "growth_contract": {
+      "type": "object",
+      "required": [
+        "first_revision_refuses_all_growth",
+        "accepted_convention_status",
+        "accepted_convention_review",
+        "invalid_convention_states",
+        "refusal_is_unconditional"
+      ],
+      "properties": {
+        "first_revision_refuses_all_growth": {"const": true},
+        "accepted_convention_status": {"const": ["proposed"]},
+        "accepted_convention_review": {"const": [null]},
+        "invalid_convention_states": {"type": "array", "minItems": 1},
+        "refusal_is_unconditional": {"const": true}
+      }
+    },
+    "future_positive_admission": {
+      "type": "object",
+      "required": [
+        "implemented",
+        "review_fingerprint_mechanism_defined",
+        "external_caller_trust_channel_defined",
+        "comparison_evidence_binding_defined",
+        "requires"
+      ],
+      "properties": {
+        "implemented": {"const": false},
+        "review_fingerprint_mechanism_defined": {"const": false},
+        "external_caller_trust_channel_defined": {"const": false},
+        "comparison_evidence_binding_defined": {"const": false},
+        "requires": {"type": "array", "minItems": 1}
+      }
+    },
+    "documentary_pins": {
+      "type": "object",
+      "required": ["status", "resolver", "silent_fresh_extraction_repair"],
+      "not": {"anyOf": [{"required": ["verified"]}, {"required": ["documentary_pins_verified"]}]},
+      "properties": {
+        "status": {
+          "const": "declared",
+          "description": "Pins are only declared until the exact referenced bytes are re-authenticated by the validator."
+        },
+        "resolver": {"const": "caller_supplied_by_logical_id"},
+        "silent_fresh_extraction_repair": {"const": false}
+      }
+    },
+    "documents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["document_id", "edition", "role", "pdf", "retained_text", "pages"],
+        "properties": {
+          "document_id": {"type": "string", "minLength": 1},
+          "role": {"const": "primary_public_irs_document"},
+          "pdf": {
+            "type": "object",
+            "required": ["sha256", "bytes"],
+            "properties": {"sha256": {"$ref": "#/$defs/sha256"}, "bytes": {"$ref": "#/$defs/byteCount"}}
+          },
+          "retained_text": {
+            "type": "object",
+            "required": ["text_id", "sha256", "bytes", "segment_count"],
+            "properties": {
+              "text_id": {"type": "string", "minLength": 1},
+              "sha256": {"$ref": "#/$defs/sha256"},
+              "bytes": {"$ref": "#/$defs/byteCount"},
+              "segment_count": {"type": "integer", "minimum": 1}
+            }
+          },
+          "pages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/page"}}
+        }
+      }
+    },
+    "renders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["render_id", "document_id", "pdf_page", "sha256", "bytes", "visually_inspected"],
+        "properties": {
+          "render_id": {"type": "string", "minLength": 1},
+          "document_id": {"type": "string", "minLength": 1},
+          "pdf_page": {"$ref": "#/$defs/pdfPage"},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "bytes": {"$ref": "#/$defs/byteCount"},
+          "visually_inspected": {"type": "boolean"}
+        }
+      }
+    },
+    "page_text_hash_method": {
+      "type": "object",
+      "required": ["id", "decode", "split", "index", "locator_validation", "preserve", "encode", "hash", "append_separator", "fresh_pdf_extraction"],
+      "properties": {
+        "id": {"const": "retained_utf8_formfeed_pdf_page_sha256.v1"},
+        "append_separator": {"const": false},
+        "fresh_pdf_extraction": {"const": false}
+      }
+    },
+    "document_and_render_hash_method": {
+      "type": "object",
+      "required": ["id", "normalization", "pixel_hash", "bit_identical_render_regeneration_claimed"],
+      "properties": {
+        "id": {"const": "exact_file_bytes_sha256.v1"},
+        "normalization": {"type": "null"},
+        "pixel_hash": {"const": false},
+        "bit_identical_render_regeneration_claimed": {"const": false}
+      }
+    },
+    "canonical_resource_hash_method": {"type": "string", "minLength": 1},
+    "extraction_provenance": {
+      "type": "object",
+      "required": ["historical_receipt", "independent_reproduction"],
+      "properties": {
+        "historical_receipt": {
+          "type": "object",
+          "required": ["receipt_id", "sha256", "bytes", "extract_text_kwargs", "mutated_by_this_resource"],
+          "properties": {
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "extract_text_kwargs": {"type": "null"},
+            "mutated_by_this_resource": {"const": false}
+          }
+        },
+        "independent_reproduction": {
+          "type": "object",
+          "required": ["reproduction_id", "sha256", "bytes", "label", "rewrites_historical_receipt", "replaces_retained_evidence"],
+          "properties": {
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "label": {"const": "separately_pinned_independent_reproduction"},
+            "rewrites_historical_receipt": {"const": false},
+            "replaces_retained_evidence": {"const": false}
+          }
+        }
+      }
+    },
+    "disagreement_record": {
+      "type": "object",
+      "required": ["code_page_printed_domain", "two_edition_evidence", "page3_page4_edition_difference"],
+      "properties": {
+        "code_page_printed_domain": {
+          "type": "object",
+          "required": ["printed_text", "delivered_domain", "status", "corrected"],
+          "properties": {
+            "status": {"const": "unresolved_and_recorded_verbatim"},
+            "corrected": {"const": false}
+          }
+        },
+        "page3_page4_edition_difference": {
+          "type": "object",
+          "required": ["byte_pins_normalized", "substantive_wording_change"],
+          "properties": {
+            "byte_pins_normalized": {"const": false},
+            "substantive_wording_change": {"const": false}
+          }
+        }
+      }
+    },
+    "page40_weighted_tabulation": {
+      "type": "object",
+      "required": [
+        "column",
+        "kind",
+        "FLPDYR",
+        "positive_period_displayed_sum",
+        "FLPDMO_12_displayed",
+        "FLPDMO_less_than_12_displayed",
+        "missing_cell_semantics",
+        "displayed_total_discrepancy",
+        "aggregate_records",
+        "rounding_operator",
+        "comparison_units",
+        "is_a_calibration_objective"
+      ],
+      "properties": {
+        "column": {"const": "2015 Public Use Sample"},
+        "kind": {"const": "published_rounded_weighted_counts"},
+        "FLPDYR": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "positive_period_displayed_sum": {"type": "integer", "minimum": 0},
+        "FLPDMO_12_displayed": {"type": "integer", "minimum": 0},
+        "FLPDMO_less_than_12_displayed": {
+          "type": "null",
+          "description": "The rendered Public Use cell is blank. A quoted numerical zero is invalid."
+        },
+        "rounding_operator": {
+          "type": "null",
+          "description": "Not established by these pages; an assumed operator must not be presented as a source fact."
+        },
+        "aggregate_records": {
+          "type": "object",
+          "required": ["RECID", "sampled_returns_before_aggregation", "represented_population_returns", "FDED_public_counts", "FDED_displayed_total"],
+          "properties": {
+            "RECID": {"const": [999996, 999997, 999998, 999999]},
+            "sampled_returns_before_aggregation": {"const": 1124},
+            "represented_population_returns": {"const": 1233},
+            "FDED_public_counts": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 0}},
+            "FDED_displayed_total": {"type": "integer", "minimum": 0}
+          }
+        },
+        "comparison_units": {
+          "type": "object",
+          "required": ["delivered_S006", "published_counts", "residuals_and_tolerances"]
+        },
+        "is_a_calibration_objective": {"const": false}
+      }
+    },
+    "deferred_required_work": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "implemented", "calculated_here", "requires_separate_authorization", "description"],
+        "properties": {
+          "implemented": {"const": false},
+          "calculated_here": {"const": false},
+          "requires_separate_authorization": {"const": true}
+        }
+      }
+    },
+    "unchanged_historical_records": {"type": "object"},
+    "public_references": {"type": "array"},
+    "non_claims": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"const": false}
+    }
+  }
+}
