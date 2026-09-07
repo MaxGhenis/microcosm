@@ -1551,6 +1551,11 @@ def documentary_pin_roster(
     The roster is the completeness contract. A verdict covers this exact list
     or it covers nothing, so a subset of passing checks can never stand in for
     a whole resource.
+
+    It is built from logical identifiers only, never from pin digests, so it
+    moves when a pin is added or removed and *not* when a pin's declared hash
+    changes. A changed digest is caught by the payload the identity is
+    recomputed from, and by the byte check itself — not here.
     """
     roster: list[str] = []
     for document in interpretation.documents:
@@ -1643,6 +1648,10 @@ class DocumentaryVerification:
 
     @property
     def verified(self) -> bool:
+        # The roster clause cannot fail for an issued verdict: the verifier
+        # walks the resource in roster order. It is kept as the written form of
+        # the completeness contract, so a future verifier that skipped a pin
+        # would produce an unverified verdict rather than a quietly partial one.
         return (
             bool(self._pin_roster)
             and tuple(check.logical_id for check in self._checks) == self._pin_roster
