@@ -183,7 +183,7 @@ extraction.
 
 - [x] Review `.md` + `.json` read; JSON sha256 matches the mandate pin
 - [x] Successor journal seeded and committed
-- [ ] Red-before proof reproducing both findings at `db0ed285`
+- [x] Red-before proof reproducing both findings at `db0ed285`
 - [ ] P2A fix — verifier-issued, resource-and-roster-bound verdict
 - [ ] P2B fix — loader enforcement of the revision-1 conflict fields
 - [ ] Actual-source invented tests for both
@@ -192,7 +192,49 @@ extraction.
 - [ ] Frozen report at `/private/tmp/us-puf-period-root-review-fixes-REPORT.{md,json}`
 - [ ] Root/independent peer review of the final source
 
+## Red-before proof
+
+A single probe witnesses both findings and is re-run unchanged after the fix,
+so the same bytes serve as both proofs. It records what the actual source does
+and, per witness, what the repaired source must do; `all_expected_after_fix`
+is the whole verdict.
+
+- probe `/private/tmp/us-puf-period-root-review-fixes-probe.py`
+  sha256 `71c0e00d0b0bb42a9b6a3df0e5a243618b343d8321b186ba11c04f6b6e289854`
+- red witness `/private/tmp/us-puf-period-root-review-fixes-red.json`
+  sha256 `c845102e5fde782ff0be5bdeb883f95731a7a3ab99075d222b513025680a6b89`
+- supervisor receipt `…-red-receipt.json`
+  sha256 `ee04df4ae75af3a6ca548caa603916cd9f86b68a1f99c9f54a28662c0e3adee5`
+
+Runtime: pinned 3.14.4 (`bf4ea262…`) under `-I -B -S` with a fresh absent
+absolute `pycache_prefix`, 180s `RLIMIT_CPU`, 240s wall and 2 GiB RSS enforced
+by the same supervisor the first session used, plus a 20 ms in-process RSS
+watchdog. Child exit 0, 0.25s CPU, 0.31s wall, 36 MiB peak RSS, nothing killed.
+No cap was raised. `RLIMIT_AS` remains unsettable on this host, as measured
+before.
+
+Loaded-source Git proof: the module, the test file and the packaged resource
+JSON were read from the worktree and each matched **both** the current `HEAD`
+blob and the reviewed `db0ed285` blob byte for byte. The probe imports no
+project package at all — the module is loaded straight from its file, so the
+packaged resource is read as proved worktree bytes rather than through
+`importlib.resources`.
+
+`all_expected_after_fix: false`. Eleven witnesses fail, reproducing both
+findings against the reviewed bytes:
+
+- **P2A** a verdict issued for A authenticates a changed PDF pin, a changed
+  page pin, a changed render pin and a changed resource identity; the reuse is
+  symmetric. A hand-built single passing `PinCheck`, a copy of a genuine
+  verdict's public checks, and a one-check subset of a genuine roster all
+  authenticate. An empty verdict constructs. There is no resolver-backed
+  display path.
+- **P2B** all fifteen conflict mutations load without a single refusal —
+  `corrected: true`, `status: resolved_by_caller`, `status: unknown`, a missing
+  status, every missing required conflict field, a missing sub-block, and both
+  `page3_page4_edition_difference` constants flipped true.
+
 ## Next
 
-Reproduce both findings before changing any production line, so the fix is
-demonstrated against a witnessed failure rather than asserted.
+Fix P2A, then P2B, then extend the actual-source invented tests, then re-run
+this probe unchanged and the existing interpretation suite once.
