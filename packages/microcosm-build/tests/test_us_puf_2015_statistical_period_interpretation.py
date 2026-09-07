@@ -1714,6 +1714,17 @@ def test_the_unresolved_code_page_conflict_cannot_be_declared_away(
     assert error.value.location.startswith("disagreement_record")
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_a_resource_that_cannot_be_canonically_identified_is_refused(
+    payload, value
+) -> None:
+    """Binding a verdict needs a canonical identity, so it is required to exist."""
+    payload["scope"]["invented_non_json_value"] = value
+    with pytest.raises(ResourceValidationError) as error:
+        load_interpretation(payload)
+    assert error.value.reason == "resource_is_not_canonically_identifiable"
+
+
 def test_the_conflict_survives_loading_exactly_as_written(payload) -> None:
     record = load_interpretation(payload).payload["disagreement_record"][
         "code_page_printed_domain"

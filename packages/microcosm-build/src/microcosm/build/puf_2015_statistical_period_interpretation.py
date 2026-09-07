@@ -1447,9 +1447,19 @@ def load_interpretation(payload: Mapping[str, Any]) -> StatisticalPeriodInterpre
     _validate_public_references(payload, documents)
 
     frozen = _freeze(payload)
+    try:
+        resource_sha256 = canonical_resource_sha256(frozen)
+    except ValueError as error:
+        # A resource that cannot be canonically identified cannot be bound to
+        # a verdict either, so it is refused here with a stable reason rather
+        # than escaping as a bare ValueError from the JSON encoder.
+        raise ResourceValidationError(
+            "resource_is_not_canonically_identifiable", "", str(error)
+        ) from error
+
     return StatisticalPeriodInterpretation(
         interpretation_id=interpretation_id,
-        resource_sha256=canonical_resource_sha256(frozen),
+        resource_sha256=resource_sha256,
         schema_version=RESOURCE_SCHEMA_VERSION,
         statistical_reference_tax_year=STATISTICAL_REFERENCE_TAX_YEAR,
         processing_calendar_year=PROCESSING_CALENDAR_YEAR,
