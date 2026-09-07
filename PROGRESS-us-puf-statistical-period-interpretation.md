@@ -188,9 +188,10 @@ extraction.
 - [x] P2B fix — loader enforcement of the revision-1 conflict fields
 - [x] Actual-source invented tests for both — 188 pass, up from 148
 - [x] Green-after proof, same probe bytes, against the committed fix
-- [x] Existing interpretation suite re-run once, exit 0
-- [ ] Frozen report at `/private/tmp/us-puf-period-root-review-fixes-REPORT.{md,json}`
-- [ ] Root/independent peer review of the final source
+- [x] Existing interpretation suite re-run, exit 0
+- [x] Two self-found / peer-found defects also closed
+- [x] Root/independent peer review of the final source — two rounds
+- [x] Frozen report at `/private/tmp/us-puf-period-root-review-fixes-REPORT.{md,json}`
 
 ## Red-before proof
 
@@ -315,8 +316,95 @@ every later lint used the already-present pinned runtime's ruff 0.15.16. The
 directory is git-ignored; nothing entered a commit. Both changed files pass
 `ruff check` and `ruff format --check`.
 
+## Two further defects, found and closed after the first fix
+
+**S1, found by reading my own final diff.** Binding a verdict made the
+canonical hash part of loading, and `canonical_resource_sha256` refuses NaN and
+the infinities. That refusal escaped as a bare encoder error, contradicting
+`load_interpretation`'s documented promise of a stable reason for every
+refusal. Refused now as `resource_is_not_canonically_identifiable`, covering
+both the encoder's `ValueError` and its `TypeError`.
+
+**S2, the peer review's must-fix, and it was right.** The first fix bound the
+verdict to values *copied off* the interpretation. `resource_sha256` was a
+plain field on the exported frozen dataclass and the roster keys on pin
+identifiers, which a changed digest does not move, so
+
+```python
+dataclasses.replace(A, documents=(dataclasses.replace(A.documents[0], pdf_sha256="f"*64),))
+```
+
+produced a view whose own verification fails with `hash_mismatch` and whose
+display still reported authenticated provenance — the review's original symptom,
+through one public stdlib call. The trust had moved one object over rather than
+being removed. I reproduced it before accepting it.
+
+The anchor is gone rather than patched: `resource_sha256` is recomputed from
+the payload on every read, and `binding_failures` leads with
+`interpretation is not self._interpretation`. `is` cannot be spoofed by
+`__eq__`, so no value clause can ever be the decisive test for a foreign
+object. The value clauses stay as the defence against a view edited in place
+after issuance, and they still name which binding moved.
+
+The module docstring now states what the guarantees do **not** claim: a caller
+that fabricates a view and verifies it is describing its own fabrication. The
+boundary is stated rather than papered over with an absolute.
+
+## Peer review
+
+Two independent read-only rounds, every claimed finding put to an adversarial
+refuter that defaulted to refuted unless it reproduced the claim itself.
+
+| Round | Head reviewed | Lanes | Findings | Confirmed | Verdict |
+| --- | --- | ---: | ---: | ---: | --- |
+| 1 | `fe35685a0` | 5 | 8 | 3 | REQUEST_CHANGES (`p2a_closed: false`) |
+| 2 | `22e94e156` | 3 | 6 | 0 | APPROVE_WITH_NITS, `must_fix: []` |
+
+Round 2 reports `round1_mustfix_closed`, `p2a_closed`, `p2b_closed`,
+`growth_refusal_unconditional` and `packaged_resource_unchanged` all true. It
+reproduced the must-fix at both revisions before endorsing anything, then hunted
+independently for new routes — `replace` on every field, `copy.copy`,
+`copy.replace`, `copy.deepcopy`, a second genuine load, and the memo-preserving
+`pickle.loads(pickle.dumps((view, verdict)))` trick that would preserve the
+`is` relation across a copy. All fail closed. Three of its four nits are applied
+in `f6e90c66`; the fourth needs no change and is recorded instead.
+
+## Final evidence
+
+Probe 2 (34 witnesses, sha256 `e744c1dc…`) runs against the worktree or a named
+revision's Git blobs, so the same probe bytes witness all three states:
+
+| Run | Source | Failing witnesses |
+| --- | --- | ---: |
+| red | `db0ed285` blobs | 19 of 34 — all 24 conflict mutations accepted |
+| intermediate red | `fe35685a0` blobs | 1 — S2, isolated |
+| green | worktree at `f6e90c66` | 0 |
+
+199 tests pass, up from 148. Exit 0, 12.9s wall, 12.9s child CPU, 0.76 GiB peak
+RSS, nothing killed, no cap raised. All 125 loaded source files match their
+`HEAD` blob; one thread at exit; no rules engine imported.
+
+Frozen report:
+
+- `/private/tmp/us-puf-period-root-review-fixes-REPORT.md`
+  sha256 `d8f4ab187e5d0b5e1d168786ec09ae679f0e9b3dbee669b03a2ab39b8834db68`
+- `/private/tmp/us-puf-period-root-review-fixes-REPORT.json`
+  sha256 `ebce884cd020774a93b4a6278529643e03801e28c2734243a93cf520011e656e`
+
+Both describe the **source** head `f6e90c66a`. This journal commit follows it
+and touches no source, test, resource or schema file, so no figure in the
+report moves.
+
+All ten artifacts the independent review declares — its own markdown, the prior
+revision, the author's two report files, the audit script and JSON, both
+reviewer probe scripts and both probe JSONs — were re-hashed and still match
+their declared sha256 and byte count. The original source, report and proofs
+are frozen.
+
 ## Next
 
-Freeze the report, then have root and an independent peer review the final
-source before any integration. Still nothing pushed: no PR, no merge, no
-deploy, no release, and no growth authority anywhere in this branch.
+Root integration review. Still nothing pushed: no PR, no merge, no deploy, no
+release, and no growth authority anywhere in this branch. The later
+source-period audit and the mandatory convention sensitivity comparison remain
+described, unauthorized and uncalculated, and wheel packaging is still
+unverified for the reason the first session recorded.
