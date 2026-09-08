@@ -1,14 +1,59 @@
 # The spec engine: one declared bundle drives the build
 
+## Implementation checkpoint: 2026-09-08
+
+This checkpoint describes source at `923cec2e174c93ef0032de3415fbec87f716eea4`;
+it does not change the approved August design below or certify a dataset.
+Historical present-tense statements in that design describe its proposal date.
+
+The compiler front end exists: [CountrySpec](../packages/microcosm-build/src/microcosm/build/country_spec.py)
+loads typed bundles and derives compatibility views from the same resolved
+specification. [compile_spec](../packages/microcosm-build/src/microcosm/build/spec_engine/compiler_ir.py)
+produces typed IR; the [legacy adapter](../packages/microcosm-build/src/microcosm/build/spec_engine/legacy_adapter.py)
+projects it into constants-era payloads and does not execute stages. These
+interfaces do not establish that every US build already runs from that IR.
+
+The shared [Graph/Node compiler](../packages/microcosm-graph/src/microcosm/graph/decl.py)
+and [executor](../packages/microcosm-graph/src/microcosm/graph/executor.py)
+exist alongside [StagePlan](../packages/microcosm-build/src/microcosm/build/plan.py),
+the [US producer scheduler](../packages/microcosm-build/src/microcosm/build/us_runtime/late_producer_dag.py),
+and [outer checkpoint stages](../packages/microcosm-build/src/microcosm/build/outer_stage_runtime.py).
+Their remaining consumers make migration a runtime change, not file cleanup.
+The existing [US post-transfer graph](../packages/microcosm-build/src/microcosm/build/us_runtime/graph.py)
+contains eight runtime nodes covering four domain stages after an already
+assembled pool. That is one recipe's scope, not the full US transformation graph.
+The [UK recipe](../packages/microcosm-build/src/microcosm/build/uk_runtime/graph.py)
+uses the same graph core. US and UK differ in how their country declarations
+construct recipes, rather than using independent general graph engines.
+
+The intended convergence remains one authored definition with named country
+kernels and shared execution semantics. An operations view and a field-lineage
+view should be projections of that same definition: scheduling and checkpoints
+describe execution, while field versions describe what each operation reads and
+writes. Neither view should independently author the other's dependencies.
+Each material transformation needs a declared operation or inspectable subgraph,
+with the input/output fields, units, types and periods needed to understand it.
+An opaque callback remains a coverage gap even if its boundary has a graph node.
+Existing YAML, Python declarations and compatibility payloads still need explicit
+consumer migrations before that direction can be claimed for the complete build.
+
+[NodeReceipt and RunManifest](../packages/microcosm-graph/src/microcosm/graph/manifest.py)
+record runtime facts. Optional Receipt references in an exported viewer are
+declarations; they establish neither execution nor verified attestation by
+themselves. Keep declared, executed and verified coverage separate. Viewer node
+counts describe the supplied recipe and its fields, not complete country coverage.
+
+
 Status: **v3 — APPROVED by Max 2026-08-16** ("sure i approve") after two
 rounds of cross-family review. Sign-off covers the schema shape, the
 P→F0→F3 phasing, and the schema set in `specs/schema/`. D6 RULED same day:
 **`microcosm-us-2024-*`** is the spec-engine-era release line (Max,
 2026-08-16); `populace-us-*` rows stay valid-historical in the chain; the
 HF dataset destination is unchanged and outside this ruling.
-Nothing here is wired; excerpts below are **non-normative pseudocode until
-the committed schemas and the complete US bundle exist** (both reviews
-correctly rejected "schema-conforming" as a label for drafts).
+At the 2026-08-16 proposal date, nothing here was wired and the excerpts
+were non-normative pseudocode. Preserve them as historical design examples;
+use the committed schemas, compiler and actual runtime consumers to establish
+implementation status, rather than treating the old implementation status as current.
 
 Review provenance:
 
@@ -50,7 +95,7 @@ and the Python constants are deleted. Custom logic survives as **named
 kernels** — code keeps the *how*, the spec owns the *what, from what,
 with what*.
 
-## What exists today (five authority surfaces, one disposition each)
+## Historical inventory: five authority surfaces at the proposal date
 
 1. **`CountrySpec`** (`country_spec.py`): packaged spec-only country
    system; US/UK/BE packages live; Belgium is its first full consumer.
