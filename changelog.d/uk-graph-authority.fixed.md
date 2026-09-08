@@ -1,0 +1,1 @@
+The UK builder now derives stage order from the graph it executes, and its kernel registry derives structural adapters from that graph's declarations. Graph inspection loads country contracts only when their consumers request them; existing contract validation remains enforced.

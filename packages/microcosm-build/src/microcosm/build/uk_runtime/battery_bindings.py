@@ -74,7 +74,7 @@ from microcosm.build.uk_runtime.release_input_coverage import (
     assert_uk_release_input_coverage_manifest_current,
     uk_release_input_coverage_gate,
 )
-from microcosm.build.uk_runtime.source_runtime import UK_NONNEGATIVE_OUTPUTS_BY_STAGE
+from microcosm.build.uk_runtime.source_runtime import uk_nonnegative_outputs_by_stage
 from microcosm.build.uk_runtime.stage_health import uk_stage_health_gate
 from microcosm.build.uk_runtime.terminal_gates import (
     UKZeroWeightStratumDeclaration,
@@ -300,11 +300,12 @@ def _evaluate_nonnegative_columns(
     # present columns: that would let a frame missing every declared output
     # pass with columns_required=0.
     stage_names = tuple(context.artifacts["build_stage_names"])
+    outputs_by_stage = uk_nonnegative_outputs_by_stage()
     required = tuple(
         dict.fromkeys(
             column
             for stage in stage_names
-            for column in UK_NONNEGATIVE_OUTPUTS_BY_STAGE.get(str(stage), ())
+            for column in outputs_by_stage.get(str(stage), ())
         )
     )
     column_values: dict[str, Any] = {}

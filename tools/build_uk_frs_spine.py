@@ -113,7 +113,7 @@ from microcosm.build.uk_runtime.uc_reporter_redraw import (
 )
 from microcosm.build.uk_runtime.was_wealth import UKWASWealthStageTransform
 from microcosm.frame.adapters.policyengine_uk import PolicyEngineUKEngine
-from microcosm.graph import ContentStore, compile_graph, run_graph
+from microcosm.graph import CompiledGraph, ContentStore, compile_graph, run_graph
 
 _PIPELINE = "uk-frs-spine"
 _REPOSITORY = Path(__file__).resolve().parents[1]
@@ -126,8 +126,8 @@ _RUNG_ABORT_EXIT_CODE = 3
 UK_SPINE_ASSEMBLED_FINAL_STAGE = "frs_brma"
 
 
-def _uk_spine_stage_names(spec) -> tuple[str, ...]:
-    """Derive the runnable manifest stages from graph ownership edges."""
+def _uk_spine_stage_names(spec, compiled: CompiledGraph) -> tuple[str, ...]:
+    """Project manifest stages from the exact graph the build will execute."""
 
     if spec.sources is None:
         raise ValueError("UK country spec has no source stages.")
@@ -136,7 +136,6 @@ def _uk_spine_stage_names(spec) -> tuple[str, ...]:
         for stage in spec.sources.stages
         if stage.stage not in UK_SPINE_EXCLUSIONS
     }
-    compiled = compile_graph(uk_spine_graph(spec))
     ordered = tuple(node_id for node_id in compiled.order if node_id in declared)
     if set(ordered) != declared:
         raise ValueError(
@@ -1020,7 +1019,7 @@ def main(argv: list[str] | None = None) -> int:
             sample_seed=args.sample_seed,
         )
         compiled_graph = compile_graph(graph)
-        stage_names = _uk_spine_stage_names(spec)
+        stage_names = _uk_spine_stage_names(spec, compiled_graph)
         if "hmrc_cgt_gains_spine" in stage_names and args.cgt_ods is None:
             raise ValueError(
                 "--cgt-ods is required when hmrc_cgt_gains_spine is scheduled."

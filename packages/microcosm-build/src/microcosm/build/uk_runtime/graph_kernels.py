@@ -937,9 +937,46 @@ def build_uk_registry(
 ) -> KernelRegistry:
     """Bind graph refs to supplied transforms or the hermetic H2 descriptor."""
 
-    stage_names = {
-        str(node.params["stage"]) for node in graph.nodes if "stage" in node.params
-    }
+    # The supplied graph owns structural behavior. A second list of expanding
+    # stage names can silently disagree when a recipe adds or changes a stage.
+    bindings: dict[
+        str, tuple[str, type[UKStageKernel] | type[UKExpandStageKernel]]
+    ] = {}
+    stage_refs: dict[str, str] = {}
+    for node in graph.nodes:
+        if "stage" not in node.params:
+            continue
+        stage = str(node.params["stage"])
+        if node.structural is StructuralDelta.EXPAND:
+            kernel_type = UKExpandStageKernel
+            expected_ref = f"uk.stage.expand.{stage}@1"
+        elif node.structural is StructuralDelta.NONE:
+            kernel_type = UKStageKernel
+            expected_ref = f"uk.stage.{stage}@1"
+        else:
+            raise ValueError(
+                f"UK graph stage {stage!r} has unsupported structural mode "
+                f"{node.structural.value!r}."
+            )
+        if node.kernel != expected_ref:
+            raise ValueError(
+                f"UK graph stage {stage!r} declares kernel {node.kernel!r}; "
+                f"its structural mode requires {expected_ref!r}."
+            )
+        if stage in stage_refs and stage_refs[stage] != node.kernel:
+            raise ValueError(
+                f"UK graph stage {stage!r} has conflicting kernel bindings: "
+                f"{stage_refs[stage]!r} and {node.kernel!r}."
+            )
+        binding = (stage, kernel_type)
+        if node.kernel in bindings and bindings[node.kernel] != binding:
+            raise ValueError(
+                f"UK kernel reference {node.kernel!r} has conflicting stage bindings."
+            )
+        # Reusing the same stage kernel on multiple nodes remains valid.
+        stage_refs[stage] = node.kernel
+        bindings[node.kernel] = binding
+    stage_names = {stage for stage, _ in bindings.values()}
     unknown = set(implementations) - (stage_names | {"frs_spine"})
     if unknown:
         raise ValueError(f"Unknown UK graph stage implementations: {sorted(unknown)}.")
@@ -955,16 +992,9 @@ def build_uk_registry(
     registry.register(UKIdentityKernel())
     registry.register(UKClaimKernel())
     fixture_resolver = _FixtureTransformResolver()
-    for stage in sorted(stage_names):
+    for _, (stage, kernel_type) in sorted(bindings.items()):
         transform = implementations.get(stage)
-        if stage in {
-            "spi_support_channel",
-            "cgt_incidence_clone",
-            "cgt_band_donors",
-        }:
-            registry.register(UKExpandStageKernel(stage, transform, fixture_resolver))
-        else:
-            registry.register(UKStageKernel(stage, transform, fixture_resolver))
+        registry.register(kernel_type(stage, transform, fixture_resolver))
 
     required = {node.kernel for node in graph.nodes}
     if set(registry.refs()) != required:

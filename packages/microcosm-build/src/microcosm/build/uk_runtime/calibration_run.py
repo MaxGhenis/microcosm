@@ -14,6 +14,7 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from importlib import metadata
 from pathlib import Path
 from types import SimpleNamespace
@@ -166,6 +167,7 @@ _SWAP_ACCEPTANCE_GATE_IDS = frozenset({"uk_export_surface", "uk_target_surface"}
 #: battery re-checks them on the release frame. Both are real checks, so both
 #: keep the gate.
 UK_SHARED_GATE_IDS = frozenset({"uk_aggregate_admin"})
+UK_CALIBRATION_GATE_SCOPE_EXCLUSIONS: dict[str, str]
 
 
 def _scope_exclusions() -> dict[str, str]:
@@ -221,7 +223,17 @@ def _scope_exclusions() -> dict[str, str]:
     return rationales
 
 
-UK_CALIBRATION_GATE_SCOPE_EXCLUSIONS = _scope_exclusions()
+@lru_cache(maxsize=1)
+def uk_calibration_gate_scope_exclusions() -> dict[str, str]:
+    """Validate and load the scope declaration when a gate report needs it."""
+
+    return _scope_exclusions()
+
+
+def __getattr__(name: str) -> object:
+    if name == "UK_CALIBRATION_GATE_SCOPE_EXCLUSIONS":
+        return uk_calibration_gate_scope_exclusions()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def uk_local_gate_scope_exclusions() -> dict[str, str]:
@@ -646,7 +658,7 @@ def _run_calibration_gate_battery(
     finalize_uk_scoped_gate_report(
         payload,
         posture="calibration_seam",
-        scope_exclusions=dict(UK_CALIBRATION_GATE_SCOPE_EXCLUSIONS),
+        scope_exclusions=dict(uk_calibration_gate_scope_exclusions()),
         aggregate_admin_measurement=admin_receipt,
     )
     _write_json(path, payload)

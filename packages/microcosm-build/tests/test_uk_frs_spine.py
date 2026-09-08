@@ -1255,7 +1255,13 @@ def test_driver_writes_spine_h5_sidecars_and_logbook(
     sidecar = json.loads(output.with_suffix(".build.json").read_text())
     assert sidecar["pipeline"] == "uk-frs-spine"
     assert sidecar["schema_version"] == 2
-    assert sidecar["stages"] == list(tool._uk_spine_stage_names(_synthetic_spec(stage)))
+    expected_spec = _synthetic_spec(stage)
+    expected_graph = tool.compile_graph(
+        tool.uk_spine_graph(expected_spec, source_mode="split")
+    )
+    assert sidecar["stages"] == list(
+        tool._uk_spine_stage_names(expected_spec, expected_graph)
+    )
     assert sidecar["uk_frame_content_identity"] == uk_frame_content_identity(frame)
     assert sidecar["entity_row_counts"] == {
         "person": 3,
@@ -1670,7 +1676,8 @@ def test_input_artifact_pins_bind_spi_donor_and_ods() -> None:
     spec = load_country_spec("uk")
     assert spec.sources is not None
     stage_map = spec.sources.stage_map()
-    stages = [stage_map[name] for name in tool._uk_spine_stage_names(spec)]
+    compiled = tool.compile_graph(tool.uk_spine_graph(spec, source_mode="split"))
+    stages = [stage_map[name] for name in tool._uk_spine_stage_names(spec, compiled)]
 
     pins = tool._input_artifact_pins(stages)
 
@@ -1712,8 +1719,9 @@ def test_e8_manifest_seeds_all_reach_the_build_sidecar_harvester() -> None:
     assert spec.sources is not None
     stages = spec.sources.stage_map()
 
+    compiled = tool.compile_graph(tool.uk_spine_graph(spec, source_mode="split"))
     declared = tool._declared_seeds(
-        [stages[name] for name in tool._uk_spine_stage_names(spec)]
+        [stages[name] for name in tool._uk_spine_stage_names(spec, compiled)]
     )
 
     assert declared["cgt_incidence_clone"] == {"cgt_prior_amount": 0}

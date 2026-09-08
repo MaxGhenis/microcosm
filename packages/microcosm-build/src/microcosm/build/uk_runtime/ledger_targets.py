@@ -786,6 +786,11 @@ def _uk_contract_targets(
     )
     contract = json.loads(payload)
     _warn_on_undeclared_geography(contract["targets"])
+    # Validate the whole declared contract at first consumption, before a
+    # national-only view can hide a missing local side of a bridge.
+    _validate_uk_cross_grain_declarations(
+        {target["target_id"]: target for target in contract["targets"]}
+    )
     return {
         target["target_id"]: target
         for target in contract["targets"]
@@ -1353,8 +1358,11 @@ def uk_local_target_surface(
     return pd.DataFrame(output_rows), receipt
 
 
-def _validate_uk_cross_grain_declarations() -> None:
-    contract = _uk_contract_targets(national_only=False)
+def _validate_uk_cross_grain_declarations(
+    contract: Mapping[str, Mapping[str, Any]] | None = None,
+) -> None:
+    if contract is None:
+        contract = _uk_contract_targets(national_only=False)
     matched_sides: dict[str, str] = {}
     unknown: list[str] = []
     for bridge in UK_CROSS_GRAIN_BRIDGES:
@@ -1456,6 +1464,3 @@ def _compare_series(
     if operator not in operations:
         raise ValueError(f"Unsupported UK target condition operator {operator!r}.")
     return operations[operator](expected)
-
-
-_validate_uk_cross_grain_declarations()

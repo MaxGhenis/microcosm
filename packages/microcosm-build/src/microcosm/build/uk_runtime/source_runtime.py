@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from functools import lru_cache
 from typing import Any
 
 import pandas as pd
@@ -17,10 +18,15 @@ from microcosm.build.uk_runtime.frs_release import resolve_uk_year_rule
 from microcosm.frame import Frame
 from microcosm.frame.rules import materialize_rules_engine_predictors
 
+UK_NONNEGATIVE_OUTPUTS_BY_STAGE: dict[str, tuple[str, ...]]
+UK_NONNEGATIVE_SOURCE_OUTPUTS: tuple[str, ...]
+
 __all__ = [
     "UK_NONNEGATIVE_OUTPUTS_BY_STAGE",
     "UK_NONNEGATIVE_SOURCE_OUTPUTS",
     "materialize_uk_rules_engine_predictors_from_manifest",
+    "uk_nonnegative_outputs_by_stage",
+    "uk_nonnegative_source_outputs",
     "uk_source_operation_handlers",
     "uk_stage_implementations",
 ]
@@ -37,14 +43,37 @@ def _uk_nonnegative_outputs_by_stage() -> dict[str, tuple[str, ...]]:
     }
 
 
-UK_NONNEGATIVE_OUTPUTS_BY_STAGE = _uk_nonnegative_outputs_by_stage()
-UK_NONNEGATIVE_SOURCE_OUTPUTS = tuple(
-    dict.fromkeys(
-        column
-        for columns in UK_NONNEGATIVE_OUTPUTS_BY_STAGE.values()
-        for column in columns
+@lru_cache(maxsize=1)
+def _uk_nonnegative_declarations() -> tuple[
+    dict[str, tuple[str, ...]], tuple[str, ...]
+]:
+    by_stage = _uk_nonnegative_outputs_by_stage()
+    outputs = tuple(
+        dict.fromkeys(column for columns in by_stage.values() for column in columns)
     )
-)
+    return by_stage, outputs
+
+
+def uk_nonnegative_outputs_by_stage() -> dict[str, tuple[str, ...]]:
+    """Load the source declaration when a consumer requests its constraints."""
+
+    return _uk_nonnegative_declarations()[0]
+
+
+def uk_nonnegative_source_outputs() -> tuple[str, ...]:
+    """Return the same declared output union as the compatibility constant."""
+
+    return _uk_nonnegative_declarations()[1]
+
+
+def __getattr__(name: str) -> object:
+    # Preserve public constants without activating the full country resource
+    # bundle when a caller only imports UK graph declarations or adapters.
+    if name == "UK_NONNEGATIVE_OUTPUTS_BY_STAGE":
+        return uk_nonnegative_outputs_by_stage()
+    if name == "UK_NONNEGATIVE_SOURCE_OUTPUTS":
+        return uk_nonnegative_source_outputs()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def uk_stage_implementations(
