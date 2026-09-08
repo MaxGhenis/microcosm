@@ -1,13 +1,40 @@
 # Shared graph explorer adapter
 
 `microcosm.graph.explorer` converts a `microcosm.graph.schema.v1` metadata
-export into `graph-explorer/v1`, the portable contract consumed by the shared
-`@axiom-foundation/graph-explorer` viewer. Microcosm owns the graph's calculation
+export into `graph-explorer/v1`, the portable contract consumed by Orrery, the
+shared graph viewer. Microcosm owns the graph's calculation
 and schema meanings. The shared package owns navigation, rendering and bundled
 offline HTML.
 
 The adapter adds no JavaScript dependency to Microcosm. It reads no microdata,
 executes no population operation, and leaves `explain_html` unchanged.
+
+## Open a saved schema in Orrery
+
+From a synced Microcosm checkout, export a saved schema with:
+
+```sh
+uv run python -m microcosm.graph.explorer \
+  --input compiled-schema.json --output graph.json --title "Microcosm US"
+graph-explorer --input graph.json --output graph.html
+```
+
+The second command uses the separately installed, accepted shared viewer
+0.3.0 CLI, whose package name is still `@axiom-foundation/graph-explorer`.
+The forthcoming Orrery package rename does not change the JSON contract.
+Microcosm does not install or upgrade the viewer as part of export.
+
+Open `graph.html` using a local static server or your existing artifact viewer.
+The HTML contains its viewer assets and needs no CDN. Direct `file://` opening
+is outside the current Microcosm browser acceptance.
+
+The Python command accepts only saved schema JSON, rejects duplicate keys and
+non-finite numbers, bounds input before decoding, and creates a new output file.
+It refuses an existing output, including the input path. A saved manifest or
+microdata file is not a schema export. Review schema metadata before sharing it:
+the entire supplied metadata is retained, and canvas filtering does not redact it.
+
+The same exporter is available as a Python API:
 
 ```python
 import json

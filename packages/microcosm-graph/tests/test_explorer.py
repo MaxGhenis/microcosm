@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import json
+import os
 
 import pytest
 
@@ -19,6 +20,65 @@ from microcosm.graph import (
     graph_to_json,
 )
 from microcosm.graph.canonical import canonical_json
+
+
+def test_cli_exports_exact_metadata_and_large_integer(tmp_path):
+    schema = snapshot()
+    schema["audit_integer"] = 2**60 + 1
+    source = tmp_path / "schema.json"
+    output = tmp_path / "report" / "graph.json"
+    source.write_text(json.dumps(schema), encoding="utf-8")
+    assert (
+        explorer.main(
+            ["--input", str(source), "--output", str(output), "--title", "Microcosm"]
+        )
+        == 0
+    )
+    assert output.read_text() == explorer.graph_explorer_json(schema, title="Microcosm")
+    doc = json.loads(output.read_text())
+    assert doc["metadata"]["microcosm"]["audit_integer"] == {
+        "integer_literal": str(2**60 + 1)
+    }
+
+
+@pytest.mark.parametrize("raw", ['{"protocol":1,"protocol":2}', '{"x":NaN}', "[]"])
+def test_cli_refuses_invalid_json_without_output(tmp_path, raw):
+    source, output = tmp_path / "schema.json", tmp_path / "graph.json"
+    source.write_text(raw)
+    with pytest.raises(SystemExit) as error:
+        explorer.main(["--input", str(source), "--output", str(output)])
+    assert error.value.code == 2
+    assert not output.exists()
+
+
+def test_cli_preserves_existing_output_and_input(tmp_path):
+    source = tmp_path / "schema.json"
+    raw = json.dumps(snapshot())
+    source.write_text(raw)
+    with pytest.raises(SystemExit) as error:
+        explorer.main(["--input", str(source), "--output", str(source)])
+    assert error.value.code == 2
+    assert source.read_text() == raw
+
+
+def test_cli_refuses_oversized_input_before_decoding(tmp_path, monkeypatch):
+    source, output = tmp_path / "schema.json", tmp_path / "graph.json"
+    source.write_bytes(b"!" * 33)
+    monkeypatch.setattr(explorer, "_MAX_INPUT_BYTES", 32)
+    with pytest.raises(SystemExit) as error:
+        explorer.main(["--input", str(source), "--output", str(output)])
+    assert error.value.code == 2
+    assert not output.exists()
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="requires POSIX FIFO")
+def test_cli_refuses_fifo_without_waiting_for_writer(tmp_path):
+    source, output = tmp_path / "schema.json", tmp_path / "graph.json"
+    os.mkfifo(source)
+    with pytest.raises(SystemExit) as error:
+        explorer.main(["--input", str(source), "--output", str(output)])
+    assert error.value.code == 2
+    assert not output.exists()
 
 
 def snapshot():

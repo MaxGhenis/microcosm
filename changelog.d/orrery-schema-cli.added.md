@@ -1,0 +1,1 @@
+Add `python -m microcosm.graph.explorer` to export saved Microcosm schema metadata for the accepted Orrery shared viewer CLI, preserving exact large integers and refusing invalid or oversized input and existing output files.

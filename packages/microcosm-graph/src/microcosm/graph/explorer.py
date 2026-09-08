@@ -7,10 +7,14 @@ It never imports a kernel, opens a source, or infers an execution verdict.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import math
+import os
+import stat
 from collections import Counter
+from pathlib import Path
 
 from .canonical import canonical_json
 
@@ -436,3 +440,53 @@ def graph_explorer_json(schema: dict, *, title: str | None = None) -> str:
         _bounded_json(graph_explorer_document(schema, title=title), _MAX_OUTPUT_BYTES)
         + "\n"
     )
+
+
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        _require(key not in result, "duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def _invalid_json_constant(value: str) -> None:
+    raise ValueError("Graph explorer: finite JSON numbers required.")
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Convert saved schema metadata for Orrery without loading a saved run."""
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("--input", type=Path, required=True, help="saved schema JSON")
+    parser.add_argument(
+        "--output", type=Path, required=True, help="new graph-explorer/v1 JSON file"
+    )
+    parser.add_argument("--title", help="viewer document title")
+    args = parser.parse_args(argv)
+    try:
+        # Refuse streams/devices before reading; a FIFO must not block the CLI.
+        descriptor = os.open(args.input, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0))
+        with os.fdopen(descriptor, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            _require(stat.S_ISREG(info.st_mode), "input must be a regular file")
+            _require(info.st_size <= _MAX_INPUT_BYTES, "input byte limit")
+            raw = stream.read(_MAX_INPUT_BYTES + 1)
+        _require(len(raw) <= _MAX_INPUT_BYTES, "input byte limit")
+        schema = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_unique_json_object,
+            parse_constant=_invalid_json_constant,
+        )
+        rendered = graph_explorer_json(schema, title=args.title)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        # Exclusive creation also prevents overwriting the source through an alias.
+        with args.output.open("x", encoding="utf-8", newline="\n") as stream:
+            stream.write(rendered)
+    except (OSError, ValueError, RecursionError) as error:
+        parser.error(str(error))
+    print(f"wrote {args.output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
