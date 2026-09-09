@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="2" failures="0" skipped="0" tests="2" time="2.105" timestamp="2026-09-09T12:57:50.811517+00:00" hostname="MacBook-Pro-10.local"><testcase classname="" name="test_us_puma_ladder" time="0.000"><error message="collection failure">test_us_puma_ladder.py:11: in &lt;module&gt;
+    from microcosm.build.us_runtime import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/__init__.py:64: in &lt;module&gt;
+    from microcosm.build.us_runtime.asec_checkpoint import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/asec_checkpoint.py:27: in &lt;module&gt;
+    from microcosm.build.us_runtime.operator_boundary import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/operator_boundary.py:17: in &lt;module&gt;
+    from microcosm.build.us_runtime.acs_transfer import ACS_DERIVED_TRANSFER_INPUTS
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:37: in &lt;module&gt;
+    from microcosm.build.us_runtime.puf_support import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/puf_support.py:32: in &lt;module&gt;
+    from microcosm.build.us_runtime.puf_interest_components import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/puf_interest_components.py:205: in &lt;module&gt;
+    ) = _load_source_asset()
+        ^^^^^^^^^^^^^^^^^^^^
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/puf_interest_components.py:111: in _load_source_asset
+    payload = json.loads(resolved_resource.read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/maxghenis/.local/share/uv/python/cpython-3.14.4-macos-aarch64-none/lib/python3.14/pathlib/__init__.py:787: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/maxghenis/.local/share/uv/python/cpython-3.14.4-macos-aarch64-none/lib/python3.14/pathlib/__init__.py:771: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+run.py:164: in audit
+    BLOCKED.append(str(path)); raise PermissionError('Read blocked before open: ' + str(path))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   PermissionError: Read blocked before open: /Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us/soi_table_2_1_interest_components_ty2015.json</error></testcase><testcase classname="" name="test_us_puma_ladder_sources" time="0.000"><error message="collection failure">test_us_puma_ladder_sources.py:8: in &lt;module&gt;
+    from microcosm.build.us_runtime.puma_ladder_sources import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/__init__.py:64: in &lt;module&gt;
+    from microcosm.build.us_runtime.asec_checkpoint import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/asec_checkpoint.py:27: in &lt;module&gt;
+    from microcosm.build.us_runtime.operator_boundary import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/operator_boundary.py:17: in &lt;module&gt;
+    from microcosm.build.us_runtime.acs_transfer import ACS_DERIVED_TRANSFER_INPUTS
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:37: in &lt;module&gt;
+    from microcosm.build.us_runtime.puf_support import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/puf_support.py:32: in &lt;module&gt;
+    from microcosm.build.us_runtime.puf_interest_components import (
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/puf_interest_components.py:205: in &lt;module&gt;
+    ) = _load_source_asset()
+        ^^^^^^^^^^^^^^^^^^^^
+/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us_runtime/puf_interest_components.py:111: in _load_source_asset
+    payload = json.loads(resolved_resource.read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/maxghenis/.local/share/uv/python/cpython-3.14.4-macos-aarch64-none/lib/python3.14/pathlib/__init__.py:787: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/maxghenis/.local/share/uv/python/cpython-3.14.4-macos-aarch64-none/lib/python3.14/pathlib/__init__.py:771: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+run.py:164: in audit
+    BLOCKED.append(str(path)); raise PermissionError('Read blocked before open: ' + str(path))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   PermissionError: Read blocked before open: /Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/src/microcosm/build/us/soi_table_2_1_interest_components_ty2015.json</error></testcase></testsuite></testsuites>

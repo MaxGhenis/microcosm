@@ -1,0 +1,21 @@
+{
+  "BuildConfig_unchanged": true,
+  "K_equals_W": true,
+  "US_DONORS_unchanged": true,
+  "US_STAGE_NAMES_unchanged": true,
+  "W_only_checkpoint_v4_exports_not_added": true,
+  "W_operator_column_contract_redirects_not_added": true,
+  "_load_us_source_manifest_unchanged": true,
+  "_load_us_support_spine_manifest_unchanged": true,
+  "accepted_W_sha256": "ef6d5888c0df08860be519d07fd2521c9d824e7fd1ee9d9408f23da0146b8abb",
+  "after_sha256": "4b487829e66e0bd6835bffc6e6db6797a3a44bc7c45daa9564987579b04649ad",
+  "after_sha256_before_format": "0ceef983a3a61cd5035da99f8df1d9f1e33410bb2f1dee2a439f98258762df71",
+  "all_exports_order_unchanged": true,
+  "all_import_owners_unchanged": true,
+  "before_main_plus_joint_sha256": "3c24035e3b689362176ff0d5a91c1c640689e3a0fc5c1af4fe96e09466258bdd",
+  "exports_count": 904,
+  "formatted_ast_equals_unformatted": true,
+  "module_count": 80,
+  "new_joint_gate_retained": true,
+  "scope": "Explicit normal facade source integration from accepted implementation; no source overlay or package-init bypass. Current main public surface and plans preserved."
+}

@@ -1,0 +1,43 @@
+{
+  "allowed_resources": {},
+  "automatic_retry": false,
+  "expected_tests": 64,
+  "implementation_manifest_sha256": "f1741b205e3010dee15aabd399f327a7b020be87db2e2baa2036fe6ccda62e24",
+  "interpreter": "/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-launch-current-main-20260905/.venv/bin/python",
+  "interpreter_sha256": "bf4ea26231212e330b8e9b6f24969a30f894fec88665bf42754070d114ac7fc6",
+  "json_encoder_path": "/Users/maxghenis/.local/share/uv/python/cpython-3.14.4-macos-aarch64-none/lib/python3.14/json/encoder.py",
+  "limits": {
+    "RSS": "final peak reporting only",
+    "children": 0,
+    "cpu_seconds": 120,
+    "native_threads": 1,
+    "network": false,
+    "wall_seconds": 180
+  },
+  "owned_inputs": {
+    "OPTIONAL-SYMLINK-DERIVATION.json": "7e4caf49986bfdac8d9df9c8f385f4b8fc30646664bb490fc9357cc4f90f5393",
+    "REFUSAL-LIMITS.json": "c25d10b770233d631e31a8209ada35a9b5e136a69018fac0224b1c09d22c1e73",
+    "RUNTIME-CODE-PINS.json": "4575f6ee0aa0042bd89751c0e473ee2fc8c72d3d232d2295827ba89215f86672",
+    "SOURCE-HASHES.json": "465b11c2de24a70022f2d23bcbfdc7394654657de50e29b3613e7d0f547a4ee5",
+    "head.txt": "2840168b8f63561047f42dc6e1ff7d17b91461303a063fced0c5e82a81c17bc6",
+    "pytest.ini": "713f986ee48be06ad4bff2a700d39514a9f69e34b3547af52366c0a274e30e5b",
+    "test_us_puma_ladder.py": "a777b0f2fbf39e738521336bf54d1c63109518b3a02f67cbb161c7b3a02e4971",
+    "test_us_puma_ladder_sources.py": "d85a7b8b4738dbffd1e16e29e615438574f1a3299917f67da15789c92207b56b"
+  },
+  "phase": "joint-geography",
+  "protocol": "owned.catalogue-controls-execution.v1",
+  "run_root": "/private/tmp/us-joint-geography-offline-invented-root-20260909",
+  "runtime_code_pin_count": 6,
+  "scope": "Normal source imports and exact invented PUMA source/assignment tests only. No genuine sources, graph issuance, calibration, source admission or release. No resource content admitted.",
+  "selected_tests": [
+    "test_us_puma_ladder.py",
+    "test_us_puma_ladder_sources.py"
+  ],
+  "source_copies": {
+    "test_us_puma_ladder.py": "/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/tests/test_us_puma_ladder.py",
+    "test_us_puma_ladder_sources.py": "/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/packages/microcosm-build/tests/test_us_puma_ladder_sources.py"
+  },
+  "source_head": "a19582bd918829858a117f0d6aafa2b994e856ec",
+  "source_pin_count": 18,
+  "source_root": "/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909"
+}

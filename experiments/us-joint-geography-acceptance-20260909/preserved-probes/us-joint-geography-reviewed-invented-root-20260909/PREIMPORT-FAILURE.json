@@ -1,0 +1,8 @@
+{
+  "config_sha256": "1d1a31254b792ac5effdae08511254f137b8ede99ba545e57fd82906218024b4",
+  "correction": "Replace only full runtime_code_pin_count comparison; use new frozen packet/root; no permission/limit/source change.",
+  "failure": "Guard generator used substring replacement == 6 to == 8 while adding two runtime pins, accidentally changing expected_tests == 64 to == 84. Config correctly retained64. Guard refused before audit/project imports/tests.",
+  "guard_sha256": "342e399ffee523c730d113e5142382961238ca6f320fb965355e6d9662282fe1",
+  "native_source_access": false,
+  "source_or_runtime_execution": false
+}

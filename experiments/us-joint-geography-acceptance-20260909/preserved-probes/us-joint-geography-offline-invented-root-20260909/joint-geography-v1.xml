@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.007" timestamp="2026-09-09T13:09:45.088393+00:00" hostname="MacBook-Pro-10.local"><testcase classname="" name="Users" time="0.000"><error message="collection failure">run.py:130: in audit
+    BLOCKED.append('directory:' + str(args[0])); raise PermissionError('Unrelated directory enumeration refused')
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   PermissionError: Unrelated directory enumeration refused</error></testcase></testsuite></testsuites>

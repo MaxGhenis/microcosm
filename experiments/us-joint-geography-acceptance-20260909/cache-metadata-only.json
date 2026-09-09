@@ -1,0 +1,387 @@
+{
+  "cache_files": {
+    "2020_Census_Tract_to_2020_PUMA.txt": {
+      "bytes": 1709076,
+      "mtime_ns": 1783728880035908815,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/2020_Census_Tract_to_2020_PUMA.txt",
+      "regular": true,
+      "symlink": false
+    },
+    "ak2020.pl.zip": {
+      "bytes": 4741817,
+      "mtime_ns": 1783223563301998403,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ak2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "al2020.pl.zip": {
+      "bytes": 23974872,
+      "mtime_ns": 1783223316190864438,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/al2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ar2020.pl.zip": {
+      "bytes": 20179961,
+      "mtime_ns": 1783223565109597393,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ar2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "az2020.pl.zip": {
+      "bytes": 23082436,
+      "mtime_ns": 1783223563996576891,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/az2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ca2020.pl.zip": {
+      "bytes": 79627235,
+      "mtime_ns": 1783223567441402516,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ca2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "cd119.zip": {
+      "bytes": 22959130,
+      "mtime_ns": 1783223311839924084,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/cd119.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "co2020.pl.zip": {
+      "bytes": 24215854,
+      "mtime_ns": 1783223944087021017,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/co2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ct2020.pl.zip": {
+      "bytes": 10254583,
+      "mtime_ns": 1783223945262648903,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ct2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "dc2020.pl.zip": {
+      "bytes": 1366469,
+      "mtime_ns": 1783224320255588392,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/dc2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "de2020.pl.zip": {
+      "bytes": 3720859,
+      "mtime_ns": 1783223945803897969,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/de2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "fl2020.pl.zip": {
+      "bytes": 65962055,
+      "mtime_ns": 1783224321613907603,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/fl2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ga2020.pl.zip": {
+      "bytes": 35831859,
+      "mtime_ns": 1783224570333309424,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ga2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "hi2020.pl.zip": {
+      "bytes": 3817508,
+      "mtime_ns": 1783224571750443580,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/hi2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ia2020.pl.zip": {
+      "bytes": 21713685,
+      "mtime_ns": 1783224823953114951,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ia2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "id2020.pl.zip": {
+      "bytes": 10025551,
+      "mtime_ns": 1783224572130947825,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/id2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "il2020.pl.zip": {
+      "bytes": 64763317,
+      "mtime_ns": 1783224574017870131,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/il2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "in2020.pl.zip": {
+      "bytes": 32611077,
+      "mtime_ns": 1783224576573193046,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/in2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ks2020.pl.zip": {
+      "bytes": 23446925,
+      "mtime_ns": 1783224825110534898,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ks2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ky2020.pl.zip": {
+      "bytes": 22595797,
+      "mtime_ns": 1783224826500317113,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ky2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "la2020.pl.zip": {
+      "bytes": 23768295,
+      "mtime_ns": 1783224827798580538,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/la2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ma2020.pl.zip": {
+      "bytes": 21002060,
+      "mtime_ns": 1783224830147446200,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ma2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "md2020.pl.zip": {
+      "bytes": 18262586,
+      "mtime_ns": 1783224829306772276,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/md2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "me2020.pl.zip": {
+      "bytes": 6098405,
+      "mtime_ns": 1783224828702399933,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/me2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "mi2020.pl.zip": {
+      "bytes": 39966651,
+      "mtime_ns": 1783224831780008409,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/mi2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "mn2020.pl.zip": {
+      "bytes": 29625918,
+      "mtime_ns": 1783224833416486222,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/mn2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "mo2020.pl.zip": {
+      "bytes": 35967209,
+      "mtime_ns": 1783224835834722055,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/mo2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ms2020.pl.zip": {
+      "bytes": 16282867,
+      "mtime_ns": 1783224834600667356,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ms2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "mt2020.pl.zip": {
+      "bytes": 9835205,
+      "mtime_ns": 1783224837032009178,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/mt2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "nc2020.pl.zip": {
+      "bytes": 37553822,
+      "mtime_ns": 1783224967008901219,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/nc2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "nd2020.pl.zip": {
+      "bytes": 8780598,
+      "mtime_ns": 1783224968430217648,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/nd2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ne2020.pl.zip": {
+      "bytes": 13595569,
+      "mtime_ns": 1783224837682860899,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ne2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "nh2020.pl.zip": {
+      "bytes": 4807476,
+      "mtime_ns": 1783224838800285961,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/nh2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "nj2020.pl.zip": {
+      "bytes": 34066393,
+      "mtime_ns": 1783224839788426399,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/nj2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "nm2020.pl.zip": {
+      "bytes": 15295141,
+      "mtime_ns": 1783224962782743261,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/nm2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "nv2020.pl.zip": {
+      "bytes": 11597053,
+      "mtime_ns": 1783224838379377328,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/nv2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ny2020.pl.zip": {
+      "bytes": 72608321,
+      "mtime_ns": 1783224964641624538,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ny2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "oh2020.pl.zip": {
+      "bytes": 51648259,
+      "mtime_ns": 1783224969829206373,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/oh2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ok2020.pl.zip": {
+      "bytes": 24870369,
+      "mtime_ns": 1783224971968447140,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ok2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "or2020.pl.zip": {
+      "bytes": 14707780,
+      "mtime_ns": 1783224973344769574,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/or2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "pa2020.pl.zip": {
+      "bytes": 57240396,
+      "mtime_ns": 1783224975328467492,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/pa2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ri2020.pl.zip": {
+      "bytes": 4269011,
+      "mtime_ns": 1783224976838689449,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ri2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "sc2020.pl.zip": {
+      "bytes": 22200586,
+      "mtime_ns": 1783224977741881757,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/sc2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "sd2020.pl.zip": {
+      "bytes": 8729143,
+      "mtime_ns": 1783225100801948352,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/sd2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "tn2020.pl.zip": {
+      "bytes": 25279315,
+      "mtime_ns": 1783225101909810320,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/tn2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "tx2020.pl.zip": {
+      "bytes": 99593751,
+      "mtime_ns": 1783225104901493285,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/tx2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "ut2020.pl.zip": {
+      "bytes": 13713435,
+      "mtime_ns": 1783225108075312829,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/ut2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "va2020.pl.zip": {
+      "bytes": 28074582,
+      "mtime_ns": 1783225224295611941,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/va2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "vt2020.pl.zip": {
+      "bytes": 3474558,
+      "mtime_ns": 1783225223210251805,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/vt2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "wa2020.pl.zip": {
+      "bytes": 36824364,
+      "mtime_ns": 1783225466329792858,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/wa2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "wi2020.pl.zip": {
+      "bytes": 34725175,
+      "mtime_ns": 1783225591081348656,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/wi2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "wv2020.pl.zip": {
+      "bytes": 9611980,
+      "mtime_ns": 1783225589765387440,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/wv2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    },
+    "wy2020.pl.zip": {
+      "bytes": 5554716,
+      "mtime_ns": 1783225692902680895,
+      "path": "/Users/maxghenis/.cache/populace-us-geography/wy2020.pl.zip",
+      "regular": true,
+      "symlink": false
+    }
+  },
+  "ladder_sidecars": {
+    "/Users/maxghenis/PolicyEngine/_worktrees/microcosm-acs-single-pass-inventory-20260908/build/us/us_puma_ladder_2020.summary.json": {
+      "missing": true
+    },
+    "/Users/maxghenis/PolicyEngine/_worktrees/microcosm-us-joint-puma-county-cd-20260909/build/us/us_puma_ladder_2020.summary.json": {
+      "missing": true
+    },
+    "/Users/maxghenis/PolicyEngine/microcosm/build/us/us_puma_ladder_2020.summary.json": {
+      "missing": true
+    }
+  },
+  "scope": "Only named cache metadata and corresponding exact summary sidecars; no native payload opened or hashed"
+}

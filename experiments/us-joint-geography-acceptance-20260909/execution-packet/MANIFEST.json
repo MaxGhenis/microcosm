@@ -1,0 +1,58 @@
+{
+  "IMPLEMENTATION-SOURCE-HASHES.json": {
+    "bytes": 1568,
+    "sha256": "20ae0866ea346c6df8af123ff7c04b6c351001aa96a751aa2dfa677b04acd398"
+  },
+  "execution/EXECUTION-CONFIG.json": {
+    "bytes": 2555,
+    "sha256": "fe14cc7cfe85fd1f01f5491d3f9129666f2cc2de7a8245d26596c220db179534"
+  },
+  "execution/OPTIONAL-SYMLINK-DERIVATION.json": {
+    "bytes": 11919,
+    "sha256": "325c6c458e58ad4e564239a09af76524b700f923870bd86a39f0a6de6b0ac592"
+  },
+  "execution/REFUSAL-LIMITS.json": {
+    "bytes": 12887,
+    "sha256": "29c7918beb8d4c296fdffd8ae6c8809f06627f4b61c0469af0cda724ccfdac46"
+  },
+  "execution/RUNTIME-CODE-PINS.json": {
+    "bytes": 1520,
+    "sha256": "ba91d96e43e736be9a416a66fbe96309b7a85813c30093fc1c8868ecd3953e7f"
+  },
+  "execution/SOURCE-HASHES.json": {
+    "bytes": 2422,
+    "sha256": "c1811c22b4e86b1454923a3a7895929b55650d7fe178c3c666bae3620203fc29"
+  },
+  "execution/head.txt": {
+    "bytes": 41,
+    "sha256": "2840168b8f63561047f42dc6e1ff7d17b91461303a063fced0c5e82a81c17bc6"
+  },
+  "execution/pytest.ini": {
+    "bytes": 19,
+    "sha256": "713f986ee48be06ad4bff2a700d39514a9f69e34b3547af52366c0a274e30e5b"
+  },
+  "execution/run.py": {
+    "bytes": 15619,
+    "sha256": "0995c85ceb672a3e2b1fd736bd7c1e592680b0f9413cbfa3a28a948df825e49f"
+  },
+  "execution/test_us_puma_ladder.py": {
+    "bytes": 23779,
+    "sha256": "a777b0f2fbf39e738521336bf54d1c63109518b3a02f67cbb161c7b3a02e4971"
+  },
+  "execution/test_us_puma_ladder_sources.py": {
+    "bytes": 13343,
+    "sha256": "4cc4c2c69d0bfa813e2addf7645c35f7153e8630b7d7e0531cb324ec1d555064"
+  },
+  "source.patch": {
+    "bytes": 194939,
+    "sha256": "57c02e3985ddea8fd2e303dbf3bf657c94c7266daaedd8ec6cfc11f9ab891eb8"
+  },
+  "us-joint-geography.md": {
+    "bytes": 2255,
+    "sha256": "b0f3716c961201712898e88257ef6d8c88cd79e80f357dfa4bf826163390937c"
+  },
+  "us-joint-puma-county-cd.fixed.md": {
+    "bytes": 408,
+    "sha256": "c9bfa5a78194f75bd947a5560f581f7abe5b977d33c34c4d5d2f61698903bcf0"
+  }
+}

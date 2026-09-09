@@ -1,0 +1,10 @@
+{
+  "automatic_retry": false,
+  "configuration_sha256": "fe14cc7cfe85fd1f01f5491d3f9129666f2cc2de7a8245d26596c220db179534",
+  "execution_approved": true,
+  "guard_sha256": "0995c85ceb672a3e2b1fd736bd7c1e592680b0f9413cbfa3a28a948df825e49f",
+  "implementation_manifest_sha256": "20ae0866ea346c6df8af123ff7c04b6c351001aa96a751aa2dfa677b04acd398",
+  "protocol": "owned.catalogue-controls-execution-approval.v1",
+  "resources_approved": {},
+  "scope": "Normal source imports and exact invented PUMA source/assignment tests only. No genuine sources, graph issuance, calibration, source admission or release. No resource content admitted."
+}

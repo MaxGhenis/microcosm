@@ -1,0 +1,9 @@
+# Independent joint-geography follow-up review
+
+No remaining actionable finding in the requested tract-nesting fix, pinned offline source route and streaming-reader changes. This is source review, not an independent execution or native-source acceptance.
+
+Verified manifest 3a8f9562eeb577ac1df25d8bfca659c208e13d82c28d81e760c8ebb7c833873f, all 14 listed payloads, and all 12 current implementation source pins against the packet. The shared validator now rejects a tract assigned to multiple PUMAs on both assignment and support-gate paths. Its regression uses the concrete previously reported mutation, while the assembler and offline CLI tests retain the legitimate case of a tract crossing CDs.
+
+The offline route requires the exact selected source-key roster and absolute local path/expected URL/positive byte count/lowercase SHA256 envelope. Every file is checked immediately before its parser and all files plus manifest bytes are checked again after parsing. Supplying a manifest never calls the download branch. The text and ZIP readers now yield lines within their open contexts, preserving complete parser iteration while avoiding readlines materialization. Eight ordinary test cases exercise real pinned invented text/ZIP parsing into a loadable joint NPZ, five malformed envelopes, and post-read source/manifest mutations. Those tests do not mock a successful source issuer or substitute the aggregation algorithm.
+
+The previously reviewed joint aggregation/draw/marginal checks remain unchanged except the nesting fix. The independently maintained lazy-facade conversion, execution refusal accounting, genuine 53-file custody, current graph gate composition and release validation remain outside this bounded review. No survey checkout edits or project/native payload execution by this reviewer.

@@ -1,0 +1,20 @@
+{
+  "changelog.d/us-joint-puma-county-cd.fixed.md": "c9bfa5a78194f75bd947a5560f581f7abe5b977d33c34c4d5d2f61698903bcf0",
+  "docs/us-joint-geography.md": "b0f3716c961201712898e88257ef6d8c88cd79e80f357dfa4bf826163390937c",
+  "packages/microcosm-build/src/microcosm/build/__init__.py": "a79b01feea0c6572cf0e74d57c450f93bbbab8fa009f2e32c37d9439d71fff29",
+  "packages/microcosm-build/src/microcosm/build/gates.py": "8cffdc10c1c02cd1e39bb618d1ae7374a78a5a9f6619444166fe19265132dd2f",
+  "packages/microcosm-build/src/microcosm/build/us_runtime/__init__.py": "4b487829e66e0bd6835bffc6e6db6797a3a44bc7c45daa9564987579b04649ad",
+  "packages/microcosm-build/src/microcosm/build/us_runtime/block_ladder_sources.py": "b41fd3257bae808429b32fb89ee30733dfcc5bb6b483eee8854cc530288364f6",
+  "packages/microcosm-build/src/microcosm/build/us_runtime/congressional_district_geography.py": "ff24c4a85756411f4cee5400d3eeefba78cf4edb5351842b65890ed1901a24aa",
+  "packages/microcosm-build/src/microcosm/build/us_runtime/geography_ladder.py": "5c42a1c5615cffd6087f462d172dfb02002742bf9c5d771e97600bfbd77200d7",
+  "packages/microcosm-build/src/microcosm/build/us_runtime/puma_ladder.py": "603e380494e430b99605429bdeb0d8b31343d6b706579cf6ecd91b9b7d2f8ead",
+  "packages/microcosm-build/src/microcosm/build/us_runtime/puma_ladder_sources.py": "0b6cd1c0c660a0d847219bb6c8958dee1474192c3bd03f7a0b0e2197b0dc5048",
+  "packages/microcosm-build/tests/test_us_acs_multispine.py": "fa79445c5fe3213d4c4cb5e2d4b4f33fe849cfb005a111710f74721ab8ca94c7",
+  "packages/microcosm-build/tests/test_us_acs_multispine_legacy_builder.py": "9ac663baec9fa9b3be4a2496750b3c3570e670044abb05b8782c59c6e60213a7",
+  "packages/microcosm-build/tests/test_us_base_pool.py": "36082b3540d347bb9654ab62bf9b7da0910ee5392e1fe5cc02fe7399adaf3c89",
+  "packages/microcosm-build/tests/test_us_multispine_pool_tool.py": "2353cfbccd9454b2d2e64f1325529477aac2e2623aa895b8785a30ff598b5fe0",
+  "packages/microcosm-build/tests/test_us_puma_ladder.py": "a777b0f2fbf39e738521336bf54d1c63109518b3a02f67cbb161c7b3a02e4971",
+  "packages/microcosm-build/tests/test_us_puma_ladder_sources.py": "4cc4c2c69d0bfa813e2addf7645c35f7153e8630b7d7e0531cb324ec1d555064",
+  "packages/microcosm-frame/src/microcosm/frame/__init__.py": "3a43c2b2812720d49b70db66cdfaaf2cfb045cf4718c033bcca2d92f87af0245",
+  "tools/build_us_puma_ladder_artifact.py": "a4f0612fcc93773ccf4c9d2a8d93e1b6ee5766cd451e21218e2064f1dae58121"
+}

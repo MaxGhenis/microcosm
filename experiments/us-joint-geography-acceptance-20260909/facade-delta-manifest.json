@@ -1,0 +1,26 @@
+{
+  "FINAL-STATIC-REVIEW.json": {
+    "bytes": 1092,
+    "sha256": "776f88ef3b216de3df011e8cc9369f818056574f9c3a83f9a224269648d7efff"
+  },
+  "STATIC-REVIEW.json": {
+    "bytes": 962,
+    "sha256": "ec8a95f5115135f2bfddf632c0e2c90503a49601fc26835b5f26b2cb947e2d88"
+  },
+  "accepted-W-lazy.py": {
+    "bytes": 116957,
+    "sha256": "ef6d5888c0df08860be519d07fd2521c9d824e7fd1ee9d9408f23da0146b8abb"
+  },
+  "after.py": {
+    "bytes": 116769,
+    "sha256": "4b487829e66e0bd6835bffc6e6db6797a3a44bc7c45daa9564987579b04649ad"
+  },
+  "facade.patch": {
+    "bytes": 139429,
+    "sha256": "87684de6b7467004c670781435b9345fd69a599f77c5a19bc9ae595e3c1d3cf1"
+  },
+  "main-plus-joint-before.py": {
+    "bytes": 102985,
+    "sha256": "3c24035e3b689362176ff0d5a91c1c640689e3a0fc5c1af4fe96e09466258bdd"
+  }
+}

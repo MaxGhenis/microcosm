@@ -1,0 +1,170 @@
+{
+  "REPORT.md": {
+    "bytes": 3731,
+    "sha256": "f5356b2f4ffd09ec91d17481f6979f2c915d8d29b7e4ee286a7532757599f236"
+  },
+  "accepted-run/EXTERNAL-POSTCHECK.json": {
+    "bytes": 7943,
+    "sha256": "4b19ddf5e914ef89799c0e40fa7baedb74f9475472092b76b3448a5dbec0fa6e"
+  },
+  "accepted-run/ROOT-EXECUTION-APPROVAL.json": {
+    "bytes": 635,
+    "sha256": "558148106a84500ccc23cb9f60bd16cbc96c29eb510f8addbc349dc4d1c1e712"
+  },
+  "accepted-run/STAGING-REVIEW.json": {
+    "bytes": 6121,
+    "sha256": "43f5a4b2be7d6360a795fb009d3f57827c5ce4e67624ee95ac4c32577fc97825"
+  },
+  "accepted-run/joint-geography-v1.json": {
+    "bytes": 281614,
+    "sha256": "1b4835b6ee8bde7a487f119581f96344ebf514c422d86c9249532396bad85392"
+  },
+  "accepted-run/joint-geography-v1.xml": {
+    "bytes": 7925,
+    "sha256": "d07940efcd83d0c79245024704d543854a63300f37b6f74fa3383ab67a3ac0ab"
+  },
+  "cache-metadata-only.json": {
+    "bytes": 12141,
+    "sha256": "b3468ce65c17e713e9b9ba3d80b7dc51d78c30d84e3a7e21f5f3006558b7028f"
+  },
+  "execution-packet/EXECUTION-REVIEW.md": {
+    "bytes": 2417,
+    "sha256": "592b387646b4bd7ffbb8349079fc0b9993dfd1f8b06d3403227b39f3590f88fe"
+  },
+  "execution-packet/IMPLEMENTATION-SOURCE-HASHES.json": {
+    "bytes": 1568,
+    "sha256": "20ae0866ea346c6df8af123ff7c04b6c351001aa96a751aa2dfa677b04acd398"
+  },
+  "execution-packet/MANIFEST.json": {
+    "bytes": 1973,
+    "sha256": "c5f4805e5c764838c299c6535f9daf7a3f6842e841bc7fe02348f866e1aae795"
+  },
+  "execution-packet/execution/EXECUTION-CONFIG.json": {
+    "bytes": 2555,
+    "sha256": "fe14cc7cfe85fd1f01f5491d3f9129666f2cc2de7a8245d26596c220db179534"
+  },
+  "execution-packet/execution/OPTIONAL-SYMLINK-DERIVATION.json": {
+    "bytes": 11919,
+    "sha256": "325c6c458e58ad4e564239a09af76524b700f923870bd86a39f0a6de6b0ac592"
+  },
+  "execution-packet/execution/REFUSAL-LIMITS.json": {
+    "bytes": 12887,
+    "sha256": "29c7918beb8d4c296fdffd8ae6c8809f06627f4b61c0469af0cda724ccfdac46"
+  },
+  "execution-packet/execution/RUNTIME-CODE-PINS.json": {
+    "bytes": 1520,
+    "sha256": "ba91d96e43e736be9a416a66fbe96309b7a85813c30093fc1c8868ecd3953e7f"
+  },
+  "execution-packet/execution/SOURCE-HASHES.json": {
+    "bytes": 2422,
+    "sha256": "c1811c22b4e86b1454923a3a7895929b55650d7fe178c3c666bae3620203fc29"
+  },
+  "execution-packet/execution/head.txt": {
+    "bytes": 41,
+    "sha256": "2840168b8f63561047f42dc6e1ff7d17b91461303a063fced0c5e82a81c17bc6"
+  },
+  "execution-packet/execution/pytest.ini": {
+    "bytes": 19,
+    "sha256": "713f986ee48be06ad4bff2a700d39514a9f69e34b3547af52366c0a274e30e5b"
+  },
+  "execution-packet/execution/run.py": {
+    "bytes": 15619,
+    "sha256": "0995c85ceb672a3e2b1fd736bd7c1e592680b0f9413cbfa3a28a948df825e49f"
+  },
+  "execution-packet/execution/test_us_puma_ladder.py": {
+    "bytes": 23779,
+    "sha256": "a777b0f2fbf39e738521336bf54d1c63109518b3a02f67cbb161c7b3a02e4971"
+  },
+  "execution-packet/execution/test_us_puma_ladder_sources.py": {
+    "bytes": 13343,
+    "sha256": "4cc4c2c69d0bfa813e2addf7645c35f7153e8630b7d7e0531cb324ec1d555064"
+  },
+  "execution-packet/source.patch": {
+    "bytes": 194939,
+    "sha256": "57c02e3985ddea8fd2e303dbf3bf657c94c7266daaedd8ec6cfc11f9ab891eb8"
+  },
+  "execution-packet/us-joint-geography.md": {
+    "bytes": 2255,
+    "sha256": "b0f3716c961201712898e88257ef6d8c88cd79e80f357dfa4bf826163390937c"
+  },
+  "execution-packet/us-joint-puma-county-cd.fixed.md": {
+    "bytes": 408,
+    "sha256": "c9bfa5a78194f75bd947a5560f581f7abe5b977d33c34c4d5d2f61698903bcf0"
+  },
+  "facade-delta-manifest.json": {
+    "bytes": 793,
+    "sha256": "7bc2ed2677e22d62631b0fe1c5834336111c3e74349a9bffea2b341502462f7d"
+  },
+  "facade-static-review.json": {
+    "bytes": 1092,
+    "sha256": "776f88ef3b216de3df011e8cc9369f818056574f9c3a83f9a224269648d7efff"
+  },
+  "preserved-probes/us-joint-geography-invented-root-20260909/EXECUTION-CONFIG.json": {
+    "bytes": 2549,
+    "sha256": "6487f28cc0ad34d03bf511640c9e1bd60f669085f9bf2e3f72e27fdeb7ccfb36"
+  },
+  "preserved-probes/us-joint-geography-invented-root-20260909/joint-geography-v1.json": {
+    "bytes": 264495,
+    "sha256": "efb27ff5731d08e5c21c66690f11aeb5d9fb13e7dbc23285bf9ce92165ba607f"
+  },
+  "preserved-probes/us-joint-geography-invented-root-20260909/joint-geography-v1.xml": {
+    "bytes": 6307,
+    "sha256": "1b60f8da3a8c55a973c46ba5647f9a33b84f3a93bcd1aea2620889a9e8cc3437"
+  },
+  "preserved-probes/us-joint-geography-invented-root-20260909/run.py": {
+    "bytes": 15613,
+    "sha256": "8bf399e8f09ac7eec8d10550c4b7123677aab8937b91dff38bb450ed56aad575"
+  },
+  "preserved-probes/us-joint-geography-offline-invented-root-20260909/EXECUTION-CONFIG.json": {
+    "bytes": 2557,
+    "sha256": "1d1ff418e0cf32c8e0ae4f712219c71628091a81e0ca8a2f33aa188026268107"
+  },
+  "preserved-probes/us-joint-geography-offline-invented-root-20260909/joint-geography-v1.json": {
+    "bytes": 169919,
+    "sha256": "efa51ae3aa53b1d3a576077c9692c3ba741909bd4e8b5c58c93fe4c682ebbe3e"
+  },
+  "preserved-probes/us-joint-geography-offline-invented-root-20260909/joint-geography-v1.xml": {
+    "bytes": 669,
+    "sha256": "4b1af646e60734d0322e5d3eb7411e2cfea09593aa32eb8e0fe97cca2150c25c"
+  },
+  "preserved-probes/us-joint-geography-offline-invented-root-20260909/run.py": {
+    "bytes": 15637,
+    "sha256": "c8fb01d6c174c6739344cca0b974d294930b7a7ceba824551d9f75ce62d61b72"
+  },
+  "preserved-probes/us-joint-geography-offline-owned-invented-root-20260909/EXECUTION-CONFIG.json": {
+    "bytes": 2563,
+    "sha256": "4954f92a07b7a2bd24d7cc76dcd0e9cbb2ed829f0e47aabcc383061f4fee1823"
+  },
+  "preserved-probes/us-joint-geography-offline-owned-invented-root-20260909/joint-geography-v1.json": {
+    "bytes": 282946,
+    "sha256": "62a589668cdda07f7a0ec3ea7e32d5370a8b9b876ea2ccb9229cf11fc4f73ff5"
+  },
+  "preserved-probes/us-joint-geography-offline-owned-invented-root-20260909/joint-geography-v1.xml": {
+    "bytes": 7925,
+    "sha256": "eaf60c326b8317adab6ace03d4c16b73137e4d0e63fd13024326b7f028317857"
+  },
+  "preserved-probes/us-joint-geography-offline-owned-invented-root-20260909/run.py": {
+    "bytes": 15627,
+    "sha256": "0cf07ef23ff24491dcc8c4b5320b9190e9916fd5a89a94d8d9941f28ab929776"
+  },
+  "preserved-probes/us-joint-geography-reviewed-invented-root-20260909/EXECUTION-CONFIG.json": {
+    "bytes": 2558,
+    "sha256": "1d1a31254b792ac5effdae08511254f137b8ede99ba545e57fd82906218024b4"
+  },
+  "preserved-probes/us-joint-geography-reviewed-invented-root-20260909/PREIMPORT-FAILURE.json": {
+    "bytes": 619,
+    "sha256": "096821efaf56689d64fa314e08866b3a87f56627f8444c6aeb2dd9dc3b425932"
+  },
+  "preserved-probes/us-joint-geography-reviewed-invented-root-20260909/run.py": {
+    "bytes": 15622,
+    "sha256": "342e399ffee523c730d113e5142382961238ca6f320fb965355e6d9662282fe1"
+  },
+  "review-followup.md": {
+    "bytes": 1809,
+    "sha256": "9f87cbffa2c2e722ac8031daa5acd284936d67ee785880918a69a673c2811228"
+  },
+  "review-initial.md": {
+    "bytes": 2332,
+    "sha256": "255622a5e561d53259b9e9dedf22d18fcfe5fe762de4db2af618f019af80aabf"
+  }
+}
