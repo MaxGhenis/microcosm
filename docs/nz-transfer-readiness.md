@@ -49,9 +49,20 @@ does not implement the complete legal NZ family definition.
 1. At base `6f7571e1a`, `ContentStore.put_frame`/`load_frame` round-trip tables,
    memberships, strata and weights, **but not general `Frame.metadata`**.
    A fixture with metadata `status=synthetic_fixture` returns without that
-   metadata. Keep approval, measurement, restrictions and status in an
-   authenticated handoff manifest/declared graph inputs; do not rely on a
-   transient Python Frame attribute. No shared runtime patch was made here.
+   metadata. **This is a main-baseline gap already addressed in unmerged PR893**
+   at `f4e5ec4eb761e26f65667f693ef37d3ea68adfc8`: its tagged complete metadata
+   codec binds a metadata hash and refuses changed metadata under the same key,
+   stale codecs and malformed metadata. Source inspection on 10 September
+   verified `packages/microcosm-graph/src/microcosm/graph/store.py` SHA-256
+   `1f594051931419585babd72229e9de7d2a9e8827e39d835fb52add0e23cad386`
+   and `packages/microcosm-graph/tests/test_frame_metadata_store.py` SHA-256
+   `3d501901be632437a285bee625d3c19b9af3561564d6d30b129fdd9bc10699f3`.
+   Those tests cover nested types, identity and corruption; they were inspected,
+   not rerun in the US owner's checkout. Keep approval, measurement,
+   restrictions and status in an authenticated handoff manifest regardless of
+   metadata-codec support. No shared runtime patch was made here. The US donor
+   still awaits full host and post-clone acceptance; this clarification does
+   not unfreeze the NZ build.
 2. The US integration's `atomic_geography_nodes` and typed artifact APIs are
    ahead of this base. NZ must adopt the accepted shared version once stable;
    avoid porting US location semantics. Fixture geography uses explicitly

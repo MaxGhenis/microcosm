@@ -49,6 +49,11 @@ and aggregation operations rather than independent entity weights.
 `run_graph`, and `ContentStore`. The source codecs `csv-tables` and `frame-store`
 both exist on the base commit. The latter loads a verified content-store Frame
 directory and is a useful eventual donor handoff format.
+The base loses general Frame metadata on storage, while the inspected unmerged
+PR893 implementation already preserves and authenticates it. See the
+[readiness packet](nz-transfer-readiness.md#shared-api-observations-for-the-us-owner)
+for exact source pins. An explicit pinned approval/use/measurement manifest
+remains part of the donor contract under either codec.
 
 Only a CREATE node returns `KernelResult.frame`. It should load the source bytes
 through a declared codec, validate the donor contract, construct recipient
