@@ -1,0 +1,780 @@
+{
+  "schema_version": "1.0",
+  "status": "development_observed_targets",
+  "description": "Publisher observations for a synthetic-fixture transfer experiment. These facts are not synthetic; donor records and inferred NZ joint distributions remain synthetic assumptions. No release certification or current-population claim.",
+  "source": {
+    "publisher": "Stats NZ",
+    "title": "Subnational population estimates: At 30 June 2025 (provisional)",
+    "source_page": "https://www.stats.govt.nz/information-releases/subnational-population-estimates-at-30-june-2025/",
+    "source_url": "https://www.stats.govt.nz/assets/Uploads/Subnational-population-estimates/Subnational-population-estimates-At-30-June-2025/Download-data/subnational-population-estimates-at-30-june-2025-provisional.xlsx",
+    "sha256": "001e8a896cfb50f5ed17836dc815b235e3bcca55ee91c9869a2afaeb054b50a6",
+    "size_bytes": 97990,
+    "published_at": "2025-10-29",
+    "live_retrieval_verified_at": "2026-09-10",
+    "chronicle_package": "stats-nz-subnational-population-estimates-2025",
+    "chronicle_pr": "https://github.com/PolicyEngine/chronicle/pull/211",
+    "chronicle_head": "83335a44109f91ca52e8c1a4654499af74c4333c",
+    "chronicle_pr_status": "open",
+    "vintage": "stats_nz_subnational_population_2025_10_29"
+  },
+  "period": {
+    "start_date": "2025-06-30",
+    "end_date": "2025-06-30",
+    "basis": "point_in_time",
+    "label": "At 30 June 2025 (provisional)",
+    "aging": "none"
+  },
+  "measurement": {
+    "population": "2023 census-base estimated resident population; all sexes; includes residents temporarily overseas and census/migration adjustments",
+    "currency": null,
+    "rounding": "Publisher note: individual figures may not sum to stated totals due to rounding; derived figures use greater precision than published. Preserve each cell independently. No rounding quantum asserted.",
+    "outside_region": "NZ includes areas not included in a region (for example Chatham Islands). No outside-region observation or residual is invented.",
+    "region_total_sum": 5324100,
+    "nz_minus_region_total_sum": 600
+  },
+  "targets": [
+    {
+      "id": "nz_age_0_14",
+      "role": "fit",
+      "value": 971300,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "country",
+        "code": "NZ",
+        "vintage": "current"
+      },
+      "age": {
+        "label": "0_14",
+        "lower_inclusive": 0,
+        "upper_exclusive": 15
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "D64"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_0_14.nz.population"
+    },
+    {
+      "id": "nz_age_15_39",
+      "role": "fit",
+      "value": 1829300,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "country",
+        "code": "NZ",
+        "vintage": "current"
+      },
+      "age": {
+        "label": "15_39",
+        "lower_inclusive": 15,
+        "upper_exclusive": 40
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "E64"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_15_39.nz.population"
+    },
+    {
+      "id": "nz_age_40_64",
+      "role": "fit",
+      "value": 1624000,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "country",
+        "code": "NZ",
+        "vintage": "current"
+      },
+      "age": {
+        "label": "40_64",
+        "lower_inclusive": 40,
+        "upper_exclusive": 65
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "F64"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_40_64.nz.population"
+    },
+    {
+      "id": "nz_age_65_plus",
+      "role": "fit",
+      "value": 900100,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "country",
+        "code": "NZ",
+        "vintage": "current"
+      },
+      "age": {
+        "label": "65_plus",
+        "lower_inclusive": 65,
+        "upper_exclusive": null
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "G64"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_65_plus.nz.population"
+    },
+    {
+      "id": "nz_region_01",
+      "role": "fit",
+      "value": 201100,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "01",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D7"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_01.population",
+      "label": "Northland"
+    },
+    {
+      "id": "nz_region_02",
+      "role": "fit",
+      "value": 1816000,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "02",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D8"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_02.population",
+      "label": "Auckland"
+    },
+    {
+      "id": "nz_region_03",
+      "role": "fit",
+      "value": 532100,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "03",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D9"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_03.population",
+      "label": "Waikato"
+    },
+    {
+      "id": "nz_region_04",
+      "role": "fit",
+      "value": 351500,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "04",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D10"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_04.population",
+      "label": "Bay of Plenty"
+    },
+    {
+      "id": "nz_region_05",
+      "role": "fit",
+      "value": 52700,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "05",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D11"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_05.population",
+      "label": "Gisborne"
+    },
+    {
+      "id": "nz_region_06",
+      "role": "fit",
+      "value": 179700,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "06",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D12"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_06.population",
+      "label": "Hawke's Bay"
+    },
+    {
+      "id": "nz_region_07",
+      "role": "fit",
+      "value": 130300,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "07",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D13"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_07.population",
+      "label": "Taranaki"
+    },
+    {
+      "id": "nz_region_08",
+      "role": "fit",
+      "value": 260700,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "08",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D14"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_08.population",
+      "label": "Manawatū-Whanganui"
+    },
+    {
+      "id": "nz_region_09",
+      "role": "fit",
+      "value": 543400,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "09",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D15"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_09.population",
+      "label": "Wellington"
+    },
+    {
+      "id": "nz_region_16",
+      "role": "fit",
+      "value": 59900,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "16",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D16"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_16.population",
+      "label": "Tasman"
+    },
+    {
+      "id": "nz_region_17",
+      "role": "fit",
+      "value": 54300,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "17",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D17"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_17.population",
+      "label": "Nelson"
+    },
+    {
+      "id": "nz_region_18",
+      "role": "fit",
+      "value": 50800,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "18",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D18"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_18.population",
+      "label": "Marlborough"
+    },
+    {
+      "id": "nz_region_12",
+      "role": "fit",
+      "value": 34700,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "12",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D19"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_12.population",
+      "label": "West Coast"
+    },
+    {
+      "id": "nz_region_13",
+      "role": "fit",
+      "value": 698200,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "13",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D20"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_13.population",
+      "label": "Canterbury"
+    },
+    {
+      "id": "nz_region_14",
+      "role": "fit",
+      "value": 253900,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "14",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D21"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_14.population",
+      "label": "Otago"
+    },
+    {
+      "id": "nz_region_15",
+      "role": "fit",
+      "value": 104800,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "15",
+        "vintage": "regc_2025"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D22"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.regc_15.population",
+      "label": "Southland"
+    },
+    {
+      "id": "nz_region_02_age_0_14",
+      "role": "holdout",
+      "value": 339300,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "02",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "0_14",
+        "lower_inclusive": 0,
+        "upper_exclusive": 15
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "D13"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_0_14.regc_02.population",
+      "label": "Auckland, 0_14"
+    },
+    {
+      "id": "nz_region_02_age_15_39",
+      "role": "holdout",
+      "value": 679700,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "02",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "15_39",
+        "lower_inclusive": 15,
+        "upper_exclusive": 40
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "E13"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_15_39.regc_02.population",
+      "label": "Auckland, 15_39"
+    },
+    {
+      "id": "nz_region_02_age_40_64",
+      "role": "holdout",
+      "value": 553000,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "02",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "40_64",
+        "lower_inclusive": 40,
+        "upper_exclusive": 65
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "F13"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_40_64.regc_02.population",
+      "label": "Auckland, 40_64"
+    },
+    {
+      "id": "nz_region_02_age_65_plus",
+      "role": "holdout",
+      "value": 244000,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "02",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "65_plus",
+        "lower_inclusive": 65,
+        "upper_exclusive": null
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "G13"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_65_plus.regc_02.population",
+      "label": "Auckland, 65_plus"
+    },
+    {
+      "id": "nz_region_09_age_0_14",
+      "role": "holdout",
+      "value": 90800,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "09",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "0_14",
+        "lower_inclusive": 0,
+        "upper_exclusive": 15
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "D34"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_0_14.regc_09.population",
+      "label": "Wellington, 0_14"
+    },
+    {
+      "id": "nz_region_09_age_15_39",
+      "role": "holdout",
+      "value": 193900,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "09",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "15_39",
+        "lower_inclusive": 15,
+        "upper_exclusive": 40
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "E34"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_15_39.regc_09.population",
+      "label": "Wellington, 15_39"
+    },
+    {
+      "id": "nz_region_09_age_40_64",
+      "role": "holdout",
+      "value": 170900,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "09",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "40_64",
+        "lower_inclusive": 40,
+        "upper_exclusive": 65
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "F34"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_40_64.regc_09.population",
+      "label": "Wellington, 40_64"
+    },
+    {
+      "id": "nz_region_09_age_65_plus",
+      "role": "holdout",
+      "value": 87900,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "09",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "65_plus",
+        "lower_inclusive": 65,
+        "upper_exclusive": null
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "G34"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_65_plus.regc_09.population",
+      "label": "Wellington, 65_plus"
+    },
+    {
+      "id": "nz_region_13_age_0_14",
+      "role": "holdout",
+      "value": 119600,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "13",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "0_14",
+        "lower_inclusive": 0,
+        "upper_exclusive": 15
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "D49"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_0_14.regc_13.population",
+      "label": "Canterbury, 0_14"
+    },
+    {
+      "id": "nz_region_13_age_15_39",
+      "role": "holdout",
+      "value": 239600,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "13",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "15_39",
+        "lower_inclusive": 15,
+        "upper_exclusive": 40
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "E49"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_15_39.regc_13.population",
+      "label": "Canterbury, 15_39"
+    },
+    {
+      "id": "nz_region_13_age_40_64",
+      "role": "holdout",
+      "value": 215100,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "13",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "40_64",
+        "lower_inclusive": 40,
+        "upper_exclusive": 65
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "F49"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_40_64.regc_13.population",
+      "label": "Canterbury, 40_64"
+    },
+    {
+      "id": "nz_region_13_age_65_plus",
+      "role": "holdout",
+      "value": 123900,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "region",
+        "code": "13",
+        "vintage": "regc_2025"
+      },
+      "age": {
+        "label": "65_plus",
+        "lower_inclusive": 65,
+        "upper_exclusive": null
+      },
+      "source_cell": {
+        "sheet": "Table 3",
+        "address": "G49"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.age_65_plus.regc_13.population",
+      "label": "Canterbury, 65_plus"
+    },
+    {
+      "id": "nz_population_total",
+      "role": "accounting_check",
+      "value": 5324700,
+      "unit": "count",
+      "entity": "person",
+      "entity_role": "resident_population",
+      "geography": {
+        "country": "NZ",
+        "level": "country",
+        "code": "NZ",
+        "vintage": "current"
+      },
+      "source_cell": {
+        "sheet": "Table 1",
+        "address": "D25"
+      },
+      "source_record_id": "stats_nz.cy2025.subnational_population.all_ages.nz.population"
+    }
+  ],
+  "use_constraints": [
+    "Do not fit all 16 region totals and the national age sum as exact consistent equations over a Frame containing only the 16 regions: source universe and rounding differ.",
+    "Do not label an inferred outside-region residual an observed NZ target.",
+    "Do not impose sex constraints; these source cells have no sex breakdown.",
+    "Do not age these counts silently to tax year 2026-27.",
+    "Reserve the holdout cells from calibration and imputation/geography fitting if reporting them as holdouts.",
+    "Report count residuals as well as relative error; the historical 2% gate is an engineering tolerance, not source uncertainty."
+  ]
+}

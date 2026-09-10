@@ -30,7 +30,14 @@ ENGINE_ONLY = (
 # Shared-engine behavioral contracts that deliberately do not carry a country
 # prefix or the spec-engine ``test_spec_*`` prefix. Listing them makes their
 # shared-lane placement reviewed rather than a silent classifier default.
-EXPLICIT_SHARED_SPEC = ("packages/microcosm-build/tests/test_cross_grain.py",)
+EXPLICIT_SHARED_SPEC = (
+    "packages/microcosm-build/tests/test_cross_grain.py",
+    "packages/microcosm-build/tests/test_nz_policy.py",
+    "packages/microcosm-build/tests/test_nz_transfer.py",
+    "packages/microcosm-graph/tests/test_explorer.py",
+    "packages/microcosm-graph/tests/test_explorer_run.py",
+    "packages/microcosm-graph/tests/test_schema.py",
+)
 
 PROCESSES = {
     "trade": ("main",),
