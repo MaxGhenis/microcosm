@@ -1,0 +1,1 @@
+Stop using capped SPM housing dollars to infer a person's documented immigration status. Household housing receipt does not identify the assisted individual; other existing inference rules are unchanged. New data builds require fresh immigration qualification.

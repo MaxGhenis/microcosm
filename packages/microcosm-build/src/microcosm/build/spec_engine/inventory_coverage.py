@@ -348,19 +348,19 @@ EXPECTED_LEGACY_RELEASE_REGEX = EXPECTED_RELEASE_REGEX.replace(
 EXPECTED_HASHES = {
     "acs_group_predictors": "a927bb7ecf3e84f54c93583ab79318654514ac546aefafba67da5285615fbd60",
     "acs_person_predictors": "878c788a6f037d7aca12b3586ea034eff04f3034ffa11935a736493042551f25",
-    "authority": "9d4a9672a0f03039b1fe874b9fe21ed575be0d29f14afc396d03cdf5c809bdd2",
+    "authority": "3262b526cfe42e6079db170f709946782b4e040bd81779a9a3ed3f2a66ab286b",
     "early_families": "4aa9f736fd76e83955477ad1667e58f48f264783f05bdc7f0102cd32d61323bd",
-    "full_checkpoint": "7176664c34039def5f43281a7735f792fe43de4ef0a6e7ca18f53d812b412d15",
+    "full_checkpoint": "16a0063c26514ff7fe8a9741bdc118603b2edc0f05f2026cbf32a8dc7f11f34e",
     "gap_fill_schedule": "1c31f9868f7884347cc19cf1ff65da43f950b9114941a715bab168246db414a7",
-    "graph_nodes": "40cd51ffdfe2e9d9d08d48c08e8ded9de1e4b134783bab05c4abc6ad5c72ca1e",
+    "graph_nodes": "fa4f072a875414a8eb032f7e58530cd35255eb530bef12eabdef095253e63c60",
     "geography_assignment": "f49425ca8734ac559c73cf44f6458d86d3162a48956b98a27e6e758959361585",
     "late_families": "d91f9ff0eb52f43e7b6eed3d5c58c37abe1620c3a11021da15dae9c10e16d382",
-    "late_resource_semantics": "b2b7dbd64db211088e85c94ad6ca1b942cb5e45683eb8c34ba9b664b5de64624",
-    "late_schedule": "e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f",
+    "late_resource_semantics": "95a87a5caa913d3729a475faf7392e7fc07d5acc4981a72d8f6aaacbfb48ace9",
+    "late_schedule": "9baa162cc3b0481a71eedc508fb87dec902954f79d7d55fc245fa4c0964ffcdc",
     "ownership": "5f64f0aac49e2313177564f71876bffc8c81b3ded4df701e70930e60e9c98356",
     "primary_tuples": "987b501c695e31f45521c4a178528f75ab3df22c09bc407b182213b2de99ee57",
-    "seed_map": "87ba50531d9fa6683096ecb39a31655b331ab8acff3a5876c2f62b33562a0885",
-    "seed_protocol": "fd3e4b06f11be4e8c13ea19fef9469ab95cbbe3e2dcfce351e860dd3e00709e4",
+    "seed_map": "805da62bb842be719fa687760c5f622d1da70b1eba2772a5a8939be033d1626d",
+    "seed_protocol": "1c3ecaa28a7ee384dbe1eb935d9169a93ae27ac89b1bf2e303efaa5759a87719",
     "source_manifest": "cd5ba8924d64da5425ee14cca82a774e3f4b2bb5aabe06df291cc3cc457287a9",
     "take_up": "fa186daea0f8dd641cc470e41d1a2953f887d45282ec990201298f47bedf8d4d",
     "tail": "ac92829c88a1a4fb6460d61190918d5d99c6c377fc8dd8f62f02b332d09bf59c",
@@ -429,7 +429,7 @@ EXPECTED_INVENTORY_COUNTS: Mapping[str, int] = {
     "primary_targets": 65,
     "producer_authored_outputs": 92,
     "producer_compiled_outputs": 227,
-    "producer_inputs": 2_744,
+    "producer_inputs": 2_743,
     "producer_nodes": 38,
     "producer_virtual_resources": 75,
     "release_rungs": 5,
@@ -1012,7 +1012,7 @@ def build_inventory_coverage(
         "producer_inputs_exact",
         clauses={
             "producer input rows differ": inputs_exact,
-            "input row count differs": input_count == 2744,
+            "input row count differs": input_count == 2743,
         },
         homes=("/imputation/producer_graph/nodes/*/inputs",),
         consumers=(
@@ -1020,7 +1020,7 @@ def build_inventory_coverage(
             "compiler_ir.node_slices",
         ),
         observed={"rows": input_count},
-        expected={"rows": 2744, "relation": "source rows preserved exactly"},
+        expected={"rows": 2743, "relation": "source rows preserved exactly"},
     )
     outputs_exact = set(expected_outputs) == set(compiled_by_id) and all(
         _json_equal(

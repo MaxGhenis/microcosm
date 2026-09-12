@@ -98,7 +98,6 @@ def _person_table(rows: list[dict]) -> pd.DataFrame:
         "PEIO1COW": 0,
         "A_MJOCC": 0,
         "PEAFEVER": 2,
-        "SPM_CAPHOUSESUB": 0.0,
         "person_weight": 1.0,
     }
     records = []
@@ -166,7 +165,6 @@ class TestSSNCardAssignment:
             {"PEIO1COW": 2},
             {"A_MJOCC": 11},
             {"PEAFEVER": 1},
-            {"SPM_CAPHOUSESUB": 1_000.0},
         ],
     )
     def test_legal_status_indicators_mark_other_non_citizen(
@@ -179,6 +177,50 @@ class TestSSNCardAssignment:
         output = _run(_person_table([_noncitizen()]))
         assert output.loc[0, "ssn_card_type"] == "NONE"
         assert output.loc[0, "immigration_status_str"] == "UNDOCUMENTED"
+
+    def test_capped_housing_cannot_identify_documented_household_members(self) -> None:
+        person = _person_table(
+            [
+                _noncitizen(),
+                _noncitizen(MCARE=1),
+                {"PRCITSHP": 1},
+                _noncitizen(WSAL_VAL=10_000.0),
+            ]
+        )
+        person["person_household_id"] = 1
+        expected = None
+        for capped_housing in (0.0, 1_000.0, 25_000.0):
+            variant = person.assign(SPM_CAPHOUSESUB=capped_housing)
+            output = _run(variant)
+            labels = output.loc[:, list(US_IMMIGRATION_OUTPUT_COLUMNS)]
+            assert labels["ssn_card_type"].tolist() == [
+                "NONE",
+                "OTHER_NON_CITIZEN",
+                "CITIZEN",
+                "NONE",
+            ]
+            assert labels["immigration_status_str"].tolist() == [
+                "UNDOCUMENTED",
+                "LEGAL_PERMANENT_RESIDENT",
+                "CITIZEN",
+                "UNDOCUMENTED",
+            ]
+            if expected is None:
+                expected = labels
+            else:
+                pd.testing.assert_frame_equal(labels, expected)
+
+    def test_housing_fields_are_not_required_or_used_as_replacement_evidence(
+        self,
+    ) -> None:
+        person = _person_table([_noncitizen(), _noncitizen(MCARE=1)])
+        person["person_household_id"] = 1
+        assert not {"SPM_CAPHOUSESUB", "HPUBLIC", "HLORENT"} & set(person.columns)
+        expected = _run(person).loc[:, list(US_IMMIGRATION_OUTPUT_COLUMNS)]
+        for public_housing, reduced_rent in ((1, 0), (2, 1), (2, 2)):
+            variant = person.assign(HPUBLIC=public_housing, HLORENT=reduced_rent)
+            output = _run(variant).loc[:, list(US_IMMIGRATION_OUTPUT_COLUMNS)]
+            pd.testing.assert_frame_equal(output, expected)
 
     def test_worker_spill_leaves_undocumented_workers_at_control(self) -> None:
         person = _person_table(
