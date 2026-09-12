@@ -290,3 +290,146 @@ def test_rejects_duplicate_source_keys(population):
     )
     with pytest.raises(ValueError, match="duplicate PERIDNUM"):
         _derive(changed)
+
+
+def _source_frame(population, *, income_year=2024, shuffle=False):
+    from microcosm.frame import EntitySchema, Frame, WeightKind, Weights
+
+    parent_path, source_path, pin = population
+    person = pd.read_hdf(parent_path, "person")
+    person["source_year"] = income_year
+    if shuffle:
+        person = person.sample(frac=1, random_state=42).reset_index(drop=True)
+    person["source_row_id"] = np.arange(len(person))
+    person["person_household_id"] = person.person_spm_unit_id
+    # The model age can be advanced independently of the fixed source role.
+    person["age"] += 5
+    spm = pd.read_hdf(parent_path, "spm_unit")
+    return (
+        Frame(
+            {
+                "person": person,
+                "spm_unit": spm,
+                "household": spm.rename(columns={"spm_unit_id": "household_id"}),
+            },
+            EntitySchema(group_entities=("household", "spm_unit")),
+            {"household": Weights(np.ones(len(spm)), WeightKind.DESIGN)},
+        ),
+        source_path,
+        replace(pin, income_year=income_year, survey_year=income_year + 1),
+    )
+
+
+@pytest.mark.parametrize("income_year", [2022, 2023, 2024])
+@pytest.mark.parametrize("archive", [False, True])
+def test_ordinary_frame_role_preserves_clones_keys_and_boolean_checkpoints(
+    population, tmp_path, income_year, archive
+):
+    from zipfile import ZipFile
+
+    from microcosm.build.frame_checkpoint import (
+        load_frame_checkpoint,
+        write_frame_checkpoint,
+    )
+    from microcosm.build.us_runtime.spm_role_source import (
+        NATIVE_SPM_ROLE,
+        with_us_spm_role_source,
+    )
+
+    frame, source, pin = _source_frame(
+        population, income_year=income_year, shuffle=True
+    )
+    if archive:
+        archive_path = tmp_path / "source.zip"
+        with ZipFile(archive_path, "w") as output:
+            output.write(source, arcname=pin.member)
+        source = archive_path
+        pin = replace(pin, archive_sha256=_digest(source))
+    delivered, receipt = with_us_spm_role_source(
+        frame, {income_year: source}, source_pins={income_year: pin}
+    )
+    expected = independent_minor_role(
+        pd.read_csv(population[1], dtype={"PERIDNUM": str}).set_index("PERIDNUM")
+    )
+    assert delivered.table("person")[NATIVE_SPM_ROLE].dtype == np.bool_
+    assert delivered.table("person")[NATIVE_SPM_ROLE].tolist() == (
+        frame.table("person").PERIDNUM.map(expected).tolist()
+    )
+    pd.testing.assert_frame_equal(
+        delivered.table("person").drop(columns=NATIVE_SPM_ROLE), frame.table("person")
+    )
+    assert receipt["source_checks"][0]["survey_year"] == income_year + 1
+    assert receipt["complete_source_membership_units"] == 4
+    assert receipt["total_source_units"] == 3
+    checkpoint = write_frame_checkpoint(
+        tmp_path / "role.frame.h5", delivered, metadata=receipt
+    )
+    reloaded = load_frame_checkpoint(checkpoint)
+    checked, selected_receipt = with_us_spm_role_source(
+        reloaded.frame.select(reloaded.frame.table("person").person_spm_unit_id.ne(20)),
+        {income_year: source},
+        source_pins={income_year: pin},
+    )
+    assert checked.table("person")[NATIVE_SPM_ROLE].dtype == np.bool_
+    assert selected_receipt["complete_source_membership_units"] == 3
+    assert selected_receipt["total_source_units"] == 3
+    assert reloaded.metadata == receipt
+
+
+def test_ordinary_frame_rejects_partial_units_and_altered_role(population):
+    from microcosm.build.us_runtime.spm_role_source import (
+        NATIVE_SPM_ROLE,
+        with_us_spm_role_source,
+    )
+
+    frame, source, pin = _source_frame(population)
+    args = ({2024: source},)
+    with pytest.raises(ValueError, match="adult/child/person count"):
+        with_us_spm_role_source(
+            frame.select(frame.table("person").person_id.ne(1002)),
+            *args,
+            source_pins={2024: pin},
+        )
+    delivered, _ = with_us_spm_role_source(frame, *args, source_pins={2024: pin})
+    delivered.table("person").loc[0, NATIVE_SPM_ROLE] = False
+    with pytest.raises(ValueError, match="disagrees with source"):
+        with_us_spm_role_source(delivered, *args, source_pins={2024: pin})
+    delivered.table("person")[NATIVE_SPM_ROLE] = 1
+    with pytest.raises(ValueError, match="must be boolean"):
+        with_us_spm_role_source(delivered, *args, source_pins={2024: pin})
+
+
+@pytest.mark.requires_us
+def test_ordinary_role_survives_real_country_h5_export_and_reload(population, tmp_path):
+    from policyengine_us.data import USSingleYearDataset
+
+    from microcosm.build.us_runtime.spm_role_source import (
+        NATIVE_SPM_ROLE,
+        with_us_spm_role_source,
+    )
+    from microcosm.frame import US_SCHEMA, Frame
+    from microcosm.frame.adapters.policyengine_us import PolicyEngineUSEngine
+
+    partial_frame, source, pin = _source_frame(population)
+    tables = {
+        entity: partial_frame.table(entity).copy() for entity in partial_frame.entities
+    }
+    for group in ("tax_unit", "family", "marital_unit"):
+        tables[group] = tables["spm_unit"].rename(
+            columns={"spm_unit_id": f"{group}_id"}
+        )
+        tables["person"][f"person_{group}_id"] = tables["person"].person_spm_unit_id
+    source_frame = Frame(
+        tables, US_SCHEMA, {"household": partial_frame.weights_for("household")}
+    )
+    delivered, _ = with_us_spm_role_source(
+        source_frame, {2024: source}, source_pins={2024: pin}
+    )
+    dataset_path = tmp_path / "role.h5"
+    PolicyEngineUSEngine().write_dataset(delivered, dataset_path, period=2024)
+    native = USSingleYearDataset(file_path=str(dataset_path))
+    assert native.person[NATIVE_SPM_ROLE].dtype == np.bool_
+    assert (
+        native.person[NATIVE_SPM_ROLE].tolist()
+        == delivered.table("person")[NATIVE_SPM_ROLE].tolist()
+    )

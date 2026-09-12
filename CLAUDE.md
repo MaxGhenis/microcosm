@@ -140,3 +140,20 @@ with the same pool inputs as the dense candidate. The flag changes exported
 support, not clone K. Sizes remain candidate-only until their matched comparison
 and promotion scorecard are adjudicated; see
 [the size plan](docs/uk-dataset-size-plan-355.md).
+
+Ordinary pooled-ASEC base construction delivers the native boolean SPM role from
+complete authenticated Census person files during pre-clone enrichment, using
+the existing `--asec-education-source YEAR=PATH` inputs (CSV or ZIP). Both the
+single-process and staged paths recheck source membership and role values after
+cloning, before export, and record source and export reconciliation separately.
+This path does not use the historical BuildP source-enrichment certificate.
+
+`tools/build_us_fiscal_refresh_release.py --refit-frozen-support` requires
+`--selection-source-manifest` and retains every selected entity identity and
+person membership while recalibrating weights. It performs no L0 selection,
+uses normal SSI enforcement, and rejects dense diagnostics, exact-k, evidence
+releases, and explicit release-gate bypasses. The manifest records
+`method=full_support_refit` and zero selection epochs. All fiscal releases also
+repeat the existing immigration-composition gate on final calibrated weights;
+`us_immigration_final.json` is a separate, hash-bound release artifact, and a
+failure joins the ordinary terminal gate failures before H5 export.

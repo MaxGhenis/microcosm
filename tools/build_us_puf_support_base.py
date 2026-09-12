@@ -158,6 +158,10 @@ from microcosm.build.us_runtime.puf_qrf_chain import (
     run_primary_puf_qrf_chain,
 )
 from microcosm.build.us_runtime.puf_support import PUF_TAX_DETAIL_DEFAULT_PREDICTORS
+from microcosm.build.us_runtime.spm_role_source import (
+    NATIVE_SPM_ROLE,
+    with_us_spm_role_source,
+)
 from microcosm.frame import Frame, WeightKind, Weights
 from microcosm.frame.adapters.policyengine_us import PolicyEngineUSEngine
 from microcosm.frame.units import US_SCHEMA
@@ -859,13 +863,27 @@ def _without_pytables_leaf_timestamps(enabled: bool) -> Iterator[None]:
         Leaf.__init__ = original_init
 
 
+def _with_native_spm_role(args: argparse.Namespace, frame: Frame):
+    if not getattr(args, "asec_h5", None):
+        return frame, {"enabled": False, "reason": "legacy explicit base H5"}
+    return with_us_spm_role_source(frame, _asec_education_source_paths(args))
+
+
 def _write_policyengine_dataset(
     args: argparse.Namespace,
     frame: Frame,
     output_h5: Path,
-) -> None:
+) -> dict[str, object]:
     """Write the export, canonicalizing only test-harness timestamp metadata."""
 
+    if getattr(args, "asec_h5", None):
+        if NATIVE_SPM_ROLE not in frame.table("person"):
+            raise ValueError("Ordinary ASEC export lost its native SPM source role.")
+        # Rejoin the full pinned sources after every clone and stage. Existing
+        # role values, unit membership, and counts must still reconcile.
+        _, native_spm_role_export = _with_native_spm_role(args, frame)
+    else:
+        native_spm_role_export = {"enabled": False}
     deterministic = bool(getattr(args, "equivalence_deterministic_h5_metadata", False))
     with _without_pytables_leaf_timestamps(deterministic):
         PolicyEngineUSEngine().write_dataset(
@@ -873,6 +891,8 @@ def _write_policyengine_dataset(
             output_h5,
             period=args.target_year,
         )
+
+    return native_spm_role_export
 
 
 def _run_all(
@@ -909,6 +929,7 @@ def _run_all(
         raw_base,
         public_assistance_type_source=public_assistance_type_source,
     )
+    base, native_spm_role_source = _with_native_spm_role(args, base)
     base = with_us_prior_year_income_inputs(
         base,
         seed=args.seed,
@@ -1412,7 +1433,7 @@ def _run_all(
             }
         )
     _observe_frame_boundary(boundary_observer, "block_ladder_assignment", imputed)
-    _write_policyengine_dataset(args, imputed, output_h5)
+    native_spm_role_export = _write_policyengine_dataset(args, imputed, output_h5)
     if (
         args.congressional_district_vintage_crosswalk is not None
         or args.block_ladder_artifact is not None
@@ -1469,6 +1490,8 @@ def _run_all(
             "rows": int(len(weeks_unemployed_source)),
             "audit": dict(weeks_unemployed_source.attrs.get("source_audit", {})),
         },
+        "native_spm_role_source": native_spm_role_source,
+        "native_spm_role_export": native_spm_role_export,
         "education_assistance_source": {
             "income_years": [int(year) for year in _pooled_income_years(args)],
             "audit": dict(education_assistance_source.attrs.get("source_audit", {})),
@@ -2011,6 +2034,7 @@ def _pre_clone_enrichment_stage(
         raw_base,
         public_assistance_type_source=public_assistance_type_source,
     )
+    base, native_spm_role_source = _with_native_spm_role(args, base)
     base = with_us_prior_year_income_inputs(
         base,
         seed=args.seed,
@@ -2131,6 +2155,7 @@ def _pre_clone_enrichment_stage(
         time_period=args.target_year,
     )
     return base, {
+        "native_spm_role_source": native_spm_role_source,
         "acs_h5": str(args.acs_h5.resolve()) if args.acs_h5 is not None else None,
         "acs_sha256": _sha256(args.acs_h5) if args.acs_h5 is not None else None,
         "acs_rent_donor_rows": (
@@ -2770,7 +2795,7 @@ def _export_staged_result(
     out_dir.mkdir(parents=True, exist_ok=True)
     output_h5 = out_dir / _dataset_filename(args.target_year)
     summary_path = out_dir / _summary_filename(args.target_year)
-    _write_policyengine_dataset(args, frame, output_h5)
+    native_spm_role_export = _write_policyengine_dataset(args, frame, output_h5)
     congressional = stage_metadata["congressional_district_assignment"][
         "congressional_district_assignment"
     ]
@@ -2845,6 +2870,8 @@ def _export_staged_result(
         )
 
     summary: dict[str, object] = {
+        "native_spm_role_source": pre_clone.get("native_spm_role_source"),
+        "native_spm_role_export": native_spm_role_export,
         "base_source": source["base_source"],
         "base_h5": (
             source["base_source"].get("path")
