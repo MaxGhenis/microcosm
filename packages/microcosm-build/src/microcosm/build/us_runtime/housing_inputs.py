@@ -38,8 +38,12 @@ from microcosm.build.us_runtime.housing_constants import (
 from microcosm.build.us_runtime.support_provenance import (
     BASE_ASEC_SUPPORT_CHANNEL,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
+    SPINE_ASSEMBLY_MANIFEST_KEY,
+    has_assembled_support_metadata,
     has_support_role_metadata,
+    support_gate_source_channel_series,
     support_role_series,
+    validate_assembly_provenance,
 )
 from microcosm.frame import US_SCHEMA, Frame
 
@@ -1227,6 +1231,61 @@ def with_us_housing_inputs(
     )
 
 
+def _housing_receipt_evidence_projection(frame: Frame) -> Frame | None:
+    """Scope read-only receipt checks to authenticated CPS-origin records.
+
+    CPS native records and their PUF-detail clones carry household receipt
+    evidence. ACS-origin model inputs are transferred without that evidence.
+    Legacy source frames have no assembly metadata and retain all-row checks.
+    This projection is only for gate diagnostics, never population treatment.
+    An authenticated selection containing no CPS records has no evidence scope.
+    """
+    assembled = [
+        has_assembled_support_metadata(frame.table(entity), entity=entity)
+        for entity in frame.entities
+    ]
+    if not any(assembled) and SPINE_ASSEMBLY_MANIFEST_KEY not in frame.metadata:
+        return frame
+    # Fiscal frozen-support selection retains its ancestor assembly receipt.
+    # Validate this live subset without rewriting the ancestor's row counts.
+    validate_assembly_provenance(
+        frame, boundary="US housing receipt evidence gate", allow_subset=True
+    )
+    if not all(assembled):
+        raise ValueError(
+            "US housing receipt evidence gate: assembly manifest requires "
+            "complete raw spine provenance on every entity."
+        )
+    masks = {
+        entity: support_gate_source_channel_series(frame.table(entity), entity=entity)
+        .eq(BASE_ASEC_SUPPORT_CHANNEL)
+        .to_numpy()
+        for entity in frame.entities
+    }
+    if not masks[frame.schema.person_entity].any():
+        if any(mask.any() for mask in masks.values()):
+            raise ValueError(
+                "US housing receipt evidence gate has orphan CPS source entities "
+                "without person membership."
+            )
+        return None
+    # Preserve every source entity, including orphan rows that the head/unit
+    # coherence check must reject. Whole-pool mass history and assembly metadata
+    # do not describe this ephemeral projection and are deliberately omitted.
+    return Frame(
+        {entity: frame.table(entity).loc[masks[entity]] for entity in frame.entities},
+        frame.schema,
+        {
+            entity: frame.weights_for(entity).with_values(
+                frame.weights_for(entity).values[masks[entity]],
+                kind=frame.weights_for(entity).kind,
+            )
+            for entity in frame.weighted_entities
+        },
+        frame.strata.loc[masks[frame.schema.person_entity]],
+    )
+
+
 def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
     """Return weighted signal and entity-coherence diagnostics."""
 
@@ -1261,10 +1320,24 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
     takes_up, takes_up_missing, takes_up_invalid = _strict_boolean_signal(
         spm_unit["takes_up_housing_assistance_if_eligible"]
     )
-    reported, reported_missing, reported_invalid = _strict_boolean_signal(
-        household[US_HOUSING_RECEIPT_COLUMN]
-    )
-    expected_receipt = _head_unit_receipt(frame, reported)
+    evidence_frame = _housing_receipt_evidence_projection(frame)
+    evidence_household_count = evidence_spm_unit_count = 0
+    reported_missing = reported_invalid = head_unit_mismatches = 0
+    if evidence_frame is not None:
+        evidence_household = evidence_frame.table("household")
+        evidence_spm_unit = evidence_frame.table("spm_unit")
+        evidence_household_count = len(evidence_household)
+        evidence_spm_unit_count = len(evidence_spm_unit)
+        reported, reported_missing, reported_invalid = _strict_boolean_signal(
+            evidence_household[US_HOUSING_RECEIPT_COLUMN]
+        )
+        expected_receipt = _head_unit_receipt(evidence_frame, reported)
+        evidence_receives, _, _ = _strict_boolean_signal(
+            evidence_spm_unit["receives_housing_assistance"]
+        )
+        head_unit_mismatches = int(
+            np.count_nonzero(evidence_receives != expected_receipt)
+        )
     spm_weights = np.asarray(frame.resolve_weights("spm_unit").values, dtype=np.float64)
     total_spm_weight = float(spm_weights.sum())
     receives_share = (
@@ -1311,9 +1384,9 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
         "housing_assistance_take_up_invalid_count": takes_up_invalid,
         "housing_assistance_reported_receipt_missing_count": reported_missing,
         "housing_assistance_reported_receipt_invalid_count": reported_invalid,
-        "housing_assistance_head_unit_mismatch_count": int(
-            np.count_nonzero(receives != expected_receipt)
-        ),
+        "housing_assistance_evidence_household_count": evidence_household_count,
+        "housing_assistance_evidence_spm_unit_count": evidence_spm_unit_count,
+        "housing_assistance_head_unit_mismatch_count": head_unit_mismatches,
         "housing_assistance_take_up_source_mismatch_count": int(
             np.count_nonzero(takes_up != receives)
         ),

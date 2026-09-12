@@ -1,1 +1,3 @@
 Use Census household public-housing and reduced-rent reports for housing receipt independently of capped SPM valuations, retain source and allocation codes, and train PUF receipt at household-head grain. Assign the modeled award and take-up flag to the householder’s SPM unit and retain household evidence outside country-model inputs. Select household heads by physical row position and align fit outputs by household identity, preserving duplicate DataFrame labels and arbitrary person order.
+
+Authenticate assembled source provenance before checking household receipt evidence and head-unit assignment on CPS-origin records and their PUF clones. Preserve nullable ACS producer evidence while checking model receipt, take-up, tenure, and rent signal across the complete pool.
