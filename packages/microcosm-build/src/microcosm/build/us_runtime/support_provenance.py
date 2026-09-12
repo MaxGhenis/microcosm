@@ -97,13 +97,18 @@ def validate_assembly_provenance(
     *,
     boundary: str,
     require_manifest: bool = True,
+    allow_subset: bool = False,
 ) -> Mapping[str, Any] | None:
     """Validate live support provenance against the frozen assembly manifest.
 
     Counts cover clone-index-zero rows, so clone operators may add role copies
     without rewriting the source assembly receipt. Every live channel must be
     declared, native counts must remain exact, and each person's channel must
-    agree with every group row referenced by that person.
+    agree with every group row referenced by that person. Read-only gates on
+    selected frames may opt into ``allow_subset``: each live native count must
+    then be at most its ancestor count. This validates the selected source
+    structure against the unchanged ancestor receipt, not exact full-assembly
+    coverage; every other provenance check remains mandatory.
     """
 
     metadata = getattr(frame, "metadata", {})
@@ -220,9 +225,18 @@ def validate_assembly_provenance(
                 f"{boundary}: assembly manifest row counts for {entity!r} "
                 "must be nonnegative."
             )
-        if actual_counts != expected_counts:
+        counts_invalid = (
+            any(
+                actual_counts[channel] > expected_counts[channel]
+                for channel in channels
+            )
+            if allow_subset
+            else actual_counts != expected_counts
+        )
+        if counts_invalid:
+            relation = "exceed" if allow_subset else "drifted from"
             raise ValueError(
-                f"{boundary}: live {entity!r} native row counts drifted from "
+                f"{boundary}: live {entity!r} native row counts {relation} "
                 f"the assembly manifest; expected {expected_counts}, observed "
                 f"{actual_counts}."
             )

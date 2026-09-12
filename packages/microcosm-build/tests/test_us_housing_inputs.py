@@ -49,6 +49,12 @@ from microcosm.build.us_runtime.release_input_coverage import (
     load_release_input_coverage_manifest,
     us_release_reform_coverage_probes,
 )
+from microcosm.build.us_runtime.support_provenance import (
+    spine_assembly_manifest,
+    spine_source_id_column,
+    support_clone_index_column,
+    support_source_id_column,
+)
 from microcosm.build.us_runtime.take_up_contract import load_take_up_contract
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
 
@@ -370,6 +376,215 @@ def test_signal_gate_rejects_broadcast_receipt_even_when_flags_agree():
     assert not gate.passed
     assert gate.details["housing_assistance_head_unit_mismatch_count"] == 1
     assert gate.details["housing_assistance_take_up_source_mismatch_count"] == 0
+
+
+def _mixed_spine_housing_frame() -> Frame:
+    source = derive_us_housing_inputs(_multiple_unit_household())
+    person = source.table("person")
+    person["pre_subsidy_rent"] = np.where(
+        person["is_household_head"] & person["person_household_id"].le(4),
+        12_000.0,
+        0.0,
+    )
+    tables = {}
+    for entity in source.entities:
+        native = source.table(entity).copy()
+        acs = native.copy()
+        primary = source.schema.entity_id_column(entity)
+        acs[primary] += 10_000
+        if entity == "person":
+            for group in source.schema.group_entities:
+                acs[source.schema.membership_column(group)] += 10_000
+        for channel, table in (("asec", native), ("acs", acs)):
+            table[support_channel_column(entity)] = channel
+            table[support_clone_index_column(entity)] = 0
+            table[support_source_id_column(entity)] = table[primary]
+            table[spine_source_id_column(entity)] = native[primary].to_numpy()
+        if entity == "household":
+            acs[US_HOUSING_RECEIPT_COLUMN] = None
+        if entity == "spm_unit":
+            # ACS model inputs can be transferred to a nonhead SPM unit;
+            # no CPS observed-receipt/head-unit assertion applies to it.
+            for column in (
+                "receives_housing_assistance",
+                "takes_up_housing_assistance_if_eligible",
+            ):
+                acs[column] = acs[primary].eq(10_999)
+        tables[entity] = pd.concat([native, acs], ignore_index=True)
+    assembled = Frame(
+        tables,
+        source.schema,
+        {
+            "household": Weights(
+                np.tile(source.weights_for("household").values, 2),
+                WeightKind.DESIGN,
+            )
+        },
+        metadata=spine_assembly_manifest(tables, channels=("asec", "acs")),
+    )
+    return clone_us_frame_for_puf_support(assembled)
+
+
+def test_signal_gate_accepts_nullable_acs_evidence_and_preserves_all_rows():
+    frame = _mixed_spine_housing_frame()
+    before = {entity: frame.table(entity).copy(deep=True) for entity in frame.entities}
+
+    gate = us_housing_inputs_signal_gate(frame)
+
+    assert gate.passed, gate.failures
+    assert gate.details["housing_assistance_reported_receipt_missing_count"] == 0
+    assert gate.details["housing_assistance_head_unit_mismatch_count"] == 0
+    assert gate.details["housing_assistance_evidence_household_count"] == 40
+    assert gate.details["housing_assistance_evidence_spm_unit_count"] == 42
+    for entity in frame.entities:
+        pd.testing.assert_frame_equal(frame.table(entity), before[entity])
+
+
+def test_signal_gate_accepts_selected_support_with_ancestor_assembly_counts():
+    frame = _mixed_spine_housing_frame()
+    selected = frame.select(frame.table("person")["person_household_id"].ne(20))
+    before_metadata = selected.metadata
+
+    gate = us_housing_inputs_signal_gate(selected)
+
+    assert gate.passed, gate.failures
+    assert gate.details["housing_assistance_evidence_household_count"] == 39
+    assert gate.details["housing_assistance_evidence_spm_unit_count"] == 41
+    assert selected.metadata == before_metadata == frame.metadata
+
+
+def test_signal_gate_accepts_authenticated_empty_cps_evidence_scope():
+    frame = _mixed_spine_housing_frame()
+    acs_only = frame.select(
+        frame.table("person")[support_channel_column("person")].eq("acs")
+    )
+
+    gate = us_housing_inputs_signal_gate(acs_only)
+
+    assert gate.passed, gate.failures
+    assert gate.details["housing_assistance_evidence_household_count"] == 0
+    assert gate.details["housing_assistance_evidence_spm_unit_count"] == 0
+    assert acs_only.table("household")[US_HOUSING_RECEIPT_COLUMN].isna().all()
+    assert acs_only.metadata == frame.metadata
+    acs_only.table("spm_unit")["takes_up_housing_assistance_if_eligible"] = True
+    assert not us_housing_inputs_signal_gate(acs_only).passed
+
+
+@pytest.mark.parametrize("tamper", ("unknown_channel", "cross_grain"))
+def test_signal_gate_rejects_tampered_empty_cps_scope(tamper):
+    frame = _mixed_spine_housing_frame()
+    acs_only = frame.select(
+        frame.table("person")[support_channel_column("person")].eq("acs")
+    )
+    person = acs_only.table("person")
+    person.iloc[0, person.columns.get_loc(support_channel_column("person"))] = (
+        "unknown_source" if tamper == "unknown_channel" else "asec"
+    )
+
+    with pytest.raises(ValueError, match="assembly manifest"):
+        us_housing_inputs_signal_gate(acs_only)
+
+
+@pytest.mark.parametrize("orphan_entity", ("household", "spm_unit"))
+def test_signal_gate_rejects_orphan_cps_entities_in_empty_person_scope(orphan_entity):
+    frame = _mixed_spine_housing_frame()
+    acs_only = frame.select(
+        frame.table("person")[support_channel_column("person")].eq("acs")
+    )
+    # Frame construction already forbids orphans. Exercise the defensive gate
+    # projection against live-table tampering before unrelated weight checks.
+    table = acs_only.table(orphan_entity)
+    table.loc[len(table)] = frame.table(orphan_entity).iloc[0]
+    with pytest.raises(ValueError, match="orphan CPS source entities"):
+        module._housing_receipt_evidence_projection(acs_only)
+
+
+@pytest.mark.parametrize("clone_index", (0, 1))
+@pytest.mark.parametrize("bad_value", (None, "invalid"))
+def test_signal_gate_requires_reported_receipt_on_cps_and_puf(clone_index, bad_value):
+    frame = _mixed_spine_housing_frame()
+    household = frame.table("household")
+    selected = household[support_channel_column("household")].eq("asec") & household[
+        support_clone_index_column("household")
+    ].eq(clone_index)
+    household.loc[selected, US_HOUSING_RECEIPT_COLUMN] = bad_value
+
+    gate = us_housing_inputs_signal_gate(frame)
+
+    assert not gate.passed
+    assert any("reported household housing receipt" in item for item in gate.failures)
+
+
+@pytest.mark.parametrize("clone_index", (0, 1))
+def test_signal_gate_still_requires_head_unit_receipt_on_cps_and_puf(clone_index):
+    frame = _mixed_spine_housing_frame()
+    spm = frame.table("spm_unit")
+    selected = (
+        spm[support_channel_column("spm_unit")].eq("asec")
+        & spm[support_clone_index_column("spm_unit")].eq(clone_index)
+        & spm[spine_source_id_column("spm_unit")].eq(999)
+    )
+    spm.loc[
+        selected,
+        ["receives_housing_assistance", "takes_up_housing_assistance_if_eligible"],
+    ] = True
+
+    gate = us_housing_inputs_signal_gate(frame)
+
+    assert not gate.passed
+    assert gate.details["housing_assistance_head_unit_mismatch_count"] == 1
+    assert gate.details["housing_assistance_take_up_source_mismatch_count"] == 0
+
+
+@pytest.mark.parametrize("clone_index", (0, 1))
+@pytest.mark.parametrize(
+    "column,bad_value",
+    (
+        ("receives_housing_assistance", None),
+        ("receives_housing_assistance", "invalid"),
+        ("takes_up_housing_assistance_if_eligible", None),
+        ("takes_up_housing_assistance_if_eligible", "invalid"),
+        ("takes_up_housing_assistance_if_eligible", True),
+    ),
+)
+def test_signal_gate_still_checks_acs_model_receipt_and_take_up(
+    clone_index, column, bad_value
+):
+    frame = _mixed_spine_housing_frame()
+    spm = frame.table("spm_unit")
+    spm[column] = spm[column].astype(object)
+    selected = spm[support_channel_column("spm_unit")].eq("acs") & spm[
+        support_clone_index_column("spm_unit")
+    ].eq(clone_index)
+    spm.loc[selected, column] = bad_value
+
+    gate = us_housing_inputs_signal_gate(frame)
+
+    assert not gate.passed
+    assert any(column in item for item in gate.failures)
+
+
+@pytest.mark.parametrize(
+    "tamper", ("missing_manifest", "household_channel", "missing_raw_spine")
+)
+def test_signal_gate_authenticates_assembled_receipt_scope(tamper):
+    frame = _mixed_spine_housing_frame()
+    if tamper == "missing_manifest":
+        frame = Frame(
+            {entity: frame.table(entity) for entity in frame.entities},
+            frame.schema,
+            {"household": frame.weights_for("household")},
+            frame.strata,
+        )
+    elif tamper == "household_channel":
+        frame.table("household").loc[0, support_channel_column("household")] = "acs"
+    else:
+        frame.table("household").drop(
+            columns=[spine_source_id_column("household")], inplace=True
+        )
+
+    with pytest.raises(ValueError, match="assembly manifest"):
+        us_housing_inputs_signal_gate(frame)
 
 
 def test_receipt_evidence_is_owned_but_not_a_country_input_or_acs_transfer_target():

@@ -183,6 +183,7 @@ _SPINE_BLIND_OPERATOR_MODULES = (
 _GATE_SOURCE_CHANNEL_ACCESSOR = "support_gate_source_channel_series"
 _GATE_SOURCE_CHANNEL_CALLERS = {
     "alimony.py": frozenset({"us_alimony_signal_gate"}),
+    "housing_inputs.py": frozenset({"_housing_receipt_evidence_projection"}),
     "medicare_take_up.py": frozenset({"_asec_source_mask"}),
     "retirement_contributions.py": frozenset({"_asec_source_mask"}),
     "retirement_distributions.py": frozenset({"_asec_source_mask"}),
@@ -191,6 +192,9 @@ _GATE_SOURCE_CHANNEL_CALLERS = {
     "workers_compensation.py": frozenset({"us_workers_compensation_summary"}),
 }
 _GATE_SOURCE_SCOPE_HELPER_CALLERS = {
+    ("housing_inputs.py", "_housing_receipt_evidence_projection"): frozenset(
+        {"us_housing_inputs_summary"}
+    ),
     ("medicare_take_up.py", "_asec_source_mask"): frozenset(
         {"us_medicare_take_up_summary"}
     ),

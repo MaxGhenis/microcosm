@@ -265,6 +265,45 @@ def test_assembly_manifest_detects_cross_grain_channel_disagreement() -> None:
         )
 
 
+def test_assembly_subset_validation_preserves_ancestor_and_exact_default() -> None:
+    assembled = assemble_spines(
+        {"asec": _asec_frame(), "acs": _acs_frame()},
+        household_mass_shares={"asec": 0.5, "acs": 0.5},
+    )
+    selected = assembled.select(np.array([False, True, True]))
+    with pytest.raises(ValueError, match="native row counts drifted"):
+        validate_assembly_provenance(selected, boundary="test exact assembly")
+
+    manifest = validate_assembly_provenance(
+        selected, boundary="test selected assembly", allow_subset=True
+    )
+
+    assert manifest == assembled.metadata[SPINE_ASSEMBLY_MANIFEST_KEY]
+    assert selected.metadata == assembled.metadata
+
+
+@pytest.mark.parametrize("tamper", ("growth", "cross_grain", "clone_index"))
+def test_assembly_subset_validation_rejects_source_provenance_drift(tamper) -> None:
+    assembled = assemble_spines(
+        {"asec": _asec_frame(), "acs": _acs_frame()},
+        household_mass_shares={"asec": 0.5, "acs": 0.5},
+    )
+    person = assembled.table("person")
+    if tamper == "growth":
+        person.loc[0, support_channel_column("person")] = "acs"
+        match = "native row counts.*assembly manifest"
+    elif tamper == "cross_grain":
+        person.loc[[0, 2], support_channel_column("person")] = ["acs", "asec"]
+        match = "cross-grain.*person/household"
+    else:
+        person.loc[0, support_clone_index_column("person")] = -1
+        match = "nonnegative integers"
+    with pytest.raises(ValueError, match=match):
+        validate_assembly_provenance(
+            assembled, boundary="test selected assembly", allow_subset=True
+        )
+
+
 @pytest.mark.parametrize(
     ("spines", "shares", "match"),
     [
