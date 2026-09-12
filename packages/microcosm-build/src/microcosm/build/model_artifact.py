@@ -89,8 +89,12 @@ def build_model_from_args(args: argparse.Namespace) -> VerifiedBuildModel | None
     )
 
 
-def _wheel_members(path: Path) -> tuple[dict[str, bytes], str]:
-    with ZipFile(path) as wheel:
+def _wheel_members(
+    path: Path, *, snapshot: bytes | None = None
+) -> tuple[dict[str, bytes], str]:
+    with ZipFile(
+        io.BytesIO(path.read_bytes() if snapshot is None else snapshot)
+    ) as wheel:
         names = wheel.namelist()
         if len(names) != len(set(names)):
             raise ValueError("Build-model wheel has duplicate members")
@@ -165,14 +169,15 @@ def verify_build_model(
     wheel_receipt = receipt.get("wheel")
     if not isinstance(wheel_receipt, dict):
         raise ValueError("Build-model receipt must identify its wheel")
-    wheel_sha = _sha256(wheel_path.read_bytes())
+    wheel_bytes = wheel_path.read_bytes()
+    wheel_sha = _sha256(wheel_bytes)
     if (
         wheel_receipt.get("sha256") != wheel_sha
         or wheel_receipt.get("filename") != wheel_path.name
-        or wheel_receipt.get("size_bytes") != wheel_path.stat().st_size
+        or wheel_receipt.get("size_bytes") != len(wheel_bytes)
     ):
         raise ValueError("Build-model wheel differs from the pinned receipt")
-    members, prefix = _wheel_members(wheel_path)
+    members, prefix = _wheel_members(wheel_path, snapshot=wheel_bytes)
     package_metadata = BytesParser().parsebytes(members[prefix + "METADATA"])
     name = package_metadata.get_all("Name", [])
     versions = package_metadata.get_all("Version", [])
@@ -239,7 +244,9 @@ def verify_build_model(
             "name": "policyengine-us",
             "version": versions[0],
             "wheel": {
-                **wheel_receipt,
+                "filename": wheel_path.name,
+                "sha256": wheel_sha,
+                "size_bytes": len(wheel_bytes),
                 "members_sha256": _sha256(
                     json.dumps(
                         member_identity, sort_keys=True, separators=(",", ":")

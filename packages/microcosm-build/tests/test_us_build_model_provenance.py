@@ -127,6 +127,30 @@ def test_verifies_all_members_and_retains_original_receipt(artifacts, tmp_path):
         verified.copy_receipt(destination)
 
 
+def test_wheel_identity_and_record_use_the_same_byte_snapshot(artifacts, monkeypatch):
+    original_reader = model_artifact._wheel_members
+
+    def replace_path_after_capture(path, *, snapshot=None):
+        assert snapshot is not None
+        path.write_bytes(b"replacement after the authenticated snapshot")
+        return original_reader(path, snapshot=snapshot)
+
+    monkeypatch.setattr(model_artifact, "_wheel_members", replace_path_after_capture)
+    verified = verify(artifacts)
+    assert verified.identity["wheel"]["sha256"] == artifacts.receipt["wheel"]["sha256"]
+    assert (
+        verified.identity["wheel"]["sha256"]
+        != hashlib.sha256(artifacts.wheel.read_bytes()).hexdigest()
+    )
+
+
+def test_verified_wheel_identity_does_not_copy_unverified_receipt_fields(artifacts):
+    artifacts.receipt["wheel"]["unverified_claim"] = "unverified"
+    artifacts.receipt_path.write_text(json.dumps(artifacts.receipt, sort_keys=True))
+    artifacts.digest = hashlib.sha256(artifacts.receipt_path.read_bytes()).hexdigest()
+    assert "unverified_claim" not in verify(artifacts).identity["wheel"]
+
+
 @pytest.mark.parametrize("part", ["receipt", "wheel"])
 def test_rejects_changed_pinned_artifact_bytes(artifacts, part):
     path = artifacts.receipt_path if part == "receipt" else artifacts.wheel
