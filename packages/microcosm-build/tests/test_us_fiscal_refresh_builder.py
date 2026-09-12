@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from microcosm.build.model_artifact import VerifiedBuildModel
 from microcosm.build.us_runtime import h5_io as builder_h5_io
 from microcosm.calibrate import (
     CalibrationHierarchy,
@@ -42,6 +43,63 @@ def _installed_variable_metadata_index(builder):
         return builder.PolicyEngineUSVariableMetadataIndex()
     except ImportError:
         pytest.skip("requires the policyengine-us [us] extra")
+
+
+def test_build_model_arguments_fail_before_fiscal_generation(monkeypatch, tmp_path):
+    builder = _load_builder_module()
+    common = ["--ledger-facts", "facts.jsonl", "--out", str(tmp_path), "--no-staging"]
+    with pytest.raises(SystemExit):
+        builder._parse_args([*common, "--build-model-wheel", "model.whl"])
+    monkeypatch.setattr(
+        builder, "_git_dirty", lambda: pytest.fail("reached build startup")
+    )
+    with pytest.raises(FileNotFoundError):
+        builder._main(
+            [
+                *common,
+                "--build-model-wheel",
+                str(tmp_path / "missing.whl"),
+                "--build-model-receipt",
+                str(tmp_path / "missing.json"),
+                "--build-model-receipt-sha256",
+                "a" * 64,
+            ]
+        )
+
+
+def test_model_artifact_identity_invalidates_fiscal_checkpoint():
+    builder = _load_builder_module()
+    common = dict(
+        base_dataset_sha256="a" * 64,
+        policyengine_us_version="8.4.2rc1",
+        seed=0,
+        target_period=2024,
+        target_registry_version="registry",
+        weeks_unemployed_source_sha256="b" * 64,
+        congressional_district_vintage_crosswalk_sha256="c" * 64,
+        ssi_take_up_assignment_sha256="d" * 64,
+        selection_identities_sha256=None,
+    )
+    legacy = builder._target_frame_checkpoint_identity(**common)
+    explicit_none = builder._target_frame_checkpoint_identity(
+        **common, build_model_identity=None
+    )
+    first = builder._target_frame_checkpoint_identity(
+        **common, build_model_identity={"wheel_sha256": "e" * 64}
+    )
+    changed = builder._target_frame_checkpoint_identity(
+        **common, build_model_identity={"wheel_sha256": "f" * 64}
+    )
+    assert legacy == explicit_none
+    assert (
+        len(
+            {
+                builder._target_frame_checkpoint_digest(value)
+                for value in (legacy, first, changed)
+            }
+        )
+        == 3
+    )
 
 
 def test_frozen_support_refit_requires_manifest_and_normal_release():
@@ -8996,8 +9054,9 @@ def test_unknown_ledger_filter_metadata_fails_closed() -> None:
         raise AssertionError("Expected unknown Ledger filter metadata to fail closed.")
 
 
+@pytest.mark.parametrize("with_build_model", [False, True])
 def test_build_manifests_emits_policyengine_certifiable_release_manifest(
-    monkeypatch, tmp_path
+    monkeypatch, tmp_path, with_build_model
 ) -> None:
     builder = _load_builder_module()
     release_id = "populace-us-2024-abcdef1-20260615"
@@ -9069,6 +9128,21 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
         passed=True,
         details={"non_citizen_share": 0.07},
     )
+    receipt_bytes = b'{"fixture":"original build receipt"}'
+    receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
+    build_model = (
+        VerifiedBuildModel(
+            identity={
+                "version": "1.729.0",
+                "wheel": {"sha256": "e" * 64},
+                "source": {"git_commit": "f" * 40},
+                "receipt": {"sha256": receipt_sha},
+            },
+            receipt_bytes=receipt_bytes,
+        )
+        if with_build_model
+        else None
+    )
 
     builder._build_manifests(
         release_id=release_id,
@@ -9077,6 +9151,7 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
         result=result,
         registry=registry,
         final_immigration_gate=final_immigration_gate,
+        build_model=build_model,
         dropped={"dropped_target_names": []},
         target_profile_gate=builder.GateResult(
             name="target_profile_coverage",
@@ -9129,6 +9204,20 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
 
     manifest = json.loads((release_dir / "release_manifest.json").read_text())
     build_manifest = json.loads((release_dir / "build_manifest.json").read_text())
+    if with_build_model:
+        assert build_manifest["build_model"] == build_model.identity
+        assert manifest["build"]["build_model"] == build_model.identity
+        assert (release_dir / "build_model_receipt.json").read_bytes() == receipt_bytes
+        assert manifest["artifacts"]["build_model_receipt"] == {
+            "kind": "evidence",
+            "path": "build_model_receipt.json",
+            "repo_id": "policyengine/populace-us",
+            "revision": release_id,
+            "sha256": receipt_sha,
+        }
+    else:
+        assert "build_model" not in build_manifest
+        assert "build_model_receipt" not in manifest["artifacts"]
     expected_acs_join = {
         "enabled": True,
         "crosswalk": {"sha256": "c" * 64},
@@ -9166,6 +9255,7 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
     assert manifest["build"]["built_with_model_package"] == {
         "name": "policyengine-us",
         "version": "1.729.0",
+        **({"sha256": "e" * 64, "git_sha": "f" * 40} if with_build_model else {}),
     }
     assert build_manifest["timing"] == {
         "target_compilation_seconds": 3.0,

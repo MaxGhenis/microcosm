@@ -25,6 +25,11 @@ import pandas as pd
 from microcosm.build import FitWeightRecord, weights_audit_gate
 from microcosm.build.frame_checkpoint import write_frame_checkpoint
 from microcosm.build.ledger_artifact import load_ledger_consumer_artifact
+from microcosm.build.model_artifact import (
+    add_build_model_arguments,
+    build_model_from_args,
+    check_build_model_arguments,
+)
 from microcosm.build.outer_stage_runtime import (
     Stage,
     StagePipeline,
@@ -283,6 +288,7 @@ OUTER_STAGE_PIPELINE = StagePipeline(
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    add_build_model_arguments(parser)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--base-h5", type=Path)
     source.add_argument(
@@ -433,6 +439,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     args = parser.parse_args(argv)
+    try:
+        check_build_model_arguments(args)
+    except ValueError as error:
+        parser.error(str(error))
     if (
         args.congressional_district_vintage_crosswalk is not None
         and not args.assign_congressional_districts
@@ -489,6 +499,9 @@ def main(argv: list[str] | None = None) -> None:
     """Dispatch the byte-identical legacy path or checkpoint scaffolding."""
 
     args = _parse_args() if argv is None else _parse_args(argv)
+    args.verified_build_model = build_model_from_args(args)
+    if args.verified_build_model is not None:
+        args.verified_build_model.copy_receipt(args.out.resolve())
 
     stage = getattr(args, "stage", "all")
     checkpoint_dir = getattr(args, "checkpoint_dir", None)
@@ -557,6 +570,14 @@ def _stage_cli_args(args: argparse.Namespace, stage: str) -> list[str]:
     """Reconstruct one stage invocation from validated parsed arguments."""
 
     command: list[str] = []
+    for flag, name in (
+        ("--build-model-wheel", "build_model_wheel"),
+        ("--build-model-receipt", "build_model_receipt"),
+        ("--build-model-receipt-sha256", "build_model_receipt_sha256"),
+    ):
+        value = getattr(args, name, None)
+        if value is not None:
+            command.extend((flag, str(value)))
     if args.base_h5 is not None:
         command.extend(("--base-h5", str(args.base_h5)))
     else:
@@ -685,6 +706,11 @@ def _stage_run_config(args: argparse.Namespace) -> dict[str, object]:
     return {
         "allow_geography_ladder_gate_failures": bool(
             args.allow_geography_ladder_gate_failures
+        ),
+        **(
+            {"build_model": args.verified_build_model.identity}
+            if getattr(args, "verified_build_model", None) is not None
+            else {}
         ),
         "asec_h5": asec_sources,
         "asec_max_households": args.asec_max_households,
@@ -1663,6 +1689,8 @@ def _run_all(
         "channel_output_totals": _channel_output_totals(imputed),
         "immigration_composition": us_immigration_composition_summary(imputed),
     }
+    if getattr(args, "verified_build_model", None) is not None:
+        summary["build_model"] = args.verified_build_model.identity
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True))
     print(json.dumps(summary, indent=2, sort_keys=True))
     _observe_frame_boundary(boundary_observer, "final_export", imputed)
@@ -2915,6 +2943,8 @@ def _export_staged_result(
         "channel_output_totals": _channel_output_totals(frame),
         "immigration_composition": us_immigration_composition_summary(frame),
     }
+    if getattr(args, "verified_build_model", None) is not None:
+        summary["build_model"] = args.verified_build_model.identity
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True))
     print(json.dumps(summary, indent=2, sort_keys=True))
     return {

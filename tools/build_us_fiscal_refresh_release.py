@@ -63,6 +63,13 @@ from microcosm.build.gates import (
     target_profile_coverage_gate,
 )
 from microcosm.build.ledger_artifact import load_ledger_consumer_artifact
+from microcosm.build.model_artifact import (
+    BUILD_MODEL_RECEIPT_FILENAME,
+    VerifiedBuildModel,
+    add_build_model_arguments,
+    build_model_from_args,
+    check_build_model_arguments,
+)
 from microcosm.build.source_runtime import SourceRuntimeConfig, run_source_stage
 from microcosm.build.staging import DEFAULT_STAGING_PREFIX, StagingTelemetry
 from microcosm.build.us_runtime import (
@@ -846,6 +853,7 @@ def _assert_pool_release_id_value(
 
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    add_build_model_arguments(parser)
     parser.add_argument(
         "--base-h5",
         type=Path,
@@ -1566,6 +1574,10 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="Minimum seconds between progress uploads to the staging repo.",
     )
     args = parser.parse_args(argv)
+    try:
+        check_build_model_arguments(args)
+    except ValueError as error:
+        parser.error(str(error))
     if args.congressional_district_vintage_crosswalk is None:
         # Every build compiles the same national + state + CD target surface,
         # translated through the canonical packaged vintage crosswalk unless
@@ -2235,6 +2247,7 @@ def _target_frame_checkpoint_identity(
     selection_identities_sha256: str | None,
     selection_mass_protections: tuple[str, ...] = (),
     ssi_take_up_prior_weight_basis_sha256: object = None,
+    build_model_identity: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     identity: dict[str, object] = {
         "schema_version": TARGET_FRAME_CHECKPOINT_SCHEMA_VERSION,
@@ -2289,6 +2302,8 @@ def _target_frame_checkpoint_identity(
         identity["selection_mass_protections"] = sorted(
             str(column) for column in selection_mass_protections
         )
+    if build_model_identity is not None:
+        identity["build_model"] = dict(build_model_identity)
     return identity
 
 
@@ -7729,6 +7744,7 @@ def _build_manifests(
     base_pool: Mapping[str, object] | None = None,
     acs_predictor_join: Mapping[str, object] | None = None,
     evidence_known_failures: Sequence[Mapping[str, str]] | None = None,
+    build_model: VerifiedBuildModel | None = None,
 ) -> None:
     dataset_path = artifact_root / dataset_filename
     calibration_path = artifact_root / calibration_filename
@@ -7762,6 +7778,10 @@ def _build_manifests(
     commit = _git_output("rev-parse", "HEAD")
     built_at = datetime.now(UTC).isoformat()
     runtime = _runtime_versions()
+    if build_model is not None:
+        if runtime["policyengine-us"] != build_model.identity["version"]:
+            raise ValueError("Build-model runtime version changed after verification")
+        build_model.copy_receipt(release_dir)
     timing_payload = dict(timing or {})
     warm_start_payload = (
         dict(warm_start_calibration)
@@ -7787,6 +7807,7 @@ def _build_manifests(
             "git_dirty": False,
         },
         "runtime": runtime,
+        **({"build_model": build_model.identity} if build_model is not None else {}),
         "timing": timing_payload,
         "ledger_artifact": dict(ledger_artifact) if ledger_artifact else None,
         **(
@@ -8026,7 +8047,18 @@ def _build_manifests(
             "built_with_model_package": {
                 "name": "policyengine-us",
                 "version": runtime["policyengine-us"],
+                **(
+                    {
+                        "sha256": build_model.identity["wheel"]["sha256"],
+                        "git_sha": build_model.identity["source"]["git_commit"],
+                    }
+                    if build_model is not None
+                    else {}
+                ),
             },
+            **(
+                {"build_model": build_model.identity} if build_model is not None else {}
+            ),
             "timing": timing_payload,
             "ledger_artifact": dict(ledger_artifact) if ledger_artifact else None,
             **(
@@ -8173,6 +8205,18 @@ def _build_manifests(
             }
         ],
         "artifacts": {
+            **(
+                {
+                    "build_model_receipt": _artifact_entry(
+                        BUILD_MODEL_RECEIPT_FILENAME,
+                        build_model.identity["receipt"]["sha256"],
+                        kind="evidence",
+                        revision=release_id,
+                    )
+                }
+                if build_model is not None
+                else {}
+            ),
             **(
                 {
                     "us_immigration_final": _artifact_entry(
@@ -8827,6 +8871,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
 def _main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
+    build_model = build_model_from_args(args)
     if _git_dirty():
         raise SystemExit("Refusing to build a release from a dirty git worktree.")
     # Loaded (and validated) up front so a malformed owners file dies in
@@ -10767,6 +10812,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
     target_frame_checkpoint_identity = _target_frame_checkpoint_identity(
         base_dataset_sha256=base_dataset_sha256,
         policyengine_us_version=policyengine_us_version,
+        build_model_identity=(None if build_model is None else build_model.identity),
         seed=args.seed,
         target_period=PERIOD,
         target_registry_version=active_target_registry.version,
@@ -12113,6 +12159,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
         )
     _build_manifests(
         release_id=release_id,
+        build_model=build_model,
         release_dir=release_dir,
         artifact_root=artifact_root,
         result=result,
