@@ -31,6 +31,7 @@ from microcosm.build.us_runtime.education_inputs import (
     US_EDUCATION_INPUTS_OUTPUT_COLUMNS,
     US_EDUCATION_INPUTS_OWNED_OUTPUT_COLUMNS,
 )
+from microcosm.build.us_runtime.housing_constants import US_HOUSING_RECEIPT_COLUMN
 from microcosm.build.us_runtime.late_producer_dag import (
     ProducerContract,
     ProducerInput,
@@ -720,16 +721,16 @@ _source_input_inventories = {
         *_COMMON_ROLE_AWARE_INPUTS,
         _single("person_spm_unit_link", "person", "person_spm_unit_id"),
         _single("spm_unit_id", "spm_unit", "spm_unit_id"),
+        _single("person_household_link", "person", "person_household_id"),
         _single(
-            "housing_assistance_receipt",
-            "spm_unit",
-            "receives_housing_assistance",
-            value_kind="finite_numeric",
+            "household_head", "person", "is_household_head", value_kind="finite_numeric"
         ),
+        _single("household_id", "household", "household_id"),
+        _single("household_support_channel", "household", "household_support_channel"),
         _single(
-            "housing_assistance_takeup",
-            "spm_unit",
-            "takes_up_housing_assistance_if_eligible",
+            "housing_assistance_reported_receipt",
+            "household",
+            US_HOUSING_RECEIPT_COLUMN,
             value_kind="finite_numeric",
         ),
         _single("spm_support_channel", "spm_unit", "spm_unit_support_channel"),

@@ -1,23 +1,21 @@
-"""CPS/ACS housing and tenure inputs carried by the retired eCPS build.
+"""Independent CPS household housing receipt and source-backed ACS rent.
 
 The archived pipeline used two primary sources for this family:
 
-* CPS ASEC household ``H_TENURE`` mapped directly to household
-  ``tenure_type``.  ASEC SPM ``SPM_CAPHOUSESUB`` and
-  ``SPM_TENMORTSTATUS`` mapped directly to ``receives_housing_assistance``
-  and ``spm_unit_tenure_type``.  Measured assistance receipt also anchors
-  ``takes_up_housing_assistance_if_eligible`` without adding unobserved
-  recipients; and
+* CPS ASEC ``HPUBLIC``/``HLORENT`` identify interview-time household receipt,
+  independently of the SPM capped valuation. A single modeled award is assigned
+  to the householder's SPM unit. This assumes that unit is the assisted family
+  (A1), carries current status through the preceding income year (A2), and
+  treats both survey questions as HUD-family assistance (A3); and
 * the processed 2022 ACS public-use artifact supplied a 10-predictor rent
   donor.  The archived QRF selected household heads, built a shared 10,000-row
   sample for rent and real-estate taxes with target-specific allocation masks,
   and placed annual ``pre_subsidy_rent`` on the CPS household head.
 
-Microcosm preserves those source semantics and uses its shared design-weighted
-QRF.  Weighting the ACS fit is the sole deliberate strengthening of the
-retired implementation: the archived fit loaded ``household_weight`` but did
-not pass it through to microimpute.  No housing values are manufactured from
-defaults or from the retired eCPS output.
+Receipt imputation uses one weighted training row per household head. The ACS
+rent fit preserves its archived predictors and uses design weights. The survey
+receipt codes and Census allocation flags remain household-grain evidence;
+receipt is neither an entitlement nor an observed administrative payment.
 """
 
 from __future__ import annotations
@@ -33,6 +31,10 @@ import pandas as pd
 
 from microcosm.build.gates import GateResult
 from microcosm.build.source_manifest import SourceStageSpec, load_source_manifest
+from microcosm.build.us_runtime.housing_constants import (
+    US_HOUSING_RECEIPT_COLUMN,
+    US_HOUSING_RECEIPT_SOURCE_COLUMNS,
+)
 from microcosm.build.us_runtime.support_provenance import (
     BASE_ASEC_SUPPORT_CHANNEL,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
@@ -52,6 +54,7 @@ __all__ = [
     "HOUSING_TAKE_UP_ARCHIVED_PARAMETER_URL",
     "US_HOUSING_HOUSEHOLD_OUTPUT_COLUMNS",
     "US_HOUSING_INPUTS_OUTPUT_COLUMNS",
+    "US_HOUSING_MODEL_INPUT_COLUMNS",
     "US_HOUSING_INPUTS_STAGE_NAME",
     "US_HOUSING_ASSISTANCE_PUF_MAX_TRAIN_SAMPLES",
     "US_HOUSING_ASSISTANCE_PUF_N_ESTIMATORS",
@@ -105,7 +108,10 @@ HOUSING_TAKE_UP_ARCHIVED_HUD_ETL_URL = (
 
 US_HOUSING_INPUTS_STAGE_NAME = "acs_rent"
 US_HOUSING_PERSON_OUTPUT_COLUMNS: tuple[str, ...] = ("pre_subsidy_rent",)
-US_HOUSING_HOUSEHOLD_OUTPUT_COLUMNS: tuple[str, ...] = ("tenure_type",)
+US_HOUSING_HOUSEHOLD_OUTPUT_COLUMNS: tuple[str, ...] = (
+    "tenure_type",
+    US_HOUSING_RECEIPT_COLUMN,
+)
 US_HOUSING_SPM_UNIT_OUTPUT_COLUMNS: tuple[str, ...] = (
     "receives_housing_assistance",
     "takes_up_housing_assistance_if_eligible",
@@ -116,12 +122,17 @@ US_HOUSING_INPUTS_OUTPUT_COLUMNS: tuple[str, ...] = (
     *US_HOUSING_SPM_UNIT_OUTPUT_COLUMNS,
     *US_HOUSING_HOUSEHOLD_OUTPUT_COLUMNS,
 )
+# Household receipt is retained producer evidence, not a country-model input.
+US_HOUSING_MODEL_INPUT_COLUMNS: tuple[str, ...] = (
+    *US_HOUSING_PERSON_OUTPUT_COLUMNS,
+    *US_HOUSING_SPM_UNIT_OUTPUT_COLUMNS,
+    "tenure_type",
+)
 US_HOUSING_NONCONSTANT_PERSON_COLUMNS = US_HOUSING_PERSON_OUTPUT_COLUMNS
 US_HOUSING_NONCONSTANT_SPM_UNIT_COLUMNS = US_HOUSING_SPM_UNIT_OUTPUT_COLUMNS
 US_HOUSING_NONCONSTANT_HOUSEHOLD_COLUMNS = US_HOUSING_HOUSEHOLD_OUTPUT_COLUMNS
 
 US_HOUSING_REQUIRED_PERSON_SOURCE_COLUMNS: tuple[str, ...] = (
-    "SPM_CAPHOUSESUB",
     "SPM_TENMORTSTATUS",
     "person_spm_unit_id",
     "person_household_id",
@@ -139,6 +150,7 @@ US_HOUSING_REQUIRED_PERSON_SOURCE_COLUMNS: tuple[str, ...] = (
 )
 US_HOUSING_REQUIRED_HOUSEHOLD_SOURCE_COLUMNS: tuple[str, ...] = (
     "H_TENURE",
+    *US_HOUSING_RECEIPT_SOURCE_COLUMNS,
     "state_fips",
 )
 
@@ -465,8 +477,86 @@ def _constant_source_by_unit(
     return values.to_numpy(dtype=np.float64)
 
 
+def _decode_household_receipt(household: pd.DataFrame) -> np.ndarray:
+    """Decode Census questions and their tenure/skip universe, not a valuation.
+
+    Census ASEC 2025 dictionary, page 6A-9: HPUBLIC applies to nonowners;
+    HLORENT applies when HPUBLIC is no. Page 6A-11 defines allocation flags.
+    https://www2.census.gov/programs-surveys/cps/datasets/2025/march/asec2025_ddl_pub_full.pdf
+    """
+    codes = {}
+    for column in ("H_TENURE", *US_HOUSING_RECEIPT_SOURCE_COLUMNS):
+        values = pd.to_numeric(household[column], errors="coerce").to_numpy(
+            dtype=np.float64
+        )
+        allowed = (1, 2, 3) if column == "H_TENURE" else (0, 1, 2)
+        if column.startswith("I_"):
+            allowed = (0, 1)
+        if not np.isin(values, allowed).all():
+            raise ValueError(f"US housing source {column} has missing/invalid codes.")
+        codes[column] = values
+    public = codes["HPUBLIC"]
+    reduced = codes["HLORENT"]
+    owner = codes["H_TENURE"] == 1
+    valid_owner = owner & (public == 0) & (reduced == 0)
+    public_yes = ~owner & (public == 1) & (reduced == 0)
+    reduced_yes = ~owner & (public == 2) & (reduced == 1)
+    explicit_no = ~owner & (public == 2) & (reduced == 2)
+    if not (valid_owner | public_yes | reduced_yes | explicit_no).all():
+        raise ValueError(
+            "US housing receipt codes violate the Census tenure/skip universe."
+        )
+    return public_yes | reduced_yes
+
+
+def _household_heads(frame: Frame) -> pd.DataFrame:
+    """Require exactly one explicit head for every delivered household."""
+    person = frame.table("person")
+    _required_columns(
+        person,
+        ("is_household_head", "person_household_id", "person_spm_unit_id"),
+        "person",
+    )
+    head, missing, invalid = _strict_boolean_signal(person["is_household_head"])
+    if missing or invalid:
+        raise ValueError("US housing requires complete boolean household-head roles.")
+    heads = person.loc[head]
+    head_ids = heads["person_household_id"]
+    household_ids = frame.table("household")["household_id"]
+    if head_ids.duplicated().any():
+        raise ValueError("US housing recipient selected multiple heads per household.")
+    if set(head_ids) != set(household_ids):
+        raise ValueError("US housing household-head alignment failed.")
+    return heads
+
+
+def _head_unit_receipt(frame: Frame, receipt: np.ndarray) -> np.ndarray:
+    """Assign one household's modeled assistance only to its head's SPM unit.
+
+    This is the assisted-family assumption A1, not an observed lease holder.
+    The country separately allocates the single award for SPM measurement.
+    """
+    person = frame.table("person")
+    heads = _household_heads(frame)
+    memberships = person.groupby("person_spm_unit_id")["person_household_id"]
+    if memberships.nunique().ne(1).any():
+        raise ValueError("US housing SPM units must belong to one household.")
+    unit_ids = frame.table("spm_unit")["spm_unit_id"]
+    if set(memberships.groups) != set(unit_ids):
+        raise ValueError("US housing SPM-unit membership must cover every unit.")
+    receipt_by_household = pd.Series(
+        receipt, index=frame.table("household")["household_id"]
+    )
+    head_receipt = heads["person_household_id"].map(receipt_by_household)
+    if head_receipt.isna().any():
+        raise ValueError("US housing receipt does not cover every household head.")
+    return unit_ids.isin(
+        heads.loc[head_receipt.to_numpy(dtype=bool), "person_spm_unit_id"]
+    ).to_numpy(dtype=bool)
+
+
 def derive_us_housing_inputs(frame: Frame) -> Frame:
-    """Carry the three exact ASEC housing/tenure inputs onto their entities."""
+    """Decode household receipt and assign only its head's SPM unit an award."""
 
     if frame.schema != US_SCHEMA:
         raise ValueError("US housing inputs require the US schema.")
@@ -475,10 +565,12 @@ def derive_us_housing_inputs(frame: Frame) -> Frame:
     spm_unit = frame.table("spm_unit")
     _required_columns(
         person,
-        ("SPM_CAPHOUSESUB", "SPM_TENMORTSTATUS", "person_spm_unit_id"),
+        ("SPM_TENMORTSTATUS", "person_spm_unit_id"),
         "person",
     )
-    _required_columns(household, ("H_TENURE",), "household")
+    _required_columns(
+        household, ("H_TENURE", *US_HOUSING_RECEIPT_SOURCE_COLUMNS), "household"
+    )
 
     raw_household_tenure = pd.to_numeric(
         household["H_TENURE"], errors="coerce"
@@ -497,14 +589,6 @@ def derive_us_housing_inputs(frame: Frame) -> Frame:
             f"{unknown_household_codes}."
         )
 
-    subsidy = _constant_source_by_unit(
-        person,
-        membership_column="person_spm_unit_id",
-        source_column="SPM_CAPHOUSESUB",
-        unit_ids=spm_unit["spm_unit_id"],
-    )
-    if (subsidy < 0.0).any():
-        raise ValueError("US housing source SPM_CAPHOUSESUB contains negative values.")
     raw_spm_tenure = _constant_source_by_unit(
         person,
         membership_column="person_spm_unit_id",
@@ -525,8 +609,11 @@ def derive_us_housing_inputs(frame: Frame) -> Frame:
     tables["household"]["tenure_type"] = np.asarray(
         [_HOUSEHOLD_TENURE_MAP[code] for code in raw_household_codes], dtype=object
     )
-    tables["spm_unit"]["receives_housing_assistance"] = subsidy > 0.0
-    tables["spm_unit"]["takes_up_housing_assistance_if_eligible"] = subsidy > 0.0
+    receipt = _decode_household_receipt(household)
+    tables["household"][US_HOUSING_RECEIPT_COLUMN] = receipt
+    awarded = _head_unit_receipt(frame, receipt)
+    tables["spm_unit"]["receives_housing_assistance"] = awarded
+    tables["spm_unit"]["takes_up_housing_assistance_if_eligible"] = awarded
     tables["spm_unit"]["spm_unit_tenure_type"] = np.asarray(
         [_SPM_TENURE_MAP[code] for code in raw_spm_codes], dtype=object
     )
@@ -614,19 +701,10 @@ def _recipient_head_features(frame: Frame) -> tuple[pd.DataFrame, np.ndarray]:
         "household",
     )
 
-    head_mask = person["is_household_head"].fillna(False).astype(bool).to_numpy()
-    heads = person.loc[head_mask]
+    heads = _household_heads(frame)
+    head_mask = person.index.isin(heads.index)
     head_ids = heads["person_household_id"].to_numpy()
-    if pd.Index(head_ids).duplicated().any():
-        raise ValueError("US housing recipient selected multiple heads per household.")
     household_ids = household["household_id"].to_numpy()
-    missing = sorted(set(household_ids) - set(head_ids))
-    extra = sorted(set(head_ids) - set(household_ids))
-    if missing or extra:
-        raise ValueError(
-            "US housing household-head alignment failed: "
-            f"missing={missing[:5]}, extra={extra[:5]}."
-        )
 
     tenure = household["tenure_type"].astype(str)
     unknown = sorted(set(tenure) - _HOUSEHOLD_TENURE_VALUES)
@@ -988,92 +1066,59 @@ def impute_us_housing_assistance_to_puf_support(
     n_estimators: int = US_HOUSING_ASSISTANCE_PUF_N_ESTIMATORS,
     max_train_samples: int = US_HOUSING_ASSISTANCE_PUF_MAX_TRAIN_SAMPLES,
 ) -> Frame:
-    """Replace only the PUF clone's housing-assistance receipt flag by QRF.
+    """Fit independent household receipt on heads and map to their SPM units.
 
-    The archived extended-CPS stage included this one housing leaf in its
-    common eight-predictor CPS-to-PUF fit, then reduced person predictions to
-    the SPM unit by first-person value.  The measured ASEC half remains exact;
-    rent and both tenure enums are cloned unchanged.
+    ASEC household receipt stays exact. PUF support receives one prediction per
+    household using the existing eight predictors and its head's resolved design
+    weight. Rent and tenure are unchanged; neither the capped SPM value nor a
+    previously assigned take-up flag is an input to this fit.
     """
-
     if frame.schema != US_SCHEMA:
         raise ValueError("US housing inputs require the US schema.")
     person = frame.table("person")
-    spm_unit = frame.table("spm_unit")
-    _required_columns(
-        person,
-        ("person_spm_unit_id", "person_id"),
-        "person",
-    )
-    _required_columns(
-        spm_unit,
-        (
-            "spm_unit_id",
-            "receives_housing_assistance",
-            "takes_up_housing_assistance_if_eligible",
-        ),
-        "spm_unit",
-    )
-    if not has_support_role_metadata(person, entity="person"):
-        raise ValueError("US housing PUF imputation requires person support metadata.")
-    if not has_support_role_metadata(spm_unit, entity="spm_unit"):
-        raise ValueError(
-            "US housing PUF imputation requires SPM-unit support metadata."
-        )
-    predictors = _person_puf_predictors(frame)
+    household = frame.table("household")
+    _required_columns(household, (US_HOUSING_RECEIPT_COLUMN,), "household")
+    for entity in ("person", "household", "spm_unit"):
+        if not has_support_role_metadata(frame.table(entity), entity=entity):
+            raise ValueError(
+                f"US housing PUF imputation requires {entity} support metadata."
+            )
+    heads = _household_heads(frame)
+    predictors = _person_puf_predictors(frame).loc[heads.index]
     receipt_values, receipt_missing, receipt_invalid = _strict_boolean_signal(
-        spm_unit["receives_housing_assistance"]
+        household[US_HOUSING_RECEIPT_COLUMN]
     )
-    take_up_values, take_up_missing, take_up_invalid = _strict_boolean_signal(
-        spm_unit["takes_up_housing_assistance_if_eligible"]
-    )
-    if receipt_missing or receipt_invalid or take_up_missing or take_up_invalid:
+    if receipt_missing or receipt_invalid:
         raise ValueError(
-            "US housing PUF imputation requires complete boolean receipt/take-up "
-            "anchors; "
-            f"receipt_missing={receipt_missing}, receipt_invalid={receipt_invalid}, "
-            f"take_up_missing={take_up_missing}, take_up_invalid={take_up_invalid}."
+            "US housing PUF imputation requires complete boolean household receipt."
         )
-    mismatches = int(np.count_nonzero(receipt_values != take_up_values))
-    if mismatches:
-        raise ValueError(
-            "US housing PUF imputation requires take-up to equal measured receipt "
-            f"before fitting; mismatches={mismatches}."
-        )
-    receipt_by_unit = pd.Series(
-        receipt_values,
-        index=spm_unit["spm_unit_id"].to_numpy(),
-    )
-    person_target = person["person_spm_unit_id"].map(receipt_by_unit)
-    if person_target.isna().any():
-        bad = person.loc[person_target.isna(), "person_spm_unit_id"].head().tolist()
-        raise ValueError(
-            f"US housing assistance target does not cover person SPM unit id(s) {bad}."
-        )
-
-    role = support_role_series(person, entity="person")
-    asec_mask = role == BASE_ASEC_SUPPORT_CHANNEL
-    puf_mask = role == PUF_TAX_DETAIL_SUPPORT_CHANNEL
+    receipt_by_household = pd.Series(receipt_values, index=household["household_id"])
+    target = heads["person_household_id"].map(receipt_by_household)
+    role = support_role_series(household, entity="household")
+    role_by_household = pd.Series(role.to_numpy(), index=household["household_id"])
+    head_role = heads["person_household_id"].map(role_by_household)
+    person_role = support_role_series(person, entity="person").loc[heads.index]
+    if not np.array_equal(head_role.to_numpy(), person_role.to_numpy()):
+        raise ValueError("US housing head and household support channels disagree.")
+    asec_mask = head_role == BASE_ASEC_SUPPORT_CHANNEL
+    puf_mask = head_role == PUF_TAX_DETAIL_SUPPORT_CHANNEL
     if not asec_mask.any() or not puf_mask.any():
         raise ValueError(
-            "US housing PUF imputation requires nonempty ASEC and PUF-tax-detail "
-            "support channels."
+            "US housing PUF imputation requires nonempty ASEC and PUF-tax-detail support channels."
         )
     predictor_names = tuple(predictors.columns)
     training = predictors.loc[asec_mask].copy()
-    training["receives_housing_assistance"] = person_target.loc[asec_mask].to_numpy(
+    training[US_HOUSING_RECEIPT_COLUMN] = target.loc[asec_mask].to_numpy(
         dtype=np.float64
     )
     weights = pd.Series(
         np.asarray(frame.resolve_weights("person").values, dtype=np.float64),
         index=person.index,
-    ).loc[asec_mask]
+    ).loc[training.index]
     if not np.isfinite(weights.to_numpy()).all() or (weights < 0.0).any():
-        raise ValueError(
-            "US housing PUF QRF person weights must be finite/nonnegative."
-        )
+        raise ValueError("US housing PUF QRF head weights must be finite/nonnegative.")
     if float(weights.sum()) <= 0.0:
-        raise ValueError("US housing PUF QRF person weights sum to zero.")
+        raise ValueError("US housing PUF QRF head weights sum to zero.")
     if len(training) > int(max_train_samples):
         selected = training.sample(
             n=int(max_train_samples), random_state=int(seed)
@@ -1081,18 +1126,14 @@ def impute_us_housing_assistance_to_puf_support(
         training = training.loc[selected]
         weights = weights.loc[selected]
     test = predictors.loc[puf_mask].copy()
-    for column in (*predictor_names, "receives_housing_assistance"):
-        training[column] = pd.to_numeric(training[column], errors="coerce")
-        if not np.isfinite(training[column].to_numpy(dtype=np.float64)).all():
-            raise ValueError(
-                f"US housing PUF QRF training column {column!r} is nonfinite."
-            )
-    for column in predictor_names:
-        test[column] = pd.to_numeric(test[column], errors="coerce")
-        if not np.isfinite(test[column].to_numpy(dtype=np.float64)).all():
-            raise ValueError(
-                f"US housing PUF QRF prediction column {column!r} is nonfinite."
-            )
+    for table, columns in (
+        (training, (*predictor_names, US_HOUSING_RECEIPT_COLUMN)),
+        (test, predictor_names),
+    ):
+        for column in columns:
+            table[column] = pd.to_numeric(table[column], errors="coerce")
+            if not np.isfinite(table[column].to_numpy(dtype=np.float64)).all():
+                raise ValueError(f"US housing PUF QRF column {column!r} is nonfinite.")
 
     global QRF
     if QRF is None:
@@ -1102,40 +1143,28 @@ def impute_us_housing_assistance_to_puf_support(
     fitted = QRF(n_estimators=int(n_estimators), seed=int(seed)).fit(
         training,
         predictors=list(predictor_names),
-        targets=["receives_housing_assistance"],
+        targets=[US_HOUSING_RECEIPT_COLUMN],
         weights=weights.to_numpy(dtype=np.float64),
     )
     predicted = pd.to_numeric(
-        fitted.predict(test)["receives_housing_assistance"], errors="coerce"
+        fitted.predict(test)[US_HOUSING_RECEIPT_COLUMN], errors="coerce"
     ).to_numpy(dtype=np.float64)
     if not np.isfinite(predicted).all():
         raise ValueError("US housing PUF QRF produced nonfinite predictions.")
-
-    person_result = person_target.astype(bool).copy()
-    person_result.loc[puf_mask] = predicted >= 0.5
-    unit_values = (
-        pd.DataFrame(
-            {
-                "spm_unit_id": person["person_spm_unit_id"].to_numpy(),
-                "value": person_result.to_numpy(dtype=bool),
-            }
-        )
-        .groupby("spm_unit_id", sort=False)["value"]
-        .first()
+    imputed_by_household = pd.Series(
+        predicted >= 0.5, index=heads.loc[puf_mask, "person_household_id"]
     )
-    aligned = unit_values.reindex(spm_unit["spm_unit_id"])
-    if aligned.isna().any():
-        raise ValueError("US housing PUF QRF output does not cover every SPM unit.")
-    puf_units = support_role_series(spm_unit, entity="spm_unit").eq(
-        PUF_TAX_DETAIL_SUPPORT_CHANNEL
+    puf_households = role.eq(PUF_TAX_DETAIL_SUPPORT_CHANNEL).to_numpy()
+    receipt_values[puf_households] = (
+        household.loc[puf_households, "household_id"]
+        .map(imputed_by_household)
+        .to_numpy(dtype=bool)
     )
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
-    tables["spm_unit"].loc[puf_units, "receives_housing_assistance"] = aligned.to_numpy(
-        dtype=bool
-    )[puf_units.to_numpy()]
-    tables["spm_unit"].loc[puf_units, "takes_up_housing_assistance_if_eligible"] = (
-        aligned.to_numpy(dtype=bool)[puf_units.to_numpy()]
-    )
+    tables["household"][US_HOUSING_RECEIPT_COLUMN] = receipt_values
+    awarded = _head_unit_receipt(frame, receipt_values)
+    tables["spm_unit"]["receives_housing_assistance"] = awarded
+    tables["spm_unit"]["takes_up_housing_assistance_if_eligible"] = awarded
     return Frame(
         tables,
         frame.schema,
@@ -1215,6 +1244,10 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
     takes_up, takes_up_missing, takes_up_invalid = _strict_boolean_signal(
         spm_unit["takes_up_housing_assistance_if_eligible"]
     )
+    reported, reported_missing, reported_invalid = _strict_boolean_signal(
+        household[US_HOUSING_RECEIPT_COLUMN]
+    )
+    expected_receipt = _head_unit_receipt(frame, reported)
     spm_weights = np.asarray(frame.resolve_weights("spm_unit").values, dtype=np.float64)
     total_spm_weight = float(spm_weights.sum())
     receives_share = (
@@ -1259,6 +1292,11 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
         "housing_assistance_receipt_invalid_count": receives_invalid,
         "housing_assistance_take_up_missing_count": takes_up_missing,
         "housing_assistance_take_up_invalid_count": takes_up_invalid,
+        "housing_assistance_reported_receipt_missing_count": reported_missing,
+        "housing_assistance_reported_receipt_invalid_count": reported_invalid,
+        "housing_assistance_head_unit_mismatch_count": int(
+            np.count_nonzero(receives != expected_receipt)
+        ),
         "housing_assistance_take_up_source_mismatch_count": int(
             np.count_nonzero(takes_up != receives)
         ),
@@ -1281,7 +1319,7 @@ def us_housing_inputs_summary(frame: Frame) -> dict[str, object]:
 
 
 def us_housing_inputs_signal_gate(frame: Frame) -> GateResult:
-    """Require plausible non-default signal for all five restored inputs."""
+    """Require source signal and coherent household/head-unit receipt."""
 
     missing: list[str] = []
     for entity, columns in (
@@ -1301,7 +1339,7 @@ def us_housing_inputs_signal_gate(frame: Frame) -> GateResult:
             details={"missing": missing},
         )
     person = frame.table("person")
-    required_person = ("is_household_head", "person_household_id")
+    required_person = ("is_household_head", "person_household_id", "person_spm_unit_id")
     missing_support = [column for column in required_person if column not in person]
     if missing_support:
         return GateResult(
@@ -1330,6 +1368,18 @@ def us_housing_inputs_signal_gate(frame: Frame) -> GateResult:
             "housing_assistance_take_up_invalid_count",
             "takes_up_housing_assistance_if_eligible invalid non-boolean values",
         ),
+        (
+            "housing_assistance_reported_receipt_missing_count",
+            "reported household housing receipt missing values",
+        ),
+        (
+            "housing_assistance_reported_receipt_invalid_count",
+            "reported household housing receipt invalid non-boolean values",
+        ),
+        (
+            "housing_assistance_head_unit_mismatch_count",
+            "housing assistance receipt differs from the household head's unit",
+        ),
     ):
         count = int(summary[key])
         if count:
@@ -1339,7 +1389,7 @@ def us_housing_inputs_signal_gate(frame: Frame) -> GateResult:
     )
     if take_up_mismatches:
         failures.append(
-            "takes_up_housing_assistance_if_eligible differs from measured "
+            "takes_up_housing_assistance_if_eligible differs from assigned "
             f"receives_housing_assistance on {take_up_mismatches} SPM unit(s)."
         )
     for key, label in (

@@ -15,6 +15,7 @@ from microcosm.build.us_runtime.education_inputs import (
     US_EDUCATION_INPUTS_OUTPUT_COLUMNS,
     US_EDUCATION_INPUTS_OWNED_OUTPUT_COLUMNS,
 )
+from microcosm.build.us_runtime.housing_constants import US_HOUSING_RECEIPT_COLUMN
 from microcosm.build.us_runtime.immigration import (
     US_IMMIGRATION_REQUIRED_SOURCE_COLUMNS,
 )
@@ -438,7 +439,7 @@ def test_late_overlap_ownership_exhausts_every_permitted_dual_write() -> None:
     declared = set(US_LATE_OVERLAP_OWNERSHIP_TARGETS)
 
     assert len(primary) == 65
-    assert len(source_writes) == 35
+    assert len(source_writes) == 36
     assert len(source_writes & transfer) == 29
     assert len(transfer) == 70
     assert len(recipient_owned) == 60
@@ -1211,8 +1212,8 @@ def test_source_numeric_input_audit_is_fully_executable() -> None:
             "person_family_id",
         },
         "impute_us_housing_assistance_to_puf_support": {
-            "receives_housing_assistance",
-            "takes_up_housing_assistance_if_eligible",
+            "is_household_head",
+            US_HOUSING_RECEIPT_COLUMN,
         },
         "with_us_child_support_inputs": {"CSP_VAL", "CHSP_VAL"},
         "with_us_disability_benefits": {

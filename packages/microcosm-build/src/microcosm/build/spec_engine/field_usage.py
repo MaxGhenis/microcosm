@@ -26,9 +26,9 @@ from .resolver import (
 )
 from .schemas import load_schema_registry
 
-EXPECTED_AUTHORED_FIELD_COUNT = 32_377
+EXPECTED_AUTHORED_FIELD_COUNT = 32_441
 EXPECTED_RESOLVED_BINDING_FIELD_COUNT = 9_772
-EXPECTED_CONFIGURATION_FIELD_COUNT = 42_149
+EXPECTED_CONFIGURATION_FIELD_COUNT = 42_213
 
 
 class FieldUsageError(AssertionError):
@@ -365,8 +365,8 @@ _PINS: dict[str, tuple[int, str]] = {
         "9bad55b4945af1c4213c510942e7b9d22d104bf75b0d9804e4a183e1656c8393",
     ),
     "catalog_columns": (
-        1_673,
-        "a983c0d68e980a31bd1ad41e7ef3c0cb3db9a7ee4d73454ae46f81eb6d1bb427",
+        1_682,
+        "e3756d0d1320d68432b9ba7f1f277d837c654b5a67a49a1925e661b8de9695d3",
     ),
     "catalog_metadata_waivers": (
         5,
@@ -421,8 +421,8 @@ _PINS: dict[str, tuple[int, str]] = {
         "e1dd7dc5123ab0f39d08ea4939d98dd09a6fdb8e7449a7ca3125fb1ddbd5b4e9",
     ),
     "imputation_producer_graph": (
-        24_481,
-        "379a4db6baac065f52386aa438fc6c0be051b141bf87d4a220175a28e4ba9e84",
+        24_514,
+        "c3b074d71d60573267c1ff009765beb3899062c4c749d7eaae32b35cfafe9663",
     ),
     "imputation_transfer_execution": (
         97,
@@ -485,8 +485,8 @@ _PINS: dict[str, tuple[int, str]] = {
         "d6782c5de5bbed1bdc6bf653c4a6d4aadcad4ccc72d35e1092e130fcb04680a3",
     ),
     "source_stages": (
-        1_702,
-        "be3e24b53955b9dabccfc7e779212b1e97daf0c0992be3c183e391bf695ed4ee",
+        1_724,
+        "1a0520a436baead59508c4fa52c2d0f43fc3af05e19fa415212cc92ae7f1c9bd",
     ),
     "spine_assembly_household_mass_shares": (
         2,

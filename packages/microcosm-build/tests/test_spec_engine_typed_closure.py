@@ -57,7 +57,7 @@ def test_us_typed_closure_has_exact_inventory_counts(
     typed_resources: dict[str, Any],
     typed_result: TypedClosureResult,
 ) -> None:
-    assert len(typed_result.columns) == 176
+    assert len(typed_result.columns) == 177
     assert len(typed_result.artifacts) == 84
     assert len(typed_result.scopes) == 7
     assert Counter(artifact.kind for artifact in typed_result.artifacts) == {
@@ -67,9 +67,9 @@ def test_us_typed_closure_has_exact_inventory_counts(
     }
 
     graph = typed_resources["imputation"]["producer_graph"]
-    assert sum(len(node["outputs"]) for node in graph["nodes"]) == 92
+    assert sum(len(node["outputs"]) for node in graph["nodes"]) == 93
     compiled_outputs = compile_producer_outputs(typed_resources)
-    assert sum(len(rows) for rows in compiled_outputs.values()) == 227
+    assert sum(len(rows) for rows in compiled_outputs.values()) == 228
     assert sum(len(node["virtual_resources"]) for node in graph["nodes"]) == 75
     column_keys = {column.key for column in typed_result.columns}
     output_artifact_ids = {
@@ -151,9 +151,7 @@ def test_family_owned_output_mirrors_refuse_before_typed_compilation(
         if family["stage"] == "primary_puf_qrf"
     )
     target = next(
-        row
-        for row in primary["targets"]
-        if row["output_coverage_scope"] == "puf_clone"
+        row for row in primary["targets"] if row["output_coverage_scope"] == "puf_clone"
     )
     node = next(
         row

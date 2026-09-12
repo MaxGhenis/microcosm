@@ -1484,11 +1484,8 @@
       "household_tenure_source": {
        "type": "string"
       },
-      "housing_assistance_source": {
-       "type": "string"
-      },
       "housing_take_up_assignment": {
-       "type": "string"
+       "const": "equal_to_reported_receipt"
       },
       "housing_take_up_output": {
        "type": "string"
@@ -1518,17 +1515,60 @@
       },
       "spm_tenure_source": {
        "type": "string"
+      },
+      "housing_assistance_sources": {
+       "const": [
+        "HPUBLIC",
+        "HLORENT"
+       ]
+      },
+      "household_receipt_output": {
+       "const": "reported_housing_assistance_receipt"
+      },
+      "housing_receipt_assignment": {
+       "const": "household_head_spm_unit"
+      },
+      "receipt_universe": {
+       "const": {
+        "HPUBLIC": "H_TENURE != 1",
+        "HLORENT": "HPUBLIC == 2",
+        "valid_tenure_codes": [
+         1,
+         2,
+         3
+        ],
+        "public_housing_codes": [
+         1,
+         0
+        ],
+        "reduced_rent_codes": [
+         2,
+         1
+        ],
+        "explicit_no_codes": [
+         2,
+         2
+        ],
+        "owner_not_in_universe_codes": [
+         0,
+         0
+        ],
+        "otherwise": "raise"
+       }
       }
      },
      "required": [
       "household_tenure_map",
       "household_tenure_source",
-      "housing_assistance_source",
       "housing_take_up_assignment",
       "housing_take_up_output",
       "kind",
       "spm_tenure_map",
-      "spm_tenure_source"
+      "spm_tenure_source",
+      "housing_assistance_sources",
+      "household_receipt_output",
+      "housing_receipt_assignment",
+      "receipt_universe"
      ]
     },
     {
@@ -3674,22 +3714,25 @@
        }
       },
       "reduction": {
-       "type": "string"
+       "const": "household_head_spm_unit"
       },
       "seed_from_build_config": {
        "type": "boolean"
       },
       "take_up_assignment": {
-       "type": "string"
+       "const": "equal_to_reported_receipt"
       },
       "take_up_output": {
        "type": "string"
       },
       "target": {
-       "type": "string"
+       "const": "reported_housing_assistance_receipt"
       },
       "weight": {
-       "type": "string"
+       "const": "resolved_person_weight_at_household_head"
+      },
+      "training_grain": {
+       "const": "household_head"
       }
      },
      "required": [
@@ -3702,7 +3745,8 @@
       "take_up_assignment",
       "take_up_output",
       "target",
-      "weight"
+      "weight",
+      "training_grain"
      ]
     },
     {

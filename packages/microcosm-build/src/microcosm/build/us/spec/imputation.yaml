@@ -5387,6 +5387,33 @@ producer_graph:
     - alternatives:
       - - column: household_id
           entity: household
+          value_kind: non_null
+      column: '@effective:household_id'
+      entity: household
+      producing_stage: post_clone_input_surface
+      required_scope: asec_source
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: household_support_channel
+          entity: household
+          value_kind: non_null
+      column: '@effective:household_support_channel'
+      entity: household
+      producing_stage: post_clone_input_surface
+      required_scope: asec_source
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: reported_housing_assistance_receipt
+          entity: household
+          value_kind: finite_numeric
+      column: '@effective:housing_assistance_reported_receipt'
+      entity: household
+      producing_stage: post_clone_input_surface
+      required_scope: asec_source
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: household_id
+          entity: household
           value_kind: finite_numeric
       column: '@effective:source_wrapper:household_id'
       entity: household
@@ -5416,6 +5443,15 @@ producer_graph:
           entity: household
           value_kind: non_null
       column: household_id
+      entity: household
+      producing_stage: primary_puf_qrf
+      required_scope: puf_clone
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: household_support_channel
+          entity: household
+          value_kind: non_null
+      column: household_support_channel
       entity: household
       producing_stage: primary_puf_qrf
       required_scope: puf_clone
@@ -5467,6 +5503,24 @@ producer_graph:
           entity: person
           value_kind: finite_numeric
       column: '@effective:employment_income'
+      entity: person
+      producing_stage: post_clone_input_surface
+      required_scope: asec_source
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: is_household_head
+          entity: person
+          value_kind: finite_numeric
+      column: '@effective:household_head'
+      entity: person
+      producing_stage: post_clone_input_surface
+      required_scope: asec_source
+      tolerated_absence_receipts: []
+    - alternatives:
+      - - column: person_household_id
+          entity: person
+          value_kind: non_null
+      column: '@effective:person_household_link'
       entity: person
       producing_stage: post_clone_input_surface
       required_scope: asec_source
@@ -5800,24 +5854,6 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: receives_housing_assistance
-          entity: spm_unit
-          value_kind: finite_numeric
-      column: '@effective:housing_assistance_receipt'
-      entity: spm_unit
-      producing_stage: post_clone_input_surface
-      required_scope: asec_source
-      tolerated_absence_receipts: []
-    - alternatives:
-      - - column: takes_up_housing_assistance_if_eligible
-          entity: spm_unit
-          value_kind: finite_numeric
-      column: '@effective:housing_assistance_takeup'
-      entity: spm_unit
-      producing_stage: post_clone_input_surface
-      required_scope: asec_source
-      tolerated_absence_receipts: []
-    - alternatives:
       - - column: spm_unit_id
           entity: spm_unit
           value_kind: finite_numeric
@@ -5921,6 +5957,11 @@ producer_graph:
       required_scope: puf_clone
       tolerated_absence_receipts: []
     outputs:
+    - column: reported_housing_assistance_receipt
+      coverage_scope: asec_source
+      entity: household
+      temporary: false
+      validation_only: false
     - column: '@source_receipt:impute_us_housing_assistance_to_puf_support'
       coverage_scope: receipt
       entity: person

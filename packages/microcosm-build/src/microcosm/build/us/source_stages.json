@@ -2388,7 +2388,7 @@
     },
     {
       "stage": "acs_rent",
-      "survey": "Census ACS 2022",
+      "survey": "Census CPS ASEC household receipt + ACS 2022 rent",
       "source": "https://www.census.gov/programs-surveys/acs",
       "grain": "household",
       "artifacts": [
@@ -2399,10 +2399,14 @@
           "locator": "SHA-locked Census CPS ASEC person and household tables",
           "source_columns": [
             "H_TENURE",
-            "SPM_CAPHOUSESUB",
+            "HPUBLIC",
+            "HLORENT",
+            "I_HPUBLI",
+            "I_HLOREN",
             "SPM_TENMORTSTATUS",
             "SPM_ID"
-          ]
+          ],
+          "integrity_note": "Census ASEC receipt dictionary (printed 6A-9): https://www2.census.gov/programs-surveys/cps/datasets/2025/march/asec2025_ddl_pub_full.pdf#page=16; allocation flags (6A-11): https://www2.census.gov/programs-surveys/cps/datasets/2025/march/asec2025_ddl_pub_full.pdf#page=18."
         },
         {
           "kind": "versioned_derived_microdata",
@@ -2417,20 +2421,58 @@
         {
           "kind": "archived_derivation_evidence",
           "repository_owner": "PolicyEngine",
-          "repository_name_parts": ["policyengine-", "us-data"],
+          "repository_name_parts": [
+            "policyengine-",
+            "us-data"
+          ],
           "commit": "42ed5d45c56df80d754fbe24cce21cfeb8d05cbe",
-          "path_parts": ["policyengine_", "us_data", "datasets", "cps", "cps.py"],
+          "path_parts": [
+            "policyengine_",
+            "us_data",
+            "datasets",
+            "cps",
+            "cps.py"
+          ],
           "lines": "417-535,1612-1635",
           "take_up_lines": "585,664-682",
-          "take_up_parameter_path_parts": ["policyengine_", "us_data", "parameters", "take_up", "housing_assistance.yaml"],
+          "take_up_parameter_path_parts": [
+            "policyengine_",
+            "us_data",
+            "parameters",
+            "take_up",
+            "housing_assistance.yaml"
+          ],
           "take_up_parameter_lines": "1-15",
-          "hud_etl_path_parts": ["policyengine_", "us_data", "db", "etl_housing_assistance.py"],
+          "hud_etl_path_parts": [
+            "policyengine_",
+            "us_data",
+            "db",
+            "etl_housing_assistance.py"
+          ],
           "hud_etl_lines": "35-169",
-          "acs_path_parts": ["policyengine_", "us_data", "datasets", "acs", "acs.py"],
+          "acs_path_parts": [
+            "policyengine_",
+            "us_data",
+            "datasets",
+            "acs",
+            "acs.py"
+          ],
           "acs_lines": "82-135",
-          "census_acs_path_parts": ["policyengine_", "us_data", "datasets", "acs", "census_acs.py"],
+          "census_acs_path_parts": [
+            "policyengine_",
+            "us_data",
+            "datasets",
+            "acs",
+            "census_acs.py"
+          ],
           "census_acs_lines": "13-68,95-125",
-          "puf_imputation_path_parts": ["policyengine_", "us_data", "datasets", "cps", "extended_cps.py"],
+          "puf_imputation_path_parts": [
+            "policyengine_",
+            "us_data",
+            "datasets",
+            "cps",
+            "extended_cps.py"
+          ],
           "puf_imputation_lines": "135-194,234-248,639-745,1014-1073"
         }
       ],
@@ -2444,14 +2486,45 @@
             "2": "RENTED",
             "3": "NONE"
           },
-          "housing_assistance_source": "SPM_CAPHOUSESUB",
           "housing_take_up_output": "takes_up_housing_assistance_if_eligible",
-          "housing_take_up_assignment": "equal_to_measured_receipt",
+          "housing_take_up_assignment": "equal_to_reported_receipt",
           "spm_tenure_source": "SPM_TENMORTSTATUS",
           "spm_tenure_map": {
             "1": "OWNER_WITH_MORTGAGE",
             "2": "OWNER_WITHOUT_MORTGAGE",
             "3": "RENTER"
+          },
+          "housing_assistance_sources": [
+            "HPUBLIC",
+            "HLORENT"
+          ],
+          "household_receipt_output": "reported_housing_assistance_receipt",
+          "housing_receipt_assignment": "household_head_spm_unit",
+          "receipt_universe": {
+            "HPUBLIC": "H_TENURE != 1",
+            "HLORENT": "HPUBLIC == 2",
+            "valid_tenure_codes": [
+              1,
+              2,
+              3
+            ],
+            "public_housing_codes": [
+              1,
+              0
+            ],
+            "reduced_rent_codes": [
+              2,
+              1
+            ],
+            "explicit_no_codes": [
+              2,
+              2
+            ],
+            "owner_not_in_universe_codes": [
+              0,
+              0
+            ],
+            "otherwise": "raise"
           }
         },
         {
@@ -2507,14 +2580,15 @@
             "self_employment_income",
             "social_security"
           ],
-          "target": "receives_housing_assistance",
+          "target": "reported_housing_assistance_receipt",
           "take_up_output": "takes_up_housing_assistance_if_eligible",
-          "take_up_assignment": "equal_to_imputed_receipt",
-          "weight": "person_weight",
+          "take_up_assignment": "equal_to_reported_receipt",
+          "weight": "resolved_person_weight_at_household_head",
           "max_train_samples": 5000,
           "n_estimators": 100,
           "seed_from_build_config": true,
-          "reduction": "value_from_first_person"
+          "reduction": "household_head_spm_unit",
+          "training_grain": "household_head"
         }
       ],
       "outputs": [
@@ -2522,12 +2596,13 @@
         "receives_housing_assistance",
         "takes_up_housing_assistance_if_eligible",
         "spm_unit_tenure_type",
-        "tenure_type"
+        "tenure_type",
+        "reported_housing_assistance_receipt"
       ],
       "nonnegative_outputs": [
         "pre_subsidy_rent"
       ],
-      "notes": "Exact CPS H_TENURE and SPM carries plus the archived 10-predictor ACS rent QRF. receives_housing_assistance receives the retired second-stage CPS-to-PUF QRF, and takes_up_housing_assistance_if_eligible is kept exactly equal to that measured/imputed receipt anchor. Archived cps.py lines 664-682 preserved reporters before adding eligible nonreporters from a 0.50 draw; parameters/take_up/housing_assistance.yaml lines 12-15 say 0.50 was an ad hoc eCPS benchmark adjustment pending fuller calibration. Archived db/etl_housing_assistance.py lines 35-169 use a live HUD workbook to produce household-grain state counts, not SPM-unit recipient identities; that workbook is not pinned in the hermetic build and allocating its counts to SPM units would synthesize recipients. Microcosm never turns a reporter off and does not add unobserved take-up. Rent and both tenure enums are cloned unchanged."
+      "notes": "CPS household HPUBLIC/HLORENT decode interview-time housing receipt independently of the SPM valuation; I_HPUBLI/I_HLOREN retain Census allocation provenance. A1 (assisted family): only the householder's SPM unit receives the modeled award; the survey does not identify the lease-holding program family. A2 (timing): interview status is carried as full-year receipt for the preceding income year, matching Census valuation assumptions rather than observed duration. A3 (program family): both public housing and government-reduced rent are treated as HUD-family assistance; reduced rent may include non-HUD programs. The PUF QRF trains and predicts once per household head using the existing eight predictors and the head's resolved design weight. The same deterministic head-unit assignment sets receipt and take-up on both support channels, with no Bernoulli additions or capped-value fallback. Rent preserves its separately pinned ACS QRF and both tenure enums are cloned unchanged. Source receipt and imputation are not administrative payment records. Census household-to-SPM subsidy proration belongs in the country SPM valuation after calculating the single award."
     },
     {
       "stage": "vehicle_assets",

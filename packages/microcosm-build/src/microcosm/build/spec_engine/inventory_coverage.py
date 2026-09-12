@@ -348,21 +348,21 @@ EXPECTED_LEGACY_RELEASE_REGEX = EXPECTED_RELEASE_REGEX.replace(
 EXPECTED_HASHES = {
     "acs_group_predictors": "a927bb7ecf3e84f54c93583ab79318654514ac546aefafba67da5285615fbd60",
     "acs_person_predictors": "878c788a6f037d7aca12b3586ea034eff04f3034ffa11935a736493042551f25",
-    "authority": "3262b526cfe42e6079db170f709946782b4e040bd81779a9a3ed3f2a66ab286b",
+    "authority": "d954b75d243d081b2fef95f11348e966fa2e0f53b968ef9568b45e4cd8e9f2a8",
     "early_families": "4aa9f736fd76e83955477ad1667e58f48f264783f05bdc7f0102cd32d61323bd",
-    "full_checkpoint": "16a0063c26514ff7fe8a9741bdc118603b2edc0f05f2026cbf32a8dc7f11f34e",
+    "full_checkpoint": "1ee357b0b755de10fa15b537db1f0981af1d825b48622d3693e8acb01f2e14b6",
     "gap_fill_schedule": "1c31f9868f7884347cc19cf1ff65da43f950b9114941a715bab168246db414a7",
-    "graph_nodes": "fa4f072a875414a8eb032f7e58530cd35255eb530bef12eabdef095253e63c60",
+    "graph_nodes": "4dc72231093b16bf838a5a4c5f193207779f272fd4ed1b2fab8b65a2cdd92944",
     "geography_assignment": "f49425ca8734ac559c73cf44f6458d86d3162a48956b98a27e6e758959361585",
     "late_families": "d91f9ff0eb52f43e7b6eed3d5c58c37abe1620c3a11021da15dae9c10e16d382",
-    "late_resource_semantics": "95a87a5caa913d3729a475faf7392e7fc07d5acc4981a72d8f6aaacbfb48ace9",
-    "late_schedule": "9baa162cc3b0481a71eedc508fb87dec902954f79d7d55fc245fa4c0964ffcdc",
+    "late_resource_semantics": "329442affe4b2674f942095b1dcf0eac6d911503592d66b3c9d3a2652ec44592",
+    "late_schedule": "01de245ef5f720f37decc620ef36ae8b0e944581ad49b91adba6507e1407e65c",
     "ownership": "5f64f0aac49e2313177564f71876bffc8c81b3ded4df701e70930e60e9c98356",
     "primary_tuples": "987b501c695e31f45521c4a178528f75ab3df22c09bc407b182213b2de99ee57",
     "seed_map": "20058e544f6034cee2e76d3b864cf86b6230c8dce042931dfe9247d8ac1329c4",
     "seed_protocol": "553d5e0bd5afa93146dfbf8dca684926ee773dbfc89a559434528af5b4eb1d97",
-    "source_manifest": "cd5ba8924d64da5425ee14cca82a774e3f4b2bb5aabe06df291cc3cc457287a9",
-    "take_up": "fa186daea0f8dd641cc470e41d1a2953f887d45282ec990201298f47bedf8d4d",
+    "source_manifest": "2349ba28dc6d837adadb10cc0be364746e53e851b3dbcc553e902176d5cf5651",
+    "take_up": "430483a67c365e477ce0e7757c8f629084e044d038ccf0d4f0b82ceaa91be78b",
     "tail": "ac92829c88a1a4fb6460d61190918d5d99c6c377fc8dd8f62f02b332d09bf59c",
 }
 
@@ -427,13 +427,13 @@ EXPECTED_INVENTORY_COUNTS: Mapping[str, int] = {
     "primary_effective_predictor_tuples": 65,
     "primary_families": 1,
     "primary_targets": 65,
-    "producer_authored_outputs": 92,
-    "producer_compiled_outputs": 227,
-    "producer_inputs": 2_743,
+    "producer_authored_outputs": 93,
+    "producer_compiled_outputs": 228,
+    "producer_inputs": 2_747,
     "producer_nodes": 38,
     "producer_virtual_resources": 75,
     "release_rungs": 5,
-    "resolved_references": 334,
+    "resolved_references": 335,
     "seed_owner_bindings": 112,
     "seed_owner_rows": 54,
     "seed_sites": 53,
@@ -447,7 +447,7 @@ EXPECTED_INVENTORY_COUNTS: Mapping[str, int] = {
     "take_up_pipeline_steps": 28,
     "take_up_programs": 17,
     "typed_artifacts": 84,
-    "typed_columns": 176,
+    "typed_columns": 177,
     "typed_entities": 8,
     "typed_scopes": 7,
 }
@@ -1012,7 +1012,7 @@ def build_inventory_coverage(
         "producer_inputs_exact",
         clauses={
             "producer input rows differ": inputs_exact,
-            "input row count differs": input_count == 2743,
+            "input row count differs": input_count == 2747,
         },
         homes=("/imputation/producer_graph/nodes/*/inputs",),
         consumers=(
@@ -1020,7 +1020,7 @@ def build_inventory_coverage(
             "compiler_ir.node_slices",
         ),
         observed={"rows": input_count},
-        expected={"rows": 2743, "relation": "source rows preserved exactly"},
+        expected={"rows": 2747, "relation": "source rows preserved exactly"},
     )
     outputs_exact = set(expected_outputs) == set(compiled_by_id) and all(
         _json_equal(
@@ -1036,9 +1036,9 @@ def build_inventory_coverage(
         "producer_outputs_exact",
         clauses={
             "compiled outputs differ from typed closure": outputs_exact,
-            "authored output count differs": authored_output_count == 92,
+            "authored output count differs": authored_output_count == 93,
             "compiled output count differs": compiled.producer_graph.compiled_output_count
-            == 227,
+            == 228,
         },
         homes=(
             "/imputation/producer_graph/nodes/*/outputs",
@@ -1053,8 +1053,8 @@ def build_inventory_coverage(
             "compiled_rows": compiled.producer_graph.compiled_output_count,
         },
         expected={
-            "authored_rows": 92,
-            "compiled_rows": 227,
+            "authored_rows": 93,
+            "compiled_rows": 228,
             "relation": "typed closure exact",
         },
     )

@@ -65,7 +65,7 @@ from microcosm.build.us_runtime.farm_business_income import (
     US_FARM_BUSINESS_INCOME_OUTPUT_COLUMNS,
 )
 from microcosm.build.us_runtime.form_4952 import US_FORM_4952_OUTPUT_COLUMNS
-from microcosm.build.us_runtime.housing_inputs import US_HOUSING_INPUTS_OUTPUT_COLUMNS
+from microcosm.build.us_runtime.housing_inputs import US_HOUSING_MODEL_INPUT_COLUMNS
 from microcosm.build.us_runtime.medicare_take_up import (
     US_MEDICARE_TAKE_UP_OUTPUT_COLUMNS,
 )
@@ -187,7 +187,7 @@ RESTORED_REFERENCE_ECPS_REQUIRED_INPUTS = frozenset(
         *US_VOLUNTARY_FILING_OUTPUT_COLUMNS,
         *US_SIPP_HEAD_START_OUTPUT_COLUMNS,
         *US_SSI_TAKE_UP_OUTPUT_COLUMNS,
-        *US_HOUSING_INPUTS_OUTPUT_COLUMNS,
+        *US_HOUSING_MODEL_INPUT_COLUMNS,
         *US_MEDICARE_TAKE_UP_OUTPUT_COLUMNS,
         *US_PRIOR_YEAR_INCOME_PERSISTED_OUTPUT_COLUMNS,
         "investment_interest_expense",
@@ -634,12 +634,8 @@ def _ecps_populated_layers() -> frozenset[str]:
             f"{_ECPS_PARITY_REFERENCE_RESOURCE}: 'nonzero_shares' must be a "
             "non-empty JSON object."
         )
-    historical = {
-        str(name) for name, share in shares.items() if float(share) > 0.0
-    }
-    projected = {
-        REFERENCE_ECPS_LAYER_RENAMES.get(name, name) for name in historical
-    }
+    historical = {str(name) for name, share in shares.items() if float(share) > 0.0}
+    projected = {REFERENCE_ECPS_LAYER_RENAMES.get(name, name) for name in historical}
     if len(projected) != len(historical):
         raise ValueError(
             f"{_ECPS_PARITY_REFERENCE_RESOURCE}: reference-layer rename "

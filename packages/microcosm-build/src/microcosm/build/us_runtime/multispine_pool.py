@@ -54,6 +54,7 @@ from microcosm.build.us_runtime.hours_worked import (
     us_hours_worked_signal_gate,
     with_us_hours_worked_inputs,
 )
+from microcosm.build.us_runtime.housing_constants import US_HOUSING_RECEIPT_COLUMN
 from microcosm.build.us_runtime.housing_inputs import (
     US_HOUSING_ASSISTANCE_PUF_MAX_TRAIN_SAMPLES,
     US_HOUSING_ASSISTANCE_PUF_N_ESTIMATORS,
@@ -727,6 +728,8 @@ def pool_transfer_target_families() -> TargetFamilies:
                 declared
                 | set(_POOL_NATIVE_COMPLETE_OUTPUTS.get(entity, ()))
                 | set(_FORMULA_OWNED_SOURCE_OUTPUTS.get(entity, ()))
+                # Survey receipt is producer evidence, not an ACS model-input target.
+                | {US_HOUSING_RECEIPT_COLUMN}
             )
             targets = tuple(sorted(set(columns) - excluded))
             if targets:
@@ -861,9 +864,8 @@ def _resolve_take_up_program_bindings(
             for program in load_take_up_contract().programs
         )
     for index, binding in enumerate(bindings):
-        if (
-            len(binding) != 3
-            or not all(isinstance(value, str) and value for value in binding)
+        if len(binding) != 3 or not all(
+            isinstance(value, str) and value for value in binding
         ):
             raise ValueError(
                 "Take-up manifest program binding must contain three non-empty "
@@ -1333,9 +1335,7 @@ def pool_remaining_stage_input_manifest(
             variable,
             execution_scope="whole_pool",
             provision=provision,
-            available_by=(
-                "transferred" if variable in transfer_owned else "seeded"
-            ),
+            available_by=("transferred" if variable in transfer_owned else "seeded"),
             fallback=fallback,
         )
 

@@ -187,10 +187,10 @@
       "value_type": "bool",
       "default": true,
       "populace_treatment": "out_of_scope",
-      "scope_owner": "acs_rent source stage (measured/imputed housing-assistance receipt anchor)",
+      "scope_owner": "acs_rent source stage (independent household receipt assigned to head SPM unit)",
       "consumed_via": "housing_assistance",
       "rate": {"status": "not_used_measured_source"},
-      "notes": "The source stage preserves every ASEC SPM_CAPHOUSESUB reporter and sets take-up exactly equal to receipt on both support channels. The retired 0.50 parameter was an ad hoc benchmark adjustment. The archived HUD ETL instead reads household-grain state counts from a live workbook, which cannot identify SPM-unit recipients in the hermetic build; Populace therefore does not allocate extra recipients. out_of_scope means out of scope for generic Bernoulli seeding, not unseeded."
+      "notes": "CPS household HPUBLIC/HLORENT decode interview-time housing receipt independently of the SPM valuation; I_HPUBLI/I_HLOREN retain Census allocation provenance. A1 (assisted family): only the householder's SPM unit receives the modeled award; the survey does not identify the lease-holding program family. A2 (timing): interview status is carried as full-year receipt for the preceding income year, matching Census valuation assumptions rather than observed duration. A3 (program family): both public housing and government-reduced rent are treated as HUD-family assistance; reduced rent may include non-HUD programs. The PUF QRF trains and predicts once per household head using the existing eight predictors and the head's resolved design weight. The same deterministic head-unit assignment sets receipt and take-up on both support channels, with no Bernoulli additions or capped-value fallback. Rent preserves its separately pinned ACS QRF and both tenure enums are cloned unchanged. Source receipt and imputation are not administrative payment records. Census household-to-SPM subsidy proration belongs in the country SPM valuation after calculating the single award. out_of_scope excludes generic Bernoulli seeding; it does not mean unseeded. A4 (country-owned SPM valuation only): positive actual awards and their tenant-payment contributions are summed within each household and allocated by member share before the SPM cap. This is a documented modeling assumption, not an asserted Census valuation replication; it does not change producer receipt or HUD formulas."
     },
     {
       "variable": "takes_up_wic_if_eligible",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import importlib.util
+from itertools import product
 from pathlib import Path
 
 import h5py
@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 import microcosm.build.us_runtime.housing_inputs as module
+from microcosm.build.us_runtime.housing_constants import US_HOUSING_RECEIPT_COLUMN
 from microcosm.build.us_runtime.housing_inputs import (
     ACS_2022_RENT_ARTIFACT_SHA256,
     HOUSING_INPUTS_ARCHIVED_ACS_DERIVATION_URL,
@@ -21,6 +22,7 @@ from microcosm.build.us_runtime.housing_inputs import (
     HOUSING_TAKE_UP_ARCHIVED_HUD_ETL_URL,
     HOUSING_TAKE_UP_ARCHIVED_PARAMETER_URL,
     US_HOUSING_INPUTS_OUTPUT_COLUMNS,
+    US_HOUSING_MODEL_INPUT_COLUMNS,
     US_HOUSING_NONCONSTANT_HOUSEHOLD_COLUMNS,
     US_HOUSING_NONCONSTANT_PERSON_COLUMNS,
     US_HOUSING_NONCONSTANT_SPM_UNIT_COLUMNS,
@@ -49,12 +51,6 @@ from microcosm.build.us_runtime.release_input_coverage import (
 )
 from microcosm.build.us_runtime.take_up_contract import load_take_up_contract
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
-
-policyengine_us_installed = importlib.util.find_spec("policyengine_us") is not None
-requires_us = pytest.mark.skipif(
-    not policyengine_us_installed,
-    reason="requires the policyengine-us [us] extra (build environment)",
-)
 
 
 def _frame() -> Frame:
@@ -95,6 +91,12 @@ def _frame() -> Frame:
                 "household_id": household_ids,
                 "state_fips": np.where(household_ids <= 10, 6, 36),
                 "H_TENURE": h_tenure,
+                "HPUBLIC": np.where(
+                    household_ids == 1, 1, np.where(h_tenure == 1, 0, 2)
+                ),
+                "HLORENT": np.where((h_tenure == 1) | (household_ids == 1), 0, 2),
+                "I_HPUBLI": np.zeros(n, dtype=int),
+                "I_HLOREN": np.zeros(n, dtype=int),
             }
         ),
         "tax_unit": pd.DataFrame(
@@ -181,13 +183,15 @@ def test_stage_manifest_pins_exact_archived_sources_and_two_qrfs() -> None:
     assert rent_fit.parameters["weight"] == "household_weight"
     puf_fit = spec.operations[3]
     assert puf_fit.parameters["max_train_samples"] == 5_000
-    assert puf_fit.parameters["reduction"] == "value_from_first_person"
+    assert puf_fit.parameters["reduction"] == "household_head_spm_unit"
+    assert puf_fit.parameters["target"] == US_HOUSING_RECEIPT_COLUMN
+    assert puf_fit.parameters["training_grain"] == "household_head"
     assert puf_fit.parameters["take_up_output"] == (
         "takes_up_housing_assistance_if_eligible"
     )
     direct = spec.operations[0]
     assert direct.parameters["housing_take_up_assignment"] == (
-        "equal_to_measured_receipt"
+        "equal_to_reported_receipt"
     )
     assert all(
         url.startswith(
@@ -230,6 +234,7 @@ def test_direct_asec_mappings_are_exact() -> None:
         "OWNED_WITH_MORTGAGE",
     ]
     spm = result.table("spm_unit")
+    assert household[US_HOUSING_RECEIPT_COLUMN].sum() == 1
     assert spm["receives_housing_assistance"].tolist().count(True) == 1
     pd.testing.assert_series_equal(
         spm["takes_up_housing_assistance_if_eligible"],
@@ -247,7 +252,8 @@ def test_direct_mapping_rejects_inconsistent_spm_replicas() -> None:
     frame = _frame()
     extra = frame.table("person").iloc[[0]].copy()
     extra["person_id"] = 999
-    extra["SPM_CAPHOUSESUB"] = 0.0
+    extra["SPM_TENMORTSTATUS"] = 2
+    extra["is_household_head"] = False
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
     tables["person"] = pd.concat([tables["person"], extra], ignore_index=True)
     broken = Frame(tables, frame.schema, {"household": frame.weights_for("household")})
@@ -272,6 +278,241 @@ def test_materialization_places_rent_only_on_renter_heads(
     assert rent.tolist()[:6] == [12_000.0] * 4 + [0.0, 0.0]
     gate = us_housing_inputs_signal_gate(result)
     assert gate.passed, gate.failures
+
+
+@pytest.mark.parametrize(
+    "tenure,public,reduced", product((1, 2, 3), (0, 1, 2), (0, 1, 2))
+)
+def test_receipt_decodes_exact_census_tenure_and_skip_universe(tenure, public, reduced):
+    frame = _frame()
+    frame.table("household").loc[0, ["H_TENURE", "HPUBLIC", "HLORENT"]] = [
+        tenure,
+        public,
+        reduced,
+    ]
+    valid = (tenure == 1 and (public, reduced) == (0, 0)) or (
+        tenure in (2, 3) and (public, reduced) in ((1, 0), (2, 1), (2, 2))
+    )
+    if not valid:
+        with pytest.raises(ValueError, match="tenure/skip universe"):
+            derive_us_housing_inputs(frame)
+        return
+    result = derive_us_housing_inputs(frame)
+    expected = public == 1 or reduced == 1
+    assert bool(result.table("household").loc[0, US_HOUSING_RECEIPT_COLUMN]) == expected
+    assert (
+        bool(result.table("spm_unit").loc[0, "receives_housing_assistance"]) == expected
+    )
+
+
+@pytest.mark.parametrize(
+    "column", ("H_TENURE", "HPUBLIC", "HLORENT", "I_HPUBLI", "I_HLOREN")
+)
+@pytest.mark.parametrize("value", (None, np.nan, -1, 0.5, 4))
+def test_receipt_rejects_missing_and_invalid_source_codes(column, value):
+    frame = _frame()
+    frame.table("household")[column] = frame.table("household")[column].astype(object)
+    frame.table("household").loc[0, column] = value
+    with pytest.raises(ValueError, match=column):
+        derive_us_housing_inputs(frame)
+
+
+def _multiple_unit_household() -> Frame:
+    frame = _frame()
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    extra = tables["person"].iloc[[0]].copy()
+    extra["person_id"] = 999
+    extra["is_household_head"] = False
+    for entity in ("spm_unit", "tax_unit", "family", "marital_unit"):
+        extra[f"person_{entity}_id"] = 999
+        row = tables[entity].iloc[[0]].copy()
+        row[f"{entity}_id"] = 999
+        tables[entity] = pd.concat([tables[entity], row], ignore_index=True)
+    # The nonhead comes first, so a first-person reduction is not an award rule.
+    tables["person"] = pd.concat([extra, tables["person"]], ignore_index=True)
+    return Frame(tables, frame.schema, {"household": frame.weights_for("household")})
+
+
+def test_single_award_belongs_to_household_head_unit_and_is_cap_independent():
+    reference = None
+    for capped_value in (None, 0, 1_000_000):
+        frame = _multiple_unit_household()
+        if capped_value is None:
+            frame.table("person").drop(columns=["SPM_CAPHOUSESUB"], inplace=True)
+        else:
+            frame.table("person")["SPM_CAPHOUSESUB"] = capped_value
+        result = derive_us_housing_inputs(frame)
+        spm = result.table("spm_unit").set_index("spm_unit_id")
+        assert spm["receives_housing_assistance"].sum() == 1
+        assert bool(spm.loc[201, "receives_housing_assistance"])
+        assert not bool(spm.loc[999, "receives_housing_assistance"])
+        pd.testing.assert_series_equal(
+            spm["receives_housing_assistance"],
+            spm["takes_up_housing_assistance_if_eligible"],
+            check_names=False,
+        )
+        if reference is not None:
+            for entity in ("household", "spm_unit"):
+                pd.testing.assert_frame_equal(
+                    result.table(entity), reference.table(entity)
+                )
+        reference = result
+
+
+def test_signal_gate_rejects_broadcast_receipt_even_when_flags_agree():
+    result = derive_us_housing_inputs(_multiple_unit_household())
+    result.table("person")["pre_subsidy_rent"] = 0.0
+    result.table("spm_unit").loc[
+        result.table("spm_unit")["spm_unit_id"].eq(999),
+        ["receives_housing_assistance", "takes_up_housing_assistance_if_eligible"],
+    ] = True
+    gate = us_housing_inputs_signal_gate(result)
+    assert not gate.passed
+    assert gate.details["housing_assistance_head_unit_mismatch_count"] == 1
+    assert gate.details["housing_assistance_take_up_source_mismatch_count"] == 0
+
+
+def test_receipt_evidence_is_owned_but_not_a_country_input_or_acs_transfer_target():
+    from microcosm.build.us_runtime.multispine_pool import pool_input_surface
+    from microcosm.build.us_runtime.operator_boundary import (
+        PRE_ASSEMBLY_OPERATOR_OUTPUT_FAMILIES,
+    )
+    from microcosm.build.us_runtime.us_late_producer_registry import (
+        US_LATE_SOURCE_INPUT_INVENTORIES,
+    )
+
+    assert US_HOUSING_RECEIPT_COLUMN not in {
+        entry.variable for entry in pool_input_surface()
+    }
+    assert (
+        US_HOUSING_RECEIPT_COLUMN
+        in PRE_ASSEMBLY_OPERATOR_OUTPUT_FAMILIES["housing_assistance"]["household"]
+    )
+    inventory = US_LATE_SOURCE_INPUT_INVENTORIES[
+        "impute_us_housing_assistance_to_puf_support"
+    ]
+    columns = {
+        column.column
+        for requirement in inventory.requirements
+        for alternative in requirement.alternatives
+        for column in alternative
+    }
+    assert US_HOUSING_RECEIPT_COLUMN in columns
+    assert (
+        not {
+            "SPM_CAPHOUSESUB",
+            "receives_housing_assistance",
+            "takes_up_housing_assistance_if_eligible",
+        }
+        & columns
+    )
+
+
+@pytest.mark.parametrize("duplicate", (False, True))
+def test_receipt_requires_exactly_one_head(duplicate):
+    frame = _multiple_unit_household()
+    frame.table("person").loc[0 if duplicate else 1, "is_household_head"] = duplicate
+    with pytest.raises(
+        ValueError, match="heads per household|household-head alignment"
+    ):
+        derive_us_housing_inputs(frame)
+
+
+def test_puf_fit_uses_one_head_per_household_and_reassigns_only_head_unit(monkeypatch):
+    direct = derive_us_housing_inputs(_multiple_unit_household())
+    expanded = clone_us_frame_for_puf_support(direct)
+    # Old model flags are outputs, not training evidence or prerequisites.
+    expanded.table("spm_unit")["receives_housing_assistance"] = True
+    expanded.table("spm_unit")["takes_up_housing_assistance_if_eligible"] = False
+    captured = {}
+
+    class QRF:
+        def __init__(self, **kwargs):
+            captured["init"] = kwargs
+
+        def fit(self, training, *, predictors, targets, weights):
+            captured.update(
+                training=training.copy(),
+                predictors=predictors,
+                targets=targets,
+                weights=weights.copy(),
+            )
+            return self
+
+        def predict(self, test):
+            captured["test"] = test.copy()
+            return pd.DataFrame(
+                {US_HOUSING_RECEIPT_COLUMN: np.ones(len(test))}, index=test.index
+            )
+
+    monkeypatch.setattr(module, "QRF", QRF)
+    result = impute_us_housing_assistance_to_puf_support(expanded, seed=17)
+    assert len(captured["training"]) == len(captured["test"]) == 20
+    assert captured["training"][US_HOUSING_RECEIPT_COLUMN].sum() == 1
+    assert len(captured["predictors"]) == 8
+    assert captured["targets"] == [US_HOUSING_RECEIPT_COLUMN]
+    assert captured["init"] == {"n_estimators": 100, "seed": 17}
+    person = expanded.table("person")
+    expected_weights = pd.Series(
+        expanded.resolve_weights("person").values, index=person.index
+    ).loc[captured["training"].index]
+    np.testing.assert_array_equal(captured["weights"], expected_weights)
+    household = result.table("household")
+    puf = (
+        household[support_channel_column("household")] == PUF_TAX_DETAIL_SUPPORT_CHANNEL
+    )
+    assert household.loc[puf, US_HOUSING_RECEIPT_COLUMN].sum() == 20
+    assert household.loc[~puf, US_HOUSING_RECEIPT_COLUMN].sum() == 1
+    spm = result.table("spm_unit")
+    puf_spm = spm[support_channel_column("spm_unit")] == PUF_TAX_DETAIL_SUPPORT_CHANNEL
+    assert puf_spm.sum() == 21
+    assert spm.loc[puf_spm, "receives_housing_assistance"].sum() == 20
+    assert spm.loc[~puf_spm, "receives_housing_assistance"].sum() == 1
+    pd.testing.assert_series_equal(
+        spm["receives_housing_assistance"],
+        spm["takes_up_housing_assistance_if_eligible"],
+        check_names=False,
+    )
+
+
+def test_real_puf_receipt_fit_is_reproducible_and_preserves_source_households(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pytest.importorskip("quantile_forest")
+    from microcosm.fit import QRF
+
+    monkeypatch.setattr(module, "QRF", QRF)
+    expanded = clone_us_frame_for_puf_support(
+        derive_us_housing_inputs(_multiple_unit_household())
+    )
+    first = impute_us_housing_assistance_to_puf_support(
+        expanded, seed=17, n_estimators=3
+    )
+    second = impute_us_housing_assistance_to_puf_support(
+        expanded, seed=17, n_estimators=3
+    )
+    for entity in first.entities:
+        pd.testing.assert_frame_equal(first.table(entity), second.table(entity))
+    for entity, columns in (
+        ("household", (US_HOUSING_RECEIPT_COLUMN,)),
+        (
+            "spm_unit",
+            ("receives_housing_assistance", "takes_up_housing_assistance_if_eligible"),
+        ),
+    ):
+        source = expanded.table(entity)
+        asec = source[support_channel_column(entity)].eq(BASE_ASEC_SUPPORT_CHANNEL)
+        pd.testing.assert_frame_equal(
+            first.table(entity).loc[asec, list(columns)],
+            source.loc[asec, list(columns)],
+        )
+    # Even a real fit can only assign awards to declared household heads.
+    heads = first.table("person").query("is_household_head")
+    spm = first.table("spm_unit")
+    assert not spm.loc[
+        ~spm["spm_unit_id"].isin(heads["person_spm_unit_id"]),
+        "receives_housing_assistance",
+    ].any()
 
 
 def test_rent_fit_replays_archived_joint_target_sample(
@@ -345,9 +586,7 @@ def test_puf_half_reimputes_only_housing_assistance(
         def predict(self, test: pd.DataFrame, **kwargs) -> pd.DataFrame:
             values = np.zeros(len(test), dtype=np.float64)
             values[1] = 1.0
-            return pd.DataFrame(
-                {"receives_housing_assistance": values}, index=test.index
-            )
+            return pd.DataFrame({US_HOUSING_RECEIPT_COLUMN: values}, index=test.index)
 
     class QRF:
         def __init__(self, **kwargs: object) -> None:
@@ -384,7 +623,7 @@ def test_puf_half_reimputes_only_housing_assistance(
         spm["receives_housing_assistance"],
         check_names=False,
     )
-    assert calls["targets"] == ["receives_housing_assistance"]
+    assert calls["targets"] == [US_HOUSING_RECEIPT_COLUMN]
     assert len(calls["predictors"]) == 8
     assert "pre_subsidy_rent" not in calls["targets"]
     for entity, column in (
@@ -495,10 +734,12 @@ def test_acs_loader_retains_zero_weight_heads_for_archived_sampling(
 
 def test_release_wiring_promotes_all_five_inputs_and_probes() -> None:
     manifest = load_release_input_coverage_manifest()
-    for column in US_HOUSING_INPUTS_OUTPUT_COLUMNS:
+    for column in US_HOUSING_MODEL_INPUT_COLUMNS:
         assert column in RESTORED_REFERENCE_ECPS_REQUIRED_INPUTS
         assert column in manifest.required_columns
         assert column not in manifest.reviewed_exclusions
+    assert US_HOUSING_RECEIPT_COLUMN not in manifest.required_columns
+    assert US_HOUSING_RECEIPT_COLUMN not in RESTORED_REFERENCE_ECPS_REQUIRED_INPUTS
     assert set(US_HOUSING_NONCONSTANT_PERSON_COLUMNS) <= set(
         US_RELEASE_REQUIRED_PERSON_SOURCE_COLUMNS
     )
@@ -536,7 +777,7 @@ def test_release_wiring_promotes_all_five_inputs_and_probes() -> None:
     assert contract.rate == {"status": "not_used_measured_source"}
 
 
-@requires_us
+@pytest.mark.requires_us
 def test_policyengine_us_input_contracts_and_rent_consumer() -> None:
     from policyengine_us import CountryTaxBenefitSystem
 
@@ -555,7 +796,7 @@ def test_policyengine_us_input_contracts_and_rent_consumer() -> None:
     assert "pre_subsidy_rent" in system.variables["hud_gross_rent"].adds
 
 
-@requires_us
+@pytest.mark.requires_us
 def test_policyengine_us_live_housing_take_up_neutralization() -> None:
     from importlib.metadata import version
 
