@@ -90,6 +90,7 @@ from microcosm.build.us_runtime.sipp_head_start import (
     US_SIPP_HEAD_START_OUTPUT_COLUMNS,
 )
 from microcosm.build.us_runtime.sipp_vehicles import US_SIPP_VEHICLE_OUTPUT_COLUMNS
+from microcosm.build.us_runtime.spm_role_source import NATIVE_SPM_ROLE
 from microcosm.build.us_runtime.ssi_disability_criteria import (
     US_SSI_DISABILITY_CRITERIA_OUTPUT_COLUMNS,
 )
@@ -157,6 +158,9 @@ POST_REFERENCE_ECPS_REQUIRED_INPUTS = frozenset(
         "is_incapable_of_self_care",
         "health_insurance_premiums",
         "is_self_employed",
+        # Reconciled Census source role; a household formula is not a population
+        # substitute and the adapter deliberately provides no scalar default.
+        NATIVE_SPM_ROLE,
     }
 )
 
@@ -692,6 +696,11 @@ def assert_release_input_coverage_manifest_current(
 
     required = manifest.required_columns
     reviewed = set(manifest.reviewed_exclusions)
+    if NATIVE_SPM_ROLE not in required:
+        failures.append(
+            f"{NATIVE_SPM_ROLE}: native Census SPM source role must remain a "
+            "required manifest column with no reviewed exclusion."
+        )
     for asset in SSI_COUNTABLE_RESOURCE_ASSETS:
         if asset in reviewed:
             failures.append(

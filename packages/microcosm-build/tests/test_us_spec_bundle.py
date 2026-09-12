@@ -1114,6 +1114,85 @@ def test_generator_reproduces_every_checked_in_bundle_byte(
     assert generator.write_generated_files(check=True) == ()
 
 
+def test_engine_lock_only_does_not_evaluate_unrelated_domains(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from microcosm.build.spec_engine.engine_abi import (
+        active_take_up_manifest_program_bindings,
+    )
+
+    (tmp_path / "take_up_contract.json").write_bytes(
+        (US_PACKAGE_ROOT / "take_up_contract.json").read_bytes()
+    )
+    (tmp_path / "engine_abi.lock.json").write_bytes(b"obsolete lock")
+    sentinel = tmp_path / "spec" / "imputation.yaml"
+    sentinel.parent.mkdir()
+    sentinel.write_bytes(b"unchanged imputation")
+    calls: list[str] = []
+
+    def selected(kind: str):
+        def build():
+            bindings = active_take_up_manifest_program_bindings()
+            assert bindings is not None and len(bindings) == 17
+            calls.append(kind)
+            return {"kind": kind}
+
+        return build
+
+    def unrelated():
+        raise AssertionError(
+            "unrelated domain/clean-worker evaluation during bootstrap"
+        )
+
+    def serialize(domains):
+        assert domains == {
+            "sources": {"kind": "sources"},
+            "take_up": {"kind": "take_up"},
+        }
+        return b"fresh ABI serialization"
+
+    monkeypatch.setattr(generator, "US_PACKAGE_ROOT", tmp_path)
+    monkeypatch.setattr(
+        generator,
+        "_domain_builders",
+        lambda: {
+            kind: selected(kind) if kind in {"sources", "take_up"} else unrelated
+            for kind in generator.DOMAIN_KINDS
+        },
+    )
+    monkeypatch.setattr(generator, "engine_abi_lock_bytes_from_domains", serialize)
+
+    assert generator.main(["--engine-lock-only"]) == 0
+    assert calls == ["sources", "take_up"]
+    assert (
+        tmp_path / "engine_abi.lock.json"
+    ).read_bytes() == b"fresh ABI serialization"
+    assert sentinel.read_bytes() == b"unchanged imputation"
+    assert active_take_up_manifest_program_bindings() is None
+
+
+def test_engine_lock_only_matches_full_generation_authorities(
+    generated_documents: dict[str, dict[str, object]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = generator.engine_abi_lock_bytes_from_domains(
+        {
+            "sources": generated_documents["sources.yaml"],
+            "take_up": generated_documents["take_up.yaml"],
+        }
+    )
+    (tmp_path / "take_up_contract.json").write_bytes(
+        (US_PACKAGE_ROOT / "take_up_contract.json").read_bytes()
+    )
+    (tmp_path / "engine_abi.lock.json").write_bytes(b"obsolete lock")
+    monkeypatch.setattr(generator, "US_PACKAGE_ROOT", tmp_path)
+
+    assert generator.main(["--engine-lock-only"]) == 0
+    assert (tmp_path / "engine_abi.lock.json").read_bytes() == expected
+    assert generator.main(["--engine-lock-only", "--check"]) == 0
+
+
 def test_root_us_drafting_location_is_a_symlink_free_pointer() -> None:
     readme = AUTHORING_POINTER_ROOT / "README.md"
     assert readme.is_file()

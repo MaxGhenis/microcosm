@@ -45,6 +45,63 @@ def _installed_variable_metadata_index(builder):
         pytest.skip("requires the policyengine-us [us] extra")
 
 
+@pytest.mark.requires_us
+@pytest.mark.parametrize("present", (False, True))
+def test_population_release_writer_requires_and_preserves_native_role(
+    tmp_path, present
+):
+    from policyengine_us.data import USSingleYearDataset
+    from policyengine_us.spm import DATASET_SOURCE_INPUTS
+
+    from microcosm.frame import US_SCHEMA
+
+    builder = _load_builder_module()
+    role = builder.NATIVE_SPM_ROLE
+    tables = {
+        entity: pd.DataFrame({US_SCHEMA.id_column(entity): [1]})
+        for entity in US_SCHEMA.group_entities
+    }
+    tables["person"] = pd.DataFrame(
+        {
+            "person_id": [1, 2],
+            **{
+                US_SCHEMA.membership_column(entity): [1, 1]
+                for entity in US_SCHEMA.group_entities
+            },
+        }
+    )
+    if present:
+        tables["person"][role] = [False, True]
+    frame = Frame(
+        tables,
+        US_SCHEMA,
+        {"household": Weights(np.asarray([1.0]), WeightKind.CALIBRATED)},
+    )
+    engine = builder._population_release_engine()
+    assert set(engine.export_contract().required) == DATASET_SOURCE_INPUTS
+    assert role not in engine.default_values([role])
+    path = tmp_path / "release.h5"
+    if not present:
+        with pytest.raises(ValueError, match=role):
+            engine.write_dataset(frame, path, period=2024)
+        assert not path.exists()
+    else:
+        engine.write_dataset(frame, path, period=2024)
+        reloaded = USSingleYearDataset(file_path=str(path))
+        assert reloaded.person[role].dtype == np.bool_
+        assert reloaded.person[role].tolist() == [False, True]
+
+
+@pytest.mark.requires_us
+def test_population_release_writer_refuses_country_without_native_role(monkeypatch):
+    import policyengine_us.spm as spm
+
+    builder = _load_builder_module()
+    monkeypatch.setattr(spm, "DATASET_SOURCE_INPUTS", frozenset())
+    with pytest.raises(ValueError, match="native SPM role contract"):
+        builder._population_release_engine()
+
+
 def test_build_model_arguments_fail_before_fiscal_generation(monkeypatch, tmp_path):
     builder = _load_builder_module()
     common = ["--ledger-facts", "facts.jsonl", "--out", str(tmp_path), "--no-staging"]
@@ -4664,6 +4721,9 @@ def test_main_writes_diagnostics_before_post_calibration_gate_failure(
             "_staging_telemetry",
             lambda *args, **kwargs: live_telemetry,
         )
+    monkeypatch.setattr(
+        builder, "_population_release_engine", lambda: SimpleNamespace()
+    )
     if terminal_mode in {"integrity", "retirement", "telemetry", "puf_tail"}:
         monkeypatch.setattr(
             builder,
@@ -11209,6 +11269,7 @@ def test_release_h5_write_sits_between_batched_raise_and_smoke() -> None:
     source = inspect.getsource(builder._main)
     tree = ast.parse(source)
 
+    assert "release_engine = _population_release_engine()" in source
     batched_raises: list[int] = []
     writes: list[int] = []
     smokes: list[int] = []

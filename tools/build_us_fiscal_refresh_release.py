@@ -307,7 +307,14 @@ from microcosm.data.us_critical_targets import (
 from microcosm.data.us_critical_targets import (
     US_SOI_TABLE_1_4_NATIONAL_DOLLAR_FIT_REQUIREMENT as SHARED_US_SOI_TABLE_1_4_NATIONAL_DOLLAR_FIT_REQUIREMENT,
 )
-from microcosm.frame import Frame, MassChange, WeightKind, Weights, read_frame_table
+from microcosm.frame import (
+    ExportContract,
+    Frame,
+    MassChange,
+    WeightKind,
+    Weights,
+    read_frame_table,
+)
 from microcosm.frame.adapters.policyengine_us import (
     PolicyEngineUSEngine,
     PolicyEngineUSVariableMetadataIndex,
@@ -5389,6 +5396,28 @@ def _write_reported_coverage_vintage_gate_receipt(
         )
     )
     return path
+
+
+def _population_release_engine() -> PolicyEngineUSEngine:
+    """Require native country inputs at the final population H5 boundary."""
+    from policyengine_us.spm import DATASET_SOURCE_INPUTS
+
+    if (
+        not isinstance(DATASET_SOURCE_INPUTS, frozenset)
+        or NATIVE_SPM_ROLE not in DATASET_SOURCE_INPUTS
+        or any(not isinstance(name, str) for name in DATASET_SOURCE_INPUTS)
+    ):
+        raise ValueError(
+            "Population export requires the country native SPM role contract."
+        )
+    return PolicyEngineUSEngine(
+        contract=ExportContract(
+            required=tuple(sorted(DATASET_SOURCE_INPUTS)),
+            forbidden=(),
+            optional=(),
+            formula_owned_excluded=(),
+        )
+    )
 
 
 def _engine_input_variables() -> tuple[str, ...]:
@@ -11582,7 +11611,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
         "export_dataset",
         message="Writing PolicyEngine-US H5.",
     )
-    release_engine = PolicyEngineUSEngine()
+    release_engine = _population_release_engine()
     # microcosm#368: full eCPS input-column coverage as a HARD release gate.
     # Every input column the reference eCPS exports must be persisted by the
     # export as a key with non-default signal, or carry a reviewed exclusion.

@@ -1351,10 +1351,13 @@ def test_ssi_static_dependency_closure_matches_pinned_engine_graph() -> None:
 
     assert closure.engine_version == POOL_SSI_DEPENDENCY_CONTRACT.engine_version
     assert closure.root == "ssi"
-    assert len(closure.input_leaves) == 55
+    assert len(closure.input_leaves) == 54
     assert len(closure.formula_nodes) == 63
     assert len(closure.edges) == 187
     assert closure.sha256 == POOL_SSI_DEPENDENCY_CONTRACT.sha256
+    student_exclusion = "is_ssi_blind_or_disabled_working_student_exclusion_eligible"
+    assert (student_exclusion, "meets_ssi_disability_criteria") in closure.edges
+    assert (student_exclusion, "is_disabled") not in closure.edges
     assert closure.input_leaves == (
         "age",
         "alimony_income",
@@ -1367,7 +1370,6 @@ def test_ssi_static_dependency_closure_matches_pinned_engine_graph() -> None:
         "gi_cash_assistance",
         "immigration_status_str",
         "is_blind",
-        "is_disabled",
         "is_full_time_college_student",
         "is_separated",
         "keogh_distributions",
@@ -1543,12 +1545,12 @@ def test_remaining_stage_manifest_provisions_every_ssi_leaf_by_seed() -> None:
         entry for entry in manifest if entry.consumer == "ssi_static_dependency_closure"
     ]
 
-    assert len(leaves) == 55
+    assert len(leaves) == 54
     assert tuple(sorted(entry.variable for entry in leaves)) == closure.input_leaves
     assert Counter(entry.provision for entry in leaves) == Counter(
         {
             "assembled_native_person_input": 1,
-            "materialized_pool_input_surface": 32,
+            "materialized_pool_input_surface": 31,
             "seed_stage_program_contract": 1,
             "declared_deferred_null_input": 3,
             "declared_absent_engine_input": 18,
@@ -1567,8 +1569,8 @@ def test_remaining_stage_manifest_provisions_every_ssi_leaf_by_seed() -> None:
         entry.provision == "seed_stage_program_contract" for entry in leaves
     )
     seeded_absent = len(leaves) - seeded_complete - deferred
-    assert (transferred_complete, deferred, transferred_absent) == (33, 3, 19)
-    assert (seeded_complete, deferred, seeded_absent) == (34, 3, 18)
+    assert (transferred_complete, deferred, transferred_absent) == (32, 3, 19)
+    assert (seeded_complete, deferred, seeded_absent) == (33, 3, 18)
     assert all(
         entry.fallback is not None
         for entry in leaves
@@ -1600,11 +1602,11 @@ def test_remaining_stage_manifest_enumerates_every_simulation_projection_input()
             "materialized_pool_input_surface": 122,
             "seed_stage_program_contract": 17,
             "declared_deferred_null_input": 3,
-            "assembled_native_engine_input": 5,
+            "assembled_native_engine_input": 6,
             "frame_structural_engine_input": 10,
             "preserved_stacked_engine_input": 4,
             "derived_schedule_d_input": 1,
-            "declared_absent_engine_input": 762,
+            "declared_absent_engine_input": 761,
         }
     )
     preserved = {
@@ -1634,7 +1636,18 @@ def test_remaining_stage_manifest_enumerates_every_simulation_projection_input()
             "ephemeral_simulation_projection_engine_default_if_present_null",
         ),
     }
-    assert all(entry.fallback is not None for entry in projection)
+    assert {
+        (entry.entity, entry.variable, entry.provision, entry.available_by)
+        for entry in projection
+        if entry.fallback is None
+    } == {
+        (
+            "person",
+            "is_spm_independent_minor_role",
+            "assembled_native_engine_input",
+            "assembled",
+        )
+    }
 
 
 def test_simulation_projection_defaults_match_pinned_engine_surface() -> None:
@@ -1642,19 +1655,92 @@ def test_simulation_projection_defaults_match_pinned_engine_surface() -> None:
     receipt = pool_engine_input_projection_receipt(PolicyEngineUSEngine())
 
     assert receipt == {
-        "engine_version": "1.819.0",
+        "engine_version": "2.0.2rc1",
         "input_count": 924,
-        "default_count": 924,
+        "default_count": 923,
         "defaults_sha256": (POOL_ENGINE_INPUT_PROJECTION_CONTRACT.defaults_sha256),
     }
+
+
+@pytest.mark.parametrize(
+    "defaults",
+    [{}, {"age": 0, "is_spm_independent_minor_role": False}, {"age": 0, "extra": 0}],
+)
+def test_simulation_default_contract_rejects_other_missing_or_synthesized_inputs(
+    defaults: dict[str, object],
+) -> None:
+    engine = SimpleNamespace(
+        variables=lambda: ["age", "is_spm_independent_minor_role"],
+        default_values=lambda names: defaults,
+        variable_metadata=lambda name: SimpleNamespace(entity="person"),
+    )
+    with pytest.raises(ValueError, match="default surface is not exact"):
+        pool_engine_input_projection_receipt(engine)
+
+
+@pytest.mark.parametrize(
+    "corruption", ["absent", "null", "integer", "object", "entity", "default"]
+)
+def test_simulation_projection_requires_observed_native_spm_role(
+    corruption: str,
+) -> None:
+    role = "is_spm_independent_minor_role"
+    frame = _source_frame()
+    person = frame.table("person").copy()
+    person[role] = np.array([True, False], dtype=bool)
+    if corruption == "absent":
+        person = person.drop(columns=[role])
+    elif corruption == "null":
+        person[role] = pd.Series([True, pd.NA], dtype="boolean")
+    elif corruption == "integer":
+        person[role] = [1, 0]
+    elif corruption == "object":
+        person[role] = pd.Series([True, False], dtype=object)
+    frame = _replace_person(frame, person)
+    engine = SimpleNamespace(
+        variables=lambda: [role],
+        default_values=lambda names: {role: False} if corruption == "default" else {},
+        variable_metadata=lambda name: SimpleNamespace(
+            entity="household" if corruption == "entity" else "person"
+        ),
+    )
+    with pytest.raises(ValueError, match="required native source input"):
+        multispine_pool_module._simulation_projection(frame, engine=engine)
+
+
+def test_simulation_projection_preserves_native_roles_while_filling_ordinary_input() -> (
+    None
+):
+    role = "is_spm_independent_minor_role"
+    frame = _source_frame()
+    person = frame.table("person").copy()
+    person[role] = np.array([True, False], dtype=bool)
+    person.loc[0, "age"] = np.nan
+    frame = _replace_person(frame, person)
+    engine = SimpleNamespace(
+        variables=lambda: ["age", role],
+        default_values=lambda names: {"age": 0},
+        variable_metadata=lambda name: SimpleNamespace(entity="person"),
+    )
+
+    projected, fills = multispine_pool_module._simulation_projection(
+        frame, engine=engine
+    )
+
+    assert projected.table("person")[role].tolist() == [True, False]
+    assert projected.table("person")[role].dtype == np.dtype(bool)
+    assert set(fills) == {"age"}
+    assert projected.table("person").age.tolist() == [0, 50]
+    assert pd.isna(frame.table("person").age.iloc[0])
+    pd.testing.assert_series_equal(frame.table("person")[role], person[role])
 
 
 def test_remaining_stage_manifest_is_unique_complete_and_stable() -> None:
     manifest = pool_remaining_stage_input_manifest(_installed_variable_metadata_index())
 
-    assert len(manifest) == 1058
+    assert len(manifest) == 1057
     assert Counter(entry.stage for entry in manifest) == Counter(
-        {"derive": 34, "seed": 33, "simulate": 991}
+        {"derive": 34, "seed": 33, "simulate": 990}
     )
     assert len(
         {
@@ -1667,16 +1753,16 @@ def test_remaining_stage_manifest_is_unique_complete_and_stable() -> None:
     receipt = pool_remaining_stage_input_manifest_receipt(
         _installed_variable_metadata_index()
     )
-    assert receipt["entry_count"] == 1058
+    assert receipt["entry_count"] == 1057
     assert receipt["stage_counts"] == {
         "derive": 34,
         "seed": 33,
-        "simulate": 991,
+        "simulate": 990,
     }
     assert receipt["engine_input_projection_contract"] == {
-        "engine_version": "1.819.0",
+        "engine_version": "2.0.2rc1",
         "input_count": 924,
-        "default_count": 924,
+        "default_count": 923,
         "sha256": POOL_ENGINE_INPUT_PROJECTION_CONTRACT.sha256,
         "defaults_sha256": POOL_ENGINE_INPUT_PROJECTION_CONTRACT.defaults_sha256,
     }
@@ -3047,11 +3133,11 @@ def test_derive_stage_keeps_whole_pool_qbi_reconciliation() -> None:
     derived = result.frame.table("person")
 
     assert result.receipt["operator_order"] == list(POOL_DERIVE_OPERATOR_ORDER)
-    assert result.receipt["remaining_stage_input_manifest"]["entry_count"] == 1058
+    assert result.receipt["remaining_stage_input_manifest"]["entry_count"] == 1057
     assert result.receipt["remaining_stage_input_manifest"]["stage_counts"] == {
         "derive": 34,
         "seed": 33,
-        "simulate": 991,
+        "simulate": 990,
     }
     assert (
         result.receipt["qbi_input_reconciliation"]["recipient_source_universe"][

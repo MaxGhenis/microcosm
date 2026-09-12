@@ -80,12 +80,20 @@ POST_REFERENCE_ECPS_REQUIRED_INPUTS = (
     "is_self_employed",
     "pre_subsidy_care_expenses",
     "is_incapable_of_self_care",
+    "is_spm_independent_minor_role",
 )
 
 # Per-column annotations for post-reference hard requirements whose absence
 # from today's artifacts is the intended red gate (the #368 SSI-asset
 # pattern, extended by #462 to the capital-gain-distributions route).
 POST_REFERENCE_COLUMN_NOTES = {
+    "is_spm_independent_minor_role": (
+        "Native Census SPM role derived from pinned ASEC relationship fields "
+        "and reconciled against source adult/child/person counts. Required "
+        "as a persisted person boolean: the country head/spouse formula is "
+        "a household fallback, and no scalar default may replace the "
+        "population source role."
+    ),
     "schedule_d_capital_gain_distributions": (
         "Schedule D line 13 route leg of the #282 capital-gain-distributions "
         "split (memo component of long_term_capital_gains, written by the "

@@ -98,6 +98,7 @@ from microcosm.build.us_runtime.spine_agreement import (
     spine_agreement_gate,
 )
 from microcosm.build.us_runtime.spine_assembly import assemble_spines
+from microcosm.build.us_runtime.spm_role_source import NATIVE_SPM_ROLE
 from microcosm.build.us_runtime.support_provenance import (
     SPINE_ASSEMBLY_MANIFEST_KEY,
     spine_assembly_receipt,
@@ -327,28 +328,33 @@ class PoolEngineInputProjectionContract:
 
 
 POOL_SSI_DEPENDENCY_CONTRACT = PoolSsiDependencyContract(
-    engine_version="1.819.0",
+    engine_version="2.0.2rc1",
     root="ssi",
-    input_leaf_count=55,
+    input_leaf_count=54,
     formula_node_count=63,
     edge_count=187,
-    sha256="e0a23d961c36526a10e56d80d51ca46760e92b4ea3653734014469da2394f702",
+    sha256="c125e9bb89b004e29ef1b4025efaa6f50900859e408c913557114ffd2bfdcb88",
 )
 """Exact static graph consumed by the terminal SSI agreement simulation."""
 
 POOL_ENGINE_INPUT_PROJECTION_CONTRACT = PoolEngineInputProjectionContract(
-    engine_version="1.819.0",
+    engine_version="2.0.2rc1",
     input_count=924,
-    default_count=924,
-    sha256="b4b2041d221b6322a3143dd2d54dc95eb1b20d5f33f4a60908055d735ba07930",
-    defaults_sha256="8718854d455ca536dba2e712aed3b2010becf909b8c61210f0456bcf732ec68c",
+    default_count=923,
+    sha256="ba89357fde6f061e22e57982fc8257373b6ab15ba0124c7b9839187c82403093",
+    defaults_sha256="78b7865f946b792437b54a3c356bef2e67a22fcc510375330aa38681e35a9394",
 )
 """Exact installed input registry scanned by the disposable projection."""
 
 POOL_REMAINING_STAGE_INPUT_MANIFEST_SHA256 = (
-    "98231086a18676778346fc3219bb9450f7eb85eb77791640598cba7a5ae66ef6"
+    "3d7067f355695caacbb5310cf4cc43332448d0117b15f9ed3e3f7ce60b2cac59"
 )
-"""Pinned content digest of all 1,058 post-transfer consumer/input rows."""
+"""Pinned content digest of all 1,057 post-transfer consumer/input rows."""
+
+# This native population input is explicitly source-owned by PE-US. Its
+# household fallback is for hand-built situations, never a population default.
+# Keep this exception exact: any additional missing default needs a new audit.
+_POOL_REQUIRED_NATIVE_ENGINE_INPUTS: Mapping[str, str] = {NATIVE_SPM_ROLE: "person"}
 
 
 @dataclass(frozen=True)
@@ -1055,7 +1061,7 @@ def _pool_engine_input_projection(
 def pool_engine_input_projection_receipt(
     engine: _PoolRulesEngine | None = None,
 ) -> dict[str, object]:
-    """Validate every installed simulation input and its declared default."""
+    """Validate the exact defaults and the required native input without one."""
 
     rules_engine = engine
     if rules_engine is None:
@@ -1066,7 +1072,14 @@ def pool_engine_input_projection_receipt(
     defaults = dict(rules_engine.default_values(variables))
     missing_defaults = sorted(set(variables) - set(defaults))
     extra_defaults = sorted(set(defaults) - set(variables))
-    if missing_defaults or extra_defaults:
+    if (
+        missing_defaults != sorted(_POOL_REQUIRED_NATIVE_ENGINE_INPUTS)
+        or extra_defaults
+        or any(
+            rules_engine.variable_metadata(name).entity != entity
+            for name, entity in _POOL_REQUIRED_NATIVE_ENGINE_INPUTS.items()
+        )
+    ):
         raise ValueError(
             "PolicyEngine-US simulation input default surface is not exact; "
             f"missing={missing_defaults}, extra={extra_defaults}."
@@ -1078,6 +1091,7 @@ def pool_engine_input_projection_receipt(
             "default": defaults[variable],
         }
         for variable in variables
+        if variable in defaults
     ]
     defaults_sha256 = hashlib.sha256(
         json.dumps(
@@ -1459,7 +1473,7 @@ def pool_remaining_stage_input_manifest(
 
     expected_ssi_provisions = {
         "assembled_native_person_input": 1,
-        "materialized_pool_input_surface": 32,
+        "materialized_pool_input_surface": 31,
         "seed_stage_program_contract": 1,
         "declared_deferred_null_input": 3,
         "declared_absent_engine_input": 18,
@@ -1526,7 +1540,15 @@ def pool_remaining_stage_input_manifest(
         fallback: str | None = (
             "ephemeral_simulation_projection_engine_default_if_present_null"
         )
-        if variable in POOL_DEFERRED_TRANSFER_INPUTS:
+        if variable in _POOL_REQUIRED_NATIVE_ENGINE_INPUTS:
+            if entity != _POOL_REQUIRED_NATIVE_ENGINE_INPUTS[variable]:
+                raise ValueError(
+                    f"Required native source input {variable} changed entity."
+                )
+            provision = "assembled_native_engine_input"
+            available_by = "assembled"
+            fallback = None
+        elif variable in POOL_DEFERRED_TRANSFER_INPUTS:
             provision = "declared_deferred_null_input"
             available_by = "transferred"
             fallback = "ephemeral_simulation_projection_engine_default"
@@ -1572,11 +1594,11 @@ def pool_remaining_stage_input_manifest(
         "materialized_pool_input_surface": 122,
         "seed_stage_program_contract": 17,
         "declared_deferred_null_input": 3,
-        "assembled_native_engine_input": 5,
+        "assembled_native_engine_input": 6,
         "frame_structural_engine_input": 10,
         "preserved_stacked_engine_input": 4,
         "derived_schedule_d_input": 1,
-        "declared_absent_engine_input": 762,
+        "declared_absent_engine_input": 761,
     }
     if projection_provisions != expected_projection_provisions:
         raise ValueError(
@@ -3250,6 +3272,21 @@ def _simulation_projection(
     for name in input_names:
         metadata = metadata_method(name)
         entity = getattr(metadata, "entity", None)
+        if name in _POOL_REQUIRED_NATIVE_ENGINE_INPUTS:
+            required_entity = _POOL_REQUIRED_NATIVE_ENGINE_INPUTS[name]
+            if (
+                entity != required_entity
+                or name in defaults
+                or required_entity not in tables
+                or name not in tables[required_entity]
+                or not pd.api.types.is_bool_dtype(tables[required_entity][name].dtype)
+                or tables[required_entity][name].isna().any()
+            ):
+                raise ValueError(
+                    f"SSI simulation projection: required native source input "
+                    f"{required_entity}.{name} must have complete boolean values and no "
+                    "engine default."
+                )
         if entity not in tables or name not in tables[entity]:
             continue
         missing = tables[entity][name].isna()

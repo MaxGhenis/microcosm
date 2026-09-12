@@ -189,8 +189,19 @@ def _plain(value: object) -> object:
     raise TypeError(f"US bundle extractor returned unsupported {type(value).__name__}")
 
 
-def build_documents() -> dict[str, dict[str, object]]:
-    """Return every typed US domain in stable filename order."""
+def build_documents(
+    *, domain_kinds: tuple[str, ...] = DOMAIN_KINDS
+) -> dict[str, dict[str, object]]:
+    """Return the requested typed US domains in stable filename order.
+
+    The default builds the full bundle. Lock bootstrap selects its two actual
+    authorities so unrelated extractors cannot re-enter the obsolete lock via
+    a clean-worker import before its replacement exists.
+    """
+
+    unknown = set(domain_kinds) - set(DOMAIN_KINDS)
+    if unknown:
+        raise ValueError(f"Unknown US domain kinds: {sorted(unknown)}")
 
     raw_take_up = json.loads((US_PACKAGE_ROOT / "take_up_contract.json").read_bytes())
     raw_programs = raw_take_up.get("programs")
@@ -213,8 +224,9 @@ def build_documents() -> dict[str, dict[str, object]]:
 
     documents: dict[str, dict[str, object]] = {}
     with scoped_take_up_manifest_program_bindings(tuple(bootstrap_bindings)):
-        for kind, builder in sorted(_domain_builders().items()):
-            value = _plain(builder())
+        builders = _domain_builders()
+        for kind in sorted(domain_kinds):
+            value = _plain(builders[kind]())
             if not isinstance(value, dict):
                 raise TypeError(f"{kind} builder must return a mapping")
             documents[f"{kind}.yaml"] = value
@@ -378,12 +390,11 @@ def write_engine_abi_lock_only(*, check: bool) -> bool:
 
     path = US_PACKAGE_ROOT / ENGINE_ABI_LOCK_FILENAME
     # This bootstrap mode must work while an older generated lock is no longer
-    # valid against a newly tightened lock schema.  Derive both authorities
-    # from the same in-memory generator pass used by full regeneration: the
-    # checked-in YAML may itself be stale while this bootstrap command is
-    # needed.  ``build_documents`` scopes the legacy runtime import against the
-    # frozen generation-0 program bindings, so no stale typed bundle is read.
-    documents = build_documents()
+    # valid against a newly tightened lock schema. Use the same fresh authority
+    # builders as full regeneration, but do not run unrelated extractors whose
+    # clean workers must read that lock. The checked-in YAML may also be stale.
+    # ``build_documents`` retains the validated generation-0 import bindings.
+    documents = build_documents(domain_kinds=("take_up", "sources"))
     payload = engine_abi_lock_bytes_from_domains(
         {
             "take_up": documents["take_up.yaml"],

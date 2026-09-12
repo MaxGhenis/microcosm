@@ -727,6 +727,48 @@ class TestReformCoverageSmokeGate:
 
 
 class TestShippedManifest:
+    def test_native_spm_role_is_required_and_has_no_default_substitute(self) -> None:
+        role = "is_spm_independent_minor_role"
+        manifest = load_release_input_coverage_manifest()
+        assert role in manifest.required_columns
+        assert role not in manifest.reviewed_exclusions
+        role_contract = _manifest(
+            tuple(column for column in manifest.columns if column.name == role)
+        )
+        missing = us_release_input_coverage_gate(
+            _person_frame({"age": np.asarray([15, 18])}),
+            _StubEngine({}),
+            manifest=role_contract,
+        )
+        assert not missing.passed
+        assert missing.details["missing"] == [role]
+        for values in ([False, True], [False, False]):
+            observed = us_release_input_coverage_gate(
+                _person_frame({role: np.asarray(values, dtype=bool)}),
+                _StubEngine({}),
+                manifest=role_contract,
+            )
+            assert observed.passed
+
+    def test_native_spm_role_cannot_be_demoted_to_reviewed_exclusion(self) -> None:
+        role = "is_spm_independent_minor_role"
+        manifest = load_release_input_coverage_manifest()
+        demoted = _manifest(
+            tuple(
+                ReleaseInputColumn(
+                    role,
+                    "reviewed_exclusion",
+                    reason="test attempted omission",
+                    issue="test",
+                )
+                if column.name == role
+                else column
+                for column in manifest.columns
+            )
+        )
+        with pytest.raises(ValueError, match="native Census SPM source role"):
+            assert_release_input_coverage_manifest_current(manifest=demoted)
+
     def test_manifest_is_current(self) -> None:
         # The checked-in-facts half runs everywhere (no engine in this env): the
         # declared surface must equal the reference eCPS populated columns and the
