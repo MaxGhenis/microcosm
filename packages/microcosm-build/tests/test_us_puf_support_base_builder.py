@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from microcosm.build import FitWeightRecord
+from microcosm.build.model_artifact import VerifiedBuildModel
 from microcosm.build.outer_stage_runtime import frame_identity
 from microcosm.build.us_runtime import (
     US_PUF_SUPPORT_FIT_NAME,
@@ -30,6 +31,36 @@ def _load_support_builder_module():
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+def test_build_model_arguments_fail_before_base_generation(monkeypatch, tmp_path):
+    builder = _load_support_builder_module()
+    common = [
+        "--base-h5",
+        "base.h5",
+        "--puf-h5",
+        "puf.h5",
+        "--out",
+        str(tmp_path),
+        "--without-block-ladder",
+    ]
+    with pytest.raises(SystemExit):
+        builder._parse_args([*common, "--build-model-wheel", "model.whl"])
+    monkeypatch.setattr(
+        builder, "_run_all", lambda *_args: pytest.fail("reached generation")
+    )
+    with pytest.raises(FileNotFoundError):
+        builder.main(
+            [
+                *common,
+                "--build-model-wheel",
+                str(tmp_path / "missing.whl"),
+                "--build-model-receipt",
+                str(tmp_path / "missing.json"),
+                "--build-model-receipt-sha256",
+                "a" * 64,
+            ]
+        )
 
 
 def _canonical_sha256(value: object) -> str:
@@ -1592,6 +1623,10 @@ def test_staged_export_serializes_e01000_reconciliation(
         n_estimators=4,
         congressional_district_vintage_crosswalk=None,
         block_ladder_artifact=None,
+        verified_build_model=VerifiedBuildModel(
+            identity={"version": "8.4.2rc1", "wheel": {"sha256": "e" * 64}},
+            receipt_bytes=b"fixture receipt",
+        ),
     )
     stage_metadata = {
         "source_construction": {
@@ -1628,6 +1663,7 @@ def test_staged_export_serializes_e01000_reconciliation(
 
     summary = json.loads(Path(result["summary_path"]).read_text())
     assert summary["puf_e01000_reconciliation"] == receipt
+    assert summary["build_model"] == args.verified_build_model.identity
     assert captured["basis"] is basis
     assert captured["tail"] is tail
     assert captured["frame_columns"] == {
@@ -2681,7 +2717,10 @@ def test_main_summary_records_prior_year_income_gate() -> None:
     assert '"passed": prior_year_income_reconciliation_gate.passed' in source
 
 
-def test_stage_cli_round_trips_the_locked_run_config(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_build_model", [False, True])
+def test_stage_cli_round_trips_the_locked_run_config(
+    tmp_path: Path, with_build_model
+) -> None:
     """Child-stage argv reconstruction preserves the locked run identity.
 
     ``--stage all`` locks ``_stage_run_config(parent_args)`` into the
@@ -2725,9 +2764,29 @@ def test_stage_cli_round_trips_the_locked_run_config(tmp_path: Path) -> None:
         "--without-block-ladder",
     ]
     parent = builder._parse_args(argv)
+    if with_build_model:
+        parent.build_model_wheel = tmp_path / "model.whl"
+        parent.build_model_receipt = tmp_path / "receipt.json"
+        parent.build_model_receipt_sha256 = "e" * 64
+        parent.verified_build_model = VerifiedBuildModel(
+            identity={"version": "8.4.2rc1", "wheel": {"sha256": "f" * 64}},
+            receipt_bytes=b"fixture receipt",
+        )
     child_argv = builder._stage_cli_args(parent, "source_construction")
     child = builder._parse_args(child_argv)
+    if with_build_model:
+        assert child.build_model_wheel == parent.build_model_wheel
+        assert child.build_model_receipt == parent.build_model_receipt
+        assert child.build_model_receipt_sha256 == parent.build_model_receipt_sha256
+        child.verified_build_model = parent.verified_build_model
 
     parent_config = builder._stage_run_config(parent)
     child_config = builder._stage_run_config(child)
     assert child_config == parent_config
+    if with_build_model:
+        changed = VerifiedBuildModel(
+            identity={"version": "8.4.2rc1", "wheel": {"sha256": "a" * 64}},
+            receipt_bytes=b"changed fixture receipt",
+        )
+        child.verified_build_model = changed
+        assert builder._stage_run_config(child) != parent_config

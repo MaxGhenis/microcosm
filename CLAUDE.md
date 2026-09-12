@@ -157,3 +157,14 @@ releases, and explicit release-gate bypasses. The manifest records
 repeat the existing immigration-composition gate on final calibrated weights;
 `us_immigration_final.json` is a separate, hash-bound release artifact, and a
 failure joins the ordinary terminal gate failures before H5 export.
+
+The ordinary PUF-support base and fiscal release tools accept the optional trio
+`--build-model-wheel`, `--build-model-receipt`, and
+`--build-model-receipt-sha256`. Supply all three for artifact-bound generation.
+Before any generation they verify the operator-pinned receipt, the wheel's
+complete RECORD, and the installed country package's member bytes and import
+location. The base summary, staged resume configuration, fiscal checkpoint
+identity, and initial build/release manifests retain that verified identity;
+`build_model_receipt.json` preserves the original receipt bytes as evidence.
+Authentication of the receipt is the operator's responsibility. This hook does
+not publish, certify a later compatible model, or edit completed H5/build records.
