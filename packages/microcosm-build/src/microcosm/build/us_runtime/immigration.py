@@ -23,7 +23,7 @@ narrowly-scoped control where the survey carries no signal at all:
    any indicator of authorized status — pre-1982 IRCA-cohort arrival,
    naturalization-eligibility, Medicare/Medicaid/SSI/Social Security receipt,
    federal pensions, IHS/CHAMPVA/military coverage, government employment,
-   subsidized housing, veteran status — move to ``OTHER_NON_CITIZEN``
+   veteran status — move to ``OTHER_NON_CITIZEN``
    (Van Hook et al., "Are Estimates of Unauthorized Immigrants Based on
    Residual Methods Robust?", SSRN 4662801).
 3. **Work/study authorization split.** The CPS carries no work-authorization
@@ -37,10 +37,9 @@ narrowly-scoped control where the survey carries no signal at all:
    Representation is calibration's job, not the label stage's: the release
    gate checks the emergent total against a cited published anchor with a
    coarse plausibility band, and a follow-up calibration target (Ledger
-   facts lane) can reconcile the level in the weights. On the 2024 ASEC the
-   emergent total is ≈13M — inside the range of published 2023–24 estimates
-   — with 26.6M non-citizens, 18.0M residual after the indicators, and 4.8M
-   spilled to EAD.
+   facts lane) can reconcile the level in the weights. Composition must be
+   requalified after changes to the source indicators; earlier estimates
+   that included capped SPM housing dollars do not qualify this version.
 5. **Status tags carry only statutory tests the data can support.**
    ``DACA`` applies the statutory cohort test (arrived by 2007 before age
    16, aged 15+) to EAD holders; ``CUBAN_HAITIAN_ENTRANT`` applies the
@@ -61,6 +60,13 @@ Control totals and the gate anchor are data, not code: they live in the
 ``immigration_status`` stage of ``microcosm/build/us/source_stages.json`` with
 one source citation per number, and reach this module as manifest operation
 parameters.
+
+Housing assistance is not person-level status evidence. ``SPM_CAPHOUSESUB``
+is a capped SPM resource valuation replicated onto people, while ``HPUBLIC``
+and ``HLORENT`` report household receipt. None identifies which individual
+is assisted or establishes the status of other household members. The stage
+does not use these fields or replace the capped-dollar predicate with a
+household receipt predicate.
 """
 
 from __future__ import annotations
@@ -135,9 +141,8 @@ IMMIGRATION_STATUS_VALUES: tuple[str, ...] = (
     "UNDOCUMENTED",
 )
 
-#: Raw CPS ASEC person columns the derivation reads. All of them ship in the
-#: raw Census ASEC person table (the ASEC person file carries the SPM unit
-#: variables, so ``SPM_CAPHOUSESUB`` is person-grain here).
+#: Raw CPS ASEC person columns the derivation reads. Housing receipt and SPM
+#: housing valuation are excluded because they cannot identify an assisted person.
 US_IMMIGRATION_REQUIRED_SOURCE_COLUMNS: tuple[str, ...] = (
     "PRCITSHP",
     "PEINUSYR",
@@ -162,7 +167,6 @@ US_IMMIGRATION_REQUIRED_SOURCE_COLUMNS: tuple[str, ...] = (
     "PEIO1COW",
     "A_MJOCC",
     "PEAFEVER",
-    "SPM_CAPHOUSESUB",
 )
 
 _PERSON_WEIGHT_COLUMN = "person_weight"
@@ -560,7 +564,6 @@ def _assign_ssn_card_codes(
         | (_integer_column(person, "MIL") == 1)
         | government_employee
         | (_integer_column(person, "SS_YN") == 1)
-        | (_float_column(person, "SPM_CAPHOUSESUB") > 0)
         | military_connected
         | (_integer_column(person, "SSI_YN") == 1)
     )

@@ -15,6 +15,9 @@ from microcosm.build.us_runtime.education_inputs import (
     US_EDUCATION_INPUTS_OUTPUT_COLUMNS,
     US_EDUCATION_INPUTS_OWNED_OUTPUT_COLUMNS,
 )
+from microcosm.build.us_runtime.immigration import (
+    US_IMMIGRATION_REQUIRED_SOURCE_COLUMNS,
+)
 from microcosm.build.us_runtime.late_producer_dag import (
     ProducerContract,
     ProducerInput,
@@ -1002,7 +1005,6 @@ def test_every_origin_exclusive_raw_input_has_its_native_scope() -> None:
         "RESNSS1",
         "RESNSS2",
         "RETCB_VAL",
-        "SPM_CAPHOUSESUB",
         "SPM_CHILDCAREXPNS",
         "SPM_ENGVAL",
         "SSI_YN",
@@ -1055,10 +1057,10 @@ def test_every_origin_exclusive_raw_input_has_its_native_scope() -> None:
     assert observed == Counter(
         {(*key, required_scope[key]): count for key, count in expected_counts.items()}
     )
-    assert sum(observed.values()) == 101
+    assert sum(observed.values()) == 100
     assert sum(count for key, count in observed.items() if key[2] == "acs_source") == 43
     assert (
-        sum(count for key, count in observed.items() if key[2] == "asec_source") == 58
+        sum(count for key, count in observed.items() if key[2] == "asec_source") == 57
     )
     assert receipts[("household", "TYPEHUGQ")] == set()
 
@@ -1284,7 +1286,6 @@ def test_source_numeric_input_audit_is_fully_executable() -> None:
             "PEIO1COW",
             "A_MJOCC",
             "PEAFEVER",
-            "SPM_CAPHOUSESUB",
         },
         "with_us_education_inputs": {"ED_VAL", "qualified_tuition_expenses"},
     }
@@ -1299,6 +1300,22 @@ def test_source_numeric_input_audit_is_fully_executable() -> None:
             if column.value_kind == "finite_numeric"
         }
         assert expected_columns <= finite_columns, operator
+        if operator == "with_us_immigration_inputs":
+            raw_columns = {
+                column.column
+                for requirement in inventory.requirements
+                if requirement.label.startswith("raw_person:")
+                for alternative in requirement.alternatives
+                for column in alternative
+            }
+            assert raw_columns == expected_columns
+            assert raw_columns == set(US_IMMIGRATION_REQUIRED_SOURCE_COLUMNS)
+            assert {"SPM_CAPHOUSESUB", "HPUBLIC", "HLORENT"}.isdisjoint(
+                column.column
+                for requirement in inventory.requirements
+                for alternative in requirement.alternatives
+                for column in alternative
+            )
 
     common_role_operators = {
         "with_us_prior_year_income_inputs",
