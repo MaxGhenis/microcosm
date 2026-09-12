@@ -15,6 +15,11 @@ graph does not yet supply:
 
 Thirteen published allocation flags are read alongside them.
 
+Both returned frames carry a digest: `evidence["projection_sha256"]` over
+`person` and `evidence["literals_sha256"]` over `asec_literals`. Both are
+re-checked at the end of the qualifier, so a host comparing the documented
+digests detects a corrupted transport on either frame.
+
 `qualify_current_asec_income_routing(preparation)` takes a live
 `AuthenticatedSurveyPopulationPreparation`, requalifies it, captures the pinned
 2024 member once, joins it to the money parent by exact native keys, and returns
@@ -58,7 +63,14 @@ around its own I/O, exactly as the accepted unemployment qualifier requires.
   `net_property_component_split_known` is constant `False`, so the total is not
   independently labelled rental and no subdivision is separately modelled.
 - `FRSE_VAL` is farm self-employment, not nonfarm `SEMP_VAL`;
-  `farm_is_nonfarm_self_employment` is constant `False`.
+  `farm_is_nonfarm_self_employment` is constant `False`. Its printed label
+  includes the composite clause naming `ERN_VAL` (when `ERN_SRCE=3`) and
+  `FRM_VAL`, so the total already contains those components.
+- `retirement_distribution_regular_ira_amount` is published only when every
+  applicable slot is fully resolved on both axes. An unreadable account code
+  could itself be a regular IRA, and a declared account whose amount is a
+  "none or niu" zero does not observe a zero dollar distribution, so both leave
+  the regular-IRA share unknown rather than at zero.
 - `OI_OFF` code 20 is the reported alimony category. Nothing maps any other
   code — including 19, `anything else` — onto alimony or onto a miscellaneous
   residual; `other_income_residual_rule_applied` is constant `False`.
@@ -74,22 +86,41 @@ around its own I/O, exactly as the accepted unemployment qualifier requires.
 ## Reporting status vocabulary
 
 `receipt_status` is the single classifier. Only `known_receipt`,
-`receipt_with_net_zero` and `known_nonreceipt` establish a dollar reading
+`known_recipient_zero` and `known_nonreceipt` establish a dollar reading
 (`KNOWN_AMOUNT_STATUSES`); every other status leaves the canonical amount
 unknown rather than completing it with zero.
 
 | Status | Meaning |
 | --- | --- |
 | `known_receipt` | in universe, receipt yes, amount non-zero (a signed loss included) |
-| `receipt_with_net_zero` | in universe, receipt yes, amount zero on a signed net measure (`RNT_VAL`, `FRSE_VAL`) |
+| `known_recipient_zero` | in universe, receipt yes, amount zero on an entry whose printed zero is valid dollars — `ANN_VAL` alone, whose NIU is the separate `-1` code |
+| `receipt_with_net_zero` | in universe, receipt yes, amount zero on a signed net measure (`RNT_VAL`, `FRSE_VAL`). Distinct from a gross entry's recipient zero, but **not** a known amount: both print `0 = none or niu` |
 | `ambiguous_recipient_zero` | in universe, receipt yes, amount zero on a gross entry whose printed zero reads "none or niu" |
 | `known_nonreceipt` | in universe, receipt no, amount zero |
 | `niu` | in universe, receipt 0, amount zero or a declared non-money code |
 | `missing_amount` / `missing_receipt_literal` | one side of the pair is absent |
 | `unrecognized_receipt_literal` | the receipt literal is malformed or outside the printed range |
 | `contradictory_no_nonzero`, `contradictory_niu_nonzero`, `contradictory_declared_niu_amount`, `contradictory_outside_reporting_universe` | retained source contradictions, excluded from every canonical amount |
+| `contradictory_offroute_evidence` | distributions only: the route that does not apply carries dollars or an answered recipiency |
+| `unresolved_slot_composition` | distributions only: an applicable slot declares an account whose amount is a "none or niu" zero |
 | `outside_reporting_universe` | the printed universe excludes the row and the literals agree |
 | `unresolved_reporting_universe` | the printed universe cannot be resolved from the retained literals |
+
+Which recipient zeros resolve is read from the pinned domains artifact, not
+decided here: `_zero_is_dollars` compares each entry's `zero_semantics` against
+`valid_zero_dollars`. Eight of the nine entries record
+`none_or_niu_not_distinguishable_from_amount_alone`, including both signed net
+measures, so a signed zero is separated by label but never completed.
+
+The receipt code labels are per entry, not shared: `receipt_codes(field)` reads
+the printed zero label from `RECEIPT_ENTRIES`, so `OI_YN` reports `none or niu`
+where `PEN_YN` reports `niu` and `FRSE_YN` reports `Niu` exactly as printed.
+
+Other-income routing (`other_income_routing_status`) follows the same universe:
+`OI_OFF` is printed for `OI_YN = 1` and `OI_YN` for persons aged 15+, so a row
+outside or unresolved on that universe reports
+`outside_reporting_universe_routing` or `unresolved_reporting_universe_routing`
+and never a reported category.
 
 Universes are per family and never reduced to age alone. `PEN_YN`, `ANN_YN`,
 `RNT_YN` and `OI_YN` print `All Persons aged 15+`. `FRSE_YN` prints
@@ -100,8 +131,9 @@ a nonfiler is never treated as a non-recipient.
 ## Source-level questions preserved as evidence
 
 These are printed-dictionary facts, kept distinguishable from modelling
-judgments and recorded verbatim under
-`evidence["dictionary"]["printed_universe_questions"]`:
+judgments. The first four are recorded under
+`evidence["dictionary"]["printed_universe_questions"]`; the rest under
+`evidence["dictionary"]["printed_scope_and_code_questions"]`:
 
 - `DST_VAL1`'s printed universe is `DST_SC1 = 1` although its label names the
   source-1 distribution amount; taken literally that would restrict it to 401k
@@ -109,9 +141,12 @@ judgments and recorded verbatim under
 - `DST_SC2_YNG`'s printed universe names `DST_VAL_YNG`, a field with no
   dictionary entry.
 - `I_DSTVAL1COMP`'s printed `Universe:` line is empty.
-- `DST_YN` and `DST_YN_YNG` print only the age-58 split and, unlike every other
-  family in this slice, do not print the 15+ floor. Coverage below age 15 is
-  therefore recorded as unresolved rather than resolved either way.
+- `DST_YN` and `DST_YN_YNG` print only the age-58 split. They print no 15+ floor
+  as the four age-universe families (`PEN_YN`, `ANN_YN`, `RNT_YN`, `OI_YN`) do,
+  and they are not gated on other literals as the farm family is — `FRSE_YN`
+  prints `ERN_YN=1 or FRMOTR=1` and so carries no age floor either. Coverage
+  below age 15 is therefore recorded as unresolved rather than resolved either
+  way.
 - `OI_YN`'s printed zero label is `none or niu` where `PEN_YN`, `ANN_YN`,
   `DST_YN` and `RNT_YN` print `niu`, so a zero receipt literal is not
   interchangeable across families.
@@ -132,8 +167,8 @@ The authenticated money owner normalizes `ANN_VAL`'s printed `-1` to a stored
 zero and records `CodebookStatus.DECLARED_NIU`. `amount_state` therefore reads
 the dollar meaning of a cell from the parent's status axis, never from the
 stored number: re-deriving NIU from the number would read that cell as a zero
-dollar annuity. `evidence["declared_niu_normalized_to_zero"]` lists the affected
-entries.
+dollar annuity. `evidence["declared_niu_normalized_to_zero"]` (a top-level key) lists the
+affected entries.
 
 The money owner restates non-2024 cohorts to the pinned price basis, so the
 literal-identity join is taken only on `person_years == 2024`; widening it to
@@ -145,9 +180,12 @@ the pooled 2022/2023 cohorts would require handling that restatement first.
 `*_allocation_origin` is derived from published flags only:
 
 - `publisher_allocated` — some applicable flag is non-zero.
-- `publisher_no_allocation` — every applicable flag is populated and zero, and
-  every field in the family carries a published flag.
-- `publisher_no_allocation_on_published_flags_only` — the same, but the family
+- `published_flags_all_zero` — every applicable flag is populated and reads
+  zero, and every field in the family carries a published flag. This is **not**
+  an assertion of non-allocation: each flag prints a conditional universe (for
+  example `I_RNTVAL` is printed for `RNT_VAL > 0`) and those universes are not
+  evaluated here, so a non-recipient row sits outside its own flag's universe.
+- `published_flags_all_zero_with_unflagged_fields` — the same, but the family
   also holds a field the dictionary does not flag.
 - `allocation_flag_not_populated` — a flag literal is absent. Every flag here
   prints a conditional universe, so this is not a defect and not "no
@@ -156,12 +194,17 @@ the pooled 2022/2023 cohorts would require handling that restatement first.
   its printed range.
 
 `PUBLISHED_ALLOCATION_FLAG_BY_FIELD` names which flag covers which field.
-`UNFLAGGED_FIELDS` records the nine fields for which the 2025 dictionary
+`UNFLAGGED_FIELDS` records the ten fields for which the 2025 dictionary
 publishes no flag: `PNSN_VAL`, `FRSE_VAL`, `FRSE_YN`, `OI_OFF`, `OI_YN`,
 `DST_VAL1_YNG`, `DST_VAL2_YNG`, `DST_YN_YNG`, `DST_SC1_YNG`, `DST_SC2_YNG`.
-`AMBIGUOUS_FLAG_COVERAGE` records that `I_DSTSCCOMP`'s label names `DST_SC(2)`
-while its universe names both routes, so its coverage of the under-58 source
-codes is unresolved. No row is ever labelled a raw respondent value.
+`AMBIGUOUS_FLAG_COVERAGE` records three printed ambiguities: `I_DSTSCCOMP`'s
+label names `DST_SC(2)` while its universe names both routes, so its coverage of
+the under-58 source codes is unresolved; `I_DSTSC`'s label uses the same
+`DST_SC(2)` notation, so mapping it to both `DST_SC1` and `DST_SC2` reads the
+parenthesis as a slot count that the dictionary does not state; and `I_FRMYN`
+prints an empty `Values:` block, so only its `(0:9)` range header is published
+and no meaning is claimed for its codes. No row is ever labelled a raw
+respondent value.
 
 ## Constants
 
