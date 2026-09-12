@@ -966,6 +966,14 @@ class _ExactEvaluator:
             )
             if method in {"keys", "values", "items"} and not node.args:
                 return self._mapping_view(method, base, node.lineno)
+            if method == "get" and len(node.args) in {1, 2} and not node.keywords:
+                key = self.evaluate(node.args[0], local_env, frame)
+                default = (
+                    self.evaluate(node.args[1], local_env, frame)
+                    if len(node.args) == 2
+                    else _OpaqueValue("None")
+                )
+                return self._mapping_get(base, key, default, node.lineno)
             if method in {"lower", "upper"} and not node.args:
                 return self._change_case(method, base, node.lineno)
             if method == "split" and not node.args:
@@ -980,6 +988,32 @@ class _ExactEvaluator:
         # Engine reads and numerical/model-api calls do not themselves produce
         # a string domain; sink scanning authenticates their arguments.
         return _OpaqueValue(function_name or "call")
+
+    def _mapping_get(
+        self,
+        base: _ExactValue,
+        key: _ExactValue,
+        default: _ExactValue,
+        line: int,
+    ) -> _ExactValue:
+        """Resolve a finite mapping lookup without adding unused defaults."""
+        if _contains_unknown(base) or _contains_unknown(key):
+            return _unknown(f"mapping-get:{line}")
+        results: list[_ExactValue] = []
+        for base_value in _alternatives(base):
+            for key_value in _alternatives(key):
+                if not isinstance(base_value, _MapValue) or not isinstance(
+                    key_value, _StringValue
+                ):
+                    results.append(_unknown(f"mapping-get:{line}"))
+                    continue
+                selected = dict(base_value.items).get(key_value.value, default)
+                results.append(
+                    _parameter_tainted(selected)
+                    if key_value.parameter_backed
+                    else selected
+                )
+        return _make_alternative(tuple(results))
 
     def _sequence_index(
         self,
@@ -1725,9 +1759,7 @@ class _ConsumerInterpreter:
                     owner_name=owner.name,
                     frame=frame,
                     receiver_entity=self._definitions[owner.name].metadata.entity,
-                    aggregation_entity=(
-                        self._definitions[owner.name].metadata.entity
-                    ),
+                    aggregation_entity=(self._definitions[owner.name].metadata.entity),
                 )
             elif (
                 name == "defined_for"

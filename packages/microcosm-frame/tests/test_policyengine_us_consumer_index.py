@@ -78,6 +78,82 @@ def _receipt_targets(index: module._PolicyEngineUSSourceIndex) -> set[str]:
     return {name for name, receipts in index.consumers.items() if receipts}
 
 
+@_REQUIRES_YAML
+def test_mapping_get_preserves_parameter_overrides_and_fallback(tmp_path: Path) -> None:
+    index = _index(
+        tmp_path,
+        {
+            "source.py": _variables("pre_subsidy_electricity_expense", "water_expense")
+            + '\nOVERRIDES = {"electricity_expense": "pre_subsidy_electricity_expense"}\n'
+            + _variable(
+                "consumer",
+                """
+                def formula(person, period, parameters):
+                    total = 0
+                    for expense in parameters(period).expenses:
+                        variable = OVERRIDES.get(expense, expense)
+                        total += person(variable, period)
+                    return total
+                """,
+            )
+        },
+        parameters={
+            "expenses": "values:\n  2024-01-01:\n    value: [electricity_expense, water_expense]\n"
+        },
+    )
+    assert _receipt_targets(index) == {
+        "pre_subsidy_electricity_expense",
+        "water_expense",
+    }
+
+
+@pytest.mark.parametrize(
+    "expression,targets",
+    [
+        ('{"key": "actual"}.get("key", "unused")', {"actual"}),
+        ('{"key": "actual"}.get("missing", "fallback")', {"fallback"}),
+        ('{"key": "actual"}.get("key")', {"actual"}),
+    ],
+)
+def test_mapping_get_has_exact_receipts(tmp_path: Path, expression, targets) -> None:
+    index = _index(
+        tmp_path,
+        {
+            "source.py": _variables("actual", "unused", "fallback")
+            + _variable(
+                "consumer",
+                f"def formula(person, period, parameters):\n    return person({expression}, period)",
+            )
+        },
+    )
+    assert _receipt_targets(index) == targets
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        '{"key": "actual"}.get(unknown_key(), "fallback")',
+        '{"key": "actual"}.get("missing", unknown_default())',
+        '{"key": "actual"}.get("missing")',
+        'unknown_mapping().get("key", "fallback")',
+    ],
+)
+def test_mapping_get_keeps_unresolved_receipts_fail_closed(
+    tmp_path: Path, expression
+) -> None:
+    with pytest.raises(RuntimeError, match="Unresolved dynamic"):
+        _index(
+            tmp_path,
+            {
+                "source.py": _variables("actual", "fallback")
+                + _variable(
+                    "consumer",
+                    f"def formula(person, period, parameters):\n    return person({expression}, period)",
+                )
+            },
+        )
+
+
 def test_self_exclusion_is_structural_and_same_name_external_helper_counts(
     tmp_path: Path,
 ) -> None:
@@ -161,9 +237,9 @@ def test_consumer_receipts_capture_the_reference_receiver_entity(
         },
     )
 
-    direct, = index.consumers["direct_leaf"]
-    aggregated, = index.consumers["aggregated_leaf"]
-    grouped, = index.consumers["grouped_leaf"]
+    (direct,) = index.consumers["direct_leaf"]
+    (aggregated,) = index.consumers["aggregated_leaf"]
+    (grouped,) = index.consumers["grouped_leaf"]
     assert (direct.kind, direct.receiver_entity, direct.aggregation_entity) == (
         "entity_call",
         "person",
