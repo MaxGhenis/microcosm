@@ -1592,6 +1592,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         if any(
             (
                 args.allow_gate_failed_base_pool,
+                args.allow_unaged_dollar_targets,
                 args.allow_input_mass_drift,
                 args.allow_ecps_parity_gaps,
                 args.allow_input_coverage_gaps,
