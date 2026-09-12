@@ -75,6 +75,10 @@ def _write_asec(
                 "HSUP_WGT": household_weight,
                 "GESTFIPS": state_fips,
                 "H_TENURE": 1 + (household_id % 2),
+                "HPUBLIC": 1 if household_id % 2 else 0,
+                "HLORENT": 0,
+                "I_HPUBLI": 1 if household_id % 2 else 0,
+                "I_HLOREN": 0,
             }
         )
         if n_people >= 2:
@@ -201,6 +205,12 @@ def test_build_pooled_asec_unit_frame_runs_unit_assignment_on_pooled_source(
     assert frame.table("household")["H_TENURE"].tolist() == [2, 2]
     assert "state_fips" not in frame.table("person")
     assert "H_TENURE" not in frame.table("person")
+    assert frame.table("household")["HPUBLIC"].tolist() == [1, 1]
+    assert frame.table("household")["HLORENT"].tolist() == [0, 0]
+    assert frame.table("household")["I_HPUBLI"].tolist() == [1, 1]
+    assert frame.table("household")["I_HLOREN"].tolist() == [0, 0]
+    for column in ("HPUBLIC", "HLORENT", "I_HPUBLI", "I_HLOREN"):
+        assert column not in frame.table("person")
 
 
 def test_build_pooled_asec_unit_frame_aligns_household_weights_by_remapped_id(

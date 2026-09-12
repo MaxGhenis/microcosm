@@ -45,6 +45,7 @@ from microcosm.build.us_runtime.hours_worked import (
     US_HOURS_WORKED_POOL_EXCLUDED_COLUMNS,
     US_HOURS_WORKED_POOL_OUTPUT_COLUMNS,
 )
+from microcosm.build.us_runtime.housing_constants import US_HOUSING_RECEIPT_COLUMN
 from microcosm.build.us_runtime.housing_inputs import (
     US_HOUSING_HOUSEHOLD_OUTPUT_COLUMNS,
     US_HOUSING_PERSON_OUTPUT_COLUMNS,
@@ -325,6 +326,7 @@ PRE_ASSEMBLY_OPERATOR_OUTPUT_FAMILIES: OperatorOutputFamilies = {
         "person": frozenset(US_QBI_RECONCILED_PERSON_COLUMNS),
     },
     "housing_assistance": {
+        "household": frozenset({US_HOUSING_RECEIPT_COLUMN}),
         "spm_unit": frozenset(
             {
                 "receives_housing_assistance",

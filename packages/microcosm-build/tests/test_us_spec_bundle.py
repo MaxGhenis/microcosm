@@ -191,13 +191,13 @@ EXPECTED_RUNGS = [
 
 LEGACY_COMPATIBILITY_SHA256 = {
     "source_stages.json": (
-        "dc58a0d700f0add7b658cec774df6e9587303beb58a1f432a35a18dcd1ac4097"
+        "6c082d86263aac3b37d846e17fd2b3a105819e5d7eeb592c1cd21465271a296b"
     ),
     "support_spine.json": (
         "68f37dc6ae6e0cde7ebccb53f88dd4a800e63456f838fa214ff98d1db8d815be"
     ),
     "take_up_contract.json": (
-        "a9e70fb3e14b0af6cac5cc7935ef554f62dc3dca0377bc1fb57c0e6fa583e813"
+        "63f43005ab7979bdba77ada75684b952477bdac2100637f794694f5027e11675"
     ),
 }
 
@@ -386,7 +386,7 @@ def test_constant_derived_domain_counts_are_complete(
         )
         == 0
     )
-    assert sum(len(node["outputs"]) for node in producer_graph["nodes"]) == 92
+    assert sum(len(node["outputs"]) for node in producer_graph["nodes"]) == 93
     compiled_schedule = project_imputation_legacy_payloads(
         imputation,
         sources_document=sources,
@@ -397,11 +397,11 @@ def test_constant_derived_domain_counts_are_complete(
     assert len(compiled_schedule["waves"]) == 6
     assert (
         compiled_schedule["schedule_sha256"]
-        == "9baa162cc3b0481a71eedc508fb87dec902954f79d7d55fc245fa4c0964ffcdc"
+        == "01de245ef5f720f37decc620ef36ae8b0e944581ad49b91adba6507e1407e65c"
     )
     assert (
         compiled_schedule["payload_sha256"]
-        == "d3cab4f55bccae203bf8ee7ca7218c367f278f2401b7f41e50d242e7465667de"
+        == "158d038f3a170ad8ddc2f8b197e32dc4c28e2db52e9f7b7f2eefdbbbe2c43b60"
     )
 
     assert len(take_up["programs"]) == 17
@@ -487,8 +487,8 @@ def test_constant_derived_domain_counts_are_complete(
     for knob in ("k", "pi_hi", "seed"):
         assert selection["exact_k"][knob]["required"] is True
         assert selection["exact_k"][knob]["default"] is None
-    assert len(catalogs["columns"]) == 176
-    assert len(resolved_us_spec.columns) == 176
+    assert len(catalogs["columns"]) == 177
+    assert len(resolved_us_spec.columns) == 177
     assert Counter(artifact.kind for artifact in resolved_us_spec.artifacts) == {
         "producer_node": 38,
         "virtual_output": 18,

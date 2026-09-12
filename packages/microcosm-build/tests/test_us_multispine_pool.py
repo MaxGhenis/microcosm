@@ -28,6 +28,7 @@ from microcosm.build.us_runtime.acs_income_universe import (
 from microcosm.build.us_runtime.acs_transfer import (
     declared_acs_transfer_target_families,
 )
+from microcosm.build.us_runtime.housing_constants import US_HOUSING_RECEIPT_COLUMN
 from microcosm.build.us_runtime.multispine_pool import (
     POOL_CHECKPOINT_STAGE_ORDER,
     POOL_DEFERRED_TRANSFER_INPUTS,
@@ -492,6 +493,10 @@ def _real_pre_clone_source_frame() -> Frame:
                 "household_id": [1, 2],
                 "state_fips": [6, 36],
                 "H_TENURE": [2, 2],
+                "HPUBLIC": [2, 2],
+                "HLORENT": [2, 2],
+                "I_HPUBLI": [0, 0],
+                "I_HLOREN": [0, 0],
             }
         ),
         "tax_unit": pd.DataFrame(
@@ -3471,12 +3476,23 @@ def test_every_source_operator_output_has_a_pool_owner() -> None:
         if program.is_seeded
     }
 
+    # Household source evidence remains in its producer scope; it is not an
+    # ACS model-input transfer target or a country-model input.
+    producer_evidence = {US_HOUSING_RECEIPT_COLUMN}
+    assert not producer_evidence & transferred
     unowned: list[str] = []
     for operator_name in POOL_SOURCE_OPERATOR_ORDER:
         family = multispine_pool_module._SOURCE_OPERATOR_FAMILIES[operator_name]
         for columns in PRE_ASSEMBLY_OPERATOR_OUTPUT_FAMILIES[family].values():
             for column in columns:
-                if column not in transferred | native | formula_owned | seeded:
+                if (
+                    column
+                    not in transferred
+                    | native
+                    | formula_owned
+                    | seeded
+                    | producer_evidence
+                ):
                     unowned.append(f"{family}.{column}")
     assert not unowned
 
@@ -3805,9 +3821,10 @@ def test_pool_seed_stage_preserves_inputs_and_receipts_disclosed_defaults() -> N
         after_person.loc[measured_person, "takes_up_medicare_if_eligible"].tolist()
         == before_person.loc[measured_person, "takes_up_medicare_if_eligible"].tolist()
     )
-    assert after_person["takes_up_wic_if_eligible"].tolist() == before_person[
-        "takes_up_wic_if_eligible"
-    ].tolist()
+    assert (
+        after_person["takes_up_wic_if_eligible"].tolist()
+        == before_person["takes_up_wic_if_eligible"].tolist()
+    )
     assert (
         after_spm.loc[measured_spm, "takes_up_tanf_if_eligible"].tolist()
         == before_spm.loc[measured_spm, "takes_up_tanf_if_eligible"].tolist()

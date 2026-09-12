@@ -118,6 +118,16 @@ columns:
     nullable: false
     domain: support_provenance
     public_stability: internal
+- key: household.reported_housing_assistance_receipt
+  contract:
+    entity: household
+    dtype: bool
+    unit: boolean
+    definition_period: year
+    vintage: vintage:target_2024
+    nullable: true
+    domain: survey_receipt_evidence
+    public_stability: internal
 - key: marital_unit.@resolved_weight
   contract:
     entity: marital_unit

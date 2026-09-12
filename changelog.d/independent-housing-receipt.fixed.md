@@ -1,0 +1,1 @@
+Use Census household public-housing and reduced-rent reports for housing receipt independently of capped SPM valuations, retain source and allocation codes, and train PUF receipt at household-head grain. Assign the modeled award and take-up flag to the householder’s SPM unit and retain household evidence outside country-model inputs.

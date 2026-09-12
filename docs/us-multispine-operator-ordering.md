@@ -661,14 +661,14 @@ excuse a present invalid raw value.
 
 | Post-clone source producer | Complete effective kernel input set |
 |---|---|
-| `impute_us_housing_assistance_to_puf_support` | `C + p.person_spm_unit_id + s.spm_unit_id + F(s.receives_housing_assistance) + F(s.takes_up_housing_assistance_if_eligible) + s.spm_unit_support_channel + s.spm_unit_support_clone_index ?R` |
+| `impute_us_housing_assistance_to_puf_support` | `C + p.person_spm_unit_id + s.spm_unit_id + p.person_household_id + F(p.is_household_head) + h.household_id + h.household_support_channel + F(h.reported_housing_assistance_receipt) + s.spm_unit_support_channel + s.spm_unit_support_clone_index ?R` |
 | `with_us_adult_care_inputs` | `F(p.age) + F(p.employment_income_before_lsr) + F(p.self_employment_income_before_lsr) + F(p.sstb_self_employment_income_before_lsr) + F(p.PEDISDRS) + F(p.is_full_time_college_student) + p.tax_unit_role_input + F(p.person_tax_unit_id) + F(p.person_spm_unit_id) + F(p.person_id) + [p.person_support_channel + F(p.person_support_clone_index)] + F(s.spm_unit_pre_subsidy_childcare_expenses) + F(s.spm_unit_id) + F(tu.tax_unit_id) + p.@weight + s.@weight + tu.@weight` |
 | `with_us_child_support_inputs` | `C + p.CSP_VAL + p.CHSP_VAL` |
 | `with_us_childcare_inputs` | `C + F(p.person_spm_unit_id) + F(p.SPM_CHILDCAREXPNS) + s.spm_unit_id` |
 | `with_us_disability_benefits` | `C + p.DIS_VAL1 + p.DIS_SC1 + p.DIS_VAL2 + p.DIS_SC2` |
 | `with_us_education_inputs` | `F(p.ED_VAL) + F(p.qualified_tuition_expenses) + p.person_id + p.@weight` |
 | `with_us_energy_subsidy_input` | `C + F(p.person_spm_unit_id) + F(p.SPM_ENGVAL) + s.spm_unit_id` |
-| `with_us_immigration_inputs` | `p.PRCITSHP + p.PEINUSYR + p.PENATVTY + p.A_AGE + p.A_MARITL + p.A_SPOUSE + p.A_HSCOL + p.WSAL_VAL + p.SEMP_VAL + p.MCARE + p.CAID + p.IHSFLG + p.CHAMPVA + p.MIL + p.PEN_SC1 + p.PEN_SC2 + p.RESNSS1 + p.RESNSS2 + p.SS_YN + p.SSI_YN + p.PEIO1COW + p.A_MJOCC + p.PEAFEVER + p.SPM_CAPHOUSESUB + p.person_id + p.@weight + ([p.source_year + p.source_person_id] | p.person_id)` |
+| `with_us_immigration_inputs` | `p.PRCITSHP + p.PEINUSYR + p.PENATVTY + p.A_AGE + p.A_MARITL + p.A_SPOUSE + p.A_HSCOL + p.WSAL_VAL + p.SEMP_VAL + p.MCARE + p.CAID + p.IHSFLG + p.CHAMPVA + p.MIL + p.PEN_SC1 + p.PEN_SC2 + p.RESNSS1 + p.RESNSS2 + p.SS_YN + p.SSI_YN + p.PEIO1COW + p.A_MJOCC + p.PEAFEVER + p.person_id + p.@weight + ([p.source_year + p.source_person_id] | p.person_id)` |
 | `with_us_medicare_take_up_input` | `p.MCARE + p.person_id + p.@weight` |
 | `with_us_pregnancy_inputs` | `p.A_SEX + p.A_AGE + p.person_id + p.@weight + ([p.source_year + p.source_household_id + p.source_person_id] | p.person_id)` |
 | `with_us_prior_year_income_inputs` | `C + F(p.source_year) + F(p.PERIDNUM) + F(p.WSAL_VAL) + F(p.SEMP_VAL) + F(p.I_ERNVAL) + F(p.I_SEVAL) + F(p.employment_income_last_year) + F(p.self_employment_income_last_year)` |
@@ -685,14 +685,14 @@ table. These counts make that expansion auditable:
 
 | Source producer | External inventory rows | Executable contract inputs |
 |---|---:|---:|
-| `impute_us_housing_assistance_to_puf_support` | 36 | 59 |
+| `impute_us_housing_assistance_to_puf_support` | 40 | 63 |
 | `with_us_adult_care_inputs` | 33 | 54 |
 | `with_us_child_support_inputs` | 32 | 53 |
 | `with_us_childcare_inputs` | 33 | 54 |
 | `with_us_disability_benefits` | 34 | 55 |
 | `with_us_education_inputs` | 20 | 35 |
 | `with_us_energy_subsidy_input` | 33 | 54 |
-| `with_us_immigration_inputs` | 43 | 57 |
+| `with_us_immigration_inputs` | 42 | 56 |
 | `with_us_medicare_take_up_input` | 19 | 33 |
 | `with_us_pregnancy_inputs` | 21 | 35 |
 | `with_us_prior_year_income_inputs` | 38 | 59 |

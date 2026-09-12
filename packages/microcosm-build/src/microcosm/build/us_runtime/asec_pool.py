@@ -18,6 +18,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from microcosm.build.us_runtime.housing_constants import (
+    US_HOUSING_RECEIPT_SOURCE_COLUMNS,
+)
 from microcosm.frame import (
     MICROUNIT_REQUIRED_COLUMNS,
     US_SCHEMA,
@@ -180,7 +183,9 @@ def build_pooled_asec_unit_frame(
     # Keep raw household tenure through unit construction.  The archived eCPS
     # housing stage maps H_TENURE directly; SPM_TENMORTSTATUS is a distinct
     # concept and cannot reconstruct rent-free occupancy (H_TENURE == 3).
-    frame = _attach_household_attributes(frame, ("state_fips", "H_TENURE"))
+    frame = _attach_household_attributes(
+        frame, ("state_fips", "H_TENURE", *US_HOUSING_RECEIPT_SOURCE_COLUMNS)
+    )
     return frame, pooled.metadata
 
 
@@ -295,21 +300,20 @@ def _remap_source_year(
             .astype("int64")
             .to_numpy()
         )
-    if "H_TENURE" in household:
-        tenure_by_household = (
-            household[["H_SEQ", "H_TENURE"]]
-            .drop_duplicates("H_SEQ")
-            .set_index("H_SEQ")["H_TENURE"]
-        )
-        result["H_TENURE"] = result["source_household_id"].map(tenure_by_household)
-        if result["H_TENURE"].isna().any():
+    for column in ("H_TENURE", *US_HOUSING_RECEIPT_SOURCE_COLUMNS):
+        if column not in household:
+            continue
+        evidence = household[["H_SEQ", column]]
+        if evidence["H_SEQ"].duplicated().any():
+            raise ValueError("ASEC household evidence requires unique H_SEQ values.")
+        values_by_household = evidence.set_index("H_SEQ")[column]
+        result[column] = result["source_household_id"].map(values_by_household)
+        if result[column].isna().any():
             missing = (
-                result.loc[result["H_TENURE"].isna(), "source_household_id"]
-                .head()
-                .tolist()
+                result.loc[result[column].isna(), "source_household_id"].head().tolist()
             )
             raise ValueError(
-                f"ASEC H_TENURE is missing for source household id(s): {missing}."
+                f"ASEC {column} is missing for source household id(s): {missing}."
             )
     result["PH_SEQ"] = result["PH_SEQ"].map(household_map).astype("int64")
     result["household_id"] = result["PH_SEQ"]
