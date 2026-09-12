@@ -1,4 +1,9 @@
+import ast
+import json
+import subprocess
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,6 +29,20 @@ _EXPECTED_STATE_MFS = frozenset(
     "ms_taxable_income mt_standard_deduction mt_itemized_deductions "
     "mt_taxable_income".split()
 )
+_EXPECTED_SPM_AMOUNTS = frozenset(
+    {
+        "spm_unit_reference_spm_threshold",
+        "spm_unit_unadjusted_spm_threshold",
+        "spm_unit_geographic_adjustment",
+        "spm_unit_spm_threshold",
+        "spm_unit_spm_threshold_housing_portion",
+    }
+)
+_EXPECTED_SPM_FORMULAS = _EXPECTED_SPM_AMOUNTS | {
+    "is_spm_independent_minor_role",
+    "spm_measurement_adults",
+    "spm_measurement_children",
+}
 
 
 def _write_variable_source(
@@ -123,15 +142,20 @@ def test_generated_snapshot_covers_the_pinned_default_system() -> None:
         package_root,
         version=package.version,
     )
-    formula_owned = _EXPECTED_IN_STATE | _EXPECTED_STATE_MFS | {"mi_surtax"}
+    formula_owned = (
+        _EXPECTED_IN_STATE
+        | _EXPECTED_STATE_MFS
+        | {"mi_surtax"}
+        | _EXPECTED_SPM_FORMULAS
+    )
 
-    assert set(generated) == formula_owned | _EXPECTED_PUF
-    assert len(generated) == 110
+    assert set(generated) == formula_owned | _EXPECTED_PUF | {"is_household_spouse"}
+    assert len(generated) == 119
     assert {name for name, item in generated.items() if item.formula_owned} == (
         formula_owned
     )
     assert {name for name, item in generated.items() if not item.formula_owned} == (
-        _EXPECTED_PUF
+        _EXPECTED_PUF | {"is_household_spouse"}
     )
 
     expected_metadata = {
@@ -139,20 +163,293 @@ def test_generated_snapshot_covers_the_pinned_default_system() -> None:
         "e00700": ("person", "float", "year"),
         "ar_agi": ("tax_unit", "float", "year"),
         "mi_surtax": ("tax_unit", "float", "year"),
+        "is_household_spouse": ("person", "bool", "point"),
+        "is_spm_independent_minor_role": ("person", "bool", "point"),
+        "spm_measurement_adults": ("spm_unit", "int", "year"),
+        "spm_unit_spm_threshold": ("spm_unit", "float", "year"),
     }
     for name, expected in expected_metadata.items():
         metadata = generated[name].metadata
         assert (metadata.entity, metadata.dtype, metadata.period) == expected
 
+
+@pytest.mark.requires_us
+def test_complete_metadata_and_ownership_match_actual_default_system() -> None:
+    from policyengine_us.spm import DATASET_FORMULA_OWNED_INPUTS, DATASET_SOURCE_INPUTS
+    from policyengine_us.system import system
+
+    module._installed_policyengine_us_variable_sources.cache_clear()
     index = module.PolicyEngineUSVariableMetadataIndex()
-    assert len(index._definitions) == 6_146
-    assert len(index.variables()) == 924
-    assert len(index.formula_owned_outputs(index._definitions)) == 5_222
-    assert index.formula_owned_outputs(["AK", "e00700", "ar_agi", "mi_surtax"]) == {
-        "AK",
-        "ar_agi",
-        "mi_surtax",
+    live = module.PolicyEngineUSEngine()
+    live._system = system
+    assert len(index._definitions) == len(system.variables) == 6_159
+    assert set(index._definitions) == set(system.variables)
+    for name, variable in system.variables.items():
+        assert index.variable_metadata(name) == live.variable_metadata(name), name
+        assert index._definitions[name].formula_owned == module._is_engine_computed(
+            variable
+        ), name
+    assert index.variables() == live.variables()
+    assert index.formula_owned_outputs(
+        index._definitions
+    ) == live.formula_owned_outputs(index._definitions)
+    assert DATASET_SOURCE_INPUTS.isdisjoint(DATASET_FORMULA_OWNED_INPUTS)
+    assert DATASET_SOURCE_INPUTS <= set(index.variables())
+    assert not (
+        DATASET_SOURCE_INPUTS & index.formula_owned_outputs(DATASET_SOURCE_INPUTS)
+    )
+    assert live.default_values(tuple(DATASET_SOURCE_INPUTS)) == {}
+    for name in DATASET_SOURCE_INPUTS:
+        closure = index.variable_dependency_closure(name)
+        assert closure.input_leaves == (name,)
+        assert closure.formula_nodes == closure.edges == ()
+        assert index.consumer_receipts("is_household_head")
+    import pandas as pd
+
+    native = {
+        "person": pd.DataFrame({name: [True, False] for name in DATASET_SOURCE_INPUTS})
     }
+    assert index._engine_computed_columns(native, period=2024) == set()
+    assert live._engine_computed_columns(native, period=2024) == set()
+
+
+def test_generated_metadata_index_does_not_import_country_or_calculator() -> None:
+    _installed_package()
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import json, sys
+from microcosm.frame.adapters.policyengine_us import _installed_policyengine_us_variable_sources
+index = _installed_policyengine_us_variable_sources()
+assert not any(name == "policyengine_us" or name.startswith("policyengine_us.") or name == "spm_calculator" or name.startswith("spm_calculator.") for name in sys.modules)
+print(json.dumps({"definitions": len(index.definitions)}))
+""",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(result.stdout) == {"definitions": 6159}
+
+
+@pytest.mark.parametrize("tamper", ("source", "missing", "version"))
+def test_generated_snapshot_authenticates_external_calculator(tmp_path, tamper):
+    package, package_root = _installed_package()
+    source = module._authenticated_calculator_source()
+    copied = tmp_path / source.name
+    copied.write_bytes(source.read_bytes())
+    version = module._GENERATED_CALCULATOR_VERSION
+    if tamper == "source":
+        copied.write_bytes(copied.read_bytes() + b"\n# altered factory\n")
+    elif tamper == "missing":
+        copied.unlink()
+    else:
+        version = "1.0.1"
+    with pytest.raises(RuntimeError, match="SPM calculator"):
+        module._index_policyengine_us_generated_variable_sources(
+            package_root,
+            version=package.version,
+            calculator_root=tmp_path,
+            calculator_version=version,
+        )
+
+
+def test_generated_factory_dependency_receipts_are_complete_and_real():
+    receipts = module._generated_calculator_consumer_receipts()
+    expected = {
+        "is_spm_independent_minor_role": {"is_household_head", "is_household_spouse"},
+        "spm_measurement_adults": {"age", "is_spm_independent_minor_role"},
+        "spm_measurement_children": {"spm_measurement_adults"},
+        **{
+            name: {
+                "spm_measurement_adults",
+                "spm_measurement_children",
+                "spm_unit_tenure_type",
+                "county_fips",
+            }
+            for name in _EXPECTED_SPM_AMOUNTS
+        },
+    }
+    observed = {}
+    source = module._authenticated_calculator_source()
+    tree = ast.parse(source.read_text())
+    string_sites = {
+        (node.lineno, node.value)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    for target, rows in receipts.items():
+        for row in rows:
+            observed.setdefault(row.consumer, set()).add(target)
+            assert row.path == "spm_calculator/policyengine_adapter.py"
+            assert (row.line, target) in string_sites
+            assert row.kind == "entity_call"
+            assert row.receiver_entity == (
+                "household"
+                if target == "county_fips"
+                else "person"
+                if row.consumer
+                in {"is_spm_independent_minor_role", "spm_measurement_adults"}
+                else "spm_unit"
+            )
+    assert observed == expected
+    combined = module._installed_policyengine_us_variable_sources()
+    for target, rows in receipts.items():
+        assert set(rows) <= set(combined.consumers[target])
+
+
+def test_dependency_closure_stops_at_native_input_but_traverses_ordinary_formulas(
+    tmp_path,
+):
+    _write_variable_source(
+        tmp_path,
+        """
+class household_role(Variable):
+    value_type = bool
+    entity = Person
+    definition_period = ETERNITY
+
+class source_income(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+
+class native_role(Variable):
+    value_type = bool
+    entity = Person
+    definition_period = ETERNITY
+    def formula(person, period, parameters):
+        return person("household_role", period)
+
+class ordinary_formula(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+    def formula(person, period, parameters):
+        return person("source_income", period)
+
+class outer_formula(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+    def formula(person, period, parameters):
+        return person("ordinary_formula", period) * person("native_role", period)
+""",
+    )
+    source = module._index_policyengine_us_sources(tmp_path)
+    # Isolate the graph behavior from the separately authenticated country
+    # contract; these are explicit fixture variables, never installed metadata.
+    index = object.__new__(module.PolicyEngineUSVariableMetadataIndex)
+    index._definitions = source.definitions
+    index._consumers = source.consumers
+    index._engine_version = "fixture"
+    index._source_inputs = frozenset({"native_role"})
+    index._country_formula_owned = frozenset()
+    closure = index.variable_dependency_closure("outer_formula")
+    assert closure.input_leaves == ("native_role", "source_income")
+    assert closure.formula_nodes == ("ordinary_formula", "outer_formula")
+    assert ("ordinary_formula", "source_income") in closure.edges
+    assert ("native_role", "household_role") not in closure.edges
+    assert index.consumer_receipts("household_role")[0].consumer == "native_role"
+
+    index._source_inputs = frozenset()
+    fallback = index.variable_dependency_closure("outer_formula")
+    assert fallback.input_leaves == ("household_role", "source_income")
+    assert "native_role" in fallback.formula_nodes
+    assert ("native_role", "household_role") in fallback.edges
+
+
+@pytest.mark.parametrize("invalid", ("overlap", "unknown", "entity", "dtype", "period"))
+def test_country_source_input_contract_fails_closed(invalid):
+    name = "declared_native_role"
+    source = frozenset({name})
+    owned = source if invalid == "overlap" else frozenset()
+    metadata = (
+        {}
+        if invalid == "unknown"
+        else {
+            name: module.VariableMetadata(
+                name=name,
+                entity="household" if invalid == "entity" else "person",
+                dtype="int" if invalid == "dtype" else "bool",
+                period="year" if invalid == "period" else "point",
+            )
+        }
+    )
+    with pytest.raises(RuntimeError, match="Country dataset"):
+        module._validate_dataset_source_inputs(source, owned, metadata)
+
+
+def test_live_source_contract_cannot_be_missing_or_synthesized(monkeypatch):
+    variable = SimpleNamespace(
+        entity=SimpleNamespace(key="person"),
+        value_type=bool,
+        definition_period="eternity",
+        formulas={"0001-01-01": lambda *_: False},
+        adds=None,
+        subtracts=None,
+        default_value=False,
+    )
+    engine = module.PolicyEngineUSEngine()
+    engine._system = SimpleNamespace(variables={"declared_native_role": variable})
+    contract = SimpleNamespace(DATASET_FORMULA_OWNED_INPUTS=frozenset())
+    monkeypatch.setattr(module, "import_module", lambda _: contract)
+    with pytest.raises(RuntimeError, match="DATASET_SOURCE_INPUTS"):
+        engine.variables()
+    contract.DATASET_SOURCE_INPUTS = frozenset({"declared_native_role"})
+    assert engine.variables() == ["declared_native_role"]
+    assert engine.formula_owned_outputs(["declared_native_role"]) == set()
+    assert engine.default_values(["declared_native_role"]) == {}
+    variable.definition_period = "day"
+    with pytest.raises(RuntimeError, match="ETERNITY"):
+        engine.variables()
+
+
+@pytest.mark.parametrize(
+    "variant", ("valid", "missing", "dynamic", "overlap", "tampered")
+)
+def test_static_country_source_contract_is_literal_and_authenticated(
+    tmp_path, monkeypatch, variant
+):
+    package, package_root = _installed_package()
+    definitions = module._index_policyengine_us_generated_variable_sources(
+        package_root, version=package.version
+    )
+    role = "is_spm_independent_minor_role"
+    source = tmp_path / "spm.py"
+    source.write_text(
+        (
+            f"DATASET_FORMULA_OWNED_INPUTS = FORMULA_OWNED_INPUTS | frozenset({{{role!r}}})\n"
+            if variant == "overlap"
+            else "DATASET_FORMULA_OWNED_INPUTS = FORMULA_OWNED_INPUTS | frozenset(())\n"
+        )
+        + (
+            ""
+            if variant == "missing"
+            else "DATASET_SOURCE_INPUTS = frozenset(get_roles())\n"
+            if variant == "dynamic"
+            else f"DATASET_SOURCE_INPUTS = frozenset({{{role!r}}})\n"
+        )
+    )
+    # This is an explicit unit-test contract fixture, not installed wheel evidence.
+    monkeypatch.setitem(
+        module._GENERATED_SOURCE_SHA256,
+        "spm.py",
+        module.sha256(source.read_bytes()).hexdigest(),
+    )
+    if variant == "tampered":
+        source.write_text(source.read_text() + "\n# changed after authentication\n")
+    if variant != "valid":
+        with pytest.raises(RuntimeError, match="Country dataset"):
+            module._country_dataset_contract_from_sources(tmp_path, definitions)
+    else:
+        native, computed = module._country_dataset_contract_from_sources(
+            tmp_path, definitions
+        )
+        assert native == frozenset({role})
+        assert not native & computed
 
 
 @pytest.mark.parametrize("relative_path", module._GENERATED_SOURCE_SHA256)

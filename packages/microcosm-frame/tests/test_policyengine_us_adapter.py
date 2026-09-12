@@ -84,7 +84,9 @@ class TestVariableMetadata:
         monkeypatch.setattr(
             adapter_module,
             "import_module",
-            lambda name: SimpleNamespace(DATASET_FORMULA_OWNED_INPUTS={"age"}),
+            lambda name: SimpleNamespace(
+                DATASET_FORMULA_OWNED_INPUTS={"age"}, DATASET_SOURCE_INPUTS=frozenset()
+            ),
         )
         assert "age" not in adapter.variables()
         assert adapter.formula_owned_outputs(["age"]) == {"age"}
@@ -221,6 +223,70 @@ class TestMaterialize:
 
 
 class TestWriteDataset:
+    @pytest.mark.parametrize("dtype", (bool, "boolean"))
+    def test_country_native_role_preserves_true_and_false(
+        self, us_bundle, tmp_path, dtype
+    ):
+        from policyengine_us.data import USSingleYearDataset
+        from policyengine_us.spm import DATASET_SOURCE_INPUTS
+
+        role = "is_spm_independent_minor_role"
+        assert role in DATASET_SOURCE_INPUTS
+        tables = {name: us_bundle.table(name).copy() for name in us_bundle.entities}
+        tables["person"][role] = pd.Series([False, True, False], dtype=dtype)
+        native = Frame(
+            tables, US_SCHEMA, {"household": us_bundle.weights_for("household")}
+        )
+        engine = PolicyEngineUSEngine(
+            contract=ExportContract(
+                required=(role,), forbidden=(), optional=(), formula_owned_excluded=()
+            )
+        )
+        path = tmp_path / "native-role.h5"
+        engine.write_dataset(native, path, period=2024)
+        reloaded = USSingleYearDataset(file_path=str(path))
+        assert reloaded.person[role].dtype == bool
+        assert reloaded.person[role].tolist() == [False, True, False]
+
+    @pytest.mark.parametrize("default", (None, False, True))
+    def test_missing_native_role_cannot_be_filled_with_export_default(
+        self, us_bundle, tmp_path, default
+    ):
+        from policyengine_us.spm import DATASET_SOURCE_INPUTS
+
+        role = "is_spm_independent_minor_role"
+        assert role in DATASET_SOURCE_INPUTS
+        engine = PolicyEngineUSEngine(
+            contract=ExportContract(
+                required=(role,), forbidden=(), optional=(), formula_owned_excluded=()
+            ),
+            defaults={} if default is None else {role: default},
+        )
+        path = tmp_path / "missing-role.h5"
+        with pytest.raises(ValueError, match=role):
+            engine.write_dataset(us_bundle, path, period=2024)
+        assert not path.exists()
+
+    @pytest.mark.parametrize(
+        "values", ([0, 1, 0], ["False", "True", "False"], [False, None, True])
+    )
+    def test_country_native_role_rejects_nonboolean_or_missing_values(
+        self, us_bundle, tmp_path, values
+    ):
+        from policyengine_us.spm import DATASET_SOURCE_INPUTS
+
+        role = "is_spm_independent_minor_role"
+        assert role in DATASET_SOURCE_INPUTS
+        tables = {name: us_bundle.table(name).copy() for name in us_bundle.entities}
+        tables["person"][role] = values
+        native = Frame(
+            tables, US_SCHEMA, {"household": us_bundle.weights_for("household")}
+        )
+        path = tmp_path / "invalid-role.h5"
+        with pytest.raises(ValueError, match="complete boolean values"):
+            PolicyEngineUSEngine().write_dataset(native, path, period=2024)
+        assert not path.exists()
+
     def test_round_trips_and_carries_household_weight(
         self, adapter, us_bundle, tmp_path
     ) -> None:
@@ -522,7 +588,9 @@ class TestWriteDataset:
         monkeypatch.setattr(
             adapter_module,
             "import_module",
-            lambda name: SimpleNamespace(DATASET_FORMULA_OWNED_INPUTS={column}),
+            lambda name: SimpleNamespace(
+                DATASET_FORMULA_OWNED_INPUTS={column}, DATASET_SOURCE_INPUTS=frozenset()
+            ),
         )
         tables = {name: us_bundle.table(name).copy() for name in us_bundle.entities}
         if not via_default:

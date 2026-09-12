@@ -17,6 +17,7 @@ already guarantees them. The one thing it adds is the ``household_weight``
 column, materialized from the frame's typed household weights.
 """
 
+import ast
 import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -100,6 +101,66 @@ def _country_formula_owned_inputs() -> frozenset[str]:
     return frozenset(spm.DATASET_FORMULA_OWNED_INPUTS)
 
 
+def _validate_dataset_source_inputs(
+    source_inputs: frozenset[str],
+    formula_owned: frozenset[str],
+    metadata: Mapping[str, VariableMetadata],
+) -> None:
+    conflicts = source_inputs & (formula_owned | _FORMULA_OWNED_COMPAT_COLUMNS)
+    if conflicts:
+        raise RuntimeError(
+            f"Country dataset source/formula ownership overlaps: {sorted(conflicts)}."
+        )
+    for name in source_inputs:
+        item = metadata.get(name)
+        if item is None or (item.entity, item.dtype, item.period) != (
+            "person",
+            "bool",
+            "point",
+        ):
+            raise RuntimeError(
+                f"Country dataset source input {name!r} requires person/bool/point metadata."
+            )
+
+
+def _country_source_inputs(variables: Mapping[str, Any]) -> frozenset[str]:
+    """Permit only country-declared native roles, without default synthesis."""
+    try:
+        spm = import_module("policyengine_us.spm")
+    except ModuleNotFoundError as exc:
+        if exc.name == "policyengine_us.spm":
+            return frozenset()
+        raise
+    source_inputs = getattr(spm, "DATASET_SOURCE_INPUTS", None)
+    if not isinstance(source_inputs, frozenset) or any(
+        not isinstance(name, str) for name in source_inputs
+    ):
+        raise RuntimeError(
+            "Country SPM DATASET_SOURCE_INPUTS contract is unavailable or invalid."
+        )
+    if any(
+        name in variables and variables[name].definition_period != "eternity"
+        for name in source_inputs
+    ):
+        raise RuntimeError("Country dataset source inputs require ETERNITY roles.")
+    metadata = {
+        name: VariableMetadata(
+            name=name,
+            entity=variables[name].entity.key,
+            dtype=_DTYPE_KIND_BY_VALUE_TYPE.get(variables[name].value_type, "str"),
+            period=_PERIOD_BY_DEFINITION.get(
+                variables[name].definition_period, "point"
+            ),
+        )
+        for name in source_inputs
+        if name in variables
+    }
+    _validate_dataset_source_inputs(
+        source_inputs, frozenset(spm.DATASET_FORMULA_OWNED_INPUTS), metadata
+    )
+    return source_inputs
+
+
 @dataclass(frozen=True)
 class VariableDependencyClosure:
     """Static transitive variable graph for one PolicyEngine output.
@@ -131,12 +192,12 @@ _DTYPE_KIND_BY_VALUE_TYPE: dict[type, str] = {
 # (``"eternity"``, ``"day"``) is point-in-time state.
 _PERIOD_BY_DEFINITION: dict[str, str] = {"year": "year", "month": "month"}
 
-# PolicyEngine-US 1.819.0 creates 110 default-system variables outside ordinary
+# PolicyEngine-US 2.0.2rc1 creates 119 default-system variables outside ordinary
 # top-level ``class ...(Variable)`` declarations. Keep the compact metadata
 # snapshot tied to every source/activation surface that produced it: a changed
 # wheel must fail closed until this audit is refreshed, never silently omit a
 # newly generated formula-owned output.
-_GENERATED_SOURCE_VERSION = "1.819.0"
+_GENERATED_SOURCE_VERSION = "2.0.2rc1"
 _GENERATED_SOURCE_SHA256: dict[str, str] = {
     "model_api.py": "d7edb7436b84733f179fe223376fb588bb7a3ad6817d119703faeb599d4bb9c7",
     "variables/household/demographic/geographic/state/in_state.py": (
@@ -152,11 +213,17 @@ _GENERATED_SOURCE_SHA256: dict[str, str] = {
         "e1d0c0207c46243d3509b22b15fbdc07aa02b4df9461f7b93bec872dc7124ea9"
     ),
     "reforms/reforms.py": (
-        "9846915c2b03e776dc37cdd6d92566de117f6eebafbf5508179e196fce28d474"
+        "2517abf20381bdc4e1000ec86c416dfb60c366a547171fa14d31ed4d0057121e"
     ),
-    "system.py": "820dadeb7d22ef14d9cb2c34607f2afe68ba5fae616e05e634c2319e61eb457d",
+    "system.py": "860bb2468f57399c51508f1637db1e2e4dbf988e5f1648998c6e59cf777c40ce",
+    "spm.py": "97b4a74a598251d3fa9576864b9778fdb797f4007434496b2d0a8098d7007b1e",
 }
-_GENERATED_VARIABLE_GROUPS: tuple[tuple[tuple[str, ...], str, str, bool], ...] = (
+_GENERATED_CALCULATOR_VERSION = "1.0.0"
+_GENERATED_CALCULATOR_SOURCE = "policyengine_adapter.py"
+_GENERATED_CALCULATOR_SOURCE_SHA256 = (
+    "aa5c20cd94abd3287bec097e6f3544f1c822d708cf63cf34c9ce294c3a1e85f7"
+)
+_GENERATED_VARIABLE_GROUPS: tuple[tuple[tuple[str, ...], str, str, str, bool], ...] = (
     (
         tuple(
             "AL AK AZ AR CA CO CT DC DE FL GA HI ID IL IN IA KS KY LA ME MD MA "
@@ -165,6 +232,7 @@ _GENERATED_VARIABLE_GROUPS: tuple[tuple[tuple[str, ...], str, str, bool], ...] =
         ),
         "household",
         "bool",
+        "year",
         True,
     ),
     (
@@ -176,6 +244,7 @@ _GENERATED_VARIABLE_GROUPS: tuple[tuple[tuple[str, ...], str, str, bool], ...] =
         ),
         "person",
         "float",
+        "year",
         False,
     ),
     (
@@ -190,10 +259,192 @@ _GENERATED_VARIABLE_GROUPS: tuple[tuple[tuple[str, ...], str, str, bool], ...] =
         ),
         "tax_unit",
         "float",
+        "year",
         True,
     ),
-    (("mi_surtax",), "tax_unit", "float", True),
+    (("mi_surtax",), "tax_unit", "float", "year", True),
+    (("is_household_spouse",), "person", "bool", "point", False),
+    (("is_spm_independent_minor_role",), "person", "bool", "point", True),
+    (
+        ("spm_measurement_adults", "spm_measurement_children"),
+        "spm_unit",
+        "int",
+        "year",
+        True,
+    ),
+    (
+        (
+            "spm_unit_reference_spm_threshold",
+            "spm_unit_unadjusted_spm_threshold",
+            "spm_unit_geographic_adjustment",
+            "spm_unit_spm_threshold",
+            "spm_unit_spm_threshold_housing_portion",
+        ),
+        "spm_unit",
+        "float",
+        "year",
+        True,
+    ),
 )
+
+
+def _authenticated_calculator_source(
+    package_root: Path | None = None, *, version: str | None = None
+) -> Path:
+    """Read the audited external factory without importing either engine."""
+    if package_root is None:
+        package = distribution("spm-calculator")
+        package_root = Path(package.locate_file("spm_calculator"))
+        version = package.version
+    if version != _GENERATED_CALCULATOR_VERSION:
+        raise RuntimeError(
+            f"SPM calculator generated-variable metadata has not been audited for "
+            f"installed version {version!r}."
+        )
+    source = package_root / _GENERATED_CALCULATOR_SOURCE
+    try:
+        digest = sha256(source.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise RuntimeError(
+            f"Required SPM calculator source is unavailable: {source}."
+        ) from exc
+    if digest != _GENERATED_CALCULATOR_SOURCE_SHA256:
+        raise RuntimeError(
+            f"SPM calculator source changed without a metadata audit: {source}."
+        )
+    return source
+
+
+def _literal_contract_set(
+    source: Path, name: str, *, imports: Mapping[str, frozenset[str]] | None = None
+) -> frozenset[str]:
+    """Read only the audited literal/frozenset/union contract syntax."""
+    bindings = imports or {}
+
+    def resolve(node: ast.expr) -> frozenset[str]:
+        if isinstance(node, ast.Name) and node.id in bindings:
+            return bindings[node.id]
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return resolve(node.left) | resolve(node.right)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "frozenset"
+            and len(node.args) == 1
+            and not node.keywords
+        ):
+            return resolve(node.args[0])
+        if isinstance(node, (ast.Set, ast.Tuple, ast.List)) and all(
+            isinstance(item, ast.Constant) and isinstance(item.value, str)
+            for item in node.elts
+        ):
+            return frozenset(item.value for item in node.elts)
+        raise RuntimeError(
+            f"Country dataset contract {name!r} has unaudited syntax in {source}."
+        )
+
+    matches = [
+        statement.value
+        for statement in ast.parse(source.read_text()).body
+        if isinstance(statement, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == name
+            for target in statement.targets
+        )
+    ]
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"Country dataset contract {name!r} is unavailable or duplicated in {source}."
+        )
+    return resolve(matches[0])
+
+
+def _country_dataset_contract_from_sources(
+    package_root: Path, definitions: Mapping[str, _SourceVariableDefinition]
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Read contracts after the country and external factory authentication."""
+    calculator_source = _authenticated_calculator_source()
+    calculator_owned = _literal_contract_set(calculator_source, "FORMULA_OWNED_INPUTS")
+    country_source = package_root / "spm.py"
+    if (
+        sha256(country_source.read_bytes()).hexdigest()
+        != _GENERATED_SOURCE_SHA256["spm.py"]
+    ):
+        raise RuntimeError(
+            f"Country dataset contract source changed without a metadata audit: {country_source}."
+        )
+    formula_owned = _literal_contract_set(
+        country_source,
+        "DATASET_FORMULA_OWNED_INPUTS",
+        imports={"FORMULA_OWNED_INPUTS": calculator_owned},
+    )
+    source_inputs = _literal_contract_set(country_source, "DATASET_SOURCE_INPUTS")
+    # The generated metadata maps ETERNITY and DAY to point semantics. Bind
+    # the native-role contract specifically to the audited ETERNITY classes.
+    eternity_roles = {
+        node.name
+        for node in ast.walk(ast.parse(calculator_source.read_text()))
+        if isinstance(node, ast.ClassDef)
+        and any(
+            isinstance(statement, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "definition_period"
+                for target in statement.targets
+            )
+            and isinstance(statement.value, ast.Name)
+            and statement.value.id == "ETERNITY"
+            for statement in node.body
+        )
+    }
+    if not source_inputs <= eternity_roles:
+        raise RuntimeError(
+            "Country dataset source inputs require audited ETERNITY roles."
+        )
+    _validate_dataset_source_inputs(
+        source_inputs,
+        formula_owned,
+        {name: definition.metadata for name, definition in definitions.items()},
+    )
+    return source_inputs, formula_owned
+
+
+def _generated_calculator_consumer_receipts() -> Mapping[
+    str, tuple[ConsumerReceipt, ...]
+]:
+    """Audited reference sites in the hash-bound calculator 1.0.0 factory.
+
+    The five amount closures all call policyengine_amount, which reads the same
+    four native measurement/geography inputs. Lines identify those real helper
+    call sites; no parallel calculation or inferred threshold dependency is used.
+    """
+    _authenticated_calculator_source()
+    path = "spm_calculator/" + _GENERATED_CALCULATOR_SOURCE
+    sites = [
+        ("is_household_head", "is_spm_independent_minor_role", 349, "person"),
+        ("is_household_spouse", "is_spm_independent_minor_role", 350, "person"),
+        ("age", "spm_measurement_adults", 360, "person"),
+        ("is_spm_independent_minor_role", "spm_measurement_adults", 361, "person"),
+        ("spm_measurement_adults", "spm_measurement_children", 371, "spm_unit"),
+    ]
+    amount_names = _GENERATED_VARIABLE_GROUPS[-1][0]
+    for name in amount_names:
+        sites.extend(
+            (target, name, line, entity)
+            for target, line, entity in (
+                ("spm_measurement_adults", 298, "spm_unit"),
+                ("spm_measurement_children", 299, "spm_unit"),
+                ("spm_unit_tenure_type", 305, "spm_unit"),
+                ("county_fips", 307, "household"),
+            )
+        )
+    consumers: dict[str, set[ConsumerReceipt]] = {}
+    for target, consumer, line, entity in sites:
+        consumers.setdefault(target, set()).add(
+            ConsumerReceipt(consumer, path, line, "entity_call", entity)
+        )
+    return MappingProxyType(
+        {target: tuple(sorted(rows)) for target, rows in consumers.items()}
+    )
 
 
 def _index_policyengine_us_sources(
@@ -221,6 +472,8 @@ def _index_policyengine_us_generated_variable_sources(
     package_root: Path,
     *,
     version: str,
+    calculator_root: Path | None = None,
+    calculator_version: str | None = None,
 ) -> Mapping[str, _SourceVariableDefinition]:
     """Return the audited generated-variable snapshot or fail closed."""
 
@@ -244,8 +497,9 @@ def _index_policyengine_us_generated_variable_sources(
                 f"metadata audit: {source_path}."
             )
 
+    _authenticated_calculator_source(calculator_root, version=calculator_version)
     definitions: dict[str, _SourceVariableDefinition] = {}
-    for names, entity, dtype, formula_owned in _GENERATED_VARIABLE_GROUPS:
+    for names, entity, dtype, period, formula_owned in _GENERATED_VARIABLE_GROUPS:
         for name in names:
             if name in definitions:
                 raise RuntimeError(
@@ -256,7 +510,7 @@ def _index_policyengine_us_generated_variable_sources(
                     name=name,
                     entity=entity,
                     dtype=dtype,
-                    period="year",
+                    period=period,
                 ),
                 always_computed=formula_owned,
                 formula_starts=(),
@@ -296,9 +550,20 @@ def _installed_policyengine_us_variable_sources() -> _PolicyEngineUSSourceIndex:
             f"classes: {duplicates}."
         )
     definitions.update(generated)
+    consumers = {name: set(rows) for name, rows in source_index.consumers.items()}
+    for target, rows in _generated_calculator_consumer_receipts().items():
+        if target not in definitions or any(
+            row.consumer not in definitions for row in rows
+        ):
+            raise RuntimeError(
+                f"Generated calculator dependency references unknown variables: {target}."
+            )
+        consumers.setdefault(target, set()).update(rows)
     return _PolicyEngineUSSourceIndex(
         definitions=MappingProxyType(definitions),
-        consumers=source_index.consumers,
+        consumers=MappingProxyType(
+            {name: tuple(sorted(rows)) for name, rows in consumers.items()}
+        ),
     )
 
 
@@ -318,7 +583,13 @@ class PolicyEngineUSVariableMetadataIndex:
         source_index = _installed_policyengine_us_variable_sources()
         self._definitions = source_index.definitions
         self._consumers = source_index.consumers
-        self._engine_version = distribution("policyengine-us").version
+        package = distribution("policyengine-us")
+        self._engine_version = package.version
+        self._source_inputs, self._country_formula_owned = (
+            _country_dataset_contract_from_sources(
+                Path(package.locate_file("policyengine_us")), self._definitions
+            )
+        )
 
     def variable_metadata(self, name: str) -> VariableMetadata:
         definition = self._definitions.get(name)
@@ -330,8 +601,8 @@ class PolicyEngineUSVariableMetadataIndex:
         return sorted(
             name
             for name, definition in self._definitions.items()
-            if name not in _FORMULA_OWNED_COMPAT_COLUMNS
-            and not definition.formula_owned
+            if name not in (_FORMULA_OWNED_COMPAT_COLUMNS | self._country_formula_owned)
+            and (name in self._source_inputs or not definition.formula_owned)
         )
 
     def consumer_receipts(self, name: str) -> tuple[ConsumerReceipt, ...]:
@@ -362,18 +633,23 @@ class PolicyEngineUSVariableMetadataIndex:
 
         reachable: set[str] = set()
         edges: set[tuple[str, str]] = set()
+        inputs = set(self.variables())
         pending = [name]
         while pending:
             consumer = pending.pop()
             if consumer in reachable:
                 continue
             reachable.add(consumer)
+            # A country-declared native source role can have a household
+            # fallback formula. Its receipt remains visible, but a population
+            # dependency closure stops at the declared source-input boundary.
+            if consumer in inputs:
+                continue
             for target in dependencies.get(consumer, ()):
                 edges.add((consumer, target))
                 if target not in reachable:
                     pending.append(target)
 
-        inputs = set(self.variables())
         input_leaves = tuple(sorted(reachable & inputs))
         formula_nodes = tuple(sorted(reachable - inputs))
         ordered_edges = tuple(sorted(edges))
@@ -403,10 +679,13 @@ class PolicyEngineUSVariableMetadataIndex:
 
     def formula_owned_outputs(self, names: Iterable[str]) -> set[str]:
         requested = set(names)
-        return set(requested & _FORMULA_OWNED_COMPAT_COLUMNS) | {
+        return set(
+            requested & (_FORMULA_OWNED_COMPAT_COLUMNS | self._country_formula_owned)
+        ) | {
             name
             for name in requested
             if (definition := self._definitions.get(name)) is not None
+            and name not in self._source_inputs
             and definition.formula_owned
         }
 
@@ -425,10 +704,13 @@ class PolicyEngineUSVariableMetadataIndex:
                 US_SCHEMA.membership_column(group),
             )
         }
-        return set(present & _FORMULA_OWNED_COMPAT_COLUMNS) | {
+        return set(
+            present & (_FORMULA_OWNED_COMPAT_COLUMNS | self._country_formula_owned)
+        ) | {
             name
             for name in present
             if name not in structural
+            and name not in self._source_inputs
             and (definition := self._definitions.get(name)) is not None
             and definition.computed_at(period)
         }
@@ -570,10 +852,12 @@ class PolicyEngineUSEngine:
         """
         system_variables = self._tax_benefit_system().variables
         excluded = _FORMULA_OWNED_COMPAT_COLUMNS | _country_formula_owned_inputs()
+        source_inputs = _country_source_inputs(system_variables)
         return sorted(
             name
             for name, variable in system_variables.items()
-            if name not in excluded and not _is_engine_computed(variable)
+            if name not in excluded
+            and (name in source_inputs or not _is_engine_computed(variable))
         )
 
     def formula_owned_outputs(self, names: Iterable[str]) -> set[str]:
@@ -600,13 +884,18 @@ class PolicyEngineUSEngine:
         """
         variables = self._tax_benefit_system().variables
         excluded = _FORMULA_OWNED_COMPAT_COLUMNS | _country_formula_owned_inputs()
+        source_inputs = _country_source_inputs(variables)
         flagged: set[str] = set()
         for name in names:
             if name in excluded:
                 flagged.add(name)
                 continue
             variable = variables.get(name)
-            if variable is not None and _is_engine_computed(variable):
+            if (
+                name not in source_inputs
+                and variable is not None
+                and _is_engine_computed(variable)
+            ):
                 flagged.add(name)
         return flagged
 
@@ -714,7 +1003,11 @@ class PolicyEngineUSEngine:
             ImportError: If ``policyengine_us`` is not installed.
         """
         variables = self._tax_benefit_system().variables
-        excluded = _FORMULA_OWNED_COMPAT_COLUMNS | _country_formula_owned_inputs()
+        excluded = (
+            _FORMULA_OWNED_COMPAT_COLUMNS
+            | _country_formula_owned_inputs()
+            | _country_source_inputs(variables)
+        )
         defaults: dict[str, object] = {}
         for name in names:
             variable = variables.get(name)
@@ -834,10 +1127,22 @@ class PolicyEngineUSEngine:
 
         defaulted: set[str] = set()
         missing_required: list[str] = []
+        source_inputs = _country_source_inputs(self._tax_benefit_system().variables)
+        for name in source_inputs:
+            for entity, table in tables.items():
+                if name in table and (
+                    entity != "person"
+                    or not pd.api.types.is_bool_dtype(table[name].dtype)
+                    or table[name].isna().any()
+                ):
+                    raise ValueError(
+                        f"Country dataset source input {name!r} requires complete "
+                        "boolean values on the person table."
+                    )
         for column in contract.required:
             if column in present_columns:
                 continue
-            if column in self._defaults:
+            if column in self._defaults and column not in source_inputs:
                 target = self._default_entity(column)
                 if target in tables:
                     tables[target][column] = self._defaults[column]
@@ -970,10 +1275,12 @@ class PolicyEngineUSEngine:
         present = {column for frame in tables.values() for column in frame.columns}
         structural = self._structural_columns()
         excluded = _FORMULA_OWNED_COMPAT_COLUMNS | _country_formula_owned_inputs()
+        source_inputs = _country_source_inputs(variables)
         return set(present & excluded) | {
             column
             for column in present
             if column not in structural
+            and column not in source_inputs
             and column in variables
             and _is_engine_computed(variables[column], period=period)
         }
