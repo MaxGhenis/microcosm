@@ -263,6 +263,7 @@ from microcosm.build.us_runtime.reform_validation import (
     reform_validation_payload,
     write_reform_validation,
 )
+from microcosm.build.us_runtime.spm_role_source import NATIVE_SPM_ROLE
 from microcosm.build.us_runtime.ssi_take_up import (
     US_SSI_TAKE_UP_AGE_TARGETS,
     US_SSI_TAKE_UP_ENFORCED_BAND_KEYS,
@@ -1199,6 +1200,15 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--refit-frozen-support",
+        action="store_true",
+        help=(
+            "Refit every record in --selection-source-manifest with ordinary "
+            "calibration and all national release gates. No L0 support selection "
+            "or dense diagnostic SSI fences are applied."
+        ),
+    )
+    parser.add_argument(
         "--warm-start-calibration-npz",
         type=Path,
         help=(
@@ -1563,7 +1573,40 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         args.congressional_district_vintage_crosswalk = (
             default_congressional_district_vintage_crosswalk_path()
         )
-    if not args.dense_default_dataset and not (
+    if args.refit_frozen_support:
+        if args.selection_source_manifest is None:
+            parser.error("--refit-frozen-support requires --selection-source-manifest.")
+        if (
+            args.dense_default_dataset
+            or args.exact_k is not None
+            or args.evidence_release
+            or args.selection_source_h5 is not None
+            or args.selection_mode != "frozen_support"
+            or args.refit_l2_lambda is not None
+        ):
+            parser.error(
+                "--refit-frozen-support requires the ordinary frozen-support "
+                "release path; it cannot combine dense, exact-k, evidence, "
+                "H5-selection, or L0-refit options (use --l2-lambda)."
+            )
+        if any(
+            (
+                args.allow_gate_failed_base_pool,
+                args.allow_input_mass_drift,
+                args.allow_ecps_parity_gaps,
+                args.allow_input_coverage_gaps,
+                args.allow_qrf_tail_concentration,
+                args.skip_reform_coverage_smoke,
+                args.allow_reform_coverage_smoke_failures,
+                args.skip_reform_validation,
+                args.skip_out_of_sample_reforms,
+            )
+        ):
+            parser.error("--refit-frozen-support requires every ordinary release gate.")
+        supplied = sys.argv[1:] if argv is None else argv
+        if any(arg.split("=", 1)[0] == "--l0-refit-lambda-share" for arg in supplied):
+            parser.error("--refit-frozen-support does not perform L0 selection.")
+    if not (args.dense_default_dataset or args.refit_frozen_support) and not (
         math.isfinite(args.l0_refit_lambda_share) and args.l0_refit_lambda_share > 0.0
     ):
         parser.error(
@@ -2634,6 +2677,108 @@ def _load_frame(path: Path, *, expected_sha256: str | None = None) -> Frame:
     )
     refuse_denied_frame(frame, consumer=consumer)
     return frame
+
+
+def _frozen_support_identity(frame: Frame) -> dict[str, pd.DataFrame]:
+    """Capture ordered entity IDs, source identities, and all person memberships."""
+    identity = {}
+    for entity in frame.entities:
+        table = frame.table(entity)
+        columns = [frame.schema.entity_id_column(entity)]
+        if entity == frame.schema.person_entity:
+            columns.extend(
+                frame.schema.membership_column(group)
+                for group in frame.schema.group_entities
+            )
+        columns.extend(
+            column
+            for column in table
+            if column.startswith("source_")
+            or column in DEFAULT_SELECTION_JOIN_KEY
+            or column == NATIVE_SPM_ROLE
+        )
+        identity[entity] = table[list(dict.fromkeys(columns))].copy(deep=True)
+    return identity
+
+
+def _assert_frozen_support_identity(
+    frame: Frame, identity: Mapping[str, pd.DataFrame]
+) -> None:
+    if set(frame.entities) != set(identity):
+        raise ValueError("Frozen support changed its entity set.")
+    for entity, expected in identity.items():
+        table = frame.table(entity)
+        if not set(expected.columns).issubset(table.columns) or not table[
+            list(expected.columns)
+        ].equals(expected):
+            raise ValueError(f"Frozen support changed {entity} identity or membership.")
+
+
+def _calibrate_frozen_support(
+    frame: Frame,
+    registry: TargetRegistry,
+    *,
+    args: argparse.Namespace,
+    identity: Mapping[str, pd.DataFrame],
+    identities_sha256: str,
+    target_loss_weights: np.ndarray,
+    warm_start_weights: np.ndarray | None = None,
+    progress_callback=None,
+):
+    """Refit representation while retaining all authenticated support identities."""
+    _assert_frozen_support_identity(frame, identity)
+    result = calibrate(
+        frame,
+        registry.to_target_set(),
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        max_weight_ratio=args.max_weight_ratio,
+        seed=args.seed,
+        mass="conserve",
+        l2_lambda=args.l2_lambda,
+        target_loss_weights=target_loss_weights,
+        target_loss_cap=US_FISCAL_TARGET_LOSS_CAP,
+        warm_start_weights=warm_start_weights,
+        progress_callback=progress_callback,
+    )
+    _assert_frozen_support_identity(result.frame, identity)
+    return result, {
+        "method": "full_support_refit",
+        "sparse": False,
+        "n_candidate_households": int(frame.n("household")),
+        "n_selected_households": int(frame.n("household")),
+        "n_exported_households": int(result.frame.n("household")),
+        "selection_epochs": 0,
+        "refit_epochs": int(args.epochs),
+        "l2_lambda": float(args.l2_lambda),
+        "final_loss": _finite_or_none(result.final_loss),
+        "support_identities_sha256": identities_sha256,
+    }
+
+
+def _record_final_immigration_composition(
+    frame: Frame, release_dir: Path
+) -> GateResult:
+    """Apply the unchanged source gate to the final calibrated export weights."""
+    if frame.weights_for("household").kind != WeightKind.CALIBRATED:
+        raise ValueError("Final immigration composition requires calibrated weights.")
+    gate = us_immigration_composition_gate(frame)
+    (release_dir / "us_immigration_final.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "weight_context": "calibrated_export",
+                "passed": gate.passed,
+                "failures": list(gate.failures),
+                "details": dict(gate.details),
+            },
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        )
+        + "\n"
+    )
+    return gate
 
 
 def _resolve_selection_source(args):
@@ -7558,6 +7703,7 @@ def _build_manifests(
     base_population_gate: GateResult | None = None,
     incumbent_diagnostics: Mapping[str, Mapping[str, object]] | None = None,
     immigration_gate: GateResult | None = None,
+    final_immigration_gate: GateResult | None = None,
     input_mass_reference_gate: GateResult | None = None,
     degenerate_input_gate: GateResult | None = None,
     ecps_parity_gate: GateResult | None = None,
@@ -7681,6 +7827,17 @@ def _build_manifests(
             ],
         },
         "gates": {
+            **(
+                {
+                    "final_immigration_composition": {
+                        "passed": final_immigration_gate.passed,
+                        "failures": list(final_immigration_gate.failures),
+                        "details": dict(final_immigration_gate.details),
+                    }
+                }
+                if final_immigration_gate is not None
+                else {}
+            ),
             "calibration": {
                 "passed": not gate_failures,
                 "failures": gate_failures,
@@ -7882,6 +8039,16 @@ def _build_manifests(
                 if acs_predictor_join is not None
                 else {}
             ),
+            **(
+                {
+                    "final_immigration_composition": {
+                        "passed": final_immigration_gate.passed,
+                        "details": dict(final_immigration_gate.details),
+                    }
+                }
+                if final_immigration_gate is not None
+                else {}
+            ),
             "warm_start_calibration": warm_start_payload,
             "selection_source": selection_source_payload,
             "default_dataset": default_dataset_payload,
@@ -8005,6 +8172,18 @@ def _build_manifests(
             }
         ],
         "artifacts": {
+            **(
+                {
+                    "us_immigration_final": _artifact_entry(
+                        "us_immigration_final.json",
+                        _sha256(release_dir / "us_immigration_final.json"),
+                        kind="diagnostics",
+                        revision=release_id,
+                    )
+                }
+                if final_immigration_gate is not None
+                else {}
+            ),
             dataset_key: _artifact_entry(
                 dataset_filename,
                 dataset_sha,
@@ -9016,6 +9195,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
     # ~57k support instead of the ~338k pool.
     selection_source, _selection_join_key = _resolve_selection_source(args)
     selection_source_payload: dict | None = None
+    frozen_support_identity = None
     if selection_source is not None:
         if args.selection_mode != "frozen_support":
             raise ValueError(
@@ -9034,6 +9214,23 @@ def _main(argv: Sequence[str] | None = None) -> None:
             selection_candidate_frame,
             selection_source,
         )
+        if args.refit_frozen_support:
+            if NATIVE_SPM_ROLE not in base_frame.table("person") or (
+                base_frame.table("person")[NATIVE_SPM_ROLE].dtype != np.dtype(bool)
+            ):
+                raise ValueError(
+                    "Frozen support requires the native boolean SPM source role."
+                )
+            if (
+                selection_report.n_selected != selection_source.n_identities
+                or selection_report.n_unmapped
+                or selection_report.n_ambiguous
+                or base_frame.n("household") != selection_source.n_identities
+            ):
+                raise ValueError(
+                    "Frozen support selection did not recover every identity."
+                )
+            frozen_support_identity = _frozen_support_identity(base_frame)
         selection_source_payload = selection_report.as_manifest()
         selection_source_payload["puf_capital_gains_tail_retention"] = (
             assert_puf_capital_gains_tail_survives_selection(
@@ -10646,6 +10843,12 @@ def _main(argv: Sequence[str] | None = None) -> None:
             args.warm_start_calibration_npz,
             expected_initial_weights=target_frame.resolve_weights("household").values,
         )
+    if args.refit_frozen_support:
+        if frozen_support_identity is None:
+            raise ValueError(
+                "Frozen support identity was not captured before calibration."
+            )
+        _assert_frozen_support_identity(target_frame, frozen_support_identity)
     candidate_households = int(target_frame.n("household"))
     if args.exact_k is not None and args.exact_k > candidate_households:
         raise ValueError(
@@ -10654,6 +10857,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
         )
     full_pool_calibration = bool(
         args.dense_default_dataset
+        or args.refit_frozen_support
         or (args.exact_k is not None and args.exact_k == candidate_households)
     )
     l0_refit_lambda = (
@@ -10689,7 +10893,13 @@ def _main(argv: Sequence[str] | None = None) -> None:
                 )
             ),
             default_dataset_method=(
-                ("full_pool_refit" if args.exact_k is not None else "dense_no_l0")
+                (
+                    "full_support_refit"
+                    if args.refit_frozen_support
+                    else "full_pool_refit"
+                    if args.exact_k is not None
+                    else "dense_no_l0"
+                )
                 if full_pool_calibration
                 else (
                     "exact_k_sampford_refit" if args.exact_k is not None else "l0_refit"
@@ -10820,6 +11030,19 @@ def _main(argv: Sequence[str] | None = None) -> None:
                 "details": dict(exact_k_puf_tail_gate.details),
             },
         }
+    elif args.refit_frozen_support:
+        result, default_dataset = _calibrate_frozen_support(
+            target_frame,
+            registry,
+            args=args,
+            identity=frozen_support_identity,
+            identities_sha256=selection_source.identities_sha256,
+            target_loss_weights=target_loss_weights,
+            warm_start_weights=warm_start_weights,
+            progress_callback=(
+                telemetry.calibration_progress if telemetry is not None else None
+            ),
+        )
     elif args.dense_default_dataset:
         result = calibrate(
             target_frame,
@@ -10908,6 +11131,15 @@ def _main(argv: Sequence[str] | None = None) -> None:
         )
     else:
         export_frame = _with_l0_refit_weights(base_frame, result)
+    if args.refit_frozen_support:
+        _assert_frozen_support_identity(export_frame, frozen_support_identity)
+    final_immigration_gate = _record_final_immigration_composition(
+        export_frame, release_dir
+    )
+    early_terminal_gate_failures.extend(
+        f"Final immigration composition failed: {failure}"
+        for failure in final_immigration_gate.failures
+    )
     compilation = dict(compilation)
     final_uncapped_ssi = _ssi_person_uncapped_amount(
         export_frame,
@@ -11891,6 +12123,7 @@ def _main(argv: Sequence[str] | None = None) -> None:
         base_population_gate=base_population_gate,
         incumbent_diagnostics=incumbent_diagnostics,
         immigration_gate=immigration_gate,
+        final_immigration_gate=final_immigration_gate,
         input_mass_reference_gate=enforced_input_mass_reference_gate,
         degenerate_input_gate=degenerate_input_gate,
         ecps_parity_gate=enforced_ecps_parity_gate,

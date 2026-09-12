@@ -1,6 +1,6 @@
 """Reconstruct the native SPM role from pinned, complete Census ASEC files.
 
-This is a source enrichment of an existing population. The raw relationship
+This serves ordinary Frame construction and source enrichment of an existing population. The raw relationship
 rule is a documented-source inference reconciled against Census unit counts;
 it is not a claim to have retrieved the Census production program. No model,
 weight, calibration, or period-aging operation is performed here.
@@ -9,6 +9,7 @@ weight, calibration, or period-aging operation is performed here.
 from __future__ import annotations
 
 import hashlib
+import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,7 +18,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .education_assistance_source import ASEC_EDUCATION_ASSISTANCE_ARCHIVES
+from microcosm.frame import Frame
+
+from .education_assistance_source import (
+    ASEC_EDUCATION_ASSISTANCE_ARCHIVES,
+    fetch_asec_education_assistance_source,
+)
 
 NATIVE_SPM_ROLE = "is_spm_independent_minor_role"
 EVIDENCE_SPM_ROLE = "is_spm_independence_role"
@@ -159,17 +165,43 @@ def _load_source(
     _require(
         pin.survey_year == pin.income_year + 1, f"{label} income/survey year mismatch."
     )
-    _require(
-        path.stat().st_size == pin.csv_size_bytes, f"{label} CSV byte length mismatch."
-    )
-    _require(_sha256(path) == pin.csv_sha256, f"{label} CSV SHA-256 mismatch.")
-    source = pd.read_csv(
-        path,
+    read_options = dict(
         usecols=list(_SOURCE_COLUMNS),
         dtype={"PERIDNUM": str, "SPM_ID": str},
         low_memory=False,
     )
-    _require(_sha256(path) == pin.csv_sha256, f"{label} CSV changed while reading.")
+    if zipfile.is_zipfile(path):
+        _require(
+            _sha256(path) == pin.archive_sha256, f"{label} archive SHA-256 mismatch."
+        )
+        with zipfile.ZipFile(path) as archive:
+            members = [
+                item for item in archive.infolist() if item.filename == pin.member
+            ]
+            _require(
+                len(members) == 1, f"{label} must contain exactly one person member."
+            )
+            _require(
+                members[0].file_size == pin.csv_size_bytes,
+                f"{label} CSV byte length mismatch.",
+            )
+            with archive.open(members[0]) as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
+            _require(digest == pin.csv_sha256, f"{label} CSV SHA-256 mismatch.")
+            with archive.open(members[0]) as stream:
+                source = pd.read_csv(stream, **read_options)
+        _require(
+            _sha256(path) == pin.archive_sha256,
+            f"{label} archive changed while reading.",
+        )
+    else:
+        _require(
+            path.stat().st_size == pin.csv_size_bytes,
+            f"{label} CSV byte length mismatch.",
+        )
+        _require(_sha256(path) == pin.csv_sha256, f"{label} CSV SHA-256 mismatch.")
+        source = pd.read_csv(path, **read_options)
+        _require(_sha256(path) == pin.csv_sha256, f"{label} CSV changed while reading.")
     _require(len(source) == pin.persons, f"{label} CSV person count mismatch.")
     source["PERIDNUM"] = _exact_person_keys(source.PERIDNUM, label)
     _require(bool(source.PERIDNUM.is_unique), f"{label} has duplicate PERIDNUM keys.")
@@ -218,29 +250,21 @@ def _load_source(
     }
 
 
-def derive_spm_role_source(
-    parent_h5: str | Path,
+def derive_spm_role_tables(
+    parent: pd.DataFrame,
+    spm: pd.DataFrame,
     source_paths: Mapping[int, str | Path],
     *,
-    expected_parent_sha256: str,
     source_pins: Mapping[int, AsecSpmRoleSource] | None = None,
+    check_source_row_id: bool = True,
 ) -> SpmRoleSourceResult:
-    """Derive and reconcile from complete pinned CSVs; never trust a sidecar.
+    """Reconcile native tables against complete authenticated source units.
 
-    Local CSV paths are mandatory; the existing education-assistance Census
-    fetcher can obtain their pinned archives separately. The default pins cover
-    all three certified BuildP source years. Alternate pins support explicit
-    review of other populations and small synthetic tests.
-
-    Support clones may repeat a source person across native units. Within every
-    native unit, the source members must be unique and exhaust one complete
-    Census unit. Original membership and every existing input remain untouched.
+    Row positions are checked for the historical H5 enrichment. Ordinary
+    construction may subset or reorder source households before assigning row
+    positions, so its identity is the exact (income year, PERIDNUM) key instead.
     """
-    path = Path(parent_h5)
-    _require(_sha256(path) == expected_parent_sha256, "Parent H5 SHA-256 mismatch.")
     pins = ASEC_SPM_ROLE_SOURCES if source_pins is None else source_pins
-    parent = pd.read_hdf(path, "person")
-    spm = pd.read_hdf(path, "spm_unit")
     required = (
         "person_id",
         "person_spm_unit_id",
@@ -327,6 +351,8 @@ def derive_spm_role_source(
         ("source_person_id", "PERIDNUM"),
         ("source_row_id", "_source_row_id"),
     ):
+        if native == "source_row_id" and not check_source_row_id:
+            continue
         _require(
             bool(joined[native].eq(joined[raw]).all()),
             f"Parent {native} disagrees with the pinned Census source.",
@@ -347,15 +373,10 @@ def derive_spm_role_source(
     evidence = parent[["person_id", "person_spm_unit_id"]].copy()
     evidence[EVIDENCE_SPM_ROLE] = role
     minor = joined.A_AGE.between(15, 17) & joined._role
-    _require(
-        _sha256(path) == expected_parent_sha256,
-        "Parent H5 changed while deriving roles.",
-    )
     return SpmRoleSourceResult(
         role=role,
         evidence=evidence,
         provenance={
-            "dataset_sha256": expected_parent_sha256,
             "primitive_column": NATIVE_SPM_ROLE,
             "evidence_column": EVIDENCE_SPM_ROLE,
             "primitive_rule": SPM_ROLE_RULE,
@@ -387,9 +408,105 @@ def derive_spm_role_source(
             "true_role_persons": int(role.sum()),
             "table_rows": len(evidence),
             "table_key": ["person_id", "person_spm_unit_id"],
-            "table_order": "exact original HDF person order; verified",
+            "table_order": "exact input person order; verified",
             "weights_used": False,
             "ages_changed": False,
             "period_handling": "Store the role before the age gate; model age supplies the requested period.",
         },
     )
+
+
+def derive_spm_role_source(
+    parent_h5: str | Path,
+    source_paths: Mapping[int, str | Path],
+    *,
+    expected_parent_sha256: str,
+    source_pins: Mapping[int, AsecSpmRoleSource] | None = None,
+) -> SpmRoleSourceResult:
+    """Authenticate the unchanged historical H5 parent before and after deriving."""
+    path = Path(parent_h5)
+    _require(_sha256(path) == expected_parent_sha256, "Parent H5 SHA-256 mismatch.")
+    result = derive_spm_role_tables(
+        pd.read_hdf(path, "person"),
+        pd.read_hdf(path, "spm_unit"),
+        source_paths,
+        source_pins=source_pins,
+    )
+    _require(
+        _sha256(path) == expected_parent_sha256,
+        "Parent H5 changed while deriving roles.",
+    )
+    return SpmRoleSourceResult(
+        result.role,
+        result.evidence,
+        {
+            **result.provenance,
+            "dataset_sha256": expected_parent_sha256,
+            "table_order": "exact original HDF person order; verified",
+        },
+    )
+
+
+def with_us_spm_role_source(
+    frame: Frame,
+    source_paths: Mapping[int, str | Path] | None = None,
+    *,
+    source_pins: Mapping[int, AsecSpmRoleSource] | None = None,
+) -> tuple[Frame, dict[str, Any]]:
+    """Deliver or recheck the boolean source role without a historical parent.
+
+    The full pinned file is always reconciled, even for a selected/cloned Frame.
+    Existing values must match the source; a stale or altered role is an error.
+    No raw input, age, membership, or weight is modified.
+    """
+    person = frame.table("person")
+    _require_columns(person, ("source_year", "A_AGE"), "Frame person table")
+    years = set(person.source_year)
+    available = ASEC_SPM_ROLE_SOURCES if source_pins is None else source_pins
+    _require(
+        years <= set(available),
+        "Frame has income years without pinned SPM role sources.",
+    )
+    _require(
+        not set(source_paths or ()) - set(available), "Unknown SPM role source year."
+    )
+    pins = {year: available[year] for year in sorted(years)}
+    paths = {
+        year: (
+            source_paths[year]
+            if source_paths and year in source_paths
+            else fetch_asec_education_assistance_source(year)
+        )
+        for year in pins
+    }
+    # A source role is independent of the model's requested-period age. Use
+    # the recorded Census age solely to reconcile Census's original counts.
+    source_person = person.copy()
+    source_person["age"] = source_person.A_AGE
+    result = derive_spm_role_tables(
+        source_person,
+        frame.table("spm_unit"),
+        paths,
+        source_pins=pins,
+        check_source_row_id=False,
+    )
+    if NATIVE_SPM_ROLE in person:
+        _require(
+            person[NATIVE_SPM_ROLE].dtype == np.dtype(bool),
+            "Native SPM role must be boolean.",
+        )
+        _require(
+            np.array_equal(person[NATIVE_SPM_ROLE], result.role),
+            "Native SPM role disagrees with source.",
+        )
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    tables["person"][NATIVE_SPM_ROLE] = result.role
+    tables.update({name: frame.link(name) for name in frame.links})
+    return Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    ), {**result.provenance, "source_row_position_is_identity": False}

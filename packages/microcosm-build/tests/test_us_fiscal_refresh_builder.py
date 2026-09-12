@@ -44,6 +44,92 @@ def _installed_variable_metadata_index(builder):
         pytest.skip("requires the policyengine-us [us] extra")
 
 
+def test_frozen_support_refit_requires_manifest_and_normal_release():
+    builder = _load_builder_module()
+    common = ["--ledger-facts", "facts.jsonl", "--out", "out", "--no-staging"]
+    with pytest.raises(SystemExit):
+        builder._parse_args([*common, "--refit-frozen-support"])
+    selected = [*common, "--selection-source-manifest", "support.json"]
+    args = builder._parse_args([*selected, "--refit-frozen-support"])
+    assert args.refit_frozen_support
+    assert not args.dense_default_dataset
+    for incompatible in (
+        ["--dense-default-dataset"],
+        ["--exact-k", "57240"],
+        ["--evidence-release"],
+        ["--selection-source-h5", "support.h5"],
+        ["--refit-l2-lambda", "0.1"],
+    ):
+        with pytest.raises(SystemExit):
+            builder._parse_args([*selected, "--refit-frozen-support", *incompatible])
+
+
+def test_frozen_support_identity_allows_new_values_and_weights_only(small_frame):
+    builder = _load_builder_module()
+    identity = builder._frozen_support_identity(small_frame)
+    tables = {
+        entity: small_frame.table(entity).copy() for entity in small_frame.entities
+    }
+    tables["person"]["income"] *= 2
+    changed = Frame(
+        tables,
+        small_frame.schema,
+        {"household": Weights(np.asarray([1500.0, 1500.0]), WeightKind.CALIBRATED)},
+    )
+    builder._assert_frozen_support_identity(changed, identity)
+    tables["person"]["person_household_id"] = [1, 2, 1, 2]
+    changed_membership = Frame(
+        tables, small_frame.schema, {"household": small_frame.weights_for("household")}
+    )
+    with pytest.raises(ValueError, match="Frozen support.*person"):
+        builder._assert_frozen_support_identity(changed_membership, identity)
+    tables["person"] = small_frame.table("person").iloc[::-1].reset_index(drop=True)
+    reordered = Frame(
+        tables, small_frame.schema, {"household": small_frame.weights_for("household")}
+    )
+    with pytest.raises(ValueError, match="Frozen support.*person"):
+        builder._assert_frozen_support_identity(reordered, identity)
+
+
+def test_final_immigration_check_uses_calibrated_weights_and_keeps_input_receipt(
+    small_frame, tmp_path
+):
+    builder = _load_builder_module()
+    tables = {
+        entity: small_frame.table(entity).copy() for entity in small_frame.entities
+    }
+    tables["person"]["ssn_card_type"] = ["NONE", "CITIZEN", "CITIZEN", "CITIZEN"]
+    tables["person"]["immigration_status_str"] = [
+        "UNDOCUMENTED",
+        "CITIZEN",
+        "CITIZEN",
+        "CITIZEN",
+    ]
+    # Four representative people: 11m undocumented out of 330m people initially.
+    initial = Frame(
+        tables,
+        small_frame.schema,
+        {"household": Weights(np.asarray([11e6, 154e6]), WeightKind.DESIGN)},
+    )
+    before = builder.us_immigration_composition_gate(initial)
+    assert before.passed
+    exported = Frame(
+        tables,
+        small_frame.schema,
+        {"household": Weights(np.asarray([30e6, 135e6]), WeightKind.CALIBRATED)},
+    )
+    after = builder._record_final_immigration_composition(exported, tmp_path)
+    assert before.passed  # The new result does not replace the input evidence.
+    assert not after.passed
+    assert any("published anchor" in failure for failure in after.failures)
+    receipt = json.loads((tmp_path / "us_immigration_final.json").read_text())
+    assert receipt["weight_context"] == "calibrated_export"
+    assert not receipt["passed"]
+    assert receipt["details"]["controls"] == before.details["controls"]
+    assert receipt["details"]["non_citizen_share_band"] == [0.03, 0.12]
+    assert receipt["details"]["undocumented_anchor_relative_band"] == [0.5, 1.6]
+
+
 def _load_scorer_module():
     root = Path(__file__).resolve().parents[3]
     tools_path = str(root / "tools")
@@ -8971,6 +9057,15 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
             return 1
 
     registry = FakeRegistry()
+    final_receipt_path = release_dir / "us_immigration_final.json"
+    final_receipt_path.write_text(
+        '{"passed":true,"weight_context":"calibrated_export"}'
+    )
+    final_immigration_gate = builder.GateResult(
+        name="us_immigration_composition",
+        passed=True,
+        details={"non_citizen_share": 0.07},
+    )
 
     builder._build_manifests(
         release_id=release_id,
@@ -8978,6 +9073,7 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
         artifact_root=artifact_root,
         result=result,
         registry=registry,
+        final_immigration_gate=final_immigration_gate,
         dropped={"dropped_target_names": []},
         target_profile_gate=builder.GateResult(
             name="target_profile_coverage",
@@ -9108,6 +9204,18 @@ def test_build_manifests_emits_policyengine_certifiable_release_manifest(
         "revision": release_id,
         "sha256": builder._sha256(ssi_diagnostics_path),
     }
+    assert manifest["artifacts"]["us_immigration_final"]["sha256"] == builder._sha256(
+        final_receipt_path
+    )
+    assert (
+        manifest["artifacts"]["us_immigration_final"]["path"]
+        == "us_immigration_final.json"
+    )
+    assert build_manifest["gates"]["final_immigration_composition"]["passed"]
+    assert (
+        manifest["build"]["final_immigration_composition"]["details"]
+        == final_immigration_gate.details
+    )
     for artifact in manifest["artifacts"].values():
         assert artifact["repo_id"] == builder.REPO_ID
         assert artifact["revision"] == release_id
@@ -12295,3 +12403,94 @@ def test_evidence_mode_conversion_is_pinned_structurally() -> None:
     assert len(owner_check_calls) == 5, (
         f"expected 5 owner-resolution sites in _main(), found {len(owner_check_calls)}"
     )
+
+
+def test_frozen_support_refit_executes_real_calibration_without_selecting(small_frame):
+    builder = _load_builder_module()
+    args = builder._parse_args(
+        [
+            "--ledger-facts",
+            "facts.jsonl",
+            "--out",
+            "out",
+            "--no-staging",
+            "--selection-source-manifest",
+            "support.json",
+            "--refit-frozen-support",
+            "--epochs",
+            "30",
+        ]
+    )
+    registry = TargetRegistry(
+        (
+            TargetSpec(
+                name="income",
+                entity="person",
+                measure="income",
+                value=650_000,
+                source="synthetic fixture",
+            ),
+        ),
+        country="us",
+    )
+    result, metadata = builder._calibrate_frozen_support(
+        small_frame,
+        registry,
+        args=args,
+        identity=builder._frozen_support_identity(small_frame),
+        identities_sha256="1" * 64,
+        target_loss_weights=np.ones(1),
+    )
+    assert result.frame.n("household") == 2
+    assert result.frame.n("person") == 4
+    assert result.frame.weights_for("household").kind == WeightKind.CALIBRATED
+    assert result.frame.weights_for("household").total == pytest.approx(
+        small_frame.weights_for("household").total
+    )
+    assert result.final_loss < result.initial_loss
+    assert metadata["method"] == "full_support_refit"
+    assert metadata["selection_epochs"] == 0
+    assert metadata["n_selected_households"] == metadata["n_exported_households"] == 2
+    assert metadata["support_identities_sha256"] == "1" * 64
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        "--l0-refit-lambda-share=0.1",
+        "--allow-input-mass-drift",
+        "--allow-ecps-parity-gaps",
+        "--allow-input-coverage-gaps",
+        "--allow-qrf-tail-concentration",
+        "--skip-reform-coverage-smoke",
+        "--allow-reform-coverage-smoke-failures",
+        "--skip-reform-validation",
+        "--skip-out-of-sample-reforms",
+    ],
+)
+def test_frozen_support_refit_rejects_gate_bypasses(flag):
+    builder = _load_builder_module()
+    with pytest.raises(SystemExit):
+        builder._parse_args(
+            [
+                "--ledger-facts",
+                "facts.jsonl",
+                "--out",
+                "out",
+                "--no-staging",
+                "--selection-source-manifest",
+                "support.json",
+                "--refit-frozen-support",
+                flag,
+            ]
+        )
+
+
+def test_frozen_support_preserves_native_role_through_calibration(small_frame):
+    builder = _load_builder_module()
+    role = builder.NATIVE_SPM_ROLE
+    small_frame.table("person")[role] = [True, False, True, False]
+    identity = builder._frozen_support_identity(small_frame)
+    small_frame.table("person").loc[0, role] = False
+    with pytest.raises(ValueError, match="Frozen support changed person"):
+        builder._assert_frozen_support_identity(small_frame, identity)

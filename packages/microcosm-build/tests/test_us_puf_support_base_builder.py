@@ -876,6 +876,11 @@ def test_pooled_source_stage_dual_exports_without_changing_legacy_checkpoints(
     )
 
     monkeypatch.setattr(builder, "derive_us_cps_carried_inputs", add_age)
+    # This boundary test stubs every pre-clone operator; native-role behavior
+    # is exercised against real pinned fixture CSVs in test_us_spm_role_source.
+    monkeypatch.setattr(
+        builder, "_with_native_spm_role", lambda _args, value: (value, {})
+    )
     identity_transforms = (
         "with_us_prior_year_income_inputs",
         "with_us_relationship_inputs",
