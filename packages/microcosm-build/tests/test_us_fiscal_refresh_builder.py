@@ -47,6 +47,9 @@ def _installed_variable_metadata_index(builder):
 def test_frozen_support_refit_requires_manifest_and_normal_release():
     builder = _load_builder_module()
     common = ["--ledger-facts", "facts.jsonl", "--out", "out", "--no-staging"]
+    ordinary = builder._parse_args([*common, "--allow-unaged-dollar-targets"])
+    assert ordinary.allow_unaged_dollar_targets
+    assert not ordinary.refit_frozen_support
     with pytest.raises(SystemExit):
         builder._parse_args([*common, "--refit-frozen-support"])
     selected = [*common, "--selection-source-manifest", "support.json"]
@@ -12458,6 +12461,7 @@ def test_frozen_support_refit_executes_real_calibration_without_selecting(small_
     "flag",
     [
         "--l0-refit-lambda-share=0.1",
+        "--allow-unaged-dollar-targets",
         "--allow-input-mass-drift",
         "--allow-ecps-parity-gaps",
         "--allow-input-coverage-gaps",
