@@ -973,7 +973,6 @@ _source_input_inventories = {
                 "PEIO1COW",
                 "A_MJOCC",
                 "PEAFEVER",
-                "SPM_CAPHOUSESUB",
             )
         ),
         _single("person_id", "person", "person_id"),

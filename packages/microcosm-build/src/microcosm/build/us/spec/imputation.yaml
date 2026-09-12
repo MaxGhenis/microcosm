@@ -9640,15 +9640,6 @@ producer_graph:
       required_scope: asec_source
       tolerated_absence_receipts: []
     - alternatives:
-      - - column: SPM_CAPHOUSESUB
-          entity: person
-          value_kind: finite_numeric
-      column: '@effective:raw_person:SPM_CAPHOUSESUB'
-      entity: person
-      producing_stage: post_clone_input_surface
-      required_scope: asec_source
-      tolerated_absence_receipts: []
-    - alternatives:
       - - column: SSI_YN
           entity: person
           value_kind: finite_numeric
