@@ -22,6 +22,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from hashlib import sha256
+from importlib import import_module
 from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from types import MappingProxyType
@@ -81,6 +82,22 @@ _FORMULA_OWNED_COMPAT_COLUMNS = frozenset(
         "social_security",
     }
 )
+
+
+def _country_formula_owned_inputs() -> frozenset[str]:
+    """Read the installed country's explicit dataset ownership contract.
+
+    Older country releases have no SPM integration module. Other import
+    failures must remain visible; a broken installed contract cannot permit
+    storing measurements as input leaves.
+    """
+    try:
+        spm = import_module("policyengine_us.spm")
+    except ModuleNotFoundError as exc:
+        if exc.name == "policyengine_us.spm":
+            return frozenset()
+        raise
+    return frozenset(spm.DATASET_FORMULA_OWNED_INPUTS)
 
 
 @dataclass(frozen=True)
@@ -552,11 +569,11 @@ class PolicyEngineUSEngine:
             ImportError: If ``policyengine_us`` is not installed.
         """
         system_variables = self._tax_benefit_system().variables
+        excluded = _FORMULA_OWNED_COMPAT_COLUMNS | _country_formula_owned_inputs()
         return sorted(
             name
             for name, variable in system_variables.items()
-            if name not in _FORMULA_OWNED_COMPAT_COLUMNS
-            and not _is_engine_computed(variable)
+            if name not in excluded and not _is_engine_computed(variable)
         )
 
     def formula_owned_outputs(self, names: Iterable[str]) -> set[str]:
@@ -567,24 +584,25 @@ class PolicyEngineUSEngine:
         start-date formula mapping — or when it is one of the
         compatibility-blocked aggregates the adapter refuses to persist even
         though some published wheels still report them as inputs
-        (:data:`_FORMULA_OWNED_COMPAT_COLUMNS`). This is the complement of
+        (:data:`_FORMULA_OWNED_COMPAT_COLUMNS`), or the installed country's
+        explicit dataset ownership contract reserves it. This is the complement of
         :meth:`variables` restricted to ``names``: persisting a formula-owned
         variable as a dataset input pins its baseline and masks reforms, so
         callers deriving an imputation/export surface reject exactly this set
         instead of maintaining a hand-written blocklist that goes stale as
         PolicyEngine-US adds variables (microcosm issue #301).
 
-        Names unknown to the tax-benefit system are not flagged: they cannot be
-        classified as formula-owned here, and the export/enum guards own
-        unknown columns.
+        Names unknown to both the tax-benefit system and its explicit ownership
+        contract are not flagged; the export/enum guards own unknown columns.
 
         Raises:
             ImportError: If ``policyengine_us`` is not installed.
         """
         variables = self._tax_benefit_system().variables
+        excluded = _FORMULA_OWNED_COMPAT_COLUMNS | _country_formula_owned_inputs()
         flagged: set[str] = set()
         for name in names:
-            if name in _FORMULA_OWNED_COMPAT_COLUMNS:
+            if name in excluded:
                 flagged.add(name)
                 continue
             variable = variables.get(name)
@@ -696,10 +714,11 @@ class PolicyEngineUSEngine:
             ImportError: If ``policyengine_us`` is not installed.
         """
         variables = self._tax_benefit_system().variables
+        excluded = _FORMULA_OWNED_COMPAT_COLUMNS | _country_formula_owned_inputs()
         defaults: dict[str, object] = {}
         for name in names:
             variable = variables.get(name)
-            if variable is None or _is_engine_computed(variable):
+            if name in excluded or variable is None or _is_engine_computed(variable):
                 continue
             default = getattr(variable, "default_value", None)
             if default is None:
@@ -950,7 +969,8 @@ class PolicyEngineUSEngine:
         variables = self._tax_benefit_system().variables
         present = {column for frame in tables.values() for column in frame.columns}
         structural = self._structural_columns()
-        return set(present & _FORMULA_OWNED_COMPAT_COLUMNS) | {
+        excluded = _FORMULA_OWNED_COMPAT_COLUMNS | _country_formula_owned_inputs()
+        return set(present & excluded) | {
             column
             for column in present
             if column not in structural

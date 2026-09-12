@@ -5,6 +5,8 @@ a workspace dependency; install via ``microcosm-frame[policyengine]`` to run
 these).
 """
 
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -19,6 +21,7 @@ from microcosm.frame import (  # noqa: E402
     Weights,
     wsum,
 )
+from microcosm.frame.adapters import policyengine_us as adapter_module  # noqa: E402
 from microcosm.frame.adapters.policyengine_us import PolicyEngineUSEngine  # noqa: E402
 
 
@@ -75,6 +78,18 @@ def us_bundle_with_person_and_household_weights(us_bundle: Frame) -> Frame:
 
 
 class TestVariableMetadata:
+    def test_country_ownership_overrides_leaf_metadata(self, adapter, monkeypatch):
+        # Explicit country ownership remains authoritative even if declaration
+        # metadata alone would classify the quantity as an input leaf.
+        monkeypatch.setattr(
+            adapter_module,
+            "import_module",
+            lambda name: SimpleNamespace(DATASET_FORMULA_OWNED_INPUTS={"age"}),
+        )
+        assert "age" not in adapter.variables()
+        assert adapter.formula_owned_outputs(["age"]) == {"age"}
+        assert adapter.default_values(["age"]) == {}
+
     def test_entity_dtype_period(self, adapter) -> None:
         meta = adapter.variable_metadata("employment_income")
         assert meta.entity == "person"
@@ -493,6 +508,48 @@ class TestWriteDataset:
         with pytest.raises(ValueError, match="spm_unit_capped_work_childcare_expenses"):
             adapter.write_dataset(rebuilt, path, period=2024)
         assert not path.exists()
+
+    @pytest.mark.parametrize(
+        "column",
+        ["spm_unit_allocated_housing_subsidy", "spm_unit_allocated_tenant_payment"],
+    )
+    @pytest.mark.parametrize("via_default", [False, True])
+    def test_country_owned_allocation_cannot_be_exported(
+        self, us_bundle, tmp_path, monkeypatch, column, via_default
+    ) -> None:
+        # The locked historical engine may not declare these new outputs yet.
+        # Country ownership must still block both carried and defaulted data.
+        monkeypatch.setattr(
+            adapter_module,
+            "import_module",
+            lambda name: SimpleNamespace(DATASET_FORMULA_OWNED_INPUTS={column}),
+        )
+        tables = {name: us_bundle.table(name).copy() for name in us_bundle.entities}
+        if not via_default:
+            tables["spm_unit"][column] = [3_000.0, 0.0]
+        bundle = Frame(
+            tables, US_SCHEMA, {"household": us_bundle.weights_for("household")}
+        )
+        adapter = PolicyEngineUSEngine(
+            contract=ExportContract(
+                required=(column,), forbidden=(), optional=(), formula_owned_excluded=()
+            ),
+            defaults={column: 0.0} if via_default else {},
+        )
+        path = tmp_path / "country_owned.h5"
+        with pytest.raises(ValueError, match=f"formula-owned.*{column}"):
+            adapter.write_dataset(bundle, path, period=2024)
+        assert not path.exists()
+
+    def test_broken_country_contract_dependency_does_not_disable_guard(
+        self, monkeypatch
+    ) -> None:
+        def fail_import(name):
+            raise ModuleNotFoundError("missing calculator", name="spm_calculator")
+
+        monkeypatch.setattr(adapter_module, "import_module", fail_import)
+        with pytest.raises(ModuleNotFoundError, match="missing calculator"):
+            adapter_module._country_formula_owned_inputs()
 
     def test_contract_listed_formula_owned_columns_still_block_the_write(
         self, us_bundle, tmp_path
