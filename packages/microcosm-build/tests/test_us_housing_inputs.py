@@ -453,8 +453,10 @@ def test_puf_fit_uses_one_head_per_household_and_reassigns_only_head_unit(monkey
     assert captured["targets"] == [US_HOUSING_RECEIPT_COLUMN]
     assert captured["init"] == {"n_estimators": 100, "seed": 17}
     person = expanded.table("person")
+    head_mask = person["is_household_head"].to_numpy(dtype=bool)
     expected_weights = pd.Series(
-        expanded.resolve_weights("person").values, index=person.index
+        expanded.resolve_weights("person").values[head_mask],
+        index=person.loc[head_mask, "person_household_id"],
     ).loc[captured["training"].index]
     np.testing.assert_array_equal(captured["weights"], expected_weights)
     household = result.table("household")
@@ -513,6 +515,101 @@ def test_real_puf_receipt_fit_is_reproducible_and_preserves_source_households(
         ~spm["spm_unit_id"].isin(heads["person_spm_unit_id"]),
         "receives_housing_assistance",
     ].any()
+
+
+def _duplicate_row_labels(frame: Frame, *, reverse_people: bool = False) -> Frame:
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    strata = frame.strata.copy()
+    if reverse_people:
+        tables["person"] = tables["person"].iloc[::-1].copy()
+        strata = strata.iloc[::-1].copy()
+    for table in tables.values():
+        table.index = ["same"] * len(table)
+    strata.index = tables["person"].index
+    # Reconstruct a valid Frame, including its index-aligned stratum labels.
+    return Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        strata,
+        mass_log=frame.mass_log,
+        metadata=frame.metadata,
+    )
+
+
+def test_rent_head_mapping_preserves_duplicate_row_labels_and_person_order(monkeypatch):
+    direct = _duplicate_row_labels(
+        derive_us_housing_inputs(_multiple_unit_household()), reverse_people=True
+    )
+    person = direct.table("person")
+
+    class Fitted:
+        def predict(self, test):
+            # The feature table is indexed by household identity.
+            return pd.DataFrame(
+                {"rent": test.index.to_numpy() * 100.0}, index=test.index
+            )
+
+    class QRF:
+        def __init__(self, **kwargs):
+            pass
+
+        def fit(self, *args, **kwargs):
+            return Fitted()
+
+    monkeypatch.setattr(module, "QRF", QRF)
+    rent = module.impute_us_pre_subsidy_rent(direct, _donor(), seed=0)
+    expected = np.where(
+        person["is_household_head"].to_numpy(),
+        person["person_household_id"].to_numpy() * 100.0,
+        0.0,
+    )
+    np.testing.assert_array_equal(rent, expected)
+    assert person.index.tolist() == ["same"] * len(person)
+
+
+@pytest.mark.parametrize("missing_prediction", (False, True))
+def test_puf_head_fit_preserves_duplicate_entity_row_labels(
+    monkeypatch, missing_prediction
+):
+    expanded = clone_us_frame_for_puf_support(
+        derive_us_housing_inputs(_multiple_unit_household())
+    )
+    expanded = _duplicate_row_labels(expanded)
+    captured = {}
+
+    class QRF:
+        def __init__(self, **kwargs):
+            pass
+
+        def fit(self, training, *, predictors, targets, weights):
+            captured.update(training=training.copy(), weights=weights.copy())
+            return self
+
+        def predict(self, test):
+            captured["test"] = test.copy()
+            values = np.zeros(len(test))
+            if missing_prediction:
+                values[0] = np.nan
+            return pd.DataFrame({US_HOUSING_RECEIPT_COLUMN: values}, index=test.index)
+
+    monkeypatch.setattr(module, "QRF", QRF)
+    if missing_prediction:
+        with pytest.raises(ValueError, match="nonfinite predictions"):
+            impute_us_housing_assistance_to_puf_support(expanded, seed=0)
+        return
+    result = impute_us_housing_assistance_to_puf_support(expanded, seed=0)
+    assert len(captured["training"]) == len(captured["test"]) == 20
+    assert len(captured["weights"]) == 20
+    assert captured["training"].index.is_unique
+    assert captured["test"].index.is_unique
+    household = result.table("household")
+    puf = household[support_channel_column("household")].eq(
+        PUF_TAX_DETAIL_SUPPORT_CHANNEL
+    )
+    assert not household.loc[puf, US_HOUSING_RECEIPT_COLUMN].any()
+    for entity in expanded.entities:
+        assert result.table(entity).index.equals(expanded.table(entity).index)
 
 
 def test_rent_fit_replays_archived_joint_target_sample(

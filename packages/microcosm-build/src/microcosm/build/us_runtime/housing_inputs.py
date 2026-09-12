@@ -509,8 +509,8 @@ def _decode_household_receipt(household: pd.DataFrame) -> np.ndarray:
     return public_yes | reduced_yes
 
 
-def _household_heads(frame: Frame) -> pd.DataFrame:
-    """Require exactly one explicit head for every delivered household."""
+def _household_head_positions(frame: Frame) -> np.ndarray:
+    """Find one head per household independently of DataFrame index labels."""
     person = frame.table("person")
     _required_columns(
         person,
@@ -520,14 +520,15 @@ def _household_heads(frame: Frame) -> pd.DataFrame:
     head, missing, invalid = _strict_boolean_signal(person["is_household_head"])
     if missing or invalid:
         raise ValueError("US housing requires complete boolean household-head roles.")
-    heads = person.loc[head]
+    positions = np.flatnonzero(head)
+    heads = person.iloc[positions]
     head_ids = heads["person_household_id"]
     household_ids = frame.table("household")["household_id"]
     if head_ids.duplicated().any():
         raise ValueError("US housing recipient selected multiple heads per household.")
     if set(head_ids) != set(household_ids):
         raise ValueError("US housing household-head alignment failed.")
-    return heads
+    return positions
 
 
 def _head_unit_receipt(frame: Frame, receipt: np.ndarray) -> np.ndarray:
@@ -537,7 +538,7 @@ def _head_unit_receipt(frame: Frame, receipt: np.ndarray) -> np.ndarray:
     The country separately allocates the single award for SPM measurement.
     """
     person = frame.table("person")
-    heads = _household_heads(frame)
+    heads = person.iloc[_household_head_positions(frame)]
     memberships = person.groupby("person_spm_unit_id")["person_household_id"]
     if memberships.nunique().ne(1).any():
         raise ValueError("US housing SPM units must belong to one household.")
@@ -701,8 +702,10 @@ def _recipient_head_features(frame: Frame) -> tuple[pd.DataFrame, np.ndarray]:
         "household",
     )
 
-    heads = _household_heads(frame)
-    head_mask = person.index.isin(heads.index)
+    head_positions = _household_head_positions(frame)
+    heads = person.iloc[head_positions]
+    head_mask = np.zeros(len(person), dtype=bool)
+    head_mask[head_positions] = True
     head_ids = heads["person_household_id"].to_numpy()
     household_ids = household["household_id"].to_numpy()
 
@@ -754,7 +757,7 @@ def _recipient_head_features(frame: Frame) -> tuple[pd.DataFrame, np.ndarray]:
             "pension_income": pension_income,
         },
         index=person.index,
-    ).loc[head_mask]
+    ).iloc[head_positions]
     all_features["tenure_type"] = pd.Series(head_ids).map(tenure_by_id).to_numpy()
     all_features["state_code_str"] = np.asarray(
         [f"{int(value):02d}" for value in pd.Series(head_ids).map(state_by_id)],
@@ -974,7 +977,15 @@ def impute_us_pre_subsidy_rent(
         raise ValueError("ACS rent QRF produced nonfinite predictions.")
     predicted = np.maximum(predicted, 0.0)
     person_rent = np.zeros(frame.n("person"), dtype=np.float64)
-    person_rent[head_mask] = predicted
+    rent_by_household = pd.Series(predicted, index=features.index)
+    head_rent = (
+        frame.table("person")
+        .loc[head_mask, "person_household_id"]
+        .map(rent_by_household)
+    )
+    if head_rent.isna().any():
+        raise ValueError("ACS rent QRF output does not cover every household head.")
+    person_rent[head_mask] = head_rent.to_numpy(dtype=np.float64)
     return person_rent
 
 
@@ -1083,8 +1094,11 @@ def impute_us_housing_assistance_to_puf_support(
             raise ValueError(
                 f"US housing PUF imputation requires {entity} support metadata."
             )
-    heads = _household_heads(frame)
-    predictors = _person_puf_predictors(frame).loc[heads.index]
+    head_positions = _household_head_positions(frame)
+    heads = person.iloc[head_positions]
+    head_ids = pd.Index(heads["person_household_id"].to_numpy(), name="household_id")
+    predictors = _person_puf_predictors(frame).iloc[head_positions].copy()
+    predictors.index = head_ids
     receipt_values, receipt_missing, receipt_invalid = _strict_boolean_signal(
         household[US_HOUSING_RECEIPT_COLUMN]
     )
@@ -1093,11 +1107,13 @@ def impute_us_housing_assistance_to_puf_support(
             "US housing PUF imputation requires complete boolean household receipt."
         )
     receipt_by_household = pd.Series(receipt_values, index=household["household_id"])
-    target = heads["person_household_id"].map(receipt_by_household)
+    target = receipt_by_household.reindex(head_ids)
     role = support_role_series(household, entity="household")
     role_by_household = pd.Series(role.to_numpy(), index=household["household_id"])
-    head_role = heads["person_household_id"].map(role_by_household)
-    person_role = support_role_series(person, entity="person").loc[heads.index]
+    head_role = role_by_household.reindex(head_ids)
+    if target.isna().any() or head_role.isna().any():
+        raise ValueError("US housing evidence does not cover every household head.")
+    person_role = support_role_series(person, entity="person").iloc[head_positions]
     if not np.array_equal(head_role.to_numpy(), person_role.to_numpy()):
         raise ValueError("US housing head and household support channels disagree.")
     asec_mask = head_role == BASE_ASEC_SUPPORT_CHANNEL
@@ -1112,8 +1128,10 @@ def impute_us_housing_assistance_to_puf_support(
         dtype=np.float64
     )
     weights = pd.Series(
-        np.asarray(frame.resolve_weights("person").values, dtype=np.float64),
-        index=person.index,
+        np.asarray(frame.resolve_weights("person").values, dtype=np.float64)[
+            head_positions
+        ],
+        index=head_ids,
     ).loc[training.index]
     if not np.isfinite(weights.to_numpy()).all() or (weights < 0.0).any():
         raise ValueError("US housing PUF QRF head weights must be finite/nonnegative.")
@@ -1151,15 +1169,14 @@ def impute_us_housing_assistance_to_puf_support(
     ).to_numpy(dtype=np.float64)
     if not np.isfinite(predicted).all():
         raise ValueError("US housing PUF QRF produced nonfinite predictions.")
-    imputed_by_household = pd.Series(
-        predicted >= 0.5, index=heads.loc[puf_mask, "person_household_id"]
-    )
+    imputed_by_household = pd.Series(predicted >= 0.5, index=test.index)
     puf_households = role.eq(PUF_TAX_DETAIL_SUPPORT_CHANNEL).to_numpy()
-    receipt_values[puf_households] = (
-        household.loc[puf_households, "household_id"]
-        .map(imputed_by_household)
-        .to_numpy(dtype=bool)
+    recipient_receipt = household.loc[puf_households, "household_id"].map(
+        imputed_by_household
     )
+    if recipient_receipt.isna().any():
+        raise ValueError("US housing QRF output does not cover every PUF household.")
+    receipt_values[puf_households] = recipient_receipt.to_numpy(dtype=bool)
     tables = {entity: frame.table(entity).copy() for entity in frame.entities}
     tables["household"][US_HOUSING_RECEIPT_COLUMN] = receipt_values
     awarded = _head_unit_receipt(frame, receipt_values)
