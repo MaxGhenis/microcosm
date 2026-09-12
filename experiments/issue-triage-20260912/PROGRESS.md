@@ -20,6 +20,17 @@ is local-only (not pushed; pushing would be a GitHub write).
   issues referenced in main commits), repo_doc_refs.json (50 open issues cited in docs/
   journals/receipts; 11 via #893's added docs).
 
+- Built 230 dossiers (scratchpad/dossiers/<n>.md) + dossier_index.json; heuristic areas:
+  release-publishing 49, calibration 47, us-spine 46, uk-spine 44, chronicle-logbook 15,
+  axiom-nz-be-am 15, engine-bumps 8, graph 3, docs-ci-infra 2, unclassified 1.
+  93 issues idle >= 60 days; 32 have zero number-linked evidence anywhere.
+- Wrote BRIEF.md (rules, precedence, evidence formats), batches.json (30 batches after
+  merging tiny ones), render.py (out.md + JSON + structural checks), commands.log.
+- Launched Workflow wf_421246fa-de7: 10 per-area cluster agents || 30 batch triage agents
+  -> per-batch keyword hunt for KEEP/STALE rows -> 1-2 adversarial verifiers per closable
+  claim -> second-round verify for moved claims -> cluster-vs-triage reconciliation.
+
 ## Next
-- Build per-issue dossiers; fan out triage (per-batch) + duplicate clustering (per-area);
-  adversarially verify every closable claim; script-check evidence; render out.md + JSON.
+- When the workflow returns: render, run structural checks, personally spot-check >=5
+  RESOLVED-CLOSE rows against the cited diffs, re-pull the open list for mid-lane closures,
+  write out-issue-triage.md + issue-dispositions.json, final commit of this journal.
