@@ -138,6 +138,8 @@ _SOURCE_SPINE_PROVENANCE_OWNERS = frozenset(
         # original-record joins or declarations, not source-routed PUF models.
         "current_acs_income_anchor_source.py",  # ACS anchor -> exact original ids.
         "current_asec_interest_source.py",  # ASEC interest -> original money owner.
+        # Original ASEC pension/disability/survivor details; no population model.
+        "current_asec_retirement_detail_source.py",
         "current_asec_unemployment_source.py",  # UC literal -> original ASEC ids.
         "current_survey_amounts.py",  # Validate origin join; fan out to both clones.
         "current_survey_health_source.py",  # Qualify exact ACS/ASEC source rosters.
@@ -370,6 +372,8 @@ _US_LAUNCH_GRAPH_RUNTIME_MODULES = frozenset(
         "current_acs_income_anchor_source.py",
         # Qualified ASEC interest components and unreconciled total diagnostics
         "current_asec_interest_source.py",
+        # Qualified ASEC retirement details and raw aggregate/slot comparisons
+        "current_asec_retirement_detail_source.py",
         # Qualified UC receipt/amount observations, preserving unknown zeros
         "current_asec_unemployment_source.py",
         # Current UC/health amount qualification and exact two-clone attachment
