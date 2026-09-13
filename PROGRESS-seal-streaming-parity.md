@@ -36,8 +36,9 @@ owners, confirmed by inspection before any edit:
 
 ## State
 
-Inspection complete, implementation starting. This section is updated on every
-commit; the "Done" list below is what is actually committed.
+Source patch complete on this branch, source-only checks green, **runtime
+untested by instruction**. Nothing was pushed. Root reviews the frozen file
+list and runs the bounded guard.
 
 ## Done
 
@@ -47,21 +48,36 @@ commit; the "Done" list below is what is actually committed.
    not resolve; the real path is under `_recovered/scratch-backup/893/`).
 3. Established the identity blast radius by reading the code that binds it —
    see "Identity consequences" below.
-
-## Planned commits
-
-4. Candidate 1 — stream `_population_stamp` parts into the unchanged `_digest`.
-5. Candidate 2a — `_storage_parts` accepts `slice(None)`; whole-series callers
-   inside `microcosm-graph` and the reviewed enrichment site use it; the unused
-   `isna()` moved below the masked-storage branch.
-6. Candidate 2b — the four remaining whole-series build call sites, split out so
-   root can revert the extra pin churn without touching 2a.
-7. Candidate 3 — exact-`float` `struct.pack("=d", ...)` fast path in
-   `_update_scalar`, NumPy/subclass fallback retained.
+4. `11f715993` — candidate 1: stream `_population_stamp` parts into the
+   unchanged `_digest` (`chain`, as `_table_stamp` already did).
+5. `4633fd0e8` — candidate 2a: `_storage_parts` accepts `slice(None)`;
+   `storage_equal`'s whole-series path and the reviewed enrichment
+   `_series_parts` use it; the unused `isna()` moved below the masked branch.
+6. `c6f727e93` — candidate 2b: the five remaining whole-series build call
+   sites, split out so root can revert the extra identity churn on its own.
+7. `1a84114d7` — candidate 3: exact-`float` `struct.pack("=d", ...)` fast path
+   in `_update_scalar`; NumPy scalars and `float` subclasses keep the array
+   path, and no earlier identity check is reordered.
 8. Parity tests against verbatim copies of the pre-change implementations, plus
-   the mutation-sensitivity battery (one test file per candidate).
-9. Changelog fragments (one per candidate) and
+   the mutation battery — five flat test files, each in the CI group it should
+   be in (`tools/ci_test_groups.py --verify` exits 0, none `[defaulted]`).
+9. One changelog fragment per candidate, and
    `docs/seal-streaming-parity-method.md` (method, limits, benchmark plan).
+
+## Source-only verification performed here
+
+- `ast.parse` of every touched file with `/opt/homebrew/bin/python3 -I -B -S`.
+- `ruff format` + `ruff check` (0.15.0) on every touched file: clean.
+- `python3 -I -B -S tools/ci_test_groups.py --verify`: exit 0; the five new
+  test files land in `fast/rest` and in `engine/us-am` (four) and
+  `engine/us-not` (one); none appears under `[defaulted]`.
+- A stdlib-only AST replication of `graph_implementation._dependency_details`
+  confirms the pinned `contracts` entries for `microcosm.graph/executor.py` and
+  `microcosm.graph/population.py` still match: `struct` is excluded as stdlib,
+  and neither module contains any `_RESOURCE_CALLS` name.
+
+No test, import, build, simulation, native/archive/store read or benchmark was
+executed in this lane.
 
 ## Identity consequences (read, not assumed)
 
