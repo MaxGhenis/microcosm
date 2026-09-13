@@ -13,11 +13,11 @@ claim.
 
 ## State
 
-Complete and local. Ten commits. The codec, its tests, the changelog fragment
-and the integration proposal are in the tree; nothing calls the new module, so
-no declaration, node key, spec digest or stage implementation hash moves.
-`builder_code_identity` does move, because it hashes every source file under
-`packages/*/src`; that is recorded in the proposal.
+In progress, local, source-only. Baseline confirmed clean at
+`2419e65f411dafd2cbd9baa66fe15c68639f11987` on the fresh requested branch.
+The v2 codec has a confirmed inherited-domain gap: `share` and
+`inclusion_probability` must each satisfy `0 < value <= 1` in both encoder and
+decoder. No tests have been collected or run.
 
 Tests are **UNRUN**: 71 test functions, 172 parametrized cases, never collected
 or executed in this lane. One of them asserts a byte count and is held for a
@@ -53,10 +53,10 @@ separately reviewed root guard.
 
 ## Next
 
-Root's call. An opt-in host integration is a separate, reviewed change; its full
-cost — the three consumers that parse the bytes, the artifact type bump, the
-implementation-inventory edit that moves every US stage hash, and every recorded
-`allocation_sha256` — is written up in `docs/us-allocation-columnar-v2.md`.
+Implement and statically verify the inherited rational domains, add authored
+encoder/decoder regressions (including repaired-checksum tampering), update the
+v1-parity documentation/journal assertion, and commit the final handoff report.
+All 172 existing cases and the new cases remain UNRUN.
 
 The preparation payload's own 64 MiB cap is untouched and unrelieved by this
 work; it remains the other ceiling on the same path.
