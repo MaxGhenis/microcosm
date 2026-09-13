@@ -1,0 +1,1 @@
+Add an age-15+ invented-source fixture and regression controls for the complete property38 to PUF55 cold/required bridge, preserving default incomplete-source fixtures and production admission rules. Runtime acceptance remains pending.

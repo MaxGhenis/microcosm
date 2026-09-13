@@ -52,7 +52,12 @@ def _detached(value):
     return copy.deepcopy(value)
 
 
-def source_arguments(tmp_path, monkeypatch):
+def source_arguments(tmp_path, monkeypatch, *, complete_adults=False):
+    """Construct invented literals before issuance, optionally all age 15+.
+
+    The positive bridge changes the source case, never an issued value or a
+    production unknownness rule. The default retains child/malformed anchors.
+    """
     import test_us_survey_population_preparation as fixture
     from test_us_asec_coverage_authentication import _changed_parent
     from test_us_current_asec_income_routing import routing_arguments
@@ -67,14 +72,18 @@ def source_arguments(tmp_path, monkeypatch):
         row.update(FINTP="0", FRETP="0", INTP="100", RETP="0")
         if row["SERIALNO"] == "2024HU0000001" and int(row["SPORDER"]) == 1:
             row.update(INTP="-800", ADJINC="1000133")
-        elif row["SERIALNO"] == "2024HU0000002":
+        elif not complete_adults and row["SERIALNO"] == "2024HU0000002":
             row["INTP"] = "bad"
-        elif row["SERIALNO"] == "2024GQ0000001":
+        elif not complete_adults and row["SERIALNO"] == "2024GQ0000001":
             row.update(AGEP="14", INTP="", RETP="", WAGP="", SEMP="")
         return row
 
     monkeypatch.setattr(fixture, "_person", person)
-    arguments = routing_arguments(tmp_path, monkeypatch)
+    arguments = routing_arguments(
+        tmp_path,
+        monkeypatch,
+        ages={105: 55, 106: 15, 107: 70, 108: 15} if complete_adults else None,
+    )
     folder = arguments["source_dir"] / "asec"
     parent_path, attachment = folder / "parent.h5", folder / "household-attachment.h5"
     people = load_frame_checkpoint(parent_path).frame.person
@@ -133,6 +142,16 @@ def source_arguments(tmp_path, monkeypatch):
         # Historical parent values remain their own current-money observations.
         for name in ("INT_VAL", "DIV_VAL"):
             raw[name] = [str(int(updated.loc[key, name])) for key in raw.PERIDNUM]
+        if complete_adults and year == 2024:
+            # These are explicitly invented age-15 nonreceipt observations.
+            # Do not carry the age-14 fixture's NIU code into its replacement.
+            selected = raw.PERIDNUM.map(
+                lambda key: int(updated.loc[key, "person_id"]) in (106, 108)
+            )
+            assert selected.sum() == 2
+            assert raw.loc[selected, "SS_VAL"].eq("0").all()
+            assert raw.loc[selected, "A_AGE"].eq("15").all()
+            raw.loc[selected, "SS_YN"] = "2"
         raw.iloc[::-1].to_csv(path, index=False)
         payload = path.read_bytes()
         pins.append(

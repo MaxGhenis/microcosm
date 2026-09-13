@@ -19,67 +19,72 @@ from microcosm.build.us_runtime import graph_puf55_survey_recipients as puf_reci
 from microcosm.graph import compile_graph
 
 
-@pytest.fixture(scope="module")
-def property_host_source(tmp_path_factory):
+def _property_host_source_arguments(root, patch, *, complete_adults=False):
+    """Compose the existing source fixture without issuing a graph or owner."""
     import test_us_current_asec_demographics as demographic_fixture_module
     import test_us_current_asec_income_routing as routing_fixture
     import test_us_survey_population_preparation as survey_fixture_module
 
     from microcosm.build.us_runtime import current_asec_demographics as demographics
 
+    # Compose complete invented member bytes before the real source issuer
+    # runs. Only fixture constructors and their registry pins are replaced.
+    # The nesting order is original source -> Social Security -> demographics
+    # -> routing -> property. Each extension preserves prior columns and
+    # rebuilds the retained attachment; preparation is issued only afterward.
+    def social_security_fixture(path, monkeypatch, *, zero):
+        assert zero is False
+        return _social_security_arguments(path, monkeypatch, ambiguous=False)
+
+    def demographic_fixture(path, monkeypatch):
+        return _demographic_arguments(path, monkeypatch, unknown=False, zero=False)
+
+    patch.setattr(demographic_fixture_module, "fixture", social_security_fixture)
+    patch.setattr(routing_fixture, "fixture", demographic_fixture)
+    original_person = survey_fixture_module._person
+
+    def person(*args, **kwargs):
+        row = original_person(*args, **kwargs)
+        # The property fixture makes this person age 14. Its other income
+        # questions must also be blank before the source archive is built.
+        if not complete_adults and row["SERIALNO"] == "2024GQ0000001":
+            row.update(SSP="", SSIP="")
+        return row
+
+    patch.setattr(survey_fixture_module, "_person", person)
+    arguments = source_arguments(root, patch, complete_adults=complete_adults)
+    patch.setattr(
+        demographics.demographic,
+        "_MEMBER_PINS",
+        property_graph.sources.routing.coverage._MEMBER_PINS,
+    )
+    payload, source_ids = _support_payload()
+    support = root / "invented-block-support.npz"
+    support.write_bytes(payload)
+    config = runner.reconstruction.AtomicSurveyReconstruction(
+        support_path=str(support),
+        support_sha256=hashlib.sha256(payload).hexdigest(),
+        source_ids=tuple(sorted(source_ids.items())),
+        seed=17,
+    )
+    options = property_graph.PropertyIncomeOptions(
+        scales=(1.0, 1.0, 1.0, 1.0), atol=1e-10, rtol=1e-12, n_estimators=2
+    )
+    call = {
+        **arguments,
+        "geography_config": config,
+        "demographic_conditioning": True,
+        "n_estimators": 2,
+        "return_values": True,
+    }
+    return SimpleNamespace(root=root, call=call, options=options)
+
+
+@pytest.fixture(scope="module")
+def property_host_source(tmp_path_factory):
     root = tmp_path_factory.mktemp("atomic-property-financial")
     with pytest.MonkeyPatch.context() as patch:
-        # Compose complete invented member bytes before the real source issuer
-        # runs. Only fixture constructors and their registry pins are replaced.
-        # The nesting order is original source -> Social Security -> demographics
-        # -> routing -> property. Each extension preserves prior columns and
-        # rebuilds the retained attachment; preparation is issued only afterward.
-        def social_security_fixture(path, monkeypatch, *, zero):
-            assert zero is False
-            return _social_security_arguments(path, monkeypatch, ambiguous=False)
-
-        def demographic_fixture(path, monkeypatch):
-            return _demographic_arguments(path, monkeypatch, unknown=False, zero=False)
-
-        patch.setattr(demographic_fixture_module, "fixture", social_security_fixture)
-        patch.setattr(routing_fixture, "fixture", demographic_fixture)
-        original_person = survey_fixture_module._person
-
-        def person(*args, **kwargs):
-            row = original_person(*args, **kwargs)
-            # The property fixture makes this person age 14. Its other income
-            # questions must also be blank before the source archive is built.
-            if row["SERIALNO"] == "2024GQ0000001":
-                row.update(SSP="", SSIP="")
-            return row
-
-        patch.setattr(survey_fixture_module, "_person", person)
-        arguments = source_arguments(root, patch)
-        patch.setattr(
-            demographics.demographic,
-            "_MEMBER_PINS",
-            property_graph.sources.routing.coverage._MEMBER_PINS,
-        )
-        payload, source_ids = _support_payload()
-        support = root / "invented-block-support.npz"
-        support.write_bytes(payload)
-        config = runner.reconstruction.AtomicSurveyReconstruction(
-            support_path=str(support),
-            support_sha256=hashlib.sha256(payload).hexdigest(),
-            source_ids=tuple(sorted(source_ids.items())),
-            seed=17,
-        )
-        options = property_graph.PropertyIncomeOptions(
-            scales=(1.0, 1.0, 1.0, 1.0), atol=1e-10, rtol=1e-12, n_estimators=2
-        )
-        call = {
-            **arguments,
-            "geography_config": config,
-            "demographic_conditioning": True,
-            "n_estimators": 2,
-            "return_values": True,
-        }
-        yield SimpleNamespace(root=root, call=call, options=options)
+        yield _property_host_source_arguments(root, patch)
 
 
 @pytest.fixture(scope="module")
