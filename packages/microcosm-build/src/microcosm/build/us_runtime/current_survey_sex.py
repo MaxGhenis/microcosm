@@ -728,7 +728,7 @@ def _incumbent(people, count):
     if CANONICAL_COLUMN not in people:
         return np.zeros(count, dtype=bool), np.zeros(count, dtype=bool)
     values = pd.array(people[CANONICAL_COLUMN], dtype=dtype_for_token("boolean"))
-    known = ~pd.isna(values).to_numpy(dtype=bool)
+    known = ~np.asarray(pd.isna(values), dtype=bool)
     resolved = np.zeros(count, dtype=bool)
     resolved[known] = np.asarray(values[known], dtype=bool)
     return known, resolved
@@ -758,12 +758,12 @@ def _bind(qualified, receiving):
     clone = people[support_clone_index_column("person")]
     native = people[spine_source_id_column("person")]
     channel = people[support_channel_column("person")].astype(object)
+    require(str(ids.dtype) == "int64" and ids.is_unique, "RECEIVING_ID_AXIS")
     require(
-        str(ids.dtype) == "int64"
-        and ids.is_unique
-        and str(original.dtype) == str(clone.dtype) == str(native.dtype) == "int64",
+        str(original.dtype) == str(clone.dtype) == str(native.dtype) == "int64",
         "CLONE_AXIS_DTYPE",
     )
+    token = canonical_dtype_token(receiving)
     original = original.to_numpy(dtype=np.int64)
     require(
         len(original) == 2 * len(rows) and set(original) == set(rows.index),
@@ -785,7 +785,7 @@ def _bind(qualified, receiving):
     qualified_known = expected[VALUE_KNOWN_COLUMN].to_numpy(dtype=bool)
     qualified_value = np.zeros(count, dtype=bool)
     values = expected[VALUE_COLUMN]
-    present = ~pd.isna(values).to_numpy(dtype=bool)
+    present = ~np.asarray(pd.isna(values), dtype=bool)
     require(bool(np.array_equal(present, qualified_known)), "QUALIFIED_KNOWNNESS")
     qualified_value[present] = np.asarray(values[present], dtype=bool)
     incumbent_known, incumbent_value = _incumbent(people, count)
@@ -803,7 +803,6 @@ def _bind(qualified, receiving):
     )
     resolved = incumbent_known | qualified_known
     bound = np.where(incumbent_known, incumbent_value, qualified_value)
-    token = canonical_dtype_token(receiving)
     require(token == "boolean" or bool(resolved.all()), "UNRESOLVED_UNDER_BOOL_LEAF")
     if token == "boolean":
         column = pd.array(bound, dtype=dtype_for_token("boolean"))
