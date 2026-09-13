@@ -278,9 +278,16 @@ def _checked_weight(value, code):
 
 
 def _source_codebook():
-    """The current ``Source`` codebook, in definition order."""
+    """The current ``Source`` codebook, in definition order.
 
-    return {member.value: index for index, member in enumerate(Source)}
+    Bounded here as well as on the decode side: the source code is written as
+    one byte, so a ``Source`` that ever grew past this roster must be a refusal
+    rather than an ``OverflowError`` from ``int.to_bytes``.
+    """
+
+    codebook = {member.value: index for index, member in enumerate(Source)}
+    _require(0 < len(codebook) <= MAX_SOURCE_CODES, "SOURCE_CODEBOOK")
+    return codebook
 
 
 def _checked_codebook(raw):
