@@ -6,10 +6,13 @@ counts calls to the unchanged producer during fixture construction.
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
 import pytest
+import test_us_asec_2024_native_population as native_fixture
+import test_us_survey_population_preparation as survey_fixture
 from test_us_graph_atomic_property_financial import _property_host_source_arguments
 
 from microcosm.build.frame_checkpoint import load_frame_checkpoint
@@ -41,7 +44,9 @@ def _source_snapshot(source_root):
     return result
 
 
-def _qualified_fixture_snapshot(root, *, complete_adults, deferred):
+def _qualified_fixture_snapshot(
+    root, *, complete_adults, deferred, original_fixture=None
+):
     root.mkdir()
     calls = []
     producer_code = restoration.restore_asec_person_income_source.__code__
@@ -51,6 +56,8 @@ def _qualified_fixture_snapshot(root, *, complete_adults, deferred):
             calls.append(Path(frame.f_locals["output_dir"]).name)
 
     with pytest.MonkeyPatch.context() as patch:
+        if original_fixture is not None:
+            patch.setattr(survey_fixture, "asec_fixture", original_fixture)
         previous_profile = sys.getprofile()
         try:
             sys.setprofile(profile)
@@ -269,13 +276,88 @@ def _parity_diagnostics(eager, deferred):
 def test_deferred_restoration_preserves_actual_source_qualification(
     tmp_path, complete_adults
 ):
+    shared = None
+    initial_options = None
+    copy_roots = []
+
+    def original_fixture(path, patch, **options):
+        nonlocal shared, initial_options
+        if shared is None:
+            initial_options = options
+            # This stops after the real extra-household P/H reconstruction;
+            # neither this construction nor sharing it produces or copies T.
+            shared = native_fixture._shared_original_inputs(
+                tmp_path / "shared-originals", patch, **options
+            )
+            parent = load_frame_checkpoint(shared.root / "invented-original-v4.h5")
+            assert {107, 108} <= set(parent.frame.person.person_id)
+            assert parent.metadata["source_receipt"]["sources"] == [
+                {
+                    "year": year,
+                    "path": str(shared.root / f"invented-cohort-{year}.h5"),
+                    "sha256": digest,
+                }
+                for year, digest in shared.source_pins[2]
+            ]
+        result = native_fixture._fixture(
+            path, patch, shared_originals=shared, **options
+        )
+        assert path not in copy_roots
+        copy_roots.append(path)
+        native_fixture._check_shared_originals(shared)
+        return result
+
     eager = _qualified_fixture_snapshot(
-        tmp_path / "eager", complete_adults=complete_adults, deferred=False
+        tmp_path / "eager",
+        complete_adults=complete_adults,
+        deferred=False,
+        original_fixture=original_fixture,
     )
+    native_fixture._check_shared_originals(shared)
     deferred = _qualified_fixture_snapshot(
-        tmp_path / "deferred", complete_adults=complete_adults, deferred=True
+        tmp_path / "deferred",
+        complete_adults=complete_adults,
+        deferred=True,
+        original_fixture=original_fixture,
     )
+    assert len(copy_roots) == 2
+    native_fixture._check_shared_originals(shared)
     parity_equal = eager == deferred
     # A scalar assertion preserves the complete original equality predicate
     # without pytest embedding either snapshot's private payload in its message.
     assert parity_equal, _parity_diagnostics(eager, deferred)
+
+    # Refuse a different initial experiment before writing any variant input
+    # or reaching the real producer. The positive five-versus-two call counts
+    # above still observe the unchanged producer, including each base T.
+    mismatch = tmp_path / "option-mismatch"
+    mismatch.mkdir()
+    with pytest.MonkeyPatch.context() as patch:
+        with pytest.raises(AssertionError, match="^SHARED_ORIGINAL_OPTIONS$"):
+            native_fixture._fixture(
+                mismatch,
+                patch,
+                shared_originals=shared,
+                **{**initial_options, "extra_household": False},
+            )
+    assert not tuple(mismatch.iterdir())
+    native_fixture._check_shared_originals(shared)
+
+    # Deliberate terminal revocation only after all positive parity and source
+    # lifetime checks. One parameter checks bytes, the other physical metadata;
+    # neither restores a revoked seed or uses an issued owner afterward.
+    target = shared.root / "invented-cohort-2024.h5"
+    if complete_adults:
+        data = target.read_bytes()
+        target.write_bytes(bytes([data[0] ^ 1]) + data[1:])
+    else:
+        info = target.stat()
+        os.utime(target, ns=(info.st_atime_ns, info.st_mtime_ns + 1))
+    revoked = tmp_path / "revoked-originals"
+    revoked.mkdir()
+    with pytest.MonkeyPatch.context() as patch:
+        with pytest.raises(AssertionError, match="^SHARED_ORIGINAL_CHANGED$"):
+            native_fixture._fixture(
+                revoked, patch, shared_originals=shared, **initial_options
+            )
+    assert not tuple(revoked.iterdir())

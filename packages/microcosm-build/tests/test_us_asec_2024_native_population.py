@@ -4,8 +4,9 @@ import csv
 import hashlib
 import importlib.util
 import json
+import stat
 import sys
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -165,11 +166,10 @@ def _rebuild_observations(
     _helpers()._pin(persons, monkeypatch)
 
 
-def _fixture(
+def _original_inputs(
     tmp_path,
     monkeypatch,
     *,
-    household_rows=None,
     extra_household=False,
     legacy_weights=None,
     missing_money=None,
@@ -195,6 +195,183 @@ def _fixture(
         )
     # Both real owners must pin the same final invented original member bytes.
     monkeypatch.setattr(restoration, "_MEMBER_PINS", coverage._MEMBER_PINS)
+    return persons
+
+
+def _option_value(value):
+    """Snapshot literal test options without aliasing or type coercion."""
+    if value is None or type(value) in (bool, int, str):
+        return type(value).__name__, value
+    if type(value) is float:
+        return "float", value.hex()
+    if type(value) in (tuple, list):
+        return type(value).__name__, tuple(_option_value(v) for v in value)
+    if type(value) is dict and all(type(k) is str for k in value):
+        return "dict", tuple((k, _option_value(value[k])) for k in sorted(value))
+    if type(value) is np.ndarray and not value.dtype.hasobject:
+        return "ndarray", value.dtype.str, value.shape, value.tobytes()
+    raise AssertionError("SHARED_ORIGINAL_OPTION_TYPE")
+
+
+def _original_options(
+    *,
+    household_rows=None,
+    extra_household=False,
+    legacy_weights=None,
+    missing_money=None,
+    current_predictor_money=None,
+    **changes,
+):
+    return _option_value(
+        dict(
+            household_rows=household_rows,
+            extra_household=extra_household,
+            legacy_weights=legacy_weights,
+            missing_money=missing_money,
+            current_predictor_money=current_predictor_money,
+            changes=changes,
+        )
+    )
+
+
+def _original_physical(path, *, directory=False):
+    info = path.lstat()
+    expected = stat.S_ISDIR if directory else stat.S_ISREG
+    assert expected(info.st_mode), "SHARED_ORIGINAL_FILE_TYPE"
+    return (
+        info.st_dev,
+        info.st_ino,
+        info.st_mode,
+        info.st_size,
+        info.st_mtime_ns,
+        info.st_ctime_ns,
+    )
+
+
+def _original_file_seal(path):
+    before = _original_physical(path)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert _original_physical(path) == before, "SHARED_ORIGINAL_CHANGED"
+    return digest, before
+
+
+@dataclass(frozen=True)
+class _SharedOriginalInputs:
+    """Test construction values only; no source, Frame or issuance authority."""
+
+    root: Path
+    options: tuple
+    members: tuple
+    files: tuple
+    directory: tuple
+    source_pins: tuple
+    member_pins: tuple
+
+
+def _check_shared_originals(shared):
+    assert type(shared) is _SharedOriginalInputs, "SHARED_ORIGINAL_TYPE"
+    assert (
+        _original_physical(shared.root, directory=True) == shared.directory
+        and {p.name for p in shared.root.iterdir()} == {n for n, _ in shared.files}
+        and all(
+            _original_file_seal(shared.root / name) == seal
+            for name, seal in shared.files
+        )
+    ), "SHARED_ORIGINAL_CHANGED"
+
+
+def _shared_original_inputs(root, monkeypatch, **options):
+    """Build one complete original input set, including the extra household."""
+    captured_options = _original_options(**options)
+    root.mkdir()
+    construction = {k: v for k, v in options.items() if k != "household_rows"}
+    persons = _original_inputs(root, monkeypatch, **construction)
+    members = tuple((year, path.name) for year, path in sorted(persons.items()))
+    assert all(path.parent == root for path in persons.values())
+    names = (
+        "invented-original-v4.h5",
+        "invented-household-attachment.h5",
+        *(f"invented-cohort-{year}.h5" for year in (2022, 2023, 2024)),
+        *(name for _, name in members),
+    )
+    assert len(names) == len(set(names)) == 8
+    shared = _SharedOriginalInputs(
+        root,
+        captured_options,
+        members,
+        tuple((name, _original_file_seal(root / name)) for name in names),
+        _original_physical(root, directory=True),
+        money._SOURCE_PINS,
+        coverage._MEMBER_PINS,
+    )
+    _check_shared_originals(shared)
+    return shared
+
+
+def _copy_shared_originals(shared, tmp_path, monkeypatch, options):
+    _check_shared_originals(shared)
+    assert shared.options == options, "SHARED_ORIGINAL_OPTIONS"
+    _original_physical(tmp_path, directory=True)
+    assert not tuple(tmp_path.iterdir()), "SHARED_ORIGINAL_DESTINATION"
+    # Metadata keeps the real retained cohort paths. Copy only editable P/H and
+    # member inputs; never regenerate or reuse T, or rewrite embedded paths.
+    names = (
+        "invented-original-v4.h5",
+        "invented-household-attachment.h5",
+        *(name for _, name in shared.members),
+    )
+    seals = dict(shared.files)
+    for name in names:
+        data = (shared.root / name).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == seals[name][0]
+        destination = tmp_path / name
+        with destination.open("xb") as output:
+            output.write(data)
+        assert destination.read_bytes() == data
+        assert _original_physical(destination)[:2] != seals[name][1][:2]
+    _check_shared_originals(shared)
+    monkeypatch.setattr(money, "_SOURCE_PINS", shared.source_pins)
+    monkeypatch.setattr(coverage, "_MEMBER_PINS", shared.member_pins)
+    monkeypatch.setattr(restoration, "_MEMBER_PINS", shared.member_pins)
+    return {year: tmp_path / name for year, name in shared.members}
+
+
+def _fixture(
+    tmp_path,
+    monkeypatch,
+    *,
+    household_rows=None,
+    extra_household=False,
+    legacy_weights=None,
+    missing_money=None,
+    current_predictor_money=None,
+    shared_originals=None,
+    **changes,
+):
+    if shared_originals is None:
+        persons = _original_inputs(
+            tmp_path,
+            monkeypatch,
+            extra_household=extra_household,
+            legacy_weights=legacy_weights,
+            missing_money=missing_money,
+            current_predictor_money=current_predictor_money,
+            **changes,
+        )
+    else:
+        persons = _copy_shared_originals(
+            shared_originals,
+            tmp_path,
+            monkeypatch,
+            _original_options(
+                household_rows=household_rows,
+                extra_household=extra_household,
+                legacy_weights=legacy_weights,
+                missing_money=missing_money,
+                current_predictor_money=current_predictor_money,
+                **changes,
+            ),
+        )
     parent = tmp_path / "invented-original-v4.h5"
     household = tmp_path / "invented-household-attachment.h5"
     output = tmp_path / "restored"
