@@ -170,6 +170,11 @@ _COLUMN_KEYS = frozenset({"name", "kind", "bytes", "sha256"})
 #: a native identifier or a row value.
 _PRIVATE_HEADER_KEYS = frozenset({"identity_sha256"})
 
+#: The only keys a manifest column may carry. The header's per-column ``sha256``
+#: is a digest over row values, so it is withheld; naming the permitted set here
+#: lets the manifest guard cover the nested shape as well as the top level.
+_MANIFEST_COLUMN_KEYS = frozenset({"name", "kind", "bytes"})
+
 _IDENTITY_DOMAIN = b"microcosm.us.survey-population-allocation.v2/identity\0"
 
 _WEIGHT_TRANSITION = ("design", "importance")
@@ -822,6 +827,11 @@ def decode_allocation(payload, *, max_bytes=MAX_BYTES):
     members = _checked_codebook(header["source_codebook"])
     rows = header["rows"]
 
+    # BODY_TRUNCATED and PAYLOAD_TRAILING are invariant assertions, not reachable
+    # failure modes: _parse_header already proved that the declared sizes sum to
+    # exactly the bytes present, so every slice below is full and the cursor
+    # lands exactly on the checksum. They are kept so that a later change
+    # loosening the header parse fails here instead of reading past a body.
     bodies, cursor = {}, body_start
     for name, column in zip(_BODY_NAMES, header["columns"], strict=True):
         size = sizes[name]
@@ -976,14 +986,15 @@ def allocation_manifest(payload, *, max_bytes=MAX_BYTES):
     """Describe a payload's shape and provenance digests, with no row values.
 
     Deliberately absent: household and receiving identifiers, native source
-    lexemes, exact rationals, float weights, the source codebook, the ordering
-    digest, the per-column digests, and the digest of the payload itself. Every
-    one of those is taken over, or is, native identifiers or row values, and a
-    digest over low-entropy row data is a confirmation oracle for it: the
-    encoder is deterministic, so a holder of this manifest who knew all but one
-    native lexeme could re-encode each candidate and compare. What remains is
-    shape, protocol identity and the three digests the v1 metadata already
-    reports.
+    lexemes, exact rationals, float weights, the ordering digest, the per-column
+    digests, and the digest of the payload itself. Each of the last three is a
+    digest over row values, and a digest over low-entropy row data is a
+    confirmation oracle for it: the encoder is deterministic, so a holder of
+    this manifest who knew all but one native lexeme could re-encode each
+    candidate and compare. The source codebook is withheld for a different and
+    weaker reason — it is enum-derived schema, identical in every payload, and
+    a public manifest simply has no use for it. What remains is shape, protocol
+    identity and the three digests the v1 metadata already reports.
 
     One residual disclosure is stated rather than hidden: the per-column byte
     lengths are the manifest's purpose, and they narrow row values. The native
@@ -1023,5 +1034,9 @@ def allocation_manifest(payload, *, max_bytes=MAX_BYTES):
     # A real check on what is actually returned, not an ``assert`` that a ``-O``
     # run would strip: a later edit that copies a private header field into the
     # manifest is refused here rather than shipped.
-    _require(not set(manifest) & _PRIVATE_HEADER_KEYS, "MANIFEST_PRIVACY")
+    _require(
+        not set(manifest) & _PRIVATE_HEADER_KEYS
+        and all(set(column) == _MANIFEST_COLUMN_KEYS for column in manifest["columns"]),
+        "MANIFEST_PRIVACY",
+    )
     return manifest

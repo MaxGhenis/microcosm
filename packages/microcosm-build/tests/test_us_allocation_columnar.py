@@ -924,6 +924,10 @@ def test_the_public_manifest_omits_the_identity_and_column_digests():
     assert all(
         set(column) == {"name", "kind", "bytes"} for column in manifest["columns"]
     )
+    # Pin the guard itself, not only the shape it happens to produce, so a
+    # later edit that widens either roster fails here.
+    assert columnar._MANIFEST_COLUMN_KEYS == frozenset({"name", "kind", "bytes"})
+    assert "identity_sha256" in columnar._PRIVATE_HEADER_KEYS
     decoded = columnar.decode_allocation(payload_of(private_cohort()))
     assert decoded.header["identity_sha256"] not in canonical_json(manifest).decode()
 
