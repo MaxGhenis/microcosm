@@ -34,7 +34,7 @@ def test_actual_preparation_qualifies_both_source_arms_and_preserves_unknowns(
     assert acs[sex.VALUE_COLUMN].tolist() == acs[sex.CODE_COLUMN].eq(2).tolist()
     assert int(asec[sex.VALUE_COLUMN].isna().sum()) == int(unknown)
     allocated = asec.loc[asec[sex.ALLOCATION_CODE_COLUMN].eq(4)]
-    assert len(allocated) == 2 and allocated[sex.VALUE_COLUMN].all()
+    assert len(allocated) == 2 - int(unknown) and allocated[sex.VALUE_COLUMN].all()
     assert allocated[sex.ALLOCATION_KNOWN_COLUMN].all()
     assert allocated[sex.ORIGIN_COLUMN].eq("census_allocated").all()
     assert sex.source._frame_identity(qualified.source_frame) == before
