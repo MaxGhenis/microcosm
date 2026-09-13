@@ -56,9 +56,10 @@ separately reviewed root guard.
 
 ## Next
 
-Run the final static AST/hash/Ruff/diff checks and write the concise handoff to
-`FINAL_REPORT.md`. All 181 cases remain UNRUN; no performance/capacity claim or
-host integration is in scope.
+Final static AST/hash/Ruff/diff checks and the concise handoff are recorded in
+`FINAL_REPORT-us-allocation-probability-bounds-20260913.md`. Root review is the
+next action. All 181 cases remain UNRUN; no performance/capacity claim or host
+integration is in scope.
 
 The preparation payload's own 64 MiB cap is untouched and unrelieved by this
 work; it remains the other ceiling on the same path.
