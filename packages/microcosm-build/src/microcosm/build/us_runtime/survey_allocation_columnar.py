@@ -541,9 +541,7 @@ def _row_values(row):
         "original_anchor": _checked_fraction(
             getattr(row, "original_anchor", None), "ROW_RATIONAL"
         ),
-        "share": _checked_unit_fraction(
-            getattr(row, "share", None), "ROW_RATIONAL"
-        ),
+        "share": _checked_unit_fraction(getattr(row, "share", None), "ROW_RATIONAL"),
         "inclusion_probability": _checked_unit_fraction(
             getattr(row, "inclusion_probability", None), "ROW_RATIONAL"
         ),

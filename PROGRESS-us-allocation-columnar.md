@@ -13,13 +13,12 @@ claim.
 
 ## State
 
-In progress, local, source-only. Baseline confirmed clean at
+Complete and local, source-only. Baseline confirmed clean at
 `2419e65f411dafd2cbd9baa66fe15c68639f11987` on the fresh requested branch.
-The v2 codec has a confirmed inherited-domain gap: `share` and
-`inclusion_probability` must each satisfy `0 < value <= 1` in both encoder and
-decoder. No tests have been collected or run.
+The inherited rational-domain gap is repaired in both encoder and decoder.
+No tests have been collected or run.
 
-Tests are **UNRUN**: 71 test functions, 172 parametrized cases, never collected
+Tests are **UNRUN**: 74 test functions, 181 parametrized cases, never collected
 or executed in this lane. One of them asserts a byte count and is held for a
 separately reviewed root guard.
 
@@ -38,6 +37,10 @@ separately reviewed root guard.
 - Refused a zero inclusion probability on both sides, which previously would
   have raised `ZeroDivisionError` out of the module.
 - Added `packages/microcosm-build/tests/test_us_allocation_columnar.py`.
+- Enforced v1's `0 < share <= 1` and `0 < inclusion_probability <= 1` domains
+  on both sides, including before derived multiplier/weight checks.
+- Added authored lower/upper-bound, double-negative, zero-anchor, and
+  repaired-checksum decoder tampering regressions.
 - Added `docs/us-allocation-columnar-v2.md` and the changelog fragment.
 - Ran a five-lens adversarial review over the codec and the unrun tests and
   closed every confirmed defect: a source-codebook relabel the ordering digest
@@ -53,10 +56,9 @@ separately reviewed root guard.
 
 ## Next
 
-Implement and statically verify the inherited rational domains, add authored
-encoder/decoder regressions (including repaired-checksum tampering), update the
-v1-parity documentation/journal assertion, and commit the final handoff report.
-All 172 existing cases and the new cases remain UNRUN.
+Run the final static AST/hash/Ruff/diff checks and write the concise handoff to
+`FINAL_REPORT.md`. All 181 cases remain UNRUN; no performance/capacity claim or
+host integration is in scope.
 
 The preparation payload's own 64 MiB cap is untouched and unrelieved by this
 work; it remains the other ceiling on the same path.

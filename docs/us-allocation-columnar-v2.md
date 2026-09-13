@@ -140,6 +140,12 @@ speculative.
 
 ## A latent v1 fragility found while tracing
 
+The v2 encoder and decoder now also inherit v1's exact arithmetic domains:
+`share` and `inclusion_probability` are both required to satisfy
+`0 < value <= 1`. This closes the confirmed v2 gap where negative values could
+cancel in the multiplier, and where a zero anchor could mask invalid values
+from the weight check. The wire format and valid v1/v2 parity are unchanged.
+
 `_bounded_json` encodes with `ensure_ascii=False`
 (`graph_survey_population.py:253-261`), while `_graph_legacy_qrf.encode_json`
 re-encodes with the `json.dumps` default `ensure_ascii=True`
