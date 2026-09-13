@@ -287,7 +287,7 @@ def _checked_codebook(raw):
     _require(type(raw) is dict and 0 < len(raw) <= MAX_SOURCE_CODES, "SOURCE_CODEBOOK")
     _require(
         all(type(key) is str for key in raw)
-        and all(type(code) is int and type(code) is not bool for code in raw.values()),
+        and all(type(code) is int for code in raw.values()),
         "SOURCE_CODEBOOK",
     )
     _require(sorted(raw.values()) == list(range(len(raw))), "SOURCE_CODEBOOK")
@@ -686,9 +686,7 @@ def _parse_header(payload, *, max_bytes):
         _require(column["kind"] == kind, "COLUMN_KIND")
         _digest64(column["sha256"], "COLUMN_DIGEST")
         size = column["bytes"]
-        _require(
-            type(size) is int and type(size) is not bool and size >= 0, "COLUMN_SIZE"
-        )
+        _require(type(size) is int and size >= 0, "COLUMN_SIZE")
         width = _FIXED_WIDTH.get(kind)
         if width is not None:
             _require(size == rows * width, "COLUMN_SIZE")
@@ -910,8 +908,7 @@ def allocation_manifest(payload, *, max_bytes=MAX_BYTES):
 
     _require(type(max_bytes) is int and 0 < max_bytes <= MAX_BYTES, "TRANSPORT_LIMIT")
     header, sizes, body_start = _parse_header(payload, max_bytes=max_bytes)
-    assert not _PRIVATE_HEADER_KEYS - set(header)  # roster guard, not a value check
-    return {
+    manifest = {
         "protocol": header["protocol"],
         "schema_version": header["schema_version"],
         "type": list(header["type"]),
@@ -932,3 +929,8 @@ def allocation_manifest(payload, *, max_bytes=MAX_BYTES):
         "source_authenticated": False,
         "descriptive_only": True,
     }
+    # A real check on what is actually returned, not an ``assert`` that a ``-O``
+    # run would strip: a later edit that copies a private header field into the
+    # manifest is refused here rather than shipped.
+    _require(not set(manifest) & _PRIVATE_HEADER_KEYS, "MANIFEST_PRIVACY")
+    return manifest
