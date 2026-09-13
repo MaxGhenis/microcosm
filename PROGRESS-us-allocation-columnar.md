@@ -13,13 +13,13 @@ claim.
 
 ## State
 
-Complete and local. Eight commits. The codec, its tests, the changelog fragment
+Complete and local. Ten commits. The codec, its tests, the changelog fragment
 and the integration proposal are in the tree; nothing calls the new module, so
 no declaration, node key, spec digest or stage implementation hash moves.
 `builder_code_identity` does move, because it hashes every source file under
 `packages/*/src`; that is recorded in the proposal.
 
-Tests are **UNRUN**: 69 test functions, 167 parametrized cases, never collected
+Tests are **UNRUN**: 71 test functions, 172 parametrized cases, never collected
 or executed in this lane. One of them asserts a byte count and is held for a
 separately reviewed root guard.
 

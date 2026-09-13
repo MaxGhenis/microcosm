@@ -127,10 +127,12 @@ def resealed(payload, mutations):
     for name, index, raw in mutations:
         width = len(raw)
         # The cell width is taken from the replacement bytes, which is only
-        # sound while every cell in the column is that wide. narrow()'s uniform
-        # one-byte rationals and thirteen-byte lexemes make that true today;
-        # checking it here means a future cohort change fails loudly instead of
-        # silently overwriting a neighbouring cell.
+        # sound while every cell in the column is that wide. This pins the
+        # column total against a uniform width, which is exactly equivalent for
+        # the one-byte rational payloads -- a canonical integer is never
+        # shorter than one byte, so the total forces every cell -- and is a
+        # necessary condition for the thirteen-byte lexemes. It is a tripwire
+        # for a future cohort change, not a proof of per-cell uniformity.
         assert len(bodies[name]) == rows * width, (name, len(bodies[name]), rows, width)
         bodies[name][index * width : (index + 1) * width] = raw
     for column in header["columns"]:
@@ -301,16 +303,27 @@ def test_a_rational_wider_than_v1_can_carry_still_round_trips():
     assert decoded.original_anchor[0].numerator == 2**13000
 
 
-def test_a_rational_beyond_the_transport_bound_is_refused():
-    """Reached through the share, not the anchor.
+@pytest.mark.parametrize("route", ["share", "anchor"])
+def test_a_rational_beyond_the_transport_bound_is_refused(route):
+    """Both routes reach the integer bound, for different reasons.
 
-    Any anchor wide enough to overrun the integer bound also overflows or
-    underflows float64, so the weight check would fire first and the integer
-    bound would never be exercised. A zero anchor keeps the weight exactly 0.0
-    while the share carries the over-wide integer.
+    Through the share: a zero anchor keeps the weight exactly 0.0, so the
+    weight check cannot fire first whatever the share's width. Through the
+    anchor: a ratio of consecutive integers is within a hair of 1.0 however
+    wide they are, so the float stays finite and positive and the width is
+    what refuses. Only an anchor whose *magnitude* is extreme would be caught
+    by the weight check instead.
     """
-    over = Fraction(2 ** (8 * columnar.MAX_RATIONAL_BYTES) + 1)
-    row = instruction(0, anchor=Fraction(0), share=over, probability=Fraction(1))
+    width = 8 * columnar.MAX_RATIONAL_BYTES
+    if route == "share":
+        row = instruction(
+            0,
+            anchor=Fraction(0),
+            share=Fraction(2**width + 1),
+            probability=Fraction(1),
+        )
+    else:
+        row = instruction(0, anchor=Fraction(2**width, 2**width + 1))
     with pytest.raises(columnar.AllocationColumnarError, match="ROW_RATIONAL"):
         payload_of((row,))
 
@@ -687,6 +700,38 @@ def test_a_zero_unreduced_or_negative_denominator_is_refused(mutations, code):
         columnar.decode_allocation(bad)
 
 
+@pytest.mark.parametrize(
+    "declared",
+    [
+        0,  # a zero-length integer cell
+        columnar.MAX_RATIONAL_BYTES + 1,  # wider than the transport bound
+        2,  # in range, but overruns its own one-byte-per-row payload
+    ],
+)
+def test_a_forged_rational_length_cell_is_refused(declared):
+    """The length columns are two bytes wide since the rational bound was raised.
+
+    Nothing else in this file mutates a ``*_lengths`` column, so without this
+    the widened cells and the per-row length bounds would be exercised only by
+    round trips. ``narrow()`` gives every rational cell one payload byte, so a
+    length column holds three two-byte cells over a three-byte payload.
+    """
+    bad = resealed(
+        payload_of(narrow(3)),
+        [("original_anchor_numerator_lengths", 0, declared.to_bytes(2, "little"))],
+    )
+    with pytest.raises(columnar.AllocationColumnarError, match="ROW_RATIONAL"):
+        columnar.decode_allocation(bad)
+
+
+def test_a_forged_native_lexeme_length_cell_is_refused():
+    bad = resealed(
+        payload_of(narrow(3)), [("raw_native_id_lengths", 0, (0).to_bytes(2, "little"))]
+    )
+    with pytest.raises(columnar.AllocationColumnarError, match="ROW_LEXEME"):
+        columnar.decode_allocation(bad)
+
+
 def test_a_zero_inclusion_probability_is_a_refusal_not_a_division_error():
     with pytest.raises(columnar.AllocationColumnarError, match="ROW_RATIONAL"):
         payload_of((instruction(0, probability=Fraction(0)),))
@@ -861,9 +906,16 @@ def test_a_non_bytes_payload_is_refused(value):
 
 
 def test_the_declared_artifact_type_is_pinned_to_the_host_declaration():
-    """The hand-copied type literal must not drift from the host it names."""
+    """The hand-copied type literal must not drift from the host it names.
+
+    The version is asserted as an inequality, not as host + 1. Pinning the
+    successor exactly would red this test on the day the host adopts v2 --
+    the one change it exists to unblock -- while still catching a host that
+    somehow ran ahead of the codec.
+    """
     assert columnar.ARTIFACT_TYPE_NAME == graph.ALLOCATION_TYPE.name
-    assert columnar.ARTIFACT_SCHEMA_VERSION == graph.ALLOCATION_TYPE.schema_version + 1
+    assert columnar.ARTIFACT_SCHEMA_VERSION == columnar.SCHEMA_VERSION == 2
+    assert graph.ALLOCATION_TYPE.schema_version <= columnar.ARTIFACT_SCHEMA_VERSION
 
 
 def test_the_declared_bounds_match_the_v1_host_and_are_not_raised():
@@ -927,7 +979,9 @@ def test_the_public_manifest_omits_the_identity_and_column_digests():
     # Pin the guard itself, not only the shape it happens to produce, so a
     # later edit that widens either roster fails here.
     assert columnar._MANIFEST_COLUMN_KEYS == frozenset({"name", "kind", "bytes"})
-    assert "identity_sha256" in columnar._PRIVATE_HEADER_KEYS
+    assert set(manifest) == columnar._MANIFEST_KEYS
+    for withheld in ("identity_sha256", "payload_sha256", "source_codebook", "sha256"):
+        assert withheld not in columnar._MANIFEST_KEYS
     decoded = columnar.decode_allocation(payload_of(private_cohort()))
     assert decoded.header["identity_sha256"] not in canonical_json(manifest).decode()
 

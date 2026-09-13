@@ -166,9 +166,28 @@ _HEADER_KEYS = frozenset(
 )
 _COLUMN_KEYS = frozenset({"name", "kind", "bytes", "sha256"})
 
-#: Fields the public manifest never reports: every one of them is, or digests,
-#: a native identifier or a row value.
-_PRIVATE_HEADER_KEYS = frozenset({"identity_sha256"})
+#: Exactly what a public manifest may report. An allowlist, not a list of
+#: forbidden names: a denylist only refuses the leaks someone thought to name,
+#: while this refuses every field that was not reviewed as publishable.
+_MANIFEST_KEYS = frozenset(
+    {
+        "protocol",
+        "schema_version",
+        "type",
+        "rows",
+        "columns",
+        "header_bytes",
+        "body_bytes",
+        "total_bytes",
+        "preparation_sha256",
+        "input_context_sha256",
+        "output_context_sha256",
+        "weight_transition",
+        "release_eligible",
+        "source_authenticated",
+        "descriptive_only",
+    }
+)
 
 #: The only keys a manifest column may carry. The header's per-column ``sha256``
 #: is a digest over row values, so it is withheld; naming the permitted set here
@@ -1032,10 +1051,12 @@ def allocation_manifest(payload, *, max_bytes=MAX_BYTES):
         "descriptive_only": True,
     }
     # A real check on what is actually returned, not an ``assert`` that a ``-O``
-    # run would strip: a later edit that copies a private header field into the
-    # manifest is refused here rather than shipped.
+    # run would strip, and an exact key set rather than a set difference: any
+    # field a later edit adds - the ordering digest, a per-column digest, the
+    # payload digest, the source codebook, or something not yet imagined - is
+    # refused here rather than shipped, whether or not anyone named it.
     _require(
-        not set(manifest) & _PRIVATE_HEADER_KEYS
+        set(manifest) == _MANIFEST_KEYS
         and all(set(column) == _MANIFEST_COLUMN_KEYS for column in manifest["columns"]),
         "MANIFEST_PRIVACY",
     )
