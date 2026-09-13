@@ -13,11 +13,11 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
-from test_us_current_survey_sex import _frame, _qualified, _receiving
+from test_us_current_survey_sex import _frame, _qualified, _receiving, _table
 
 from microcosm.build.us_runtime import current_survey_sex as sex
 from microcosm.build.us_runtime import graph_current_survey_sex as graph
-from microcosm.frame import Frame
+from microcosm.frame import Frame, WeightKind, Weights
 from microcosm.graph import (
     ArtifactInput,
     ArtifactOutput,
@@ -36,12 +36,14 @@ from microcosm.graph import (
     Owned,
     SourceRef,
     StructuralDelta,
+    WeightTransition,
     compile_graph,
     run_graph,
 )
 from microcosm.graph import population as populations
 
 RECEIVING = "invented.receiving"
+ALLOCATED = "invented.allocated"
 ORDERING_TYPE = ArtifactType("invented.sex_ordering", 1)
 
 
@@ -122,9 +124,11 @@ def _graph_case(tmp_path, incumbent=None):
     }
     cold = run_graph(compiled, **arguments)
     observed = {}
+    by_node = {}
 
-    def capture(_node_id, population):
+    def capture(node_id, population):
         observed[population.version] = population
+        by_node[node_id] = population
 
     warm = run_graph(
         compiled, **arguments, resume="require", _population_observer=capture
@@ -133,6 +137,7 @@ def _graph_case(tmp_path, incumbent=None):
         qualified=qualified,
         people=people,
         receiving=receiving,
+        by_node=by_node,
         nodes=nodes,
         compiled=compiled,
         cold=cold,
@@ -226,7 +231,8 @@ def test_materialized_verifier_accepts_the_run_and_refuses_a_wrong_declaration(
 ):
     case = _graph_case(tmp_path)
     node = case.compiled.graph.node(graph.BIND_NODE)
-    incoming = populations.Population.from_frame(case.receiving, RECEIVING)
+    # The population the bind node actually received, not a rebuilt lookalike.
+    incoming = case.by_node[RECEIVING]
     receipt = graph.verify_materialized_survey_sex(
         case.observed[RECEIVING], incoming, qualified=case.qualified, node=node
     )
@@ -338,10 +344,15 @@ def test_declared_rewrite_preserves_known_incumbents_through_the_real_patch():
     assert set(values[original == 10]) == {True}  # Source-known null filled.
     assert all(value is pd.NA for value in values[original == 30])
     assert patched.owners[("person", sex.CANONICAL_COLUMN)] == graph.BIND_NODE
+    # The owned leaf is the one column this node is allowed to change; every
+    # other column of every entity must survive the rewrite untouched.
     for entity in receiving.entities:
-        carried = patched.frame.table(entity)
         before = receiving.table(entity)
-        pd.testing.assert_frame_equal(carried[before.columns], before, check_exact=True)
+        unowned = [c for c in before.columns if c != sex.CANONICAL_COLUMN]
+        pd.testing.assert_frame_equal(
+            patched.frame.table(entity)[unowned], before[unowned], check_exact=True
+        )
+    assert list(patched.frame.person.columns) == list(receiving.person.columns)
 
 
 def test_a_rewrite_needs_a_receiving_version_with_a_base():
@@ -395,3 +406,151 @@ def test_projection_branch_keeps_the_original_support_and_adds_only_source_colum
         assert set(projected.table(entity).columns) <= set(
             qualified.source_frame.table(entity).columns
         ) | set(sex.COLUMNS)
+
+
+def _rewrite_graph_case(tmp_path):
+    """A receiving version opened below the CREATE, carrying an incumbent leaf.
+
+    A rewrite needs a version with a base to carry the incumbent from, so the
+    invented host opens one with an ordinary REWEIGHT that conserves mass and
+    changes no cell. That is the shape a country host has after its own
+    allocation, clone and geography stages.
+    """
+    qualified = _qualified()
+    people = _receiving(qualified.rows, incumbent={20: False}).person
+    receiving = _frame(people)
+    create, source_kernel = _invented_source(receiving, people)
+    allocated = Weights(
+        receiving.weights_for("household").values.copy(), WeightKind.IMPORTANCE
+    )
+
+    class InventedAllocation(KernelBase):
+        ref = "invented.sex_allocate@1"
+        capabilities = Capabilities(
+            Determinism.DETERMINISTIC, structural=StructuralDelta.REWEIGHT
+        )
+
+        def implementation_hash(self):
+            return "b" * 64  # Test-only fixed producer for the invented version.
+
+        def run(self, context):
+            return KernelResult(weights=allocated)
+
+    allocate = Node(
+        ALLOCATED,
+        InventedAllocation.ref,
+        structural=StructuralDelta.REWEIGHT,
+        base=create.id,
+        weights=WeightTransition("household", "importance", "conserve"),
+        mass="conserve",
+    )
+    after = _ordering_edge()
+    calls = []
+    expected_seal = graph.sex_projection_seal(qualified)
+
+    def current():
+        assert graph.sex_projection_seal(qualified) == expected_seal
+        calls.append(True)
+
+    nodes, kernels = graph.current_survey_sex_kernels(
+        qualified,
+        receiving,
+        receiving_version=allocate.id,
+        host_pins={},
+        after=after,
+        host_edges=(),
+        require_current=current,
+    )
+    compiled = compile_graph(
+        Graph(
+            "us",
+            (SourceRef(graph.SOURCE_NAME, "raw-bytes-v1"),),
+            (create, allocate, *nodes),
+        )
+    )
+    registry = KernelRegistry()
+    registry.register(source_kernel)
+    registry.register(InventedAllocation())
+    for kernel in kernels:
+        registry.register(kernel)
+    path = tmp_path / "invented-source.txt"
+    path.write_bytes(b"invented sex fixture only")
+    store = ContentStore(tmp_path / "store")
+    arguments = {
+        "sources": {graph.SOURCE_NAME: path},
+        "store": store,
+        "kernels": registry,
+    }
+    cold = run_graph(compiled, **arguments)
+    observed = {}
+    by_node = {}
+
+    def capture(node_id, population):
+        observed[population.version] = population
+        by_node[node_id] = population
+
+    warm = run_graph(
+        compiled, **arguments, resume="require", _population_observer=capture
+    )
+    return SimpleNamespace(
+        qualified=qualified,
+        receiving=receiving,
+        by_node=by_node,
+        nodes=nodes,
+        compiled=compiled,
+        cold=cold,
+        warm=warm,
+        store=store,
+        calls=calls,
+        observed=observed,
+    )
+
+
+def test_actual_graph_rewrite_preserves_incumbents_cold_and_required(tmp_path):
+    import pandas as pd
+
+    case = _rewrite_graph_case(tmp_path)
+    assert len(case.compiled.order) == 4
+    assert case.nodes[1].population == ALLOCATED
+    assert case.nodes[1].outputs[0].rewrite
+    assert case.nodes[1].outputs[0].dtype == "boolean"
+    assert case.cold.key == case.warm.key
+    assert all(receipt.hit for receipt in case.warm.nodes.values())
+    assert len(case.calls) == 4
+    output = case.warm.population(ALLOCATED)
+    column = output.person[sex.CANONICAL_COLUMN]
+    assert str(column.dtype) == "boolean"
+    original = output.person[sex.support_source_id_column("person")].to_numpy()
+    assert column[original == 20].tolist() == [False, False]  # Incumbent preserved.
+    assert column[original == 10].tolist() == [True, True]  # Known null filled.
+    assert column[original == 30].isna().tolist() == [True, True]
+    unowned = [c for c in case.receiving.person.columns if c != sex.CANONICAL_COLUMN]
+    pd.testing.assert_frame_equal(
+        output.person[unowned], case.receiving.person[unowned], check_exact=True
+    )
+    assert list(output.person.columns) == list(case.receiving.person.columns)
+    binding = case.warm.node(graph.BIND_NODE)
+    document = json.loads(case.store.load_bytes(binding.opaque_artifacts["binding"]))
+    assert document["declared_rewrite"] is True
+    assert document["receiving_version"] == ALLOCATED
+    assert document["preserved_cells"] == 2
+    assert document["filled_cells"] == 2
+    assert document["unresolved_cells"] == 2
+    assert set(document) == sex.PUBLIC_RECEIPT_KEYS
+
+
+def test_rewrite_run_reconstructs_and_refuses_a_conflicting_incumbent(tmp_path):
+    case = _rewrite_graph_case(tmp_path)
+    node = case.compiled.graph.node(graph.BIND_NODE)
+    incoming = case.by_node[ALLOCATED]
+    receipt = graph.verify_materialized_survey_sex(
+        case.observed[ALLOCATED], incoming, qualified=case.qualified, node=node
+    )
+    assert receipt["preserved_cells"] == 2 and receipt["declared_rewrite"] is True
+    conflicting = _qualified(
+        _table(((10, 2, "asec", 2, 4), (20, 3, "acs", 2, None), (30, 5, "asec", 9, 0)))
+    )
+    with pytest.raises(ValueError, match="CANONICAL_CONFLICT"):
+        graph.verify_materialized_survey_sex(
+            case.observed[ALLOCATED], incoming, qualified=conflicting, node=node
+        )
