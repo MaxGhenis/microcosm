@@ -37,7 +37,9 @@ Runtime belongs to a separately frozen, root-reviewed invented-only packet.
 
 ## State
 
-In progress.
+Source, tests and documentation are committed on this branch. Nothing is
+pushed, no PR exists, and no accepted host was touched. The added tests have
+not been executed — see the runtime status above.
 
 ## Done
 
@@ -49,13 +51,28 @@ In progress.
   `graph_current_survey_health.py` as the fragment template, and
   `graph_current_survey_geography.py` as the qualifier/kernel template.
 - Recorded the `microcosm.graph` `Owned(rewrite=True)` contract that a
-  declared full-column rewrite must satisfy.
+  declared full-column rewrite must satisfy, including its compile-time
+  requirement of a receiving version with a base.
+- Added `current_survey_sex.py` and `graph_current_survey_sex.py`.
+- Classified both modules in `test_us_spine_blindness.py`'s
+  `_US_LAUNCH_GRAPH_RUNTIME_MODULES` and `_SOURCE_SPINE_PROVENANCE_OWNERS`,
+  which the fail-closed runtime-classification test requires.
+- Added `test_us_current_survey_sex.py` (pure, declaration, unknownness,
+  collision and axis cases) and `test_us_current_survey_sex_graph.py` (two
+  tiny real-graph controls plus tamper controls).
+- Added `docs/us-canonical-survey-sex-binding.md` and a `changelog.d`
+  fragment, matching the health and property precedents.
+- Static checks actually run, all green: `ruff format --check` and
+  `ruff check` over every changed file; `tools/ci_test_groups.py --verify`
+  (`verification=ok`, both new test files in fast `rest` and engine `us-am`,
+  neither `[defaulted]`); a stdlib AST replay of the spine-blindness
+  detectors (classification complete, no spine offenders, no Frame-metadata
+  drops, gate-accessor caller map unchanged, pinned 73-module pool import
+  graph unchanged); stdlib `ast.parse` of all four new files.
 
 ## Next
 
-- Write `current_survey_sex.py` and `graph_current_survey_sex.py`.
-- Write `test_us_current_survey_sex.py` (pure/declaration cases) and
-  `test_us_current_survey_sex_graph.py` (tiny invented-source graph controls).
-- Run only the permitted static checks: stdlib AST, ruff, and
-  `tools/ci_test_groups.py --verify`.
-- Write `BUILD-RESULT.md` into the packet directory.
+- Root-reviewed, separately frozen invented-only runtime packet: execute the
+  two new test files. They are unexecuted here.
+- Host integration is deliberately out of scope; see the four prerequisites in
+  `docs/us-canonical-survey-sex-binding.md`.
