@@ -140,11 +140,24 @@ speculative.
 
 ## A latent v1 fragility found while tracing
 
-The v2 encoder and decoder now also inherit v1's exact arithmetic domains:
-`share` and `inclusion_probability` are both required to satisfy
-`0 < value <= 1`. This closes the confirmed v2 gap where negative values could
-cancel in the multiplier, and where a zero anchor could mask invalid values
-from the weight check. The wire format and valid v1/v2 parity are unchanged.
+The v2 encoder and decoder now also inherit v1's exact arithmetic domains
+(`graph_survey_population.py:175,177`): `share` and `inclusion_probability` are
+both required to satisfy `0 < value <= 1`. This closes the confirmed v2 gap
+where negative values could cancel in the multiplier, and where a zero anchor
+could mask invalid values from the weight check. The wire format and valid
+v1/v2 parity are unchanged.
+
+The authored coverage for that domain is source-only and **UNRUN**. On the
+encoder side it is six out-of-domain values across the two fields plus a
+double-negative row with a zero anchor. On the decoder side each crafted
+payload repairs the derived multiplier cell, the float weight cell, every
+column digest and the envelope checksum before it is decoded, so a refusal
+cannot be attributed to stale integrity metadata: two above-one cases, and
+three negative cases (share, probability, both) whose zero anchor keeps the
+derived weight a legal `0.0`. Four accepted cases pin the closed upper bound
+itself -- `share == 1`, `inclusion_probability == 1`, the interior mixes and a
+`1/1000` share -- because the test helper's defaults of `1/2` and `2/7` are
+interior values and are therefore no evidence about the boundary.
 
 `_bounded_json` encodes with `ensure_ascii=False`
 (`graph_survey_population.py:253-261`), while `_graph_legacy_qrf.encode_json`

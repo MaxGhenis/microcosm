@@ -816,6 +816,71 @@ def test_decoder_rejects_out_of_domain_rationals_after_repaired_integrity(
 
 
 @pytest.mark.parametrize(
+    ("negated", "multiplier_numerator"),
+    [
+        (("share",), b"\xfe"),
+        (("inclusion_probability",), b"\xfe"),
+        (("share", "inclusion_probability"), b"\x02"),
+    ],
+)
+def test_decoder_rejects_negative_rationals_a_zero_anchor_would_mask(
+    negated, multiplier_numerator
+):
+    """Negate the unit fields, then make every derived cell honestly agree.
+
+    ``narrow()`` carries ``share = 1/2`` over ``probability = 1/4``, so negating
+    one numerator turns the multiplier into ``-2`` and negating both leaves it
+    at ``2`` -- the cancellation a multiplier check on its own cannot see. The
+    anchor is rewritten to zero, which keeps the derived weight exactly ``0.0``:
+    finite, non-negative and therefore legal. With the multiplier cell, the
+    weight cell, every column digest and the envelope checksum all repaired, no
+    integrity, redundancy or weight guard has anything left to object to, so an
+    exact ``ROW_RATIONAL`` is the inherited ``0 < value <= 1`` domain refusing
+    and nothing else.
+    """
+    mutations = [
+        ("original_anchor_numerator_payload", 0, b"\x00"),
+        ("importance_multiplier_numerator_payload", 0, multiplier_numerator),
+        ("importance_weight_float64", 0, struct.pack("<d", 0.0)),
+        *((f"{field}_numerator_payload", 0, b"\xff") for field in negated),
+    ]
+    bad = resealed(payload_of(narrow(3)), mutations)
+    with pytest.raises(columnar.AllocationColumnarError, match=r"^ROW_RATIONAL$"):
+        columnar.decode_allocation(bad)
+
+
+@pytest.mark.parametrize(
+    ("share", "probability"),
+    [
+        (Fraction(1), Fraction(1)),
+        (Fraction(1), Fraction(1, 4)),
+        (Fraction(1, 4), Fraction(1)),
+        (Fraction(1, 1000), Fraction(3, 7)),
+    ],
+)
+def test_the_closed_upper_bound_and_a_small_rational_are_accepted(share, probability):
+    """One is a value on both fields, not a refusal, and so is a tiny share.
+
+    The inherited domain is closed at one (`graph_survey_population.py:175,177`),
+    so the boundary needs its own accepted rows: :func:`instruction` defaults to
+    ``share = 1/2`` over ``probability = 2/7``, which means every other passing
+    test here exercises the interior only. Each pair is also rendered back
+    through the v1 document bridge, so an accepted boundary row is the same
+    document on both transports.
+    """
+    instructions = (instruction(0, share=share, probability=probability),)
+    decoded = columnar.decode_allocation(payload_of(instructions))
+    assert decoded.share == (share,)
+    assert decoded.inclusion_probability == (probability,)
+    assert decoded.importance_multiplier == (share / probability,)
+    assert decoded.importance_weight == (float(instructions[0].importance_weight),)
+    assert (
+        list(decoded.legacy_instruction_documents())
+        == json.loads(graph._allocation_payload(instructions, **KWARGS))["households"]
+    )
+
+
+@pytest.mark.parametrize(
     "value",
     [0, 1, -1, 127, 128, -128, 255, -255, 2**63, -(2**63), 10**50, -(10**50)],
 )

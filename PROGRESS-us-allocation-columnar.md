@@ -13,14 +13,20 @@ claim.
 
 ## State
 
-Complete and local, source-only. Baseline confirmed clean at
-`2419e65f411dafd2cbd9baa66fe15c68639f11987` on the fresh requested branch.
-The inherited rational-domain gap is repaired in both encoder and decoder.
+Complete and local, source-only. The codec baseline for this repair is
+`2419e65f411daf2cbd9baa66fe15c68639f11987` (an earlier line here mistyped
+it with an extra `d`); the successor coverage pass continued from
+`4a8fe60dd96e33089f4d15980fc61c2a3328c69a` on the same branch.
+The inherited rational-domain gap is repaired in both encoder and decoder, and
+the independent review's two coverage findings are now closed in the test file.
+Production codec bytes are unchanged by the successor pass.
 No tests have been collected or run.
 
-Tests are **UNRUN**: 74 test functions, 181 parametrized cases, never collected
-or executed in this lane. One of them asserts a byte count and is held for a
-separately reviewed root guard.
+Tests are **UNRUN**: counted by stdlib `ast` over the test file only, 76 test
+functions and 188 parametrized cases, never collected or executed in this lane.
+The codec baseline carried 71 functions / 172 cases; the domain repair added
+3 functions / 9 cases; the successor coverage pass added 2 functions / 7 cases.
+One case asserts a byte count and is held for a separately reviewed root guard.
 
 ## Done
 
@@ -41,6 +47,20 @@ separately reviewed root guard.
   on both sides, including before derived multiplier/weight checks.
 - Added authored lower/upper-bound, double-negative, zero-anchor, and
   repaired-checksum decoder tampering regressions.
+- Closed the independent review's two coverage findings, source-only:
+  `test_decoder_rejects_negative_rationals_a_zero_anchor_would_mask` (3 cases:
+  negative share, negative probability, both negative) rewrites the anchor to
+  zero and repairs the derived multiplier cell, the float weight cell, every
+  column digest and the envelope checksum, so the refusal it asserts is the
+  domain and not stale integrity metadata; and
+  `test_the_closed_upper_bound_and_a_small_rational_are_accepted` (4 cases)
+  accepts `share == 1`, `inclusion_probability == 1`, both interior mixes and
+  a small `1/1000` share, which the helper defaults of `1/2` and `2/7` never
+  exercised. Both remain UNRUN.
+- Removed the unsolicited `FINAL_REPORT-us-allocation-probability-bounds-*.md`
+  from the change set; it had recorded a mistyped predecessor SHA and a
+  boundary-1 coverage claim the source did not support. Its own commit
+  (`4a8fe60dd`) stays in history.
 - Added `docs/us-allocation-columnar-v2.md` and the changelog fragment.
 - Ran a five-lens adversarial review over the codec and the unrun tests and
   closed every confirmed defect: a source-codebook relabel the ordering digest
@@ -56,10 +76,12 @@ separately reviewed root guard.
 
 ## Next
 
-Final static AST/hash/Ruff/diff checks and the concise handoff are recorded in
-`FINAL_REPORT-us-allocation-probability-bounds-20260913.md`. Root review is the
-next action. All 181 cases remain UNRUN; no performance/capacity claim or host
-integration is in scope.
+Root review is the next action. Static checks in the successor pass were
+`ruff check` and `ruff format --check` (both clean on the test file, ruff
+0.15.0 direct binary), a stdlib `ast` recount, and `git diff`; no `uv`,
+dependency resolution, project import, test collection or execution, network
+or data access was used or attempted. All 188 cases remain UNRUN; no
+performance/capacity claim or host integration is in scope.
 
 The preparation payload's own 64 MiB cap is untouched and unrelieved by this
 work; it remains the other ceiling on the same path.
