@@ -34,10 +34,12 @@ must remain unissued; changing a retained replay value must permanently revoke
 only that replay handle. These tests do not use the existing `sys.monitoring`
 helpers.
 
-The proposed bounded packet separately selects the existing incomplete38
-admission test from `test_us_graph_atomic_property_tax_financial.py`. That
-requires its own source/38-node fixture; it must run after the positive module
-tears down, so distinct source registry pins do not overlap. It exercises the
+The original bounded packet selected the existing incomplete38 admission test
+from `test_us_graph_atomic_property_tax_financial.py` after the positive module.
+That requires its own source/38-node fixture. A source-only successor proposal
+places this negative control in a separate process and reviewed packet, so its
+independent financial build does not consume the positive bridge's CPU budget
+and distinct source registry pins do not overlap. It exercises the
 real `PROPERTY_TAX_INPUTS_INCOMPLETE` refusal without changing the gate or
 manufacturing an issued handle. The older incomplete38 acceptance remains
 historical evidence, not acceptance of these new source bytes.
@@ -46,3 +48,39 @@ No production module, source authority, allocation rule, or release gate is
 changed. A passing invented bridge would demonstrate composition only. Native
 property completeness remains a separate prerequisite, and PUF clone1 outputs
 cannot bootstrap missing original-channel observations before admission.
+
+## Deferred fixture restoration proposal
+
+The original guarded attempt closed with exit 152 and no terminal pytest or
+guard receipt. Its guard sets a hard 1,800-second CPU ceiling, and the exit is
+consistent with Darwin SIGXCPU. No stage, completed-test count, or final seal is
+inferred from that exit. The original packet is preserved; these changes have
+not been executed or accepted at runtime.
+
+The test-only `defer_intermediate_restoration` option skips three intermediate
+person-income attachment restorations while the nested fixture adds Social
+Security, demographic and income-routing source fields. Those intermediate
+attachments are replaced before any downstream source owner consumes them.
+All source edits and pin updates still happen. The initial fixture restoration
+and final property restoration remain actual calls to
+`restore_asec_person_income_source`, including its independent reconstruction
+and canonical-byte verification. Every existing helper defaults to eager
+restoration; only this positive bridge opts in.
+
+Two authored parity cases, one retaining the default incomplete observations
+and one using the complete age-15+ observations, compare eager and deferred
+construction. They count calls to the unchanged producer using a temporary
+Python profiler: five eager calls versus the base and final two deferred calls.
+They compare all ten final source files byte for byte, the final restoration
+receipt and checkpoint metadata, and actual source/clone graph qualification
+and property descriptions. Original source file physical identities and bytes
+must remain unchanged during qualification. Neither variant fits a financial
+model or runs PUF. The profiler is restored before source qualification, and
+no producer or authority check is replaced.
+
+The positive bridge still shares one retained financial owner between the
+38-node financial graph, 154-node PUF cold run and 154-node required replay.
+Its five controls and final owner checks remain unchanged. The reduction does
+not establish that the next attempt will fit its budget: repeated maintained
+source and retained-owner checks still run. Future phase/progress wrappers,
+exact limits, staging and execution each need their own reviewed packet.

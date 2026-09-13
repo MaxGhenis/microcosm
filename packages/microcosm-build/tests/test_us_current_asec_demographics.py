@@ -77,11 +77,15 @@ def test_state_capture_structure_and_exact_bytes_refuse(tmp_path, defect):
         owner._read_state_capture(path, pin)
 
 
-def _demographic_arguments(tmp_path, monkeypatch, *, unknown=False, zero=True):
+def _demographic_arguments(
+    tmp_path, monkeypatch, *, unknown=False, zero=True, restore_attachment=True
+):
     """Extend invented source members before actual preparation/issuance.
 
     Rebuild the real person-income attachment after member bytes change. Only
     fixture registry pins are changed; no source issuer or ready() is replaced.
+    Deferral is for composition that restores after its last source edit,
+    before any owner is issued; standalone callers keep the eager default.
     """
     arguments = fixture(tmp_path, monkeypatch, zero=zero)
     source = arguments["source_dir"] / "asec"
@@ -113,16 +117,18 @@ def _demographic_arguments(tmp_path, monkeypatch, *, unknown=False, zero=True):
         members[year] = path
     for module in (coverage, restoration, owner.demographic):
         monkeypatch.setattr(module, "_MEMBER_PINS", tuple(pins))
-    output = tmp_path / "demographic-restored-money"
-    restoration.restore_asec_person_income_source(
-        source / "parent.h5",
-        source / "household-attachment.h5",
-        member_paths=members,
-        output_dir=output,
-    )
-    shutil.copyfile(
-        output / restoration.CHECKPOINT_FILENAME, source / "person-income-attachment.h5"
-    )
+    if restore_attachment:
+        output = tmp_path / "demographic-restored-money"
+        restoration.restore_asec_person_income_source(
+            source / "parent.h5",
+            source / "household-attachment.h5",
+            member_paths=members,
+            output_dir=output,
+        )
+        shutil.copyfile(
+            output / restoration.CHECKPOINT_FILENAME,
+            source / "person-income-attachment.h5",
+        )
     path = source / "hhpub25.csv"
     table = pd.read_csv(path, dtype=str, keep_default_na=False)
     table["GESTFIPS"] = table.H_SEQ.map({"00007": "06", "00008": "36"})

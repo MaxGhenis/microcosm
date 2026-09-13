@@ -52,11 +52,19 @@ def _detached(value):
     return copy.deepcopy(value)
 
 
-def source_arguments(tmp_path, monkeypatch, *, complete_adults=False):
+def source_arguments(
+    tmp_path,
+    monkeypatch,
+    *,
+    complete_adults=False,
+    defer_intermediate_restoration=False,
+):
     """Construct invented literals before issuance, optionally all age 15+.
 
     The positive bridge changes the source case, never an issued value or a
     production unknownness rule. The default retains child/malformed anchors.
+    The final maintained restoration below always runs, including when a
+    composing fixture opts out of intermediate restorations.
     """
     import test_us_survey_population_preparation as fixture
     from test_us_asec_coverage_authentication import _changed_parent
@@ -83,6 +91,7 @@ def source_arguments(tmp_path, monkeypatch, *, complete_adults=False):
         tmp_path,
         monkeypatch,
         ages={105: 55, 106: 15, 107: 70, 108: 15} if complete_adults else None,
+        restore_attachment=not defer_intermediate_restoration,
     )
     folder = arguments["source_dir"] / "asec"
     parent_path, attachment = folder / "parent.h5", folder / "household-attachment.h5"

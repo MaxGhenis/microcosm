@@ -1,0 +1,1 @@
+Add opt-in deferred intermediate restoration to invented property fixtures, preserving eager defaults, the final maintained source restoration, and authored eager/deferred source-qualification parity controls. Keep the complete property38-to-PUF bridge in one retained-owner process. Runtime acceptance remains pending.

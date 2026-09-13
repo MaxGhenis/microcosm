@@ -251,13 +251,17 @@ def test_a_projection_receipt_cannot_replace_live_source_authority():
         source.qualify_current_social_security({"source_authenticated": True})
 
 
-def _social_security_arguments(tmp_path, monkeypatch, *, ambiguous):
+def _social_security_arguments(
+    tmp_path, monkeypatch, *, ambiguous, restore_attachment=True
+):
     """Construct original SS observations before fresh maintained issuance.
 
     The raw CSV and original checkpoint are fixture inputs, not mutations of a
     received Population. The maintained helper rebuilds identities and source
     pins, then the real person-income attachment and preparation are rebuilt.
     No source issuer, validation method, ready artifact, or model is replaced.
+    A composing fixture may defer this intermediate attachment only when it
+    performs the final maintained restoration before any source qualification.
     """
     arguments = fixture(
         tmp_path,
@@ -315,16 +319,18 @@ def _social_security_arguments(tmp_path, monkeypatch, *, ambiguous):
         members[year] = path
     for owner in (source.coverage, restoration):
         monkeypatch.setattr(owner, "_MEMBER_PINS", tuple(pins))
-    output = tmp_path / "ss-restored-money"
-    restoration.restore_asec_person_income_source(
-        parent_path,
-        household_path,
-        member_paths=members,
-        output_dir=output,
-    )
-    shutil.copyfile(
-        output / restoration.CHECKPOINT_FILENAME, root / "person-income-attachment.h5"
-    )
+    if restore_attachment:
+        output = tmp_path / "ss-restored-money"
+        restoration.restore_asec_person_income_source(
+            parent_path,
+            household_path,
+            member_paths=members,
+            output_dir=output,
+        )
+        shutil.copyfile(
+            output / restoration.CHECKPOINT_FILENAME,
+            root / "person-income-attachment.h5",
+        )
     # Ensure the real source pin update is retained by the original owner.
     assert money._SOURCE_PINS[0] == hashlib.sha256(parent_path.read_bytes()).hexdigest()
     return arguments

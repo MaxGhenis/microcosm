@@ -24,7 +24,12 @@ from microcosm.graph import StructuralDelta
 def complete_property_puf_bridge(tmp_path_factory):
     root = tmp_path_factory.mktemp("property38-puf-complete-adults")
     with pytest.MonkeyPatch.context() as patch:
-        source = _property_host_source_arguments(root, patch, complete_adults=True)
+        source = _property_host_source_arguments(
+            root,
+            patch,
+            complete_adults=True,
+            defer_intermediate_restoration=True,
+        )
         financial = graph.financial.run_atomic_survey_financial(
             **source.call,
             property_income=replace(source.options, completion_routing=True),

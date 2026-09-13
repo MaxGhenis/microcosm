@@ -19,7 +19,9 @@ from microcosm.build.us_runtime import graph_puf55_survey_recipients as puf_reci
 from microcosm.graph import compile_graph
 
 
-def _property_host_source_arguments(root, patch, *, complete_adults=False):
+def _property_host_source_arguments(
+    root, patch, *, complete_adults=False, defer_intermediate_restoration=False
+):
     """Compose the existing source fixture without issuing a graph or owner."""
     import test_us_current_asec_demographics as demographic_fixture_module
     import test_us_current_asec_income_routing as routing_fixture
@@ -30,14 +32,27 @@ def _property_host_source_arguments(root, patch, *, complete_adults=False):
     # Compose complete invented member bytes before the real source issuer
     # runs. Only fixture constructors and their registry pins are replaced.
     # The nesting order is original source -> Social Security -> demographics
-    # -> routing -> property. Each extension preserves prior columns and
-    # rebuilds the retained attachment; preparation is issued only afterward.
+    # -> routing -> property. Each extension preserves prior columns. The
+    # optional deferred path skips only intermediate SS/demographic/routing
+    # restorations; the base and final property restoration still run, and
+    # preparation is issued only afterward.
     def social_security_fixture(path, monkeypatch, *, zero):
         assert zero is False
-        return _social_security_arguments(path, monkeypatch, ambiguous=False)
+        return _social_security_arguments(
+            path,
+            monkeypatch,
+            ambiguous=False,
+            restore_attachment=not defer_intermediate_restoration,
+        )
 
     def demographic_fixture(path, monkeypatch):
-        return _demographic_arguments(path, monkeypatch, unknown=False, zero=False)
+        return _demographic_arguments(
+            path,
+            monkeypatch,
+            unknown=False,
+            zero=False,
+            restore_attachment=not defer_intermediate_restoration,
+        )
 
     patch.setattr(demographic_fixture_module, "fixture", social_security_fixture)
     patch.setattr(routing_fixture, "fixture", demographic_fixture)
@@ -52,7 +67,12 @@ def _property_host_source_arguments(root, patch, *, complete_adults=False):
         return row
 
     patch.setattr(survey_fixture_module, "_person", person)
-    arguments = source_arguments(root, patch, complete_adults=complete_adults)
+    arguments = source_arguments(
+        root,
+        patch,
+        complete_adults=complete_adults,
+        defer_intermediate_restoration=defer_intermediate_restoration,
+    )
     patch.setattr(
         demographics.demographic,
         "_MEMBER_PINS",

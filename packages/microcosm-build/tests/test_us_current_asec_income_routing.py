@@ -83,12 +83,16 @@ def _member_literals(person_id):
     return {**DEFAULT_LITERAL, **LITERALS.get(person_id, {})}
 
 
-def routing_arguments(tmp_path, monkeypatch, *, reverse=True, ages=None):
+def routing_arguments(
+    tmp_path, monkeypatch, *, reverse=True, ages=None, restore_attachment=True
+):
     """Extend the invented member before any owner issues a preparation.
 
     Only fixture registry pins change. No source issuer, ready() or native
     loader is replaced, and the person-income attachment is rebuilt from the
-    changed member bytes exactly as production would.
+    changed member bytes exactly as production would. Composition may defer
+    this intermediate restore, but must restore after its final source edit
+    before any preparation or other source owner consumes the attachment.
     """
     arguments = fixture(tmp_path, monkeypatch)
     asec = arguments["source_dir"] / "asec"
@@ -137,13 +141,15 @@ def routing_arguments(tmp_path, monkeypatch, *, reverse=True, ages=None):
         paths[year] = path
     for module in (coverage, restoration):
         monkeypatch.setattr(module, "_MEMBER_PINS", tuple(pins))
-    output = tmp_path / "routing-restored-money"
-    restoration.restore_asec_person_income_source(
-        parent_path, attachment, member_paths=paths, output_dir=output
-    )
-    shutil.copyfile(
-        output / restoration.CHECKPOINT_FILENAME, asec / "person-income-attachment.h5"
-    )
+    if restore_attachment:
+        output = tmp_path / "routing-restored-money"
+        restoration.restore_asec_person_income_source(
+            parent_path, attachment, member_paths=paths, output_dir=output
+        )
+        shutil.copyfile(
+            output / restoration.CHECKPOINT_FILENAME,
+            asec / "person-income-attachment.h5",
+        )
     return arguments
 
 
