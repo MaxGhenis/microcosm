@@ -268,6 +268,46 @@ def test_out_of_range_native_lexemes_refuse(native):
         payload_of((instruction(0, native=native),))
 
 
+@pytest.mark.parametrize("native", ["\ud800abc", "abc\udfff", "\ud800"])
+def test_a_surrogate_lexeme_is_a_refusal_not_a_unicode_error(native):
+    """A surrogateescape decode of malformed source bytes produces these.
+
+    Encoding one must raise a refusal code, not a UnicodeEncodeError whose
+    message would quote the lexeme this module promises never to echo.
+    """
+    with pytest.raises(columnar.AllocationColumnarError, match="ROW_LEXEME"):
+        payload_of((instruction(0, native=native),))
+
+
+def test_a_rational_wider_than_v1_can_carry_still_round_trips():
+    """v2 must not be narrower than the transport it would replace.
+
+    v1 bounds a whole row document at 4096 JSON bytes, so this anchor's decimal
+    rendering alone overruns it. v2 carries the same exact value.
+    """
+    anchor = Fraction(2**13000, 2**13000 + 1)
+    instructions = (instruction(0, anchor=anchor, probability=Fraction(1, 2)),)
+    with pytest.raises(graph.SurveyPopulationGraphError, match="TRANSPORT_LIMIT"):
+        graph._allocation_payload(instructions, **KWARGS)
+    decoded = columnar.decode_allocation(payload_of(instructions))
+    assert decoded.original_anchor == (anchor,)
+    assert decoded.original_anchor[0].numerator == 2**13000
+
+
+def test_a_rational_beyond_the_transport_bound_is_refused():
+    """Reached through the share, not the anchor.
+
+    Any anchor wide enough to overrun the integer bound also overflows or
+    underflows float64, so the weight check would fire first and the integer
+    bound would never be exercised. A zero anchor keeps the weight exactly 0.0
+    while the share carries the over-wide integer.
+    """
+    over = Fraction(2 ** (8 * columnar.MAX_RATIONAL_BYTES) + 1)
+    row = instruction(0, anchor=Fraction(0), share=over, probability=Fraction(1))
+    with pytest.raises(columnar.AllocationColumnarError, match="ROW_RATIONAL"):
+        payload_of((row,))
+
+
 # ---------------------------------------------------------------------------
 # Determinism and ordering
 # ---------------------------------------------------------------------------
@@ -488,6 +528,38 @@ def test_a_reordered_or_respaced_header_spelling_is_refused():
         columnar.decode_allocation(joined + hashlib.sha256(joined).digest())
 
 
+@pytest.mark.parametrize("length", [0, 0xFFFFFFFF, columnar.HEADER_MAX_BYTES])
+def test_a_forged_header_length_field_is_refused(length):
+    """The four-byte length prefix is bounded before it is used to slice."""
+    payload = payload_of()
+    start = len(columnar.MAGIC)
+    forged = payload[:start] + length.to_bytes(4, "big") + payload[start + 4 :]
+    with pytest.raises(columnar.AllocationColumnarError, match="HEADER_LENGTH"):
+        columnar.decode_allocation(forged)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "code"),
+    [
+        (lambda h: h.__setitem__("schema_version", 2.0), "HEADER_VERSION"),
+        (
+            lambda h: h.__setitem__("type", [columnar.ARTIFACT_TYPE_NAME, 2.0]),
+            "HEADER_TYPE",
+        ),
+        (lambda h: h.__setitem__("type", [columnar.ARTIFACT_TYPE_NAME]), "HEADER_TYPE"),
+        (lambda h: h.__setitem__("type", columnar.ARTIFACT_TYPE_NAME), "HEADER_TYPE"),
+    ],
+)
+def test_a_float_or_malformed_version_spelling_is_refused(mutate, code):
+    """``2.0 == 2`` in Python, so equality alone would admit a second byte form.
+
+    Two canonical payloads decoding to identical values but hashing differently
+    would give one allocation two identities.
+    """
+    with pytest.raises(columnar.AllocationColumnarError, match=code):
+        columnar.decode_allocation(reheaded(payload_of(), mutate))
+
+
 def test_a_header_that_is_not_json_is_refused():
     payload = payload_of()
     _, bodies = split(payload)
@@ -519,6 +591,22 @@ def test_a_malformed_or_short_source_codebook_is_refused(codebook, code):
     )
     with pytest.raises(columnar.AllocationColumnarError, match=code):
         columnar.decode_allocation(bad)
+
+
+def test_relabelling_the_source_codebook_is_refused_by_the_ordering_digest():
+    """The header's codebook may not silently reassign every row's channel.
+
+    Swapping the two entries changes no body byte and no column digest, so a
+    digest over the numeric code alone would still match while every decoded
+    row reported the other source. The digest folds the resolved channel
+    string, which closes that.
+    """
+    payload = payload_of(cohort(2))
+    relabelled = reheaded(
+        payload, lambda h: h.__setitem__("source_codebook", {"acs": 1, "asec": 0})
+    )
+    with pytest.raises(columnar.AllocationColumnarError, match="IDENTITY_DIGEST"):
+        columnar.decode_allocation(relabelled)
 
 
 def test_the_declared_source_codebook_is_the_enum_definition_order():
@@ -763,6 +851,12 @@ def test_a_non_bytes_payload_is_refused(value):
         columnar.decode_allocation(value)
 
 
+def test_the_declared_artifact_type_is_pinned_to_the_host_declaration():
+    """The hand-copied type literal must not drift from the host it names."""
+    assert columnar.ARTIFACT_TYPE_NAME == graph.ALLOCATION_TYPE.name
+    assert columnar.ARTIFACT_SCHEMA_VERSION == graph.ALLOCATION_TYPE.schema_version + 1
+
+
 def test_the_declared_bounds_match_the_v1_host_and_are_not_raised():
     assert columnar.MAX_BYTES == graph.ALLOCATION_MAX_BYTES
     assert columnar.MAX_ROWS == graph.ALLOCATION_MAX_BYTES // 128
@@ -833,7 +927,11 @@ def test_the_public_manifest_reports_shape_and_claims_no_authority():
     assert manifest["protocol"] == columnar.PROTOCOL
     assert manifest["schema_version"] == 2
     assert manifest["total_bytes"] == len(payload)
-    assert manifest["payload_sha256"] == hashlib.sha256(payload).hexdigest()
+    # The payload digest is deliberately absent: the encoder is deterministic,
+    # so publishing it beside the exact column lengths would let a holder who
+    # knew all but one native lexeme re-encode each candidate and confirm it.
+    assert "payload_sha256" not in manifest
+    assert "source_codebook" not in manifest
     assert manifest["header_bytes"] + manifest["body_bytes"] + len(
         columnar.MAGIC
     ) + 4 + 32 == len(payload)
@@ -855,6 +953,24 @@ def test_the_public_manifest_reports_shape_and_claims_no_authority():
 def test_the_manifest_refuses_the_same_malformed_payloads_the_decoder_does():
     with pytest.raises(columnar.AllocationColumnarError, match="PAYLOAD_LENGTH"):
         columnar.allocation_manifest(payload_of() + b"\x00")
+
+
+def test_the_manifest_refuses_a_payload_whose_seal_is_broken():
+    """A manifest must never republish provenance digests over rewritten bodies.
+
+    Without the envelope check the header parses cleanly, so the manifest would
+    report the producer's untouched preparation and context digests over column
+    bodies an attacker controls.
+    """
+    payload = payload_of(narrow(3))
+    _, bodies = split(payload)
+    offset = len(payload) - 32 - sum(len(body) for body in bodies.values())
+    broken = bytearray(payload)
+    broken[offset] ^= 0xFF
+    with pytest.raises(columnar.AllocationColumnarError, match="PAYLOAD_CHECKSUM"):
+        columnar.allocation_manifest(bytes(broken))
+    with pytest.raises(columnar.AllocationColumnarError, match="PAYLOAD_CHECKSUM"):
+        columnar.decode_allocation(bytes(broken))
 
 
 def test_a_decoder_issues_no_source_or_release_authority():

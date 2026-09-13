@@ -99,10 +99,14 @@ MAX_ROWS = MAX_BYTES // 128
 MAX_NATIVE_ID_CHARS = 128
 MAX_NATIVE_ID_BYTES = 4 * MAX_NATIVE_ID_CHARS
 
-#: The widest exact numerator or denominator this transport carries: 1024 bits.
-#: Rationals reaching allocation are ratios of publisher weights and declared
-#: shares, far below this, but the bound is enforced rather than assumed.
-MAX_RATIONAL_BYTES = 128
+#: The widest exact numerator or denominator this transport carries: 16384 bits.
+#: Derived, not chosen: v1 bounds a whole row document at 4096 JSON bytes, so
+#: the widest single integer v1 can carry is under 4000 decimal digits, about
+#: 1620 bytes. This exceeds that, so a host switching transports cannot start
+#: refusing a rational it previously emitted. Rationals reaching allocation are
+#: ratios of publisher weights and declared shares, far below either figure,
+#: but the bound is enforced rather than assumed.
+MAX_RATIONAL_BYTES = 2048
 
 #: The widest source codebook a payload may declare.
 MAX_SOURCE_CODES = 16
@@ -185,7 +189,7 @@ def _body_roster():
     ]
     for field in RATIONAL_FIELDS:
         for part in ("numerator", "denominator"):
-            roster.append((f"{field}_{part}_lengths", _KIND_UINT8))
+            roster.append((f"{field}_{part}_lengths", _KIND_UINT16))
             roster.append((f"{field}_{part}_payload", _KIND_INTEGER_PAYLOAD))
     return tuple(roster)
 
@@ -238,10 +242,14 @@ def _canonical_int_length(value):
 
 
 def _encode_int(value, code):
-    _exact_int(value, code, minimum=-(2**1023), maximum=2**1023 - 1)
-    raw = value.to_bytes(_canonical_int_length(value), "big", signed=True)
-    _require(len(raw) <= MAX_RATIONAL_BYTES, code)
-    return raw
+    # The width is decided from the value's bit length before anything is
+    # built, so an out-of-range integer is refused without first materialising
+    # an over-long encoding, and the admissible range is exactly the range that
+    # round trips rather than a wider one the size check later rejects.
+    _require(type(value) is int, code)
+    length = _canonical_int_length(value)
+    _require(length <= MAX_RATIONAL_BYTES, code)
+    return value.to_bytes(length, "big", signed=True)
 
 
 def _decode_int(raw, code):
@@ -275,6 +283,32 @@ def _checked_weight(value, code):
         raise AllocationColumnarError(code) from None
     _require(math.isfinite(number) and number >= 0 and (value == 0 or number > 0), code)
     return number
+
+
+def _fold_identity(
+    digest, *, household_id, source, source_year, survey_year, native, receiving
+):
+    """Fold one row's identity into the ordering digest, in a fixed field order.
+
+    The source is folded as its own value string, not as the numeric code the
+    body carries. Folding the code would leave the header's ``source_codebook``
+    free to relabel every row: swapping the two entries changes no body byte and
+    no column digest, so a code-only digest would still match while every
+    decoded row reported the other channel. Binding the resolved string closes
+    that, because the meaning of the code is then inside the digest.
+
+    Encoder and decoder both call this, so the two can never drift apart.
+    """
+
+    digest.update(household_id.to_bytes(8, "little", signed=True))
+    channel = source.value.encode("utf-8")
+    digest.update(len(channel).to_bytes(2, "little"))
+    digest.update(channel)
+    digest.update(source_year.to_bytes(8, "little", signed=True))
+    digest.update(survey_year.to_bytes(8, "little", signed=True))
+    digest.update(len(native).to_bytes(2, "little"))
+    digest.update(native)
+    digest.update(receiving.to_bytes(8, "little", signed=True))
 
 
 def _source_codebook():
@@ -411,10 +445,13 @@ class _Bodies:
 
     The bound covers the magic, the bodies and the trailing checksum, but not
     the header, whose size is not known until the last row has been read. The
-    buffers therefore never exceed ``limit``; the header is separately capped at
-    ``HEADER_MAX_BYTES`` and the finished envelope is checked exactly, so peak
-    memory is bounded by ``limit + HEADER_MAX_BYTES`` and the sealed payload is
-    bounded by ``limit``.
+    buffers therefore never exceed ``limit``, and the sealed payload never
+    exceeds ``limit``.
+
+    Peak process memory is a small multiple of ``limit``, not ``limit`` itself:
+    the buffers, the frozen copies :meth:`frozen` takes of them, and the joined
+    result are live together at the seal. A caller sizing a worker against the
+    default 64 MiB ceiling should budget for that multiple.
     """
 
     __slots__ = ("_buffers", "_limit", "total")
@@ -524,7 +561,13 @@ def encode_allocation(
         household_id = values["household_id"]
         receiving = values["selected_receiving_household_id"]
         source = values["source"]
-        native = values["raw_native_id"].encode("utf-8")
+        try:
+            native = values["raw_native_id"].encode("utf-8")
+        except UnicodeEncodeError:
+            # A lone surrogate - what a surrogateescape decode of malformed
+            # source bytes produces - is a refusal code, not a stray
+            # UnicodeEncodeError whose message would quote the lexeme.
+            raise AllocationColumnarError("ROW_LEXEME") from None
         _require(len(native) <= MAX_NATIVE_ID_BYTES, "ROW_LEXEME")
         native_key = (
             source,
@@ -569,16 +612,18 @@ def encode_allocation(
                 ("denominator", value.denominator),
             ):
                 raw = _encode_int(number, "ROW_RATIONAL")
-                bodies.append(f"{field}_{part}_lengths", len(raw).to_bytes(1, "little"))
+                bodies.append(f"{field}_{part}_lengths", len(raw).to_bytes(2, "little"))
                 bodies.append(f"{field}_{part}_payload", raw)
 
-        identity.update(household_id.to_bytes(8, "little", signed=True))
-        identity.update(code.to_bytes(1, "little"))
-        identity.update(values["source_year"].to_bytes(8, "little", signed=True))
-        identity.update(values["survey_year"].to_bytes(8, "little", signed=True))
-        identity.update(len(native).to_bytes(2, "little"))
-        identity.update(native)
-        identity.update(receiving.to_bytes(8, "little", signed=True))
+        _fold_identity(
+            identity,
+            household_id=household_id,
+            source=source,
+            source_year=values["source_year"],
+            survey_year=values["survey_year"],
+            native=native,
+            receiving=receiving,
+        )
 
     _require(rows > 0, "EMPTY_ALLOCATION")
     frozen = bodies.frozen()
@@ -629,7 +674,13 @@ def encode_allocation(
 
 
 def _parse_header(payload, *, max_bytes):
-    """Read and fully validate the header without touching a column body."""
+    """Validate the header and the envelope seal without interpreting a body.
+
+    Every declared length is bounded against the row count and its own per-row
+    maximum before anything is sliced, then the total is checked against the
+    payload's actual length, then the trailing checksum is verified. The column
+    bodies are hashed by that checksum but never decoded here.
+    """
 
     _require(type(payload) is bytes, "PAYLOAD_TYPE")
     _require(
@@ -656,9 +707,20 @@ def _parse_header(payload, *, max_bytes):
     _require(recanonical == encoded, "HEADER_NOT_CANONICAL")
     _require(type(header) is dict and set(header) == _HEADER_KEYS, "HEADER_SCHEMA")
     _require(header["protocol"] == PROTOCOL, "HEADER_PROTOCOL")
-    _require(header["schema_version"] == SCHEMA_VERSION, "HEADER_VERSION")
+    # The type checks are exact, not just equal. ``2.0 == 2`` in Python, so a
+    # float spelling would otherwise decode to the same values through a
+    # different, equally canonical byte string - two legal forms of one
+    # document, and two different payload digests for it.
+    version = header["schema_version"]
+    _require(type(version) is int and version == SCHEMA_VERSION, "HEADER_VERSION")
+    declared = header["type"]
     _require(
-        header["type"] == [ARTIFACT_TYPE_NAME, ARTIFACT_SCHEMA_VERSION], "HEADER_TYPE"
+        type(declared) is list
+        and len(declared) == 2
+        and declared[0] == ARTIFACT_TYPE_NAME
+        and type(declared[1]) is int
+        and declared[1] == ARTIFACT_SCHEMA_VERSION,
+        "HEADER_TYPE",
     )
     _require(
         header["header_length_endianness"] == "big"
@@ -708,6 +770,15 @@ def _parse_header(payload, *, max_bytes):
         len(payload) == body_start + total + _DIGEST_BYTES,
         "PAYLOAD_LENGTH",
     )
+    # The envelope checksum is verified here rather than in the caller, so every
+    # entry point gets it. A manifest that republished this payload's
+    # provenance digests without checking the seal would describe bytes a
+    # decoder refuses, over bodies an attacker had rewritten.
+    _require(
+        hashlib.sha256(memoryview(payload)[:-_DIGEST_BYTES]).digest()
+        == payload[-_DIGEST_BYTES:],
+        "PAYLOAD_CHECKSUM",
+    )
     return header, sizes, body_start
 
 
@@ -744,11 +815,6 @@ def decode_allocation(payload, *, max_bytes=MAX_BYTES):
 
     _require(type(max_bytes) is int and 0 < max_bytes <= MAX_BYTES, "TRANSPORT_LIMIT")
     header, sizes, body_start = _parse_header(payload, max_bytes=max_bytes)
-    _require(
-        hashlib.sha256(memoryview(payload)[:-_DIGEST_BYTES]).digest()
-        == payload[-_DIGEST_BYTES:],
-        "PAYLOAD_CHECKSUM",
-    )
     members = _checked_codebook(header["source_codebook"])
     rows = header["rows"]
 
@@ -808,7 +874,7 @@ def decode_allocation(payload, *, max_bytes=MAX_BYTES):
         parts = {}
         for part in ("numerator", "denominator"):
             lengths = _fixed_values(
-                bodies[f"{field}_{part}_lengths"], rows, 1, False, "COLUMN_SIZE"
+                bodies[f"{field}_{part}_lengths"], rows, 2, False, "COLUMN_SIZE"
             )
             _require(
                 all(0 < size <= MAX_RATIONAL_BYTES for size in lengths), "ROW_RATIONAL"
@@ -867,18 +933,22 @@ def decode_allocation(payload, *, max_bytes=MAX_BYTES):
         seen_native.add(native_key)
         seen_receiving.add((sources[index], receiving[index]))
 
-        identity.update(household_id[index].to_bytes(8, "little", signed=True))
-        identity.update(codes[index].to_bytes(1, "little"))
-        identity.update(source_year[index].to_bytes(8, "little", signed=True))
-        identity.update(survey_year[index].to_bytes(8, "little", signed=True))
-        encoded_native = natives[index].encode("utf-8")
-        identity.update(len(encoded_native).to_bytes(2, "little"))
-        identity.update(encoded_native)
-        identity.update(receiving[index].to_bytes(8, "little", signed=True))
+        _fold_identity(
+            identity,
+            household_id=household_id[index],
+            source=sources[index],
+            source_year=source_year[index],
+            survey_year=survey_year[index],
+            native=natives[index].encode("utf-8"),
+            receiving=receiving[index],
+        )
 
-    # Binds the row order a consumer reads to the order the producer sealed. A
+    # Binds the identity columns and their order - household id, resolved
+    # channel, both years, native lexeme and receiving id - to what the producer
+    # sealed. It deliberately does not cover the arithmetic columns: those are
+    # bound by their own per-column digests and by the envelope checksum. A
     # consumer that independently knows the expected digest detects a reordered
-    # or substituted body; on its own this is a consistency check, not proof
+    # or relabelled identity; on its own this is a consistency check, not proof
     # against a writer who can rebuild the whole envelope.
     _require(identity.hexdigest() == header["identity_sha256"], "IDENTITY_DIGEST")
 
@@ -902,15 +972,26 @@ def allocation_manifest(payload, *, max_bytes=MAX_BYTES):
     """Describe a payload's shape and provenance digests, with no row values.
 
     Deliberately absent: household and receiving identifiers, native source
-    lexemes, exact rationals, float weights, the ordering digest and the
-    per-column digests. The ordering and column digests are omitted because
-    each is taken over native identifiers or row values, and a digest over a
-    short, low-entropy identifier is a confirmation oracle for it. What remains
-    is shape, protocol identity and the three digests the v1 metadata already
+    lexemes, exact rationals, float weights, the source codebook, the ordering
+    digest, the per-column digests, and the digest of the payload itself. Every
+    one of those is taken over, or is, native identifiers or row values, and a
+    digest over low-entropy row data is a confirmation oracle for it: the
+    encoder is deterministic, so a holder of this manifest who knew all but one
+    native lexeme could re-encode each candidate and compare. What remains is
+    shape, protocol identity and the three digests the v1 metadata already
     reports.
 
-    Being a manifest of a consistent payload confers no source authority; the
-    returned mapping says so in its own fields.
+    One residual disclosure is stated rather than hidden: the per-column byte
+    lengths are the manifest's purpose, and they narrow row values. The native
+    lexeme payload's length is the total UTF-8 length of the cohort's
+    identifiers, and a rational column's length bounds the magnitude of its
+    integers. For a single-row payload those are tight. A caller publishing a
+    manifest for a very small cohort should treat that as disclosure.
+
+    The envelope seal is verified before anything is reported, so this never
+    describes bytes a decoder would refuse. Being a manifest of a consistent
+    payload still confers no source authority; the returned mapping says so in
+    its own fields.
     """
 
     _require(type(max_bytes) is int and 0 < max_bytes <= MAX_BYTES, "TRANSPORT_LIMIT")
@@ -927,7 +1008,6 @@ def allocation_manifest(payload, *, max_bytes=MAX_BYTES):
         "header_bytes": body_start - len(MAGIC) - _HEADER_LENGTH_BYTES,
         "body_bytes": sum(sizes.values()),
         "total_bytes": len(payload),
-        "payload_sha256": _sha(payload),
         "preparation_sha256": header["preparation_sha256"],
         "input_context_sha256": header["input_context_sha256"],
         "output_context_sha256": header["output_context_sha256"],
