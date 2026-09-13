@@ -251,7 +251,8 @@ def _original_physical(path, *, directory=False):
 def _original_file_seal(path):
     before = _original_physical(path)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    assert _original_physical(path) == before, "SHARED_ORIGINAL_CHANGED"
+    if not (_original_physical(path) == before):
+        raise AssertionError("SHARED_ORIGINAL_CHANGED")
     return digest, before
 
 
@@ -270,14 +271,15 @@ class _SharedOriginalInputs:
 
 def _check_shared_originals(shared):
     assert type(shared) is _SharedOriginalInputs, "SHARED_ORIGINAL_TYPE"
-    assert (
+    if not (
         _original_physical(shared.root, directory=True) == shared.directory
         and {p.name for p in shared.root.iterdir()} == {n for n, _ in shared.files}
         and all(
             _original_file_seal(shared.root / name) == seal
             for name, seal in shared.files
         )
-    ), "SHARED_ORIGINAL_CHANGED"
+    ):
+        raise AssertionError("SHARED_ORIGINAL_CHANGED")
 
 
 def _shared_original_inputs(root, monkeypatch, **options):
@@ -310,7 +312,8 @@ def _shared_original_inputs(root, monkeypatch, **options):
 
 def _copy_shared_originals(shared, tmp_path, monkeypatch, options):
     _check_shared_originals(shared)
-    assert shared.options == options, "SHARED_ORIGINAL_OPTIONS"
+    if not (shared.options == options):
+        raise AssertionError("SHARED_ORIGINAL_OPTIONS")
     _original_physical(tmp_path, directory=True)
     assert not tuple(tmp_path.iterdir()), "SHARED_ORIGINAL_DESTINATION"
     # Metadata keeps the real retained cohort paths. Copy only editable P/H and
