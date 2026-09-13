@@ -507,6 +507,9 @@ def encode_allocation(
         rows += 1
         _require(rows <= MAX_ROWS, "ROW_LIMIT")
         values = _row_values(row)
+        # A zero inclusion probability is a refusal, not a ZeroDivisionError
+        # escaping this module as an unclassified exception.
+        _require(values["inclusion_probability"] != 0, "ROW_RATIONAL")
         multiplier = values["share"] / values["inclusion_probability"]
         weight = _checked_weight(values["original_anchor"] * multiplier, "FLOAT_WEIGHT")
         _checked_weight(values["original_anchor"], "FLOAT_WEIGHT")
@@ -834,6 +837,7 @@ def decode_allocation(payload, *, max_bytes=MAX_BYTES):
         share = rationals["share"][index]
         probability = rationals["inclusion_probability"][index]
         multiplier = rationals["importance_multiplier"][index]
+        _require(probability != 0, "ROW_RATIONAL")
         _require(share / probability == multiplier, "REDUNDANT_MULTIPLIER")
         _require(
             struct.pack("<d", _checked_weight(anchor * multiplier, "FLOAT_WEIGHT"))
