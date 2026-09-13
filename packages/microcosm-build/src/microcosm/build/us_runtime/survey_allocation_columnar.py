@@ -293,6 +293,14 @@ def _checked_fraction(value, code):
     return value
 
 
+def _checked_unit_fraction(value, code):
+    """Apply the v1 open-zero, closed-one domain to a rational field."""
+
+    _checked_fraction(value, code)
+    _require(0 < value <= 1, code)
+    return value
+
+
 def _checked_weight(value, code):
     """Mirror ``graph_survey_population._finite_weight`` for an exact rational.
 
@@ -533,8 +541,10 @@ def _row_values(row):
         "original_anchor": _checked_fraction(
             getattr(row, "original_anchor", None), "ROW_RATIONAL"
         ),
-        "share": _checked_fraction(getattr(row, "share", None), "ROW_RATIONAL"),
-        "inclusion_probability": _checked_fraction(
+        "share": _checked_unit_fraction(
+            getattr(row, "share", None), "ROW_RATIONAL"
+        ),
+        "inclusion_probability": _checked_unit_fraction(
             getattr(row, "inclusion_probability", None), "ROW_RATIONAL"
         ),
     }
@@ -932,6 +942,9 @@ def decode_allocation(payload, *, max_bytes=MAX_BYTES):
                 "ROW_RATIONAL",
             )
             values.append(value)
+        if field in {"share", "inclusion_probability"}:
+            for value in values:
+                _checked_unit_fraction(value, "ROW_RATIONAL")
         rationals[field] = tuple(values)
 
     identity = hashlib.sha256(_IDENTITY_DOMAIN)

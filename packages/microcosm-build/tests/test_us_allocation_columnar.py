@@ -750,6 +750,72 @@ def test_a_zero_inclusion_probability_is_a_refusal_not_a_division_error():
 
 
 @pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("share", Fraction(0)),
+        ("share", Fraction(-1)),
+        ("share", Fraction(2)),
+        ("inclusion_probability", Fraction(0)),
+        ("inclusion_probability", Fraction(-1)),
+        ("inclusion_probability", Fraction(2)),
+    ],
+)
+def test_encoder_inherits_v1_open_zero_closed_one_domains(field, value):
+    values = {"share": Fraction(1, 2), "probability": Fraction(1, 4)}
+    values["probability" if field == "inclusion_probability" else field] = value
+    with pytest.raises(columnar.AllocationColumnarError, match="ROW_RATIONAL"):
+        payload_of((instruction(0, **values),))
+
+
+def test_encoder_rejects_double_negative_cancellation_even_with_zero_anchor():
+    with pytest.raises(columnar.AllocationColumnarError, match="ROW_RATIONAL"):
+        payload_of(
+            (
+                instruction(
+                    0,
+                    anchor=Fraction(0),
+                    share=Fraction(-1, 2),
+                    probability=Fraction(-1, 4),
+                ),
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "numerator", "denominator"),
+    [
+        ("share", 2, 1),
+        ("inclusion_probability", 2, 1),
+    ],
+)
+def test_decoder_rejects_out_of_domain_rationals_after_repaired_integrity(
+    field, numerator, denominator
+):
+    mutations = [
+        (f"{field}_numerator_payload", 0, numerator.to_bytes(1, "big")),
+        (f"{field}_denominator_payload", 0, denominator.to_bytes(1, "big")),
+    ]
+    if field == "share":
+        mutations.extend(
+            [
+                ("importance_multiplier_numerator_payload", 0, b"\x08"),
+                ("importance_weight_float64", 0, struct.pack("<d", 104.0)),
+            ]
+        )
+    else:
+        mutations.extend(
+            [
+                ("importance_multiplier_numerator_payload", 0, b"\x01"),
+                ("importance_multiplier_denominator_payload", 0, b"\x04"),
+                ("importance_weight_float64", 0, struct.pack("<d", 3.25)),
+            ]
+        )
+    bad = resealed(payload_of(narrow(3)), mutations)
+    with pytest.raises(columnar.AllocationColumnarError, match="ROW_RATIONAL"):
+        columnar.decode_allocation(bad)
+
+
+@pytest.mark.parametrize(
     "value",
     [0, 1, -1, 127, 128, -128, 255, -255, 2**63, -(2**63), 10**50, -(10**50)],
 )
