@@ -37,8 +37,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from dataclasses import dataclass
-from types import MappingProxyType
+from pathlib import Path
+from types import FunctionType, MappingProxyType
 
 import numpy as np
 import pandas as pd
@@ -47,6 +49,7 @@ from microcosm.graph.population import PopulationError, dtype_for_token, token_f
 
 from . import asec_demographic_source as demographic
 from . import current_asec_demographics as demographics
+from . import support_provenance as provenance
 from . import survey_population_preparation as source
 from .support_provenance import (
     spine_source_id_column,
@@ -158,6 +161,74 @@ def require(condition, reason):
 
 def _sha(value):
     return hashlib.sha256(value).hexdigest()
+
+
+def _implementation_modules():
+    return (sys.modules[__name__], demographics, demographic, provenance)
+
+
+def _source_bytes():
+    """Source identity is checked before the final pure owner/output seals."""
+    return tuple(
+        (module.__name__, _sha(Path(module.__file__).read_bytes()))
+        for module in _implementation_modules()
+    )
+
+
+def _live():
+    """Extend the maintained preparation fence with this qualifier's closure."""
+    result = dict(source._live())
+    for module in _implementation_modules():
+        for name, value in vars(module).items():
+            if isinstance(value, FunctionType):
+                result[module.__name__, name] = source._function_seal(value)
+            elif isinstance(value, type) and value.__module__ == module.__name__:
+                result[module.__name__, name] = value
+                for name, function in vars(value).items():
+                    if isinstance(function, (staticmethod, classmethod)):
+                        function = function.__func__
+                    if isinstance(function, property):
+                        function = function.fget
+                    if isinstance(function, FunctionType):
+                        result[module.__name__, value.__name__, name] = (
+                            source._function_seal(function)
+                        )
+    result["sex_contract"] = source._runtime_marker(
+        (
+            PROTOCOL,
+            CANONICAL_COLUMN,
+            SOURCE_PREFIX,
+            MAX_PERSONS,
+            MAX_RECEIPT_BYTES,
+            SURVEYS,
+            COLUMN_TOKENS,
+            COLUMNS,
+            SURVEY_COLUMN,
+            NATIVE_ID_COLUMN,
+            CODE_COLUMN,
+            ALLOCATION_CODE_COLUMN,
+            BINDING_STATE_COLUMN,
+            UNBOUND_REASON_COLUMN,
+            ALLOCATION_STATE_COLUMN,
+            CODE_KNOWN_COLUMN,
+            VALUE_KNOWN_COLUMN,
+            ALLOCATION_KNOWN_COLUMN,
+            ORIGIN_COLUMN,
+            UNIVERSE_COLUMN,
+            OBSERVATION_YEAR_COLUMN,
+            VALUE_COLUMN,
+            tuple(sorted(ASEC_ORIGIN_BY_ALLOCATION_STATE.items())),
+            tuple(sorted(ACS_SEX_CODES.items())),
+            ACS_SEX_TRANSFORMATION,
+            ACS_ORIGIN,
+            ACS_UNIVERSE,
+            ASEC_OBSERVATION_YEAR,
+            ACS_OBSERVATION_YEAR,
+            INCOME_YEAR,
+            tuple(sorted(PUBLIC_RECEIPT_KEYS)),
+        )
+    )
+    return result
 
 
 def _shared_code_tables():
@@ -646,14 +717,21 @@ def qualify_current_survey_sex(preparation):
         type(preparation) is source.AuthenticatedSurveyPopulationPreparation,
         "PREPARATION_TYPE",
     )
+    live = _live()
+    require(live == _LIVE, "IMPLEMENTATION_CHANGED")
+    require(_source_bytes() == _SOURCE_BYTES, "IMPLEMENTATION_SOURCE_CHANGED")
+    require(_live() == live, "IMPLEMENTATION_CHANGED")
     entry = preparation._checked()
+    require(_live() == live, "IMPLEMENTATION_CHANGED")
     state = entry[2]
     acs_native, acs_frame = state.native[0], state.source_frames[0]
     source.acs_native.verify_acs_native_coverage(acs_native, acs_frame)
+    require(_live() == live, "IMPLEMENTATION_CHANGED")
     acs_owned = source.acs_native._owned(acs_native)
     acs_payload = acs_owned.payload
     require(json.loads(acs_payload)["vintage"] == ACS_OBSERVATION_YEAR, "ACS_PERIOD")
     asec = demographics.qualify_current_asec_demographics(preparation)
+    require(_live() == live, "IMPLEMENTATION_CHANGED")
     asec_receipt = asec.receipt
     asec_document = _check_asec_projection(asec, asec_receipt)
     require(
@@ -677,7 +755,11 @@ def qualify_current_survey_sex(preparation):
     # callback during the last source check cannot change a retained input or
     # a detached output unnoticed.
     source.acs_native.verify_acs_native_coverage(acs_native, acs_frame)
+    require(_live() == live, "IMPLEMENTATION_CHANGED")
     final_entry = preparation._checked()
+    require(_live() == live, "IMPLEMENTATION_CHANGED")
+    require(_source_bytes() == _SOURCE_BYTES, "IMPLEMENTATION_SOURCE_CHANGED")
+    require(_live() == live, "IMPLEMENTATION_CHANGED")
     require(
         final_entry is entry
         and source._ISSUED.get(id(preparation)) is entry
@@ -697,6 +779,7 @@ def qualify_current_survey_sex(preparation):
         and sex_projection_seal(result)[1] == _table_stamp(table),
         "FINAL_PROJECTION",
     )
+    require(_live() == live, "IMPLEMENTATION_CHANGED")
     return result
 
 
@@ -880,3 +963,7 @@ def sex_binding_receipt(value, receiving_frame, *, receiving_version, declared_r
         "PUBLIC_RECEIPT_AGGREGATES",
     )
     return receipt
+
+
+_SOURCE_BYTES = _source_bytes()
+_LIVE = _live()

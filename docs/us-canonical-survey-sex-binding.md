@@ -82,11 +82,36 @@ are exact.
   `KNOWN_INCUMBENT_WITHOUT_QUALIFIED_BINDING` otherwise). Neither erases nor
   silently relabels the supplied value.
 
+## Executable identity at owner boundaries
+
+The qualifier extends the maintained preparation fence with the sex projection,
+ASEC demographic and support-provenance modules. The graph fragment extends that
+fence with its own functions and the population/replay helpers. These checks bind
+source file bytes, live function identities and code, defaults, keyword defaults,
+closure configuration, class methods and the explicit sex/graph constants. They
+run around the initial and final owner callbacks, before accepting detached
+outputs. Editing live code while leaving the qualified table unchanged refuses
+with a closed implementation or callback error.
+
+`require_current` must be a Python function, whose executable seal includes its
+identity, code, defaults and closure configuration. The maintained seal compares
+opaque owner objects by identity; the callback must still revalidate their
+contents. Put mutable diagnostic counters in an opaque state object instead of
+changing sealed list/dict closure configuration. This fence is not source
+admission and does not replace complete materialized replay verification.
+
 ## Host integration is a separate, reviewed step
 
-The fragment is exercised independently, by a tiny graph over invented values
-and the real compiler, executor, ContentStore and replay comparison. Adopting it
-in the accepted country host is not done here and needs, at minimum:
+The tests specify tiny graphs over invented values and the real compiler,
+executor, ContentStore and replay comparison, including a rewrite in a version
+opened by a REWEIGHT below CREATE. They also specify mutation attempts at the
+first and final callbacks of both fragment nodes. These tests have only received
+static checks in this source-only lane; executing them requires a separately
+reviewed runtime packet. A separate source test file uses the maintained tiny
+invented ACS/ASEC sources and the actual authenticated preparation/qualifier,
+including mutations at both direct preparation-borrow returns. Those tests are
+also unexecuted and require their own source-I/O scope. Adopting the fragment in
+the accepted country host is not done here and needs, at minimum:
 
 1. **An explicit host extension.** The host must declare these two nodes, supply
    the real typed ancestry through `country_host_edges()` with matching

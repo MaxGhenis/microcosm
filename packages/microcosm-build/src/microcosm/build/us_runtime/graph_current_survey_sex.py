@@ -24,8 +24,9 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import replace
-from types import SimpleNamespace
+from dataclasses import asdict, replace
+from pathlib import Path
+from types import FunctionType, SimpleNamespace
 
 import numpy as np
 
@@ -66,6 +67,50 @@ BINDING_TYPE = ArtifactType("microcosm.us.current_survey_sex_binding", 1)
 PROJECTION_ALIAS = "survey_sex_projection"
 MAX_ARTIFACT_BYTES = 64 * 1024**2
 _HEX = frozenset("0123456789abcdef")
+
+
+def _source_bytes():
+    return sex._source_bytes() + tuple(
+        (module.__name__, sex._sha(Path(module.__file__).read_bytes()))
+        for module in (sys.modules[__name__], population_ops, replay)
+    )
+
+
+def _live():
+    """The existing source fence plus this fragment's executable contract."""
+    result = dict(sex._live())
+    for module in (sys.modules[__name__], population_ops, replay):
+        for name, value in vars(module).items():
+            if isinstance(value, FunctionType):
+                result[module.__name__, name] = sex.source._function_seal(value)
+            elif isinstance(value, type) and value.__module__ == module.__name__:
+                result[module.__name__, name] = value
+                for method, function in vars(value).items():
+                    if isinstance(function, (staticmethod, classmethod)):
+                        function = function.__func__
+                    if isinstance(function, property):
+                        function = function.fget
+                    if isinstance(function, FunctionType):
+                        result[module.__name__, name, method] = (
+                            sex.source._function_seal(function)
+                        )
+    result["sex_graph_contract"] = sex.source._runtime_marker(
+        (
+            PREFIX,
+            SOURCE_NODE,
+            BIND_NODE,
+            SOURCE_REF,
+            BIND_REF,
+            asdict(PROJECTION_TYPE),
+            asdict(BINDING_TYPE),
+            PROJECTION_ALIAS,
+            MAX_ARTIFACT_BYTES,
+            tuple(sorted(_HEX)),
+            SOURCE_NAME,
+            asdict(_SexKernel.capabilities),
+        )
+    )
+    return result
 
 
 def country_host_edges():
@@ -354,19 +399,37 @@ class _SexKernel(KernelBase):
     )
 
     def __init__(self, qualified, nodes, require_current, *, host_pins, ref):
+        require(type(require_current) is FunctionType, "HOST_CALLBACK")
         self.ref, self.qualified, self.nodes = ref, qualified, nodes
         self.host_pins = {name: dict(pin) for name, pin in host_pins.items()}
         self.require_current = require_current
+        self.callback_seal = sex.source._function_seal(require_current)
+        self.live = _live()
+        require(self.live == _LIVE, "IMPLEMENTATION_CHANGED")
+        self.source_bytes = _source_bytes()
+        require(self.source_bytes == _SOURCE_BYTES, "IMPLEMENTATION_SOURCE_CHANGED")
+        self._check_live()
         self.seal = sex_projection_seal(qualified)
         if ref == SOURCE_REF:
             self.capabilities = replace(
                 self.capabilities, structural=StructuralDelta.CREATE
             )
 
+    def _check_live(self):
+        require(_live() == self.live, "IMPLEMENTATION_CHANGED")
+        require(
+            type(self.require_current) is FunctionType
+            and sex.source._function_seal(self.require_current) == self.callback_seal,
+            "CALLBACK_CHANGED",
+        )
+
     def implementation_hash(self):
         return source_hash(
             sys.modules[__name__],
             sex,
+            sex.provenance,
+            population_ops,
+            replay,
             sex.demographic,
             sex.demographics,
             sex.demographics.demographic.load_authenticated_asec_demographic_source,
@@ -398,7 +461,11 @@ class _SexKernel(KernelBase):
         )
 
     def run(self, context):
+        self._check_live()
+        require(_source_bytes() == self.source_bytes, "IMPLEMENTATION_SOURCE_CHANGED")
+        self._check_live()
         self.require_current()
+        self._check_live()
         require(sex_projection_seal(self.qualified) == self.seal, "QUALIFIED_CHANGED")
         require(
             context.node in self.nodes and context.node.kernel == self.ref,
@@ -409,11 +476,15 @@ class _SexKernel(KernelBase):
         )
         result = _result(self.qualified, context.node, context.tables.get("person"))
         sealed = self._seal_result(result)
-        # No source or artifact I/O after this point; recheck the retained
-        # owner callback, the qualified projection and every detached output.
+        # Finish the owner callback and source-code identity reads before the
+        # final pure checks of qualified inputs and every detached output.
         self.require_current()
+        self._check_live()
+        require(_source_bytes() == self.source_bytes, "IMPLEMENTATION_SOURCE_CHANGED")
+        self._check_live()
         require(sex_projection_seal(self.qualified) == self.seal, "QUALIFIED_CHANGED")
         require(self._seal_result(result) == sealed, "RESULT_CHANGED")
+        self._check_live()
         return result
 
 
@@ -427,6 +498,12 @@ def current_survey_sex_kernels(
     host_edges,
     require_current,
 ):
+    """Bind an actual function callback and its code/defaults/closure identity.
+
+    Opaque callable objects cannot supply that executable seal. Mutable owner
+    objects retain their identity and remain the callback's responsibility;
+    direct primitive/list/dict closure configuration must remain unchanged.
+    """
     nodes = current_survey_sex_nodes(
         qualified,
         receiving_frame,
@@ -435,7 +512,7 @@ def current_survey_sex_kernels(
         after=after,
         host_edges=host_edges,
     )
-    require(callable(require_current), "HOST_CALLBACK")
+    require(type(require_current) is FunctionType, "HOST_CALLBACK")
     return nodes, tuple(
         _SexKernel(qualified, nodes, require_current, host_pins=host_pins, ref=ref)
         for ref in dict.fromkeys(node.kernel for node in nodes)
@@ -466,3 +543,7 @@ def register_sex_kernels(
     for kernel in kernels:
         registry.register(kernel)
     return nodes
+
+
+_SOURCE_BYTES = _source_bytes()
+_LIVE = _live()

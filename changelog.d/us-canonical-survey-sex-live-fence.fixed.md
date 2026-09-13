@@ -1,0 +1,1 @@
+Bind the canonical survey sex qualifier and graph kernels to their source and live executable identities around owner callbacks. Add mutation refusal controls and complete post-CREATE rewrite/replay tests; runtime execution remains a separately reviewed step.
