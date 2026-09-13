@@ -655,7 +655,16 @@ def _pure_run(run, entry):
     values.source._pure_final(state.preparation_entry[2])
     if state.person_status_boundary is not None:
         state.person_status_boundary.pure()
-        state.person_status_boundary.complement(run.financial_population)
+        # The original status writer belongs to the retained pre-tax version.
+        # FILTER carries its values into a new version and owns every column
+        # there. Keep the strict original-writer check on that actual parent;
+        # final population stamps below and the complete tax reconstruction in
+        # checked_view independently bind the new owners, values and ledger.
+        state.person_status_boundary.complement(
+            state.property_population
+            if state.rebase_property_taxes
+            else run.financial_population
+        )
     if state.property_income is not None:
         require(
             type(state.property_income) is _property_module().PropertyIncomeOptions
