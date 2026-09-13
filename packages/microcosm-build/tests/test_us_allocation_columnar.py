@@ -123,8 +123,15 @@ def resealed(payload, mutations):
     only guard left to notice the change is the one the calling test is about.
     """
     header, bodies = split(payload)
+    rows = header["rows"]
     for name, index, raw in mutations:
         width = len(raw)
+        # The cell width is taken from the replacement bytes, which is only
+        # sound while every cell in the column is that wide. narrow()'s uniform
+        # one-byte rationals and thirteen-byte lexemes make that true today;
+        # checking it here means a future cohort change fails loudly instead of
+        # silently overwriting a neighbouring cell.
+        assert len(bodies[name]) == rows * width, (name, len(bodies[name]), rows, width)
         bodies[name][index * width : (index + 1) * width] = raw
     for column in header["columns"]:
         column["sha256"] = hashlib.sha256(bytes(bodies[column["name"]])).hexdigest()
@@ -582,7 +589,9 @@ def test_a_header_that_is_not_json_is_refused():
         ({"acs": 1, "asec": 2}, "SOURCE_CODEBOOK"),
         ({"acs": 0, "asec": 0}, "SOURCE_CODEBOOK"),
         ({}, "SOURCE_CODEBOOK"),
-        ({"acs": 0}, "SOURCE_CODE"),
+        # Anchored: "SOURCE_CODE" is a prefix of "SOURCE_CODEBOOK", so an
+        # unanchored match would also pass if the codebook guard fired first.
+        ({"acs": 0}, r"^SOURCE_CODE$"),
     ],
 )
 def test_a_malformed_or_short_source_codebook_is_refused(codebook, code):
@@ -616,7 +625,7 @@ def test_the_declared_source_codebook_is_the_enum_definition_order():
 
 def test_an_out_of_codebook_source_code_is_refused():
     bad = resealed(payload_of(narrow(3)), [("source_code", 0, b"\x07")])
-    with pytest.raises(columnar.AllocationColumnarError, match="SOURCE_CODE"):
+    with pytest.raises(columnar.AllocationColumnarError, match=r"^SOURCE_CODE$"):
         columnar.decode_allocation(bad)
 
 

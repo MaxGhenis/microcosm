@@ -568,6 +568,10 @@ def encode_allocation(
             # source bytes produces - is a refusal code, not a stray
             # UnicodeEncodeError whose message would quote the lexeme.
             raise AllocationColumnarError("ROW_LEXEME") from None
+        # Implied by the character bound, since UTF-8 emits at most four bytes
+        # per code point and MAX_NATIVE_ID_BYTES is four times that bound. Kept
+        # so the byte column's own invariant is stated where it is written, and
+        # so the two constants cannot drift apart unnoticed.
         _require(len(native) <= MAX_NATIVE_ID_BYTES, "ROW_LEXEME")
         native_key = (
             source,

@@ -3,10 +3,22 @@
 Status: **proposal only**. The v2 encoder, decoder and public manifest exist in
 `microcosm.build.us_runtime.survey_allocation_columnar`; nothing calls them. The
 default host still emits the v1 row-wise JSON payload, `ALLOCATION_TYPE` is
-still schema version 1, and no declaration, node key, spec digest or
-implementation identity moves. This document records what a later opt-in
+still schema version 1, and no declaration, node key, spec digest or stage
+implementation hash moves. This document records what a later opt-in
 integration would actually cost, so that the switch is a reviewed decision
 rather than a side effect.
+
+One identity does move, and it is not a graph identity. `builder_code_identity`
+hashes every `.json`, `.py`, `.toml`, `.yaml` and `.yml` file under
+`packages/*/src` (`packages/microcosm-build/src/microcosm/build/code_identity.py:50-63`),
+so adding any source file anywhere in the workspace changes its
+`source_sha256`. `tools/build_us_puf_support_base.py:704` records that pin, and
+the UK run config pins its environment through the same value
+(`uk_runtime/content_identity.py:22`). An operator resuming an in-flight build
+on a checkout carrying this branch will see the run-config equality check
+refuse, even though no code the builder executes changed. That is the pin
+behaving as designed for a whole-tree code vintage, not a defect introduced
+here, but it is the one recorded identity this branch does move.
 
 ## What v1 is today
 

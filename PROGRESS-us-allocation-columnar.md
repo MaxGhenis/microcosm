@@ -13,11 +13,13 @@ claim.
 
 ## State
 
-Complete and local. Five commits. The codec, its tests, the changelog fragment
+Complete and local. Eight commits. The codec, its tests, the changelog fragment
 and the integration proposal are in the tree; nothing calls the new module, so
-no declaration, node key, spec digest or implementation identity moves.
+no declaration, node key, spec digest or stage implementation hash moves.
+`builder_code_identity` does move, because it hashes every source file under
+`packages/*/src`; that is recorded in the proposal.
 
-Tests are **UNRUN**: 61 test functions, 152 parametrized cases, never collected
+Tests are **UNRUN**: 69 test functions, 167 parametrized cases, never collected
 or executed in this lane. One of them asserts a byte count and is held for a
 separately reviewed root guard.
 
@@ -37,6 +39,14 @@ separately reviewed root guard.
   have raised `ZeroDivisionError` out of the module.
 - Added `packages/microcosm-build/tests/test_us_allocation_columnar.py`.
 - Added `docs/us-allocation-columnar-v2.md` and the changelog fragment.
+- Ran a five-lens adversarial review over the codec and the unrun tests and
+  closed every confirmed defect: a source-codebook relabel the ordering digest
+  did not catch, a manifest that republished provenance digests without
+  verifying the envelope seal, a `payload_sha256` confirmation oracle in that
+  manifest, a surrogate lexeme escaping as `UnicodeEncodeError`, float
+  spellings of the version fields giving one document two byte forms, and a
+  rational width bound narrower than v1's own. No unrun test was found that
+  would fail; one that could have passed for the wrong reason was anchored.
 - Static checks: `ruff check` and `ruff format --check` clean on both new files;
   `tools/ci_test_groups.py --verify` prints `verification=ok` with the new test
   in `fast:rest` and `engine:us-am`, never `[defaulted]`.
