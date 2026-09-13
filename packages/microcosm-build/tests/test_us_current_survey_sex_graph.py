@@ -32,6 +32,7 @@ from microcosm.graph import (
     KernelRegistry,
     KernelResult,
     Node,
+    NodeRejectedError,
     NumericScope,
     Owned,
     SourceRef,
@@ -619,7 +620,9 @@ def test_first_and_final_owner_callbacks_cannot_change_live_implementation(
             cell.cell_contents = ("changed closure",)
 
     try:
-        with pytest.raises(ValueError, match="IMPLEMENTATION_CHANGED|CALLBACK_CHANGED"):
+        with pytest.raises(
+            NodeRejectedError, match="IMPLEMENTATION_CHANGED|CALLBACK_CHANGED"
+        ):
             _graph_case(tmp_path, owner_mutation=mutate)
     finally:
         for cell, value in restored_cells:
