@@ -159,6 +159,12 @@ _SOURCE_SPINE_PROVENANCE_OWNERS = frozenset(
         "graph_current_survey_property.py",
         "current_social_security_source.py",  # Source-owned SS totals per row.
         "current_survey_geography.py",  # Origin roster and draw keys.
+        # Reviewed 2026-09-13: canonical sex. Both modules select the ASEC and
+        # ACS channels and bind original identities to their two initial clones
+        # exactly as the health qualifier beside them does. Neither routes a
+        # PUF-detail imputation, models a value, or fills an unresolved cell.
+        "current_survey_sex.py",  # Qualify both arms; bind by original identity.
+        "graph_current_survey_sex.py",  # Declare the binding's identity inputs.
         "current_survey_predictors.py",  # Source-qualified predictor prep.
         "graph_combined_clone.py",  # Clone EXPAND keeps the channel labels.
         "graph_composed_asec_binding.py",  # Binds prepared ASEC to its rows.
@@ -529,6 +535,9 @@ _US_LAUNCH_GRAPH_RUNTIME_MODULES = frozenset(
         "current_survey_geography.py",
         # Source-qualified current ASEC to ACS financial predictor preparation
         "current_survey_predictors.py",
+        # Canonical survey sex with separate code, value and allocation
+        # knownness; ACS allocation provenance stays unresolved
+        "current_survey_sex.py",
         # National demographic calibration with registry-bound graph diagnostics
         "demographic_calibration_graph.py",
         # Complete canonical PUF enrichment boundaries; no source admission is
@@ -566,6 +575,8 @@ _US_LAUNCH_GRAPH_RUNTIME_MODULES = frozenset(
         "graph_current_survey_geography.py",
         # Graph training, draw and attachment of current survey financial predictors
         "graph_current_survey_predictors.py",
+        # Typed private sex source projection and one declared canonical binding
+        "graph_current_survey_sex.py",
         # Current survey-first E00900 diagnostic placement, not donor admission
         "graph_current_survey_puf_transfer.py",
         # Bounded PUF profile attachment to an independently retained Population
