@@ -61,8 +61,11 @@ list and runs the bounded guard.
 8. Parity tests against verbatim copies of the pre-change implementations, plus
    the mutation battery — five flat test files, each in the CI group it should
    be in (`tools/ci_test_groups.py --verify` exits 0, none `[defaulted]`).
-9. One changelog fragment per candidate, and
+9. `0d2d7d52f` — one changelog fragment per candidate, and
    `docs/seal-streaming-parity-method.md` (method, limits, benchmark plan).
+10. `7a397264d` — test-only: numpy and float-subclass object leaves in the
+    storage-parts matrix, and the two numpy round-trip cross-checks narrowed
+    to one question at a time.
 
 ## Source-only verification performed here
 
