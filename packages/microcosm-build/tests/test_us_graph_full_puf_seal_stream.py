@@ -190,7 +190,12 @@ def _population(*, frame=None, version="v1", design=None, mass_ledger=None):
     )
 
 
-def _empty_population():
+def _empty_person_population():
+    """Empty person storage with valid retained household design support.
+
+    Frame requires at least one weighted entity, and Weights cannot be empty;
+    a fully empty Frame is therefore not a supported population input.
+    """
     person = pd.DataFrame(
         {
             "person_id": np.array([], dtype=np.int64),
@@ -207,14 +212,14 @@ def _empty_population():
     person["leaf"] = _object_array(())
     household = pd.DataFrame(
         {
-            "household_id": np.array([], dtype=np.int64),
-            "rent": np.array([], dtype=np.float64),
+            "household_id": np.array([10], dtype=np.int64),
+            "rent": np.array([0.5], dtype=np.float64),
         }
     )
     frame = Frame(
         {"person": person, "household": household},
         EntitySchema(group_entities=("household",)),
-        {},
+        {"household": Weights(np.array([1.0]), WeightKind.DESIGN)},
         pd.Series(_object_array(()), index=person.index),
     )
     return Population.from_frame(frame, "v1")
@@ -272,7 +277,7 @@ def _wide_object_strata_population():
 
 _POPULATIONS = {
     "default": _population,
-    "empty": _empty_population,
+    "empty-persons": _empty_person_population,
     "labelled-index": _labelled_index_population,
     "reversed-rows": _reversed_row_population,
     "no-design-weights": _no_design_population,
