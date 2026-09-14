@@ -6,7 +6,7 @@ to GitHub, edits repo-content tracked files, or touches the stash. Branch
 `issue-triage-20260912` is local-only (not pushed; pushing would be a GitHub write).
 This journal is the lane's own file and is the only tracked file this lane writes.
 
-## State (run 3 — 2026-09-14, live)
+## State (run 4 — 2026-09-14, live; runs 1–3 historical)
 
 - Base: `origin/main` @ `18271b28d` (merge of #904). Runs 1–2 (2026-09-12) reasoned
   against `0c3f4f651`; **#912 merged 2026-09-12 and #904 merged 2026-09-14**, so every
@@ -17,6 +17,28 @@ This journal is the lane's own file and is the only tracked file this lane write
   commits** on 9/14, so its fold-in set is recomputed from the new head `47a12030f`.
 - A sibling PR-triage lane (run 3) is live in this same worktree; it commits via plumbing
   to `refs/heads/triage/journal-20260912`. This lane touches only its own journal path.
+
+## Run 4 (2026-09-14 evening, Opus 5 lane) — live
+
+- Runs 1–3 all died on Fable limits. Run 4 is dispatched as a BUILD-class Opus 5 lane
+  (Bash + Write present) and **reuses run 3's corpus, dossiers, indexes and scripts**
+  rather than re-deriving them. Scratch copied to this session's scratchpad at
+  `scratchpad/triage/` (run 3's dir is left intact).
+- Re-verified freshness: `git fetch origin` rc=0, `origin/main` is still
+  **`18271b28d`** (merge of #904) — unchanged since run 3, so run 3's ancestor tests
+  and absence checks still hold. Re-pulled the open-issue list: **234 issues, byte-identical
+  membership** to run 3's pull (0 closed mid-lane, 0 opened).
+- **Salvaged run 3's fan-out**: workflow `wf_23f45e52-c68` recorded 38 results and
+  89 failures before the limit. Parsed its `journal.jsonl` → **226 of 234 issues have a
+  first-pass row**; 8 (#341 #346 #347 #360 #361 #370 #372 #393) have none, and the
+  refuter/adjudicator stage never ran. Those 226 rows are treated as **candidates, not
+  verdicts** — run 4 re-triages every issue independently and must confirm or overturn
+  each with its own evidence.
+- Run 4's own fan-out (workflow, Opus 5 subagents): 35 per-batch re-triage agents over all
+  234 issues ‖ 11 per-area cluster agents (duplicates/epics) → adversarial verification
+  (2 lenses per close-class row: "does the cited artifact deliver the whole ask" and
+  "is the citation real / is the survivor valid") ‖ a missed-resolution sweep over every
+  KEEP row → per-row adjudication → coherence critics.
 
 ## Done (runs 1–2, 2026-09-12 — historical)
 
