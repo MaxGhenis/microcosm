@@ -48,11 +48,43 @@ This journal is the lane's own file and is the only tracked file this lane write
 - Signals: **94 issues idle ≥ 60 days**; **79 have zero number-linked evidence** anywhere
   (no merged-PR mention, no main commit, no #893 tie, no repo citation, no open PR).
 
+## Done (run 3, continued) — judgment fan-out + owner cross-checks
+
+- Wrote `BRIEF.md` (the agents' rulebook: dispositions, precedence, verification commands,
+  and the repo traps) and 35 batches over 11 areas.
+- Launched workflow `wf_23f45e52-c68`: 11 per-area cluster agents (duplicates/epics)
+  ‖ 35 per-batch triage agents → 2 lens-specific adversarial refuters per close-class row
+  (lens 1 "does the cited artifact actually deliver it", lens 2 "what residual remains")
+  → 1 reconciliation critic.
+- **Two parser bugs found and fixed** (both would have corrupted the epic/duplicate layer):
+  1. Cross-repo refs — `PolicyEngine/ledger#70`, `rulespec-nz#74`, `policyengine.py#475`,
+     `policyengine-uk-data#466` were being read as local issues: **50 false edges out of
+     376 (13%)**. But `populace#302` / `microcosm#451` / `PolicyEngine/populace#…` ARE
+     local (repo renamed 2026-08-07), and `#552/#364/#467` is three local refs, not one
+     qualified ref. Classifier lives in `scratchpad/triage/refs.py`.
+  2. Epic membership ≠ mention: a `Related, non-blocking:` line is not a checklist item.
+     Only `- [ ]` / `- [x]` lines now count for `MERGE-INTO-EPIC`.
+- Owner cross-checks, all independent of the agents and all matching them so far:
+  **#746** RESOLVED (PR #756 merged 2026-08-24, commit `05d254aa2` ancestor of main; all
+  four sub-asks landed — `_GENERATED_SOURCE_VERSION = "1.819.0"`, take-up totality incl.
+  `takes_up_wic_if_eligible`, WIC migration, `engine_abi.lock.json` at 1.819.0).
+  **#324** RESOLVED (Max's own 2026-07-07 comment records the pin validated at 1.764.6).
+  **#506** delivered (PR #674, merge commit `7c42c5010` ancestor; `validate_evidence_release_dir`
+  + tests on main). **#640** delivered (PR #849 merged 2026-09-07 created `logbook_env.py`
+  dual-read) — residual: the legacy `POPULACE_LEDGER_*` names are still honoured, so the
+  issue's "then drop" step is open. **#890** is NOT resolved: PR #904 landed only the
+  target-binding half; the spine half is open draft PR #927.
+- Built the cross-cutting evidence the per-batch agents cannot see: the corrected issue
+  graph (356 edges), literal epic checklists, a TF-IDF near-duplicate list (37 pairs
+  over cosine 0.28), the open-PR→issue map (**32 issues have an open PR**), and
+  **29 issues whose stated blocker has since landed** (actionable now).
+- Verified command log: `scratchpad/triage/commands_verified.log`, 19 commands, **all rc=0**.
+- Wrote `assemble.py` (journal → rows + verdict application), `build_extra.py`, `render.py`
+  (report + JSON + structural checks: row/issue bijection, evidence non-empty, no duplicate
+  chains, no self-survivors, no journal-file evidence on a close).
+
 ## Next
 
-- Write the agent BRIEF + batches; launch the judgment workflow (per-area cluster passes
-  for duplicates/epics ‖ per-batch dispositions → evidence hunt → adversarial verification
-  of every close-class claim → reconciliation).
-- Render `out-issue-triage.md` + `issue-dispositions.json`; run structural checks;
-  personally spot-check ≥5 RESOLVED-CLOSE rows against the cited diffs; re-pull the open
-  list for mid-lane closures.
+- Wait out the fan-out; `assemble.py` → `build_extra.py` → `render.py`.
+- Re-pull the open list for mid-lane closures; spot-check the final RESOLVED-CLOSE set.
+- Write `out-issue-triage.md` + `issue-dispositions.json`.
