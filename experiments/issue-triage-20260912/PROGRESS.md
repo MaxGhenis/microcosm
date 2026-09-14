@@ -129,3 +129,31 @@ This journal is the lane's own file and is the only tracked file this lane write
   `build_extra.py` → `render.py`.
 - Re-pull the open list for mid-lane closures; spot-check the final RESOLVED-CLOSE set.
 - Write `out-issue-triage.md` + `issue-dispositions.json`.
+
+## Run 5 (2026-09-14, evening — Opus 5 BUILD lane) — the completing run
+
+Runs 1–3 died on Fable limits; run 4 pulled a full corpus and owner spot checks but its
+own judgment fan-out never wrote a result (`scratchpad/triage/results/` empty). Run 5
+runs on Opus 5, salvages runs 3–4 wholesale, and finishes the lane.
+
+### Baseline re-verified from scratch (measured, not assumed)
+
+- `git fetch origin` rc=0 → `origin/main` is **still `18271b28d`** (merge of #904).
+  Unchanged since run 3, so every run-3/4 ancestor test and absence check still holds.
+- `gh issue list --state open --limit 500` rc=0 → **234 open issues**, range #27–#925,
+  **byte-identical membership** to run 4's pull: 0 closed mid-lane, 0 opened.
+- Salvaged run 4's scratch (`4370d93b…`) wholesale into this session's scratchpad:
+  234 dossiers, 35 batch context packs, the full raw corpus (open/closed issues, 449
+  merged PRs, 50 open PRs, 234 timelines, 1,732-commit main log, #893's 691 files /
+  250 commits), every index, and every script. Run 3's `ruling_candidates.json` +
+  `unblocked.json` pulled in alongside.
+- **226 run-3 candidate rows** recovered (`prior_rows.json`). 8 issues have no prior row:
+  #341 #346 #347 #360 #361 #370 #372 #393 (exactly batch `us-calibration-6`); #370 now
+  has a run-4 owner-verified row. Candidate distribution: 173 KEEP, 26 RESOLVED-CLOSE,
+  13 STALE-ASK, 7 RULED-DEFERRED, 6 MERGE-INTO-EPIC, 1 DUPLICATE-CLOSE. These are
+  **hypotheses**; run 5 re-derives every one.
+
+### Next
+
+- BRIEF5 rulebook → 35-batch judgment fan-out on Opus → adversarial verification of
+  every close-class row → missed-resolution sweep over KEEP → adjudication → render.
