@@ -83,8 +83,27 @@ This journal is the lane's own file and is the only tracked file this lane write
   (report + JSON + structural checks: row/issue bijection, evidence non-empty, no duplicate
   chains, no self-survivors, no journal-file evidence on a close).
 
+## Done (run 3, continued) — owner-only cross-cutting findings
+
+- **`FOLDED-INTO-893` is almost empty, and proving that needed an ancestor test the
+  per-batch agents cannot run.** Of #893's 250 commits, **10 are already on `origin/main`**
+  (it merged main) and 240 are unique to it. Classifying every `#nnn` citation by that
+  split leaves exactly **one** open issue — **#908** — cited by commits unique to #893.
+  The 12 apparent #890 citations all sit in the 10 inherited commits, i.e. they are #904's
+  work on main, not #893's. `owner_validate.py` now enforces this against every agent row.
+- **`MERGE-INTO-EPIC` is similarly narrow.** Only literal `- [ ]` / `- [x]` checklist lines
+  count as an epic listing a sub-item; a "Related, non-blocking:" line does not.
+  `owner_validate.py` re-greps each claimed parent body and downgrades claims that fail.
+- Independent owner spot-checks (8 so far), every one agreeing with the agent verdict:
+  #746, #324, #506, #640, #31 (PR #420 — note its body never cites #31, which is exactly why
+  it never auto-closed and why the mechanical index called #31 "zero evidence"), plus
+  merge/ancestor confirmation for PRs #369, #354, #288, #399, #37. #890 correctly stays open
+  (PR #904 landed only the target-binding half; the spine half is draft PR #927).
+- Mid-lane closure check wired (`recheck.sh`); first run shows no change (234 → 234).
+
 ## Next
 
-- Wait out the fan-out; `assemble.py` → `build_extra.py` → `render.py`.
+- Wait out the fan-out; `assemble.py` → `owner_validate.py` → close-comment pass →
+  `build_extra.py` → `render.py`.
 - Re-pull the open list for mid-lane closures; spot-check the final RESOLVED-CLOSE set.
 - Write `out-issue-triage.md` + `issue-dispositions.json`.
