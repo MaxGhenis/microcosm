@@ -117,20 +117,39 @@ def _series_digest(digest, series):
         # Both entry and payload bounds keep distinct or large strings bounded.
         string_tokens = {}
         token_bytes = 0
-        for value in series.to_numpy(dtype=object, copy=False):
-            if type(value) is str:
-                token = string_tokens.get(value)
-                if token is None:
+        pending = bytearray()
+        try:
+            for value in series.to_numpy(dtype=object, copy=False):
+                if type(value) is str:
+                    token = string_tokens.get(value)
+                    if token is None:
+                        encoded = checkpoint._encode_object_scalar(value)
+                        token = len(encoded).to_bytes(8, "little") + encoded
+                        if (
+                            len(string_tokens) < 1024
+                            and token_bytes + len(token) <= 262144
+                        ):
+                            string_tokens[value] = token
+                            token_bytes += len(token)
+                else:
                     encoded = checkpoint._encode_object_scalar(value)
                     token = len(encoded).to_bytes(8, "little") + encoded
-                    if len(string_tokens) < 1024 and token_bytes + len(token) <= 262144:
-                        string_tokens[value] = token
-                        token_bytes += len(token)
-                digest.update(token)
-                continue
-            encoded = checkpoint._encode_object_scalar(value)
-            digest.update(len(encoded).to_bytes(8, "little"))
-            digest.update(encoded)
+                # Only update boundaries change, never the canonical byte stream.
+                # Keep the local buffer bounded; oversized tokens go directly to
+                # the digest. Nothing is reused by a later source qualification.
+                if len(pending) + len(token) > 65536:
+                    chunk = bytes(pending)
+                    pending.clear()
+                    if chunk:
+                        digest.update(chunk)
+                if len(token) > 65536:
+                    digest.update(token)
+                else:
+                    pending.extend(token)
+        finally:
+            # Preserve prior complete tokens if a later scalar encoding refuses.
+            if pending:
+                digest.update(bytes(pending))
 
 
 def _frame_signature(frame):
