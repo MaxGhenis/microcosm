@@ -38,7 +38,7 @@ FIELDS = tuple(
 )
 RESOURCE_PINS = (
     "09cefd4d08968cf1dc4dcdc787deef88c77b84549dfb0baa6bf9cbd9e3ce7352",
-    "88cec207a3c73e5de93d677acf16e8db9ddae9761c644c06da92cacf0feb3f63",
+    "12fb7ce3c687fef0c16af526e63ffb8a5da8c6944338ed99551ccbed745d080b",
     "c56058eaf08b68b2add4a5d2b366559ea6cc5238b039031be7094ef1f6457ff7",
 )
 MICROUNIT_VERSION = "0.1.0"

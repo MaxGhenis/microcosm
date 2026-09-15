@@ -67,15 +67,6 @@
     }
   },
   "monetary_basis": {
-    "2022": {
-      "currency": "USD",
-      "unit": "base_currency",
-      "period": "2022",
-      "temporal_basis": "annual_flow",
-      "sector": "households",
-      "perimeter": "cps_asec_person_money_income",
-      "valuation": "2024 annual average C-CPI-U dollars (census_ccpiu_annual_2024)"
-    },
     "2023": {
       "currency": "USD",
       "unit": "base_currency",
@@ -93,17 +84,26 @@
       "sector": "households",
       "perimeter": "cps_asec_person_money_income",
       "valuation": "2024 annual average C-CPI-U dollars (census_ccpiu_annual_2024)"
+    },
+    "2025": {
+      "currency": "USD",
+      "unit": "base_currency",
+      "period": "2025",
+      "temporal_basis": "annual_flow",
+      "sector": "households",
+      "perimeter": "cps_asec_person_money_income",
+      "valuation": "2024 annual average C-CPI-U dollars (census_ccpiu_annual_2024)"
     }
   },
   "price": {
     "algorithm": "parse_float64_target_divide_source_then_multiply_nonzero_v1",
     "target_year": 2024,
     "cells": {
-      "2022": "163.6",
       "2023": "170.0",
-      "2024": "174.4"
+      "2024": "174.4",
+      "2025": "178.7"
     },
-    "resource_sha256": "88cec207a3c73e5de93d677acf16e8db9ddae9761c644c06da92cacf0feb3f63"
+    "resource_sha256": "12fb7ce3c687fef0c16af526e63ffb8a5da8c6944338ed99551ccbed745d080b"
   },
   "zero_origin_classes": [
     "observed_amount",

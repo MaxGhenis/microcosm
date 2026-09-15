@@ -39,7 +39,7 @@ def _v4_binding(frame: Frame) -> dict:
     metadata = _raw_binding(frame)
     metadata["schema_version"] = 4
     metadata["source_receipt"]["sources"].append(
-        dict(metadata["source_receipt"]["sources"][0], year=2023)
+        dict(metadata["source_receipt"]["sources"][0], year=2024)
     )
     pins = checkpoint_module.ASEC_EDUCATION_ASSISTANCE_ARCHIVES
     for column in checkpoint_module.ASEC_REPORTED_COVERAGE_RAW_COLUMNS:
@@ -56,7 +56,7 @@ def _v4_binding(frame: Frame) -> dict:
                     "sha256": pins[year].zip_sha256,
                     "member_sha256": pins[year].member_sha256,
                 }
-                for year in (2022, 2023)
+                for year in (2023, 2024)
             ],
             # Audit describes the full official member, not this two-row subset.
             "audit": {
@@ -66,7 +66,7 @@ def _v4_binding(frame: Frame) -> dict:
                     "no_rows": pins[year].rows - 1,
                     "weighted_yes_share": 0.25,
                 }
-                for year in (2022, 2023)
+                for year in (2023, 2024)
             },
         }
     return metadata
@@ -160,7 +160,7 @@ def test_v4_restoration_producer_authenticates_source_and_writes_new_bundle(
     assert bool(expected_mass_log) is with_mass_history
     binding = _raw_binding(legacy)
     binding["source_receipt"]["sources"].append(
-        dict(binding["source_receipt"]["sources"][0], year=2023)
+        dict(binding["source_receipt"]["sources"][0], year=2024)
     )
     input_path = tmp_path / "v3.h5"
     _write_checkpoint(input_path, legacy, metadata=binding)
@@ -174,8 +174,8 @@ def test_v4_restoration_producer_authenticates_source_and_writes_new_bundle(
     pins = {}
     paths = {}
     for year, key in (
-        (2022, "0000000000000000000001"),
-        (2023, "0000000000000000000002"),
+        (2023, "0000000000000000000001"),
+        (2024, "0000000000000000000002"),
     ):
         path = tmp_path / f"person-{year}.csv"
         row = {
@@ -187,7 +187,7 @@ def test_v4_restoration_producer_authenticates_source_and_writes_new_bundle(
         }
         row.update(
             {
-                column: 1 if year == 2022 else 2
+                column: 1 if year == 2023 else 2
                 for column in checkpoint_module.ASEC_REPORTED_COVERAGE_RAW_COLUMNS
             }
         )
@@ -289,10 +289,10 @@ def test_v4_restoration_producer_authenticates_source_and_writes_new_bundle(
         restore_asec_raw_stage_v4(
             input_path,
             expected_sha256=input_sha,
-            coverage_paths={2022: paths[2022]},
+            coverage_paths={2023: paths[2023]},
             output_dir=tmp_path / "missing",
         )
-    paths[2022].write_text("tampered")
+    paths[2023].write_text("tampered")
     with pytest.raises(ValueError, match="byte length mismatch"):
         restore_asec_raw_stage_v4(
             input_path,
@@ -335,15 +335,15 @@ def test_v4_refuses_inconsistent_attestation(tmp_path: Path, mutation: str) -> N
     elif mutation == "pin_year_duplicate":
         mapping["source_pins"].append(dict(mapping["source_pins"][0]))
     elif mutation == "audit_year":
-        del mapping["audit"]["2023"]
+        del mapping["audit"]["2024"]
     elif mutation == "audit_rows":
-        mapping["audit"]["2022"]["rows"] = 2
+        mapping["audit"]["2023"]["rows"] = 2
     elif mutation == "audit_counts":
-        mapping["audit"]["2022"]["no_rows"] = 0
+        mapping["audit"]["2023"]["no_rows"] = 0
     elif mutation == "audit_nan":
-        mapping["audit"]["2022"]["weighted_yes_share"] = float("nan")
+        mapping["audit"]["2023"]["weighted_yes_share"] = float("nan")
     elif mutation == "audit_bool":
-        mapping["audit"]["2022"]["yes_rows"] = True
+        mapping["audit"]["2023"]["yes_rows"] = True
     elif mutation == "receipt_year":
         metadata["source_receipt"]["sources"].pop()
     elif mutation == "missing_mapping":
@@ -383,7 +383,7 @@ def test_v4_refuses_wrong_source_boundary(tmp_path: Path, mutation: str) -> None
     elif mutation == "peridnum":
         person["PERIDNUM"] = ["1", "2"]
     elif mutation == "duplicate":
-        person["source_year"] = [2022, 2022]
+        person["source_year"] = [2023, 2023]
         person["PERIDNUM"] = ["0" * 22, "0" * 22]
     elif mutation == "weights":
         frame = Frame(
@@ -404,13 +404,13 @@ def test_v4_refuses_wrong_source_boundary(tmp_path: Path, mutation: str) -> None
 def test_v4_duplicate_guard_compares_normalized_identity() -> None:
     frame = _v4_frame()
     person = frame.table("person")
-    person["source_year"] = pd.Series([2022, "2022"], dtype=object)
+    person["source_year"] = pd.Series([2023, "2023"], dtype=object)
     person["PERIDNUM"] = pd.Series(["0" * 22, b"0" * 22], dtype=object)
     metadata = _v4_binding(frame)
     metadata["source_receipt"]["sources"].pop()
     for column in checkpoint_module.ASEC_REPORTED_COVERAGE_RAW_COLUMNS:
         metadata["raw_source_mappings"][column]["source_pins"].pop()
-        del metadata["raw_source_mappings"][column]["audit"]["2023"]
+        del metadata["raw_source_mappings"][column]["audit"]["2024"]
     with pytest.raises(ValueError, match="repeats a source-year/PERIDNUM"):
         checkpoint_module._validate_coverage_v4_binding(
             frame, metadata, path=Path("fixture.h5")
@@ -505,7 +505,7 @@ def _binding(frame: Frame) -> dict[str, object]:
 
 def _raw_binding(frame: Frame) -> dict[str, object]:
     pin = {
-        "income_year": 2022,
+        "income_year": 2023,
         "locator": "https://example.test/asec.zip",
         "member": "pppub.csv",
         "member_sha256": "b" * 64,
@@ -534,13 +534,13 @@ def _raw_binding(frame: Frame) -> dict[str, object]:
             "sources": [
                 {
                     "max_households": None,
-                    "path": "/raw/asec_2022.h5",
+                    "path": "/raw/asec_2023.h5",
                     "sha256": "d" * 64,
                     "share": 1.0,
-                    "year": 2022,
+                    "year": 2023,
                 }
             ],
-            "target_year": 2022,
+            "target_year": 2023,
         },
         "stage": ASEC_RAW_STAGE_STAGE,
     }
@@ -549,7 +549,7 @@ def _raw_binding(frame: Frame) -> dict[str, object]:
 def _raw_us_frame(*, id_offset: int = 0) -> Frame:
     source = _us_frame(id_offset=id_offset, include_age=False)
     tables = {entity: source.table(entity).copy() for entity in source.entities}
-    tables["person"]["source_year"] = [2022, 2023]
+    tables["person"]["source_year"] = [2023, 2024]
     tables["person"]["PERIDNUM"] = [
         "0000000000000000000001",
         "0000000000000000000002",
@@ -664,7 +664,7 @@ def test_raw_loader_rejects_missing_input_complete_source_column(
 @pytest.mark.parametrize(
     ("column", "values", "message"),
     (
-        ("source_year", [2022, np.nan], "source_year must be complete"),
+        ("source_year", [2023, np.nan], "source_year must be complete"),
         ("PERIDNUM", ["0000000000000000000001", ""], "PERIDNUM must be complete"),
         ("ED_VAL", [0.0, np.nan], "ED_VAL must be complete"),
         ("LKWEEKS", [-1, 53], "LKWEEKS must be complete"),

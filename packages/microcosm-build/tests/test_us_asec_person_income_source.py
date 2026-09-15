@@ -38,7 +38,7 @@ def invented_sources(tmp_path, monkeypatch, *, missing=True, housing=False):
     with monkeypatch.context() as patch:
         patch.setattr(pd.DataFrame, "to_hdf", household_writer)
         parent, attachment, *_ = _fixtures().invented_checkpoints(tmp_path, monkeypatch)
-    # Older cohorts lost the complete field; the incumbent 2024 child has a
+    # Older cohorts lost the complete field; the incumbent 2025 child has a
     # source-encoded zero, while the adult has a signed total income loss.
     for path in (parent, attachment):
         loaded = load_frame_checkpoint(path)
@@ -73,7 +73,7 @@ def invented_sources(tmp_path, monkeypatch, *, missing=True, housing=False):
         _size,
     ) in restoration._MEMBER_PINS:
         path = tmp_path / member_name
-        offset = (year - 2022) * 2
+        offset = (year - 2023) * 2
         frame = pd.DataFrame(
             {
                 "PERIDNUM": [str(offset + i).zfill(22) for i in (1, 2)],
@@ -154,7 +154,7 @@ def test_authenticated_source_discrepancies_refuse_without_values(
     tmp_path, monkeypatch, mutation
 ):
     parent, attachment, paths = invented_sources(tmp_path, monkeypatch)
-    path = paths[2024]
+    path = paths[2025]
     frame = pd.read_csv(path, dtype=str, keep_default_na=False)
     if mutation == "duplicate_header":
         path.write_text(path.read_text().replace("PTOTVAL\n", "A_AGE\n"))
@@ -182,9 +182,9 @@ def test_authenticated_source_discrepancies_refuse_without_values(
             y,
             n,
             a,
-            money._sha(path.read_bytes()) if y == 2024 else p,
+            money._sha(path.read_bytes()) if y == 2025 else p,
             r,
-            path.stat().st_size if y == 2024 else s,
+            path.stat().st_size if y == 2025 else s,
         )
         for y, n, a, p, r, s in restoration._MEMBER_PINS
     )
@@ -199,7 +199,7 @@ def test_authenticated_source_discrepancies_refuse_without_values(
 
 def test_member_bytes_and_unclosed_path_selection_refuse(tmp_path, monkeypatch):
     parent, attachment, paths = invented_sources(tmp_path, monkeypatch)
-    with paths[2022].open("a") as handle:
+    with paths[2023].open("a") as handle:
         handle.write("changed\n")
     with pytest.raises(money.MoneyRefusalError, match="SOURCE_BYTES"):
         restoration.restore_asec_person_income_source(
@@ -209,7 +209,7 @@ def test_member_bytes_and_unclosed_path_selection_refuse(tmp_path, monkeypatch):
         restoration.restore_asec_person_income_source(
             parent,
             attachment,
-            member_paths={2022: paths[2022]},
+            member_paths={2023: paths[2023]},
             output_dir=tmp_path / "bad",
         )
     with pytest.raises(TypeError):
@@ -283,7 +283,13 @@ def test_restored_money_has_field_scoped_encoded_zero_provenance(tmp_path, monke
     )
     assert decoded.fields == ready.fields
     # Header and full evidence stay bound through price restatement and codec.
-    assert ready.field("PTOTVAL").amounts[-2:].tolist() == [-9999, 0]
+    # The target-year cohort is carried at nominal; the newest pooled vintage is
+    # later than the price target, so it is restated down into target dollars.
+    assert ready.field("PTOTVAL").amounts[2:4].tolist() == [-9999, 0]
+    assert ready.field("PTOTVAL").amounts[-2:].tolist() == [
+        -9999 * (174.4 / 178.7),
+        0,
+    ]
     assert value.frame.person.PTOTVAL.isna().sum() == 4
 
 
@@ -376,7 +382,7 @@ def test_regenerated_housing_and_money_share_restored_identity_and_crossed_sourc
     new = restoration.load_authenticated_restored_current_money_source(
         parent, attachment, output / restoration.CHECKPOINT_FILENAME, member_paths=paths
     )
-    cohort_paths = {y: tmp_path / f"invented-cohort-{y}.h5" for y in (2022, 2023, 2024)}
+    cohort_paths = {y: tmp_path / f"invented-cohort-{y}.h5" for y in (2023, 2024, 2025)}
     old_housing = housing_source.load_authenticated_housing_status(
         old, cohort_paths=cohort_paths
     )
@@ -584,7 +590,7 @@ def test_candidate_hdf_is_never_decoded(tmp_path, monkeypatch, mutation):
 
 
 @pytest.mark.parametrize("entrypoint", ["producer", "verifier"])
-@pytest.mark.parametrize("mapping", [None, {}, {True: "x"}, {2022: 1}])
+@pytest.mark.parametrize("mapping", [None, {}, {True: "x"}, {2023: 1}])
 def test_invalid_member_mapping_refuses_before_parent_load(
     tmp_path, monkeypatch, entrypoint, mapping
 ):
@@ -620,7 +626,7 @@ def test_malformed_member_integer_identifies_actual_field(tmp_path, column):
 
 def test_year_swapped_members_refuse(tmp_path, monkeypatch):
     parent, attachment, paths = invented_sources(tmp_path, monkeypatch)
-    paths[2022], paths[2023] = paths[2023], paths[2022]
+    paths[2023], paths[2024] = paths[2024], paths[2023]
     with pytest.raises(money.MoneyRefusalError, match="SOURCE_BYTES"):
         restoration.restore_asec_person_income_source(
             parent, attachment, member_paths=paths, output_dir=tmp_path / "refused"

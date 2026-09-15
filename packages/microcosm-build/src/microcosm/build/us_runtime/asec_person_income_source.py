@@ -203,9 +203,10 @@ def _reconstruct(source, member_paths: Mapping[int, str | Path]):
                 "RESTORATION_INCUMBENT_CONFLICT",
                 "PTOTVAL",
             )
-            # The full current cohort has an incumbent and must be checked, not
-            # silently treated as another missing-column restoration.
-            if year == 2024:
+            # The newest pooled cohort's frozen input carries the complete
+            # incumbent column, so it must be checked rather than silently
+            # treated as another missing-column restoration.
+            if year == ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS[-1]:
                 _require(
                     bool(known.all()), "RESTORATION_INCUMBENT_INCOMPLETE", "PTOTVAL"
                 )

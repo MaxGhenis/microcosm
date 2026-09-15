@@ -1,9 +1,12 @@
 {
   "algorithm": "parse_float64_target_divide_source_then_multiply_nonzero_v1",
+  "cell_notes": {
+    "2025": "Census P60-289 footnote 2: the October 2025 monthly C-CPI-U is unavailable because of the 2025 lapse in appropriations, and BLS approximated it as the geometric mean of the September and November 2025 index values; the annual index printed here averages the twelve monthly indexes including that approximation."
+  },
   "cells": {
-    "2022": "163.6",
     "2023": "170.0",
-    "2024": "174.4"
+    "2024": "174.4",
+    "2025": "178.7"
   },
   "currency": "USD",
   "identity_year": "copy_normalized_bytes",
@@ -13,9 +16,9 @@
   "source_finality": "not_stated_in_source",
   "target_year": 2024,
   "workbook": {
-    "sha256": "8a5ef078b02c48c9e6414f3ca0cbdfe4a013ce6acf1a3fda42e6bd9c7da49e48",
-    "size_bytes": 41472,
-    "url": "https://www2.census.gov/programs-surveys/demo/tables/p60/286/annual-index-value_annual-percent-change.xls"
+    "sha256": "d97e18f47cf7943a13ca43cec2b7a7b7c7337294d3bb205e6c0452094c813dd7",
+    "size_bytes": 43008,
+    "url": "https://www2.census.gov/programs-surveys/demo/tables/p60/289/annual-index-value_annual-percent-change.xls"
   },
   "zero": "positive_zero_no_arithmetic"
 }

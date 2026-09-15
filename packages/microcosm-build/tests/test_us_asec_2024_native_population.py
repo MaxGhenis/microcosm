@@ -83,7 +83,7 @@ def _rebuild_observations(
         _helpers()._rewrite(persons[2024], add_people)
     if missing_money is not None:
         year, field = missing_money
-        assert (year, field) in ((2024, "ANN_VAL"), (2022, "WSAL_VAL"))
+        assert (year, field) in ((2024, "ANN_VAL"), (2023, "WSAL_VAL"))
         person = tables["person"]
         position = np.flatnonzero(person.source_year.to_numpy() == year)[0]
         # Alter only invented source construction, before identities, attachments
@@ -124,7 +124,7 @@ def _rebuild_observations(
     for key in ("identity", "source_construction_identity"):
         metadata[key] = frame_identity(frame).to_payload()
     sources = []
-    for year in (2022, 2023, 2024):
+    for year in (2023, 2024, 2025):
         path = tmp_path / f"invented-cohort-{year}.h5"
         sources.append(
             household_owner.AsecHouseholdObservationSource(
@@ -258,7 +258,7 @@ def test_real_three_cohort_loader_selects_2024_original_anchors(tmp_path, monkey
     assert frame.weights_for("household").values.tolist() == [2552.12]
     assert dict(frame.metadata) == {} and frame.mass_log == ()
     assert json.loads(result.context)["entities"]["person"]["rows"] == 2
-    assert receipt["parent_custody"]["cohorts"] == [2022, 2023, 2024]
+    assert receipt["parent_custody"]["cohorts"] == [2023, 2024, 2025]
     assert receipt["parent_custody"]["population_cohorts"] == [2024]
     assert receipt["households"][0]["HSUP_WGT"] == "000255212"
     assert receipt["households"][0]["fraction"] == [63803, 25]
@@ -271,12 +271,12 @@ def test_real_three_cohort_loader_selects_2024_original_anchors(tmp_path, monkey
     # Real parent remains separate, complete and sealed after all child borrows.
     state = native._ISSUED[id(result)][2]
     assert state.parent.frame.person.source_year.tolist() == [
-        2022,
-        2022,
         2023,
         2023,
         2024,
         2024,
+        2025,
+        2025,
     ]
     assert state.parent.frame.weights_for("household").values.tolist() == [1, 2, 3]
     state.parent.validate()

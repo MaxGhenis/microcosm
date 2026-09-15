@@ -90,7 +90,7 @@ def invented_checkpoints(tmp_path, monkeypatch):
                 f"person_{g}_id": np.repeat(np.arange(1, 4, dtype=np.int64), 2)
                 for g in US_SCHEMA.group_entities
             },
-            "source_year": np.repeat([2022, 2023, 2024], 2),
+            "source_year": np.repeat([2023, 2024, 2025], 2),
             "source_household_id": np.repeat([7, 7, 7], 2),
             "PERIDNUM": [str(i).zfill(22) for i in range(1, 7)],
             "PH_SEQ": np.repeat([1, 2, 3], 2),
@@ -147,7 +147,7 @@ def invented_checkpoints(tmp_path, monkeypatch):
         US_SCHEMA,
         {"household": Weights(np.array([1.0, 2.0, 3.0]), WeightKind.DESIGN)},
         pd.Series(
-            ["2022"] * 2 + ["2023"] * 2 + ["2024"] * 2,
+            ["2023"] * 2 + ["2024"] * 2 + ["2025"] * 2,
             index=person.index,
             dtype="string",
         ),
@@ -158,8 +158,8 @@ def invented_checkpoints(tmp_path, monkeypatch):
     metadata = fixture._v4_binding(frame)
     metadata["source_receipt"]["target_year"] = 2024
     cohort_sources = []
-    for year in (2022, 2023, 2024):
-        state = {2022: 6, 2023: 36, 2024: 4}[year]
+    for year in (2023, 2024, 2025):
+        state = {2023: 6, 2024: 36, 2025: 4}[year]
         raw = pd.DataFrame(
             {
                 "H_SEQ": [7],
@@ -193,7 +193,7 @@ def invented_checkpoints(tmp_path, monkeypatch):
                 "member_sha256": registry[y].member_sha256,
                 "sha256": registry[y].zip_sha256,
             }
-            for y in (2022, 2023, 2024)
+            for y in (2023, 2024, 2025)
         ]
         if column in fixture.checkpoint_module.ASEC_REPORTED_COVERAGE_RAW_COLUMNS:
             mapping["audit"] = {
@@ -203,7 +203,7 @@ def invented_checkpoints(tmp_path, monkeypatch):
                     "no_rows": registry[y].rows - 1,
                     "weighted_yes_share": 0.25,
                 }
-                for y in (2022, 2023, 2024)
+                for y in (2023, 2024, 2025)
             }
     parent = tmp_path / "invented-original-v4.h5"
     write_frame_checkpoint(parent, frame, metadata=metadata)
@@ -248,7 +248,7 @@ def test_real_loaders_bind_invented_bytes_scope_and_all_cohort_evidence(
     loaded = source.load_authenticated_current_money_source(parent, attachment)
     assert type(loaded.source) is money.AuthenticatedAsecSource
     authority = json.loads(loaded.source.identity)
-    assert [x["survey_year"] for x in authority["sidecars"]] == [2023, 2024, 2025]
+    assert [x["survey_year"] for x in authority["sidecars"]] == [2024, 2025, 2026]
     assert tuple(loaded.scope.person_ids) == tuple(original.person.person_id)
     ready = loaded.ready()
     assert type(ready) is money.ReadyCurrentMoney
@@ -426,7 +426,7 @@ def test_private_verified_copy_binds_the_decoded_bytes_when_original_path_change
     )
     loaded = source.load_authenticated_current_money_source(parent, attachment)
     assert loaded.frame.person.WSAL_VAL.iloc[0] == 60000.0
-    assert loaded.ready().field("WSAL_VAL").amounts[0] == 60000.0 * (174.4 / 163.6)
+    assert loaded.ready().field("WSAL_VAL").amounts[0] == 60000.0 * (174.4 / 170.0)
     with pytest.raises(money.MoneyRefusalError, match="SOURCE_BYTES_MISMATCH"):
         source.load_authenticated_current_money_source(parent, attachment)
 

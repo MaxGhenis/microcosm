@@ -253,7 +253,7 @@ def test_authenticated_raw_coordinate_conflicts_refuse(
 ):
     source, paths = _fixtures(tmp_path, monkeypatch)
     _rewrite(
-        paths[2022], lambda rows: rows[1].__setitem__(rows[0].index(column), value)
+        paths[2023], lambda rows: rows[1].__setitem__(rows[0].index(column), value)
     )
     _pin(paths, monkeypatch)
     with pytest.raises(
@@ -304,7 +304,7 @@ def test_distinct_authenticated_parent_with_same_ids_cannot_reuse_artifact(
         coverage.AsecCoverageAuthenticationError, match="PARENT_CHANGED"
     ):
         coverage.verify_asec_coverage_parent(result, other)
-    assert set(other_paths) == {2022, 2023, 2024}
+    assert set(other_paths) == {2023, 2024, 2025}
 
 
 def test_merged_native_households_refuse_even_with_matching_per_row_coordinates(
@@ -316,7 +316,7 @@ def test_merged_native_households_refuse_even_with_matching_per_row_coordinates(
         _fixtures(tmp_path, monkeypatch, native_ids=[7, 8, 7, 7, 7, 7])
     person = pd.DataFrame(
         {
-            "source_year": [2022, 2022],
+            "source_year": [2023, 2023],
             "source_household_id": [7, 8],
             "person_household_id": [1, 1],
         },
@@ -381,7 +381,7 @@ def test_same_native_person_keys_across_cohorts_remain_distinct(tmp_path, monkey
 def test_partition_bijection_refuses_splits_and_cross_cohort_merges():
     person = pd.DataFrame(
         {
-            "source_year": [2022, 2022],
+            "source_year": [2023, 2023],
             "source_household_id": [7, 7],
             "person_household_id": [1, 2],
         },
@@ -391,7 +391,7 @@ def test_partition_bijection_refuses_splits_and_cross_cohort_merges():
         coverage.AsecCoverageAuthenticationError, match="HOUSEHOLD_SPLIT"
     ):
         coverage._partitions(person)
-    person.source_year = [2022, 2023]
+    person.source_year = [2023, 2024]
     person.person_household_id = [1, 1]
     with pytest.raises(
         coverage.AsecCoverageAuthenticationError, match="HOUSEHOLD_MERGE"
@@ -414,15 +414,15 @@ def test_complete_cohort_authority_refuses_incomplete_or_duplicate_inputs(
 ):
     source, paths = _fixtures(tmp_path, monkeypatch)
     if kind == "missing_cohort":
-        paths.pop(2023)
+        paths.pop(2024)
     elif kind == "duplicate_cohort":
         pins = coverage._MEMBER_PINS
         monkeypatch.setattr(coverage, "_MEMBER_PINS", (pins[0], pins[0], pins[2]))
     elif kind == "swapped_cohort":
-        paths[2022], paths[2023] = paths[2023], paths[2022]
+        paths[2023], paths[2024] = paths[2024], paths[2023]
     else:
         _rewrite(
-            paths[2022],
+            paths[2023],
             lambda rows: (
                 rows.__setitem__(1, rows[2].copy())
                 if kind == "duplicate_row"
@@ -454,7 +454,7 @@ def test_candidate_self_rehash_is_not_authority_and_reconstruction_runs_first(
         coverage.AsecCoverageAuthenticationError, match="CANONICAL_BYTES"
     ):
         _read(source, paths, candidate_path=candidate)
-    paths[2022].write_bytes(b"corrupt original")
+    paths[2023].write_bytes(b"corrupt original")
     with pytest.raises(coverage.AsecCoverageAuthenticationError, match="SOURCE_SIZE"):
         _read(source, paths, candidate_path=tmp_path / "absent-candidate")
 
@@ -584,7 +584,7 @@ def test_capture_races_nonregular_cleanup_and_static_refusals(
     tmp_path, monkeypatch, kind
 ):
     source, paths = _fixtures(tmp_path, monkeypatch)
-    path = paths[2022]
+    path = paths[2023]
     original = path.read_bytes()
     if kind in ("fifo", "directory", "symlink"):
         path.unlink()
