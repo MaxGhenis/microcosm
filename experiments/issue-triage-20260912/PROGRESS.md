@@ -331,3 +331,23 @@ mechanics that exist only in #265 and are undelivered on main (a BE path in
 the BE Slack alert, and a `("be", year)` DatasetSpec in `microcosm-data/registry.py`).
 The batch agent independently reached KEEP on the same evidence, and merging one of five
 epic children while #262/#263/#264 all stay open is incoherent. **#265 stays KEEP.**
+
+### The near-duplicate detector had a proven false negative — gap closed
+
+The one real duplicate in this repo, **#224 → #213** (both ask for a small ~20k calibrated
+national US dataset for Colab/web/CI), was found by a *batch* agent reading dossiers, not
+by the near-duplicate detector. Recomputing TF-IDF cosine for that pair:
+**0.162 — well under run 3's 0.28 threshold.** They use different vocabulary
+("L0 sparsification" vs "calibrated national sample") for the same ask.
+
+So "the cluster pass found zero duplicates" was only ever a statement about the 37
+above-threshold pairs, and the absolute threshold demonstrably misses real duplicates.
+But #213 and #224 are each other's **top-ranked match** — a rank-based test catches what
+the threshold missed.
+
+Mitigation: recomputed the full 234×234 TF-IDF matrix and took **mutual top-1 nearest
+neighbours** (a is b's best match *and* b is a's). That yields 52 pairs, **33 of them not
+in the original 37-pair set**, spanning 66 issues and reaching as low as cosine 0.130.
+Launched workflow `wf_97f1f4e3-e0f` over those 33 as a second cluster pass with the same
+challenger gate, so the duplicate layer no longer rests on an absolute cutoff that is
+known to have failed once.
