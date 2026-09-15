@@ -335,7 +335,7 @@ Run from the worktree with `UV_OFFLINE=1 uv run --no-sync`.
 | `python tools/ci_test_groups.py --verify` | **0** | `verification=ok`, no `[defaulted]` files |
 | `python3 -I -B -S packages/microcosm-build/tests/test_ci_test_groups.py` | **0** | 15 tests OK |
 | `ruff check .` | **0** | All checks passed |
-| `ruff format --check <changed .py>` | **0** | all formatted |
+| `ruff format --check <54 changed .py>` | **1** | 51 formatted; the 3 that fail already fail at `4fc4ee6dd` (see below) |
 | `python tools/generate_us_bundle_from_constants.py --check` | **0** | `spec_sha256=3c614292…`, no stale files |
 | us_runtime import sweep (269 modules) | **0** | 0 failures |
 | US implementation contract recompute (all contracts) | **0** | 0 drifted, classifications closed |
@@ -359,9 +359,13 @@ the attested module to re-record it.
 The only coverage drift this lane caused was
 `resolved_vintage_authorities`, which is re-pinned (§6).
 
-Second pre-existing item: `ruff format --check` fails on
-`us_runtime/wic_claim.py` (introduced by `17ed9a0be`, before this lane). CI runs
-`ruff check .` only, which is green.
+Second pre-existing item: `ruff format --check` fails on three files that
+already fail it at `4fc4ee6dd` — `us_runtime/wic_claim.py`,
+`tests/test_us_bundle_core_contracts.py` and `tools/us_bundle_generation/core.py`
+(verified by checking out each file at the base and re-running the check). Every
+reported reformat hunk is in a region this lane did not touch. CI runs
+`ruff check .` only, which is green, so nothing is gated on it; not fixed here
+because reformatting untouched regions would bury the rollover diff.
 
 ---
 
