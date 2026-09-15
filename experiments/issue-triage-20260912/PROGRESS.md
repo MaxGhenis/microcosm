@@ -496,3 +496,38 @@ Re-pulled the open-issue list and re-fetched `origin/main` at the end of the lan
 `18271b28d`**. Nothing closed or opened while the triage ran, so no row in the report
 describes an issue whose state has since moved. That fact is now stated in the report's
 method section rather than left implicit.
+
+### The verification layer is doing real work — and it reshaped the epic category
+
+Early returns from the refuters: **8 UPHOLD, 8 OVERTURN, 6 AMEND**, while **15 of 15
+missed-resolution sweeps over the KEEP rows returned ZERO overturns**. So the KEEP layer is
+solid and the close-class rows are where the contest is — which is the right shape.
+
+The most consequential challenge: a refuter overturning #731 argued that in epics #796 and
+#736 the checkbox *mirrors* child state (`[x]` = child CLOSED, `[ ]` = child OPEN), so the
+epic is an index, not a container. Measured it myself over every checkbox line naming a known
+issue (excluding PR numbers, which my first pass wrongly counted):
+
+| epic | checkbox matches child state |
+|---|---|
+| #796 | 43/58 |
+| #736 | 23/41 |
+| #665 | 14/17 |
+| #259 | 6/9 |
+| #925 / #882 / #454 | 1/1 each |
+
+**Directionally right, literally overstated**: the pattern holds exactly inside the block the
+refuter read (#796's "Filed spine issue" lines) but not across the whole body, and most
+misses are *stale* unchecked boxes for children that closed without the epic being updated.
+
+What survives is the part that matters: **these epics index independently-tracked children
+rather than absorbing them.** Closing a child because the epic lists it destroys the child's
+specification and leaves a checkbox pointing at an emptied issue. That is why refuters
+overturned **#661, #687, #719 and #731 to KEEP**, each citing concrete content that would be
+lost. `MERGE-INTO-EPIC` may collapse to near-zero once the adjudicators finish.
+
+**This also corrects my own earlier call on #719.** I had accepted it under the "numbered work
+item" standard, but epic #922's item 5 reads "**Industry and worked-last-year on the
+records.** #745 (`work_experience_inputs` stage; parent #719) is still a draft" — the tracked
+unit is **PR #745**, with #719 only named parenthetically as its parent. Two independent
+refuters caught that; they are right and I was wrong.
