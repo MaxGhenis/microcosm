@@ -58,7 +58,7 @@ _MEMBER_PINS = tuple(
     for year, p in sorted(ASEC_EDUCATION_ASSISTANCE_ARCHIVES.items())
 )
 RESOURCE = "asec_income_observations_v1.json"
-RESOURCE_SHA256 = "d357a8c163689dff13c29ab4f6aca2528925500c602d90128e08a2e7a66680e4"
+RESOURCE_SHA256 = "a227b967842dab1d7d1d1980c732709edc0ed5db862254111c44a773242516ac"
 ZERO_CLASSES = (
     "observed_amount",
     "niu_below_receipt_age",

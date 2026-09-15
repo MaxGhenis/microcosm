@@ -252,11 +252,12 @@ Digest cascade, all re-pinned:
 | identity | before | after |
 |---|---|---|
 | price-basis resource (`RESOURCE_PINS[1]`) | `88cec207…` | `12fb7ce3…` |
-| `asec_income_observations_v1.json` (`RESOURCE_SHA256`) | `6e37855d…` | `d357a8c1…` |
+| `asec_income_observations_v1.json` (`RESOURCE_SHA256`) | `6e37855d…` | `a227b967…` |
 
 The income-observations resource also rolled its `monetary_basis` keys to
 2023-2025 (same 2024 valuation text). Its per-cohort **dictionary citations did
-not roll** — see §6.
+not roll** — see §6 — and it now carries a `cohorts_note` saying so in place, so
+the stale block cannot be read as current.
 
 ---
 

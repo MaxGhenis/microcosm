@@ -118,5 +118,6 @@
     "PAW_TYP_authority": "excluded_from_this_artifact_existing_tanf_handling_unchanged",
     "acs_eight_categories_complete": false,
     "release_eligible": false
-  }
+  },
+  "cohorts_note": "The per-cohort dictionary citations below still describe the pre-rollover income-year 2022-2024 window. Restating them for income years 2023-2025 needs the ASEC 2026 public-use dictionary's PAW_VAL/PAW_YN pages and the reviewed excerpt digests, which are not reproducible from this repository; they are a separate reviewed-evidence change. Nothing in the artifact header reads this block."
 }
