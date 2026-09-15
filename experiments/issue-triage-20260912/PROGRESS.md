@@ -382,3 +382,48 @@ that they move both ways, which is what an honest verification layer looks like:
 - `STALE-ASK → KEEP`: **#48**, **#366**. `RULED-DEFERRED → MERGE-INTO-EPIC`: **#687**.
 
 Zero rows came back `UNDETERMINED` and zero at low confidence (150 high, 23 medium).
+
+### All 35 batches in — 234/234 rows, every one run-5 derived
+
+No row now falls back to a run-3 candidate. Stage-1 distribution: 183 KEEP, 28
+RESOLVED-CLOSE, 10 STALE-ASK, 6 RULED-DEFERRED, 6 MERGE-INTO-EPIC, 1 DUPLICATE-CLOSE.
+Zero rows returned `UNDETERMINED`; zero at low confidence. The verify / sweep / adjudicate
+stages are still running and can still move rows.
+
+### Two cross-batch collisions only an owner pass could catch
+
+**1. A mutual duplicate chain that would have deleted an ask.** The `us-calibration-2`
+agent closed **#213 into #224**; the `release-publishing-1` agent closed **#224 into #213**.
+Each was right that the pair is a duplicate and neither could see the other's batch —
+but applying both would have closed *both* issues and removed the 20k-sample ask from the
+tracker entirely. Owner adjudication: **#213 is the survivor and stays open**; it is
+strictly better specified (HDF5 schema parity, household integrity across
+tax_unit/spm_unit/family/marital_unit, the named calibration target list, bundle
+registration so `pe.us.managed_microsimulation(dataset='populace_us_20k')` resolves), more
+recently active (2026-07-03 vs 2026-06-29), and carries the verified free-Colab data point.
+Neither ask is delivered: `microcosm-data/registry.py` declares exactly three DatasetSpecs
+on main (uk-2023-compact, uk-2025-dense, us-2024-compact) and no ~20k US variant.
+#224's two unique requirements ride in its close comment.
+
+**2. The "literal checklist" rule was too narrow, and fixing it changed exactly one row.**
+Neither epic #530 nor epic #922 uses checkboxes *at all* — they track work as numbered
+items. Re-classified every MERGE-INTO-EPIC row by whether its parent tracks it as a work
+item in that epic's own list format, excluding bare `Related:` asides:
+#395→#578 (numbered item 1), #403→#578 (numbered item 2), #661→#736 (checkbox),
+#687→#796 (checkbox), #719→#922 (numbered item 5), #731→#796 (checkbox) — **all valid**.
+Only **#416→#530 fails**: #530 runs its plan as 8 numbered items and #416 is in none of
+them, appearing solely as "- Related: #416 (whether `*_would_be_qualified` should be
+derivations rather than QRF targets)". A cross-reference is not a commitment to do the
+work, so **#416 is downgraded to KEEP** — and nothing on main answers it either
+(`git grep 'qbi_assumptions_v2|sstb_crosswalk' origin/main` → no hits, no commit cites
+#416, no `changelog.d/416-*`). This also corrects my own earlier note, which had called
+#395/#403/#719 invalid under the checkbox-only reading.
+
+### Validator: 7 findings, all adjudicated benign and published as such
+
+Cross-repo numbers (#8352 and #8860 are policyengine-us PRs), deliberate statements of
+absence (#299 "Not in PR #893", #333 "not cited in PR #893", #697's retired spec), a
+truncated file-content sha256 read as a commit (#314), and one correct-and-deliberate open
+PR (#719's #745, which epic #922 tracks *because* it is still a draft). Two regex defects
+in the validator were fixed along the way: a `.lock.json` path truncated to `.lock`, and
+the earlier sha/comment-id bugs.
