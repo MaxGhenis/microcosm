@@ -524,7 +524,7 @@ def asec_wage_evidence(person, values):
         "ASEC_HOST_COMPOSED_ROSTER",
     )
     text_year = person.source_year.astype(str)
-    require(text_year.isin(("2022", "2023", "2024")).all(), "ASEC_HOST_COHORT")
+    require(text_year.isin(("2023", "2024", "2025")).all(), "ASEC_HOST_COHORT")
     years = text_year.to_numpy().astype("int64")
     income = asec_income.bind_income_observations(
         values["income_observations"].payload, prepared_receipt=prepared

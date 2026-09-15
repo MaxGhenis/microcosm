@@ -198,8 +198,9 @@ def read_asec_person_coverage_source(
 ) -> tuple[pd.DataFrame, dict]:
     """Read exact whole cohorts, returning literals in requested native order.
 
-    Paths are keyed by source/income years 2022, 2023, 2024 (survey years
-    2023, 2024, 2025), following the existing ASEC source adapters. The caller
+    Paths are keyed by the pooled source/income years in
+    :data:`SOURCE_YEARS` (survey years one later), following the existing ASEC
+    source adapters. The caller
     supplies PERIDNUM and int64 source_year/source_household_id/A_LINENO/A_AGE.
     Every CSV row must match exactly one requested person in its own cohort;
     PH_SEQ, A_LINENO and A_AGE crosscheck the requested native coordinates.

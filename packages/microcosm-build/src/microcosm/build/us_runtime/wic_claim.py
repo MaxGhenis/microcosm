@@ -136,7 +136,7 @@ _EXPECTED_OPERATION_PARAMETERS = {
     },
 }
 
-# The locked 2022-2024 ASEC pools produce an all-person claim share around
+# The locked pooled ASEC vintages produce an all-person claim share around
 # 3.4%.  Per-category bands bracket the official probability while remaining
 # wide enough for weighted stochastic sampling.
 _WEIGHTED_CLAIM_SHARE_BAND = (0.015, 0.060)

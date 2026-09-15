@@ -604,19 +604,20 @@ def test_release_local_h5_duplicate_is_rejected_before_hub_activity(
             )
 
 
-@pytest.mark.parametrize("year", [2023, 2024, 2025])
+@pytest.mark.parametrize("year", sorted(enrichment.CENSUS_ARCHIVE_PINS))
 @pytest.mark.parametrize(
     "field", ["archive_sha256", "official_archive_url", "member", "income_year"]
 )
 def test_resealed_provenance_rejects_archive_identity_from_another_year(
     candidate, year, field
 ):
-    other_year = 2023 if year != 2023 else 2024
+    pinned_years = sorted(enrichment.CENSUS_ARCHIVE_PINS)
+    other_year = next(other for other in pinned_years if other != year)
     replacement = enrichment.CENSUS_ARCHIVE_PINS[other_year][field]
     _assert_resealed_archive_rejected(candidate, year, field, replacement)
 
 
-@pytest.mark.parametrize("year", [2023, 2024, 2025])
+@pytest.mark.parametrize("year", sorted(enrichment.CENSUS_ARCHIVE_PINS))
 def test_resealed_provenance_rejects_unpinned_archive_sha(candidate, year):
     _assert_resealed_archive_rejected(candidate, year, "archive_sha256", "0" * 64)
 

@@ -73,22 +73,13 @@ PARENT_FILES = {
     ),
 }
 CENSUS_PERSON_PINS = {
-    2023: "19b56537e50e7663f954361ef2bb5ce9cef8d9d45f156fe1a69a99b654198ffe",
     2024: "21a2b9e0e4b08534563578a45acad77868af4ae9a7d46f23776b707d4a559aa7",
     2025: "06921fe83fc66c907e6c7b86b82255dc70458ee7d76258fc48297cb34f0c06b5",
+    2026: "f78920699bf671cc211cb720ff8c6274392524a22138aedaf9e3954f91ba4334",
 }
 # Match the producer's education_assistance_source archive pins without making
 # the data/consumer shard depend on the build shard. A build test checks parity.
 CENSUS_ARCHIVE_PINS = {
-    2023: {
-        "income_year": 2022,
-        "official_archive_url": (
-            "https://www2.census.gov/programs-surveys/cps/datasets/2023/"
-            "march/asecpub23csv.zip"
-        ),
-        "archive_sha256": "d2e000250782adfbdd7f29c82b66d866591a30f0d330496698ec19f9c784ce11",
-        "member": "pppub23.csv",
-    },
     2024: {
         "income_year": 2023,
         "official_archive_url": (
@@ -106,6 +97,15 @@ CENSUS_ARCHIVE_PINS = {
         ),
         "archive_sha256": "318845a2b5e0034eb2973898de1738f4df0025727de38499e7669cb9c0deef0b",
         "member": "pppub25.csv",
+    },
+    2026: {
+        "income_year": 2025,
+        "official_archive_url": (
+            "https://www2.census.gov/programs-surveys/cps/datasets/2026/"
+            "march/asecpub26csv.zip"
+        ),
+        "archive_sha256": "fe819d0d2fc4470c282e76c247b8aa8b6054811619730307e9f2fe6186707d93",
+        "member": "pppub26.csv",
     },
 }
 EXPECTED_COUNTS = {

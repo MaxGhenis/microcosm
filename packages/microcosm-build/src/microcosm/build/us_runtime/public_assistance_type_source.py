@@ -3,7 +3,7 @@
 ``PAW_VAL`` alone cannot identify TANF: the ASEC public-assistance amount
 covers TANF/AFDC *and* other cash welfare (general assistance), and the
 official dictionaries split the program with ``PAW_TYP`` (1 = TANF/AFDC,
-2 = other, 3 = both).  In the 2023 ASEC (income year 2022), 271 of 682
+2 = other, 3 = both).  In the 2024 ASEC (income year 2023), 298 of 710
 PAW-positive SPM units — 39.7% unweighted, 42.6% SPM-weighted — have no
 member reporting a TANF type, so gating the ``receives_tanf`` input on
 ``PAW_VAL > 0`` alone would mark non-TANF cash welfare as TANF enrollment.
@@ -88,13 +88,6 @@ ASEC_PUBLIC_ASSISTANCE_TYPE_AUDIT_PINS: dict[int, AsecPublicAssistanceTypeAudit]
     audit.income_year: audit
     for audit in (
         AsecPublicAssistanceTypeAudit(
-            income_year=2022,
-            rows=146_133,
-            paw_type_counts=(145_377, 428, 306, 22),
-            paw_positive_rows=756,
-            paw_positive_tanf_rows=450,
-        ),
-        AsecPublicAssistanceTypeAudit(
             income_year=2023,
             rows=144_265,
             paw_type_counts=(143_555, 398, 298, 14),
@@ -107,6 +100,13 @@ ASEC_PUBLIC_ASSISTANCE_TYPE_AUDIT_PINS: dict[int, AsecPublicAssistanceTypeAudit]
             paw_type_counts=(141_415, 406, 289, 15),
             paw_positive_rows=710,
             paw_positive_tanf_rows=421,
+        ),
+        AsecPublicAssistanceTypeAudit(
+            income_year=2025,
+            rows=134_729,
+            paw_type_counts=(134_163, 317, 223, 26),
+            paw_positive_rows=566,
+            paw_positive_tanf_rows=343,
         ),
     )
 }
