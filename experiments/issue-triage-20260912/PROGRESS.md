@@ -702,3 +702,47 @@ Two agents read the same repo and disagree on whether a declared stage output me
 is imputed. Launched `wf_0d25090f-d8f` with whole-ask and citation-real lenses to settle it
 by running the commands, rather than letting a single adjudicator arbitrate a factual
 dispute about what `education_inputs` actually computes.
+
+### #253 settled at source: declared-output membership is not ownership
+
+Rather than wait for the challenge, I read the code. `education_inputs.py` on main settles it
+against the sweep, in its own words:
+
+- `:74-78` `US_EDUCATION_INPUTS_OUTPUT_COLUMNS` **does** list `qualified_tuition_expenses` —
+  which is what the sweep saw.
+- `:80-81` the comment directly above the next constant: *"Qualified tuition is produced
+  upstream by the PUF tax-detail operator. This stage validates and consumes it, but must not
+  claim or rewrite it."*
+- `:82-86` `US_EDUCATION_INPUTS_OWNED_OUTPUT_COLUMNS` **excludes** tuition — it owns only
+  `educational_assistance` plus the five AOTC flags.
+- `:88-92` `US_EDUCATION_INPUTS_REQUIRED_SOURCE_COLUMNS` lists tuition as a required **input**.
+- `:198` docstring: the fill "is an exact per-income-year `PERIDNUM` join and **never predicts
+  a value**."
+
+So the stage consumes tuition to derive AOTC flags; nothing on main imputes it. The batch
+agent's KEEP was right and the sweep misread declared-output membership as ownership.
+**#253 is locked to KEEP** in the owner adjudication map with that evidence, so no later
+stage can flip it without confronting these lines.
+
+### A fourth sweep overturn, and this one is a real improvement: #777
+
+The sweep proposed KEEP → RULED-DEFERRED on #777, and it is right. Verified myself: the
+ruling is the issue's **own body**, authored by MaxGhenis 2026-08-25 with zero comments
+since, line 13 — *"**Sequencing:** needs engine-side consumer variables first ... Parking
+this issue so the design intent from #767 is not lost."* And its stated precondition is
+verifiably unmet: grepping main for
+`redetermination|verification_propensity|fails_program_redetermination|documentation_propensity`
+returns exactly one file, `us/engine_abi.lock.json`, whose only hit is the unrelated Nebraska
+CCDF variable `ne_child_care_subsidy_at_redetermination`. Applied.
+
+That is the sweep earning its cost: an issue carrying its own parking ruling that the batch
+pass had read as ordinary live work. Running totals — 150 KEEP issues swept, 4 overturns:
+two duplicates (both rejected on challenge), one resolution claim (rejected at source), and
+one genuine deferral (applied).
+
+### Collector labelling corrected
+
+`collect_wf.py` was writing stage-1 triage rows into `wf_final.json`, which made the
+assembler stamp them `run5-verified` when they had been through no verification at all. It
+now emits **only adjudicated rows**; stage-1 rows reach the assembler from `r5/rows/*.json`
+and keep the honest `run5-triage` label.
