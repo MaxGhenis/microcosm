@@ -468,3 +468,23 @@ have drifted with the populace→microcosm rename (the preflight call is
 Verify / sweep / adjudicate stages of `wf_66de6532-038` are still running and can still
 move rows. On completion: reassemble from the adjudicated rows, run the close-comment pass,
 re-run the validator, regenerate, and write the two deliverables.
+
+### The close-first list is tiered by what happens to the residual
+
+First attempt split it by "has a residual / doesn't" and **Tier 1 came out empty**: not one
+of the 28 RESOLVED-CLOSE rows closes with literally nothing left over. That is an honest
+finding but a useless category, so the split was rebuilt around the question that actually
+matters when closing — *does the leftover work have somewhere to live?*
+
+- **Tier 1 (24): close; the residual already has a home.** Whatever the cited artifact does
+  not cover is explicitly carried by another issue or PR named in the residual.
+- **Tier 2 (1): close only if the comment records the residual.** Exactly one row —
+  **#31** — has leftover work that names no successor: its fix-direction bullet "before
+  changing any UK formula/input surface, compare stored aggregate vs formula-recomputed
+  aggregate and record the result" has no standing instrument on main (the only
+  `frozen_vs_recomputed` symbol is `uk_runtime/size_evaluation.py:864`, a dataset-size
+  metric, not a formula-owned column audit). Close it and that item exists nowhere.
+- **Tier 3 (4): closable, but read first.** #70, #361, #473, #512 — medium confidence,
+  each with a named soft edge (an acceptance criterion only an out-of-PR-CI certification
+  run can settle; a successor PR still open and non-ancestor; a mechanism delivered for the
+  named cases but not generically).
