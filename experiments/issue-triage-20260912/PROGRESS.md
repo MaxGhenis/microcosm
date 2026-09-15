@@ -636,3 +636,38 @@ near-miss and its reasoning rather than looking like the question was never aske
 
 Also extended the fallback to cover sweep duplicates, so the insurance path produces the same
 answer as the normal path if adjudication never lands.
+
+### Both sweep duplicates rejected — 4/4 challenge lenses OVERTURN
+
+`wf_fab767b7-c08` returned 4 agents, 0 errors, **all four lenses OVERTURN**. Neither
+proposed duplicate survives, so the duplicate count stays at exactly one (#224 → #213) —
+but now because it was tested, not because nothing else was looked at.
+
+**#424 → #644 dies on arithmetic.** #424 measures modeled eligible mass at ~2M scaled
+against SSA's 7,404,820 recipients — 27% *of* recipients, structurally impossible, saturating
+the take-up gate in every band. #644 measures Build P at 9.99M payable adults against SSA's
+6.288M adult recipients — 159% *of* recipients — and its 20.7% gap is against Urban/ATTIS's
+*eligible* benchmark of 12.602M, a different denominator entirely. Opposite signs, different
+benchmarks, different regimes. #424 also spans under-18 (1,001,922 recipients) while #644 is
+titled and scoped to adult bands. My own read — overlap, not duplicate — was right, but the
+challenge found the far stronger argument.
+
+**#390 → #578 dies on content and on repo behaviour.** Grepping #578's body plus all 13
+comments returns **zero** hits for `#296`, `#380`, `#388`, `#346`, `#330`, "warm-start",
+"protect-list", "TANF", "HSA", "small-state" — or for `#390` itself. #578 replaces #390's
+*method* (exact-k selection for warm-start reselection), which makes #390 superseded in
+method, not duplicated in ask. The decisive point: #578's ratified scope-hardening retires a
+sibling **by name** ("the separate local-area artifact is RETIRED... the #512 lane ends as a
+product") and **#512 is still open**, updated a week after that ratification. A repo that
+keeps open the issue #578 explicitly terminates will not have meant #390 — which #578 never
+names — closed as its duplicate.
+
+### The headline was wrong twice, in opposite directions, and is now right for a stated reason
+
+First it claimed one duplicate from a similarity null result (wrong instrument). Then, after
+the sweep, it cited #390 and #424 *as* duplicates (premature — they had not been challenged).
+The final text says what is actually true: similarity contributed **nothing**; all three
+candidates came from reading bodies; an adversarial challenge killed two; **#224 → #213** is
+the one real duplicate. Each rejected candidate keeps its KEEP row plus an `owner_note`
+recording the near-miss and why it was refused, so the reasoning is visible rather than the
+question looking unasked.
