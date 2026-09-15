@@ -157,3 +157,35 @@ runs on Opus 5, salvages runs 3–4 wholesale, and finishes the lane.
 
 - BRIEF5 rulebook → 35-batch judgment fan-out on Opus → adversarial verification of
   every close-class row → missed-resolution sweep over KEEP → adjudication → render.
+
+### Run-5 owner cross-checks, batch 1 (independent of the agents)
+
+Full text at `scratchpad/triage/r5/owner_notes_run5.md`. Headlines:
+
+- **#893 fold-in re-derived from scratch**: 10 of 250 commits are ancestors of main,
+  240 unique; the only OPEN issue cited by a unique commit is **#908**. #890's 10
+  citations sit entirely in the inherited commits (= #904's merged work).
+  `FOLDED-INTO-893` is available only for #908. *Trap:* `pr893_commits_full.jsonl`
+  stores only a headline `msg`; scanning it alone returns ZERO citations. Full bodies
+  must come from `git log -1 --format=%B`.
+- **0 of 449 merged PRs carry a `closingIssuesReferences` naming a still-open issue** —
+  nothing is a missed auto-close; every RESOLVED-CLOSE is argued from artifacts.
+- **13 open issues have a same-numbered `changelog.d/` fragment on main** (run 4 said 12;
+  #890's fragments are name-suffixed, not prefixed, so a prefix match misses them).
+- **Epic layer: 7 epics, 35 literal `- [ ]` (epic,child) pairs**, and the layer has
+  chains (#796 and #882 are children of #736; #736 is a child of #665).
+- **4 of the 6 MERGE-INTO-EPIC candidates fail the literal-listing test** (verified by
+  reading each epic body): #661→#736 and #731→#796 are real checklist items; #395→#578,
+  #403→#578, #416→#530, #719→#922 are prose-only "Related:" lines, which the rulebook
+  excludes.
+- **#224→#213 is a real duplicate**, with a residual that must ride in the close comment:
+  CD-target diagnostics and the explicit release-manifest entry are unique to #224.
+
+### Fan-out launched (run 5)
+
+Workflow `wf_66de6532-038`: 35 batch triage agents → lens-specific adversarial refuters
+on every close-class row (RESOLVED-CLOSE: whole-ask / citation-real; DUPLICATE-CLOSE:
+survivor-valid / unique-residual; MERGE-INTO-EPIC: literal-listing / detail-loss;
+RULED-DEFERRED: ruling-real / premise-changed; FOLDED-INTO-893: 893-delivers) ‖ a
+STALE-ASK reality check ‖ a per-batch missed-resolution sweep over every KEEP row →
+a per-batch adjudicator that re-runs the deciding command itself.
