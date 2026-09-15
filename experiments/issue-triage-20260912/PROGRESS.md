@@ -811,3 +811,30 @@ rather than the nonrefundable concept the $7.55B benchmark uses, and never reach
 artifact on main.
 
 **Adjudicators are now running** (2 spawned) — stage 3 has begun.
+
+### Finalisation is now one ordered command (`finalize.sh`), after an ordering bug
+
+Running the steps by hand produced a stale report: `build_extra5.py` read
+`final_rows.json` **before** `assemble5.py` had merged the adjudicated rows into it, so the
+report printed "Rows whose final disposition came from an adjudicator: **0**" while #303 had
+in fact been adjudicated. `finalize.sh` now runs collect → assemble → validate → build
+sections → render → worktree-clean check in dependency order, so the sequence cannot be got
+wrong on the final pass.
+
+### The populace→microcosm rename trap caught one citation
+
+The re-run surfaced a new validator finding: **#546** cites
+`packages/populace-build/tests/test_us_fiscal_refresh_builder.py`, which is **absent** from
+main after the 2026-08-07 rename — the artifact lives at `packages/microcosm-build/...`. The
+substance is fine; a reader following the citation would just find nothing. Swept all 234
+rows for pre-rename paths: **exactly one** occurrence, so the trap is otherwise well handled.
+
+Rather than silently rewrite an agent's cited claim, added a general rule to `assemble5.py`:
+where a row cites a `packages/populace-build/...` path that is absent from main *and* the
+`packages/microcosm-build/...` equivalent exists, append a visible bracketed
+`[lane correction: ...]` naming both paths. It is a rule, not a one-off patch, so a
+re-run after more adjudication will catch any new instance.
+
+State: 184 KEEP · 28 RESOLVED-CLOSE · 8 STALE-ASK · 7 RULED-DEFERRED · 6 MERGE-INTO-EPIC ·
+1 DUPLICATE-CLOSE. Adjudicators at 5 and climbing; STALE-ASK has already fallen 10 → 8 as
+they land.
