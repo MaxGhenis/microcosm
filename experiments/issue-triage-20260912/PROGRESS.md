@@ -866,3 +866,26 @@ framing.
 
 Running sweep totals: **176 KEEP issues swept, 5 overturns** — 2 duplicates (both rejected),
 2 resolution claims (#253 rejected, #30 under challenge), 1 deferral (#777, applied).
+
+### Adjudication at 8 rows: 5 changed, 3 upheld with materially better evidence
+
+| row | stage-1 → adjudicated |
+|---|---|
+| #303, #305, #104 | STALE-ASK → **KEEP** |
+| #661, #731 | MERGE-INTO-EPIC → **KEEP** |
+| #217, #252, #324 | RESOLVED-CLOSE → **RESOLVED-CLOSE** (upheld, evidence rewritten) |
+
+The upheld rows are not no-ops — these are the AMEND cases, and the adjudicators nearly
+doubled their evidence: #324 went 1,166 → 2,265 characters of evidence and 629 → 1,451 of
+residual, now citing the two author comments that discharge each committed opener item by
+`issuecomment-` id.
+
+**#731's adjudicator produced the rigorous version of my own epic measurement.** I had found
+the checkbox/child-state correspondence to be 43/58 across #796's whole body and called the
+refuter's "every `[x]` is CLOSED, every `[ ]` is OPEN" claim directionally right but
+overstated. The adjudicator checked the specific section rather than the whole body and got
+**21/21**: all twelve `[x]` entries (785, 791, 750, 688, 685, 807, 808, 809, 828, 832, 834,
+862) CLOSED and all nine `[ ]` entries (725, 721, 713, 687, 840, 866, 867, 868, 869) OPEN.
+So the claim holds exactly *within* the "Filed spine issues" block — which is what I said —
+and that block is a mirror index of separately-tracked issues, which is why merging into it
+destroys the child. Independent convergence on the finding from a sharper angle.
