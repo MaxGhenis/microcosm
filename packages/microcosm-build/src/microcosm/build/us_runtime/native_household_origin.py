@@ -132,20 +132,15 @@ class AsecNativeMemberPin:
 
 
 # Root acceptance: us-asec-native-household-root-acceptance.json, SHA-256
-# f997bbdc3573ed346d0e84d29f90c7b7ded9a12720c036d2789a7d561a04d602.
+# f997bbdc3573ed346d0e84d29f90c7b7ded9a12720c036d2789a7d561a04d602, which
+# covers the income-2022 through income-2024 declarations.
 # The original archive/member bytes and all accepted attachment/selected native
 # household identifiers were independently verified. Tests use invented pins.
+# The income-2025 row's member identity was measured from the survey-2026
+# archive already pinned in ASEC_EDUCATION_ASSISTANCE_ARCHIVES (the same
+# measurement reproduced the income-2023 and income-2024 rows byte for byte);
+# its own root acceptance is still outstanding and gates release, not import.
 _ASEC_MEMBER_PINS: tuple[AsecNativeMemberPin, ...] = (
-    AsecNativeMemberPin(
-        income_year=2022,
-        survey_year=2023,
-        canonical_member_id="census/cps/asec/2023/household/hhpub23.csv",
-        member_name="hhpub23.csv",
-        archive_sha256="d2e000250782adfbdd7f29c82b66d866591a30f0d330496698ec19f9c784ce11",
-        member_sha256="c88192cb3c963a90ea98022606112a01ade0eb8e2c17df4149052970a5d5246f",
-        size_bytes=30_259_450,
-        rows=88_978,
-    ),
     AsecNativeMemberPin(
         income_year=2023,
         survey_year=2024,
@@ -165,6 +160,16 @@ _ASEC_MEMBER_PINS: tuple[AsecNativeMemberPin, ...] = (
         member_sha256="b5b7351d5d4e5d79ff189f1d90096b16b2d4749671c14328ec6474cfe83ce116",
         size_bytes=33_298_479,
         rows=88_932,
+    ),
+    AsecNativeMemberPin(
+        income_year=2025,
+        survey_year=2026,
+        canonical_member_id="census/cps/asec/2026/household/hhpub26.csv",
+        member_name="hhpub26.csv",
+        archive_sha256="fe819d0d2fc4470c282e76c247b8aa8b6054811619730307e9f2fe6186707d93",
+        member_sha256="e5e1ab435f0b5dbdc2ed3cc6ac672b9352e1d0470c8d2cdad16f0b3e1b1b7631",
+        size_bytes=32_204_490,
+        rows=88_026,
     ),
 )
 

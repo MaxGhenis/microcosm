@@ -20,11 +20,12 @@ from pathlib import Path
 import pandas as pd
 
 from . import source_csv_builtin as _csv_builtin
+from .education_assistance_source import ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS
 
 PROTOCOL = "microcosm.asec_person_coverage_source.v1"
 # Existing ASEC adapters use income/source year as the cohort key. This is an
 # identity convention only, not a decision about the observation's period.
-SOURCE_YEARS = (2022, 2023, 2024)
+SOURCE_YEARS = ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS
 KEYS = ("source_year", "PERIDNUM")
 CROSSCHECKS = ("source_household_id", "A_LINENO", "A_AGE")
 ROSTER_COLUMNS = KEYS + CROSSCHECKS

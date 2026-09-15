@@ -63,13 +63,18 @@ from .asec_housing_status_source import (
     attach_housing_status,
     load_authenticated_housing_status,
 )
-from .education_assistance_source import ASEC_EDUCATION_ASSISTANCE_ARCHIVES
+from .education_assistance_source import (
+    ASEC_EDUCATION_ASSISTANCE_ARCHIVES,
+    ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS,
+)
 from .operator_boundary import assert_operator_free_source_frame
 
 PREPARED_SOURCE_KIND = "us_asec_prepared_current_money_v3"
 PREPARED_RECEIPT_SCHEMA = "microcosm.us.asec_prepared_receipt.v3"
 PREPARATION_BOUNDARY = "US graph ASEC prepared source"
-SOURCE_YEARS: tuple[int, ...] = (2022, 2023, 2024)
+#: The pooled income-year roster, derived from the pinned archive registry
+#: so a vintage rollover moves in exactly one place.
+SOURCE_YEARS: tuple[int, ...] = ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS
 PARENT_FILENAME = ASEC_RAW_STAGE_CHECKPOINT_FILENAME
 HOUSEHOLD_ATTACHMENT_FILENAME = "asec_household_observations.checkpoint.h5"
 PERSON_INCOME_FILENAME = person_income.CHECKPOINT_FILENAME
