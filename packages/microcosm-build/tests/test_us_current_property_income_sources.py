@@ -92,7 +92,7 @@ def source_arguments(tmp_path, monkeypatch):
             "DIV_YN": "2" if age >= 15 else "0",
             "SUR_YN": "2" if age >= 15 else "0",
         }
-    literals[105].update(
+    literals[103].update(
         INT_VAL="140",
         TRDINT_VAL="100",
         INT_YN="1",
@@ -114,7 +114,7 @@ def source_arguments(tmp_path, monkeypatch):
     changes = {}
     for name in ("INT_VAL", "DIV_VAL"):
         values = people[name].to_numpy(copy=True)
-        for pid in (105, 106, 107, 108):
+        for pid in (103, 104, 107, 108):
             values[ids == pid] = int(literals[pid][name])
         changes[name] = values
     _changed_parent(parent_path, attachment, monkeypatch, changes)

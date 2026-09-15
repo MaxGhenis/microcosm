@@ -344,7 +344,7 @@ def test_current_predictor_source_fit_attachment_and_required_replay(
         ids = origins.index[origins.source.eq("asec")]
         # Join the current-money projection by native identity, never row position.
         ordered = origins.loc[ids].sort_values("native_person_id").index
-        assert origins.loc[ordered, "native_person_id"].tolist() == [105, 106, 107, 108]
+        assert origins.loc[ordered, "native_person_id"].tolist() == [103, 104, 107, 108]
         for field, expected in observations.items():
             np.testing.assert_array_equal(
                 qualified.native_money.loc[ordered, field], expected

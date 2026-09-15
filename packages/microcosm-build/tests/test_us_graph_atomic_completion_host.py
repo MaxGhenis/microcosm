@@ -83,9 +83,9 @@ def _source_arguments(
     patch.setattr(preparation, "fixture", status)
     # Either selected ASEC household remains a valid property donor. The child
     # donor itself remains the one full-source teenager outside the selection.
-    patch.setattr(routing, "AMOUNTS", {**routing.AMOUNTS, 107: routing.AMOUNTS[105]})
+    patch.setattr(routing, "AMOUNTS", {**routing.AMOUNTS, 107: routing.AMOUNTS[103]})
     patch.setattr(
-        routing, "LITERALS", {**routing.LITERALS, 107: dict(routing.LITERALS[105])}
+        routing, "LITERALS", {**routing.LITERALS, 107: dict(routing.LITERALS[103])}
     )
     original_change = children._change_unissued_literals
 

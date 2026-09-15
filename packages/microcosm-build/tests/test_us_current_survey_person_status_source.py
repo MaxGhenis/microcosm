@@ -117,7 +117,7 @@ def test_actual_qualifier_retains_complete_sources_and_closes_mutation_seals(
     assert result.source_frame is original
     assert result.origins.index.tolist() == original.person.person_id.tolist()
     assert result.raw.index.equals(result.observations.index)
-    assert receipt["student_controls_income_cohorts"] == [2022, 2023, 2024]
+    assert receipt["student_controls_income_cohorts"] == [2023, 2024, 2025]
     assert receipt["student_controls_selected_income_cohort"] == 2024
     assert (
         receipt["asec_observation_year"] == 2025

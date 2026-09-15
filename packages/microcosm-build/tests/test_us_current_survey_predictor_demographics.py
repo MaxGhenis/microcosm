@@ -61,7 +61,7 @@ def test_demographic_features_fit_attach_and_require_replay(known_source):
     # These independently expected native IDs therefore test the keyed join.
     origins = qualified.origins
     asec_ids = origins.loc[origins.source.eq("asec")].sort_values("native_person_id")
-    assert asec_ids.native_person_id.tolist() == [105, 106, 107, 108]
+    assert asec_ids.native_person_id.tolist() == [103, 104, 107, 108]
     donor = qualified.donor_columns.loc[asec_ids.index]
     np.testing.assert_array_equal(donor.survey_predictor_is_female, [0, 1, 0, 1])
     np.testing.assert_array_equal(donor.survey_predictor_state_fips, [6, 6, 36, 36])

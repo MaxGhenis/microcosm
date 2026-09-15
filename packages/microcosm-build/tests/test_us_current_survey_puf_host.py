@@ -127,7 +127,7 @@ def test_unissued_byte_equal_preparation_refuses_before_projection():
         bridge.qualify_current_survey_host(fake, None, None)
 
 
-@pytest.mark.parametrize("year,field", [(2024, "ANN_VAL"), (2022, "WSAL_VAL")])
+@pytest.mark.parametrize("year,field", [(2024, "ANN_VAL"), (2023, "WSAL_VAL")])
 def test_current_host_preserves_full_parent_readiness(
     tmp_path, monkeypatch, year, field
 ):

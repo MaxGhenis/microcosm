@@ -76,9 +76,9 @@ def source_arguments(tmp_path, monkeypatch, *, donor_changes=None):
         seed=seed,
     )[0]
     assert len(chosen.positions) == 1
-    selected_adult = (105, 107)[chosen.positions[0]]
-    donor = 107 if selected_adult == 105 else 105
-    ages = {105: 55, 106: 14, 107: 55, 108: 14}
+    selected_adult = (103, 107)[chosen.positions[0]]
+    donor = 107 if selected_adult == 103 else 103
+    ages = {103: 55, 104: 14, 107: 55, 108: 14}
     ages[donor] = 15
     monkeypatch.setattr(routing_fixture, "AGES", ages)
     original_fixture = preparation_fixture.fixture
@@ -147,12 +147,12 @@ def test_full_source_donor_is_available_when_target_sample_has_no_teenagers(actu
         "00008": "000010000",
     }
     assert left.diagnostics.original_household_design_weight.to_dict() == {
-        105: 2552.12,
-        106: 2552.12,
+        103: 2552.12,
+        104: 2552.12,
         107: 100.0,
         108: 100.0,
     }
-    expected_weight = 2552.12 if actual.donor == 105 else 100.0
+    expected_weight = 2552.12 if actual.donor == 103 else 100.0
     assert left.donors.original_household_design_weight.tolist() == [expected_weight]
     assert left.interest.loc[actual.donor, "allocation_origin"] == "publisher_allocated"
     one = SupportThreshold(1, 1, 1.0, 1.0)

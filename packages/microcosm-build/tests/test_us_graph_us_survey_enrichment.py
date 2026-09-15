@@ -69,7 +69,7 @@ def enrichment_source_arguments(root, patch):
         ("POTC_VAL", [0.0, 1.0, 2.0, 4.0]),
     ):
         data = person[field].to_numpy(dtype="float64", copy=True)
-        for pid, amount in zip((105, 106, 107, 108), amounts, strict=True):
+        for pid, amount in zip((103, 104, 107, 108), amounts, strict=True):
             positions = np.flatnonzero(person.person_id.to_numpy() == pid)
             assert len(positions) == 1
             data[positions[0]] = amount
@@ -122,9 +122,9 @@ def test_actual_current_uc_projection_preserves_ambiguous_and_contradictory_sour
     prepared = uc.source.prepare_authenticated_survey_population(**arguments)
     qualified = uc.qualify_current_asec_unemployment(prepared)
     person = qualified.person.set_index("native_person_id")
-    assert person.loc[105, "canonical_amount"] == 120.0
-    assert np.isnan(person.loc[106, "canonical_amount"])
-    assert person.loc[106, "reporting_status"] == "outside_reporting_universe"
+    assert person.loc[103, "canonical_amount"] == 120.0
+    assert np.isnan(person.loc[104, "canonical_amount"])
+    assert person.loc[104, "reporting_status"] == "outside_reporting_universe"
     assert person.loc[107, "reporting_status"] == "ambiguous_recipient_zero"
     assert (
         person.loc[108, "reporting_status"]

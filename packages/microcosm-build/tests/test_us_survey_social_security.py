@@ -269,7 +269,7 @@ def _social_security_arguments(tmp_path, monkeypatch, *, ambiguous):
     parent_path, household_path = root / "parent.h5", root / "household-attachment.h5"
     parent = load_frame_checkpoint(parent_path).frame.person
     values = parent.SS_VAL.to_numpy(dtype=np.float64, copy=True)
-    for pid, value in ((105, 12000.0), (106, 0.0), (107, 3000.0), (108, 0.0)):
+    for pid, value in ((103, 12000.0), (104, 0.0), (107, 3000.0), (108, 0.0)):
         positions = np.flatnonzero(parent.person_id.to_numpy() == pid)
         assert len(positions) == 1
         values[positions[0]] = value
@@ -342,9 +342,9 @@ def test_actual_current_source_qualifier_preserves_totals_reasons_and_unknownnes
     asec = result.person.loc[result.person.source.eq("asec")].set_index(
         "native_person_id"
     )
-    assert asec.loc[105, "social_security_source_total"] == 12000.0
+    assert asec.loc[103, "social_security_source_total"] == 12000.0
     np.testing.assert_array_equal(
-        asec.loc[105, list(ss.COMPONENTS)].to_numpy(dtype=np.float64), [0, 12000, 0, 0]
+        asec.loc[103, list(ss.COMPONENTS)].to_numpy(dtype=np.float64), [0, 12000, 0, 0]
     )
     assert asec.loc[107, "social_security_source_total"] == 3000.0
     assert asec.loc[107, "allocation_origin"] == "publisher_allocated"
