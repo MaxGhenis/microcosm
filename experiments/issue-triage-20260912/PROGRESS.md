@@ -889,3 +889,46 @@ overstated. The adjudicator checked the specific section rather than the whole b
 So the claim holds exactly *within* the "Filed spine issues" block — which is what I said —
 and that block is a mirror index of separately-tracked issues, which is why merging into it
 destroys the child. Independent convergence on the finding from a sharper angle.
+
+### Adjudication at 39 rows — and it reshaped the result
+
+| disposition | stage-1 | after adjudication |
+|---|---:|---:|
+| KEEP | 183 | **195** |
+| RESOLVED-CLOSE | 28 | **27** |
+| RULED-DEFERRED | 6 | **6** |
+| STALE-ASK | 10 | **3** |
+| DUPLICATE-CLOSE | 1 | **3** |
+| MERGE-INTO-EPIC | 6 | **0** |
+
+**`MERGE-INTO-EPIC` collapsed to zero** — all six (#395, #403, #661, #687, #719, #731) were
+adjudicated to KEEP, each on the detail-loss lens. That is the single biggest structural
+finding of the lane: in this repo an epic is a mirror index over separately-tracked children,
+so "the epic lists it" is never grounds to close the child.
+
+`STALE-ASK` fell 10 → 3 for the same reason the rulebook gives: idle-but-clear is KEEP, not a
+question. Notable individual flips: **#145** and **#250** RESOLVED-CLOSE → KEEP (adjudicators
+found undelivered halves), **#296** STALE-ASK → RESOLVED-CLOSE (I had deliberately left this
+one unlocked because I could not settle it myself — the adjudicator could), **#566**
+RULED-DEFERRED → KEEP.
+
+### Two more general correction rules, both fired once
+
+Adjudicated rows brought two new citation defects, and both are now fixed by rules rather
+than patches:
+
+1. **Mistyped 40-char shas.** #361 cites PR #399's merge commit as
+   `79335e459d8711528…` where it is `79335e459d8711578…` — one digit. The 12-char prefix
+   resolves, so the conclusion stands, but a reader pasting the full string gets "not a valid
+   object". The rule annotates any 40-char hex that fails to resolve while its prefix
+   succeeds, naming the real sha.
+2. **Pre-rename paths** (already in place) fired on #546.
+
+Both emit a visible `[lane correction: …]` rather than silently rewriting an agent's claim.
+
+Remaining validator output: 11 findings, all adjudicated benign and published with a
+per-finding explanation, plus **1 warning worth keeping visible** — #746's evidence cites
+`_LANE-NOTES.md:230`, a root journal. It is used as context (the row's load-bearing check is
+`git grep … returns nothing`) and the journal line was added by PR #756's own commit, but
+CLAUDE.md is explicit that root journals are history, not state, so the warning stays in the
+report rather than being suppressed.
