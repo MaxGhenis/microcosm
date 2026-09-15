@@ -120,11 +120,11 @@ def test_source_surface_classification_is_complete() -> None:
         "loader": "kernel:load_asec_raw_stage_checkpoint",
         "role": "asec_raw_stage",
         "sha256": sources["sources"][0]["sha256"],
-        "vintages": ["vintage:asec_2024", "vintage:asec_2023"],
+        "vintages": ["vintage:asec_2025", "vintage:asec_2024"],
         "vintage_authorities": [
-            {"id": "asec_2022", "kind": "survey_period", "value": 2022},
             {"id": "asec_2023", "kind": "survey_period", "value": 2023},
             {"id": "asec_2024", "kind": "survey_period", "value": 2024},
+            {"id": "asec_2025", "kind": "survey_period", "value": 2025},
         ],
     }
     assert normative["stage_asset"] == {
@@ -282,9 +282,9 @@ def test_all_us_vintages_have_reciprocal_reviewed_compatibility() -> None:
     assert set(by_id) == {
         "acs_2022",
         "acs_2024",
-        "asec_2022",
         "asec_2023",
         "asec_2024",
+        "asec_2025",
         "cd_117",
         "cd_119",
         "census_2020",
