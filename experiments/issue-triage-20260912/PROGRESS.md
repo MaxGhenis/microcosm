@@ -746,3 +746,30 @@ one genuine deferral (applied).
 assembler stamp them `run5-verified` when they had been through no verification at all. It
 now emits **only adjudicated rows**; stage-1 rows reach the assembler from `r5/rows/*.json`
 and keep the honest `run5-triage` label.
+
+### STALE-ASK reality checks are discriminating, and #296 is the row I could not settle
+
+Seven of ten stale checks are back: **#303, #305, #104, #388 → KEEP** (idle but clear,
+still-true and unworked — the case the rulebook says must never become an ask), **#159 and
+#419 UPHELD** as genuine STALE-ASK, and **#296 → RESOLVED-CLOSE**. The #305 overturn is the
+model of what these checks are for: it found that Max *applied* the very convention #305
+defines twelve days ago (#848 labeled `tier:standard` on 2026-09-02), so the issue is an
+operating policy, not an abandoned ask.
+
+**#296 is the most contested row in the lane** — run-3 said RESOLVED-CLOSE, the run-5 batch
+agent said STALE-ASK, the stale check says RESOLVED-CLOSE. I tried to settle it and **my
+first inference was wrong**: I found `us/source_stages.json:740` / `sources.yaml:841` pinning
+`asecpub23csv.zip` and concluded the spine still pins ASEC 2023, but reading the surrounding
+block shows that pin belongs to the **`weeks_unemployed_input`** stage, one narrow leaf. The
+`asecpub24`/`asecpub25` references on main are in `education_assistance_source.py`, another
+sidecar. So `source_stages.json` settles nothing here — the pool's ASEC vintages arrive as
+`census_cps_*.h5` build inputs, not as a pin readable off main.
+
+What *is* checkable: **no `changelog.d/296-*` fragment on main and no commit citing #296**,
+and the strongest positive evidence is an *experiment* receipt, which this lane's own rules
+rank below code — while artifact certification runs outside PR CI where I cannot reach it.
+
+So I am deliberately **not** locking #296. Leaving it at `STALE-ASK` is the honest outcome:
+that disposition exists exactly for a well-specified issue whose delivery state cannot be
+settled from the repo and whose right next step is a question to Max. That question is
+already written into its `next_step`.
