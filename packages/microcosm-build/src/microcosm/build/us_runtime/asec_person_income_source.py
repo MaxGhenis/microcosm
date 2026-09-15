@@ -25,7 +25,10 @@ from microcosm.frame import Frame, Weights
 from . import asec_current_money as money_schema
 from . import asec_current_money_source as legacy
 from .asec_current_money import MoneyRefusalError, _json, _require, _sha
-from .education_assistance_source import ASEC_EDUCATION_ASSISTANCE_ARCHIVES
+from .education_assistance_source import (
+    ASEC_EDUCATION_ASSISTANCE_ARCHIVES,
+    ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS,
+)
 
 CHECKPOINT_FILENAME = "asec_person_income_source.checkpoint.h5"
 ARTIFACT_KIND = "microcosm.asec_person_income_observation_attachment"
@@ -72,7 +75,7 @@ def _implementation() -> str:
 def _paths(member_paths):
     _require(
         isinstance(member_paths, Mapping)
-        and set(member_paths) == {2022, 2023, 2024}
+        and set(member_paths) == set(ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS)
         and all(type(y) is int for y in member_paths)
         and all(isinstance(p, (str, Path)) for p in member_paths.values()),
         "MEMBER_PATHS",

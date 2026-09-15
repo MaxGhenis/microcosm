@@ -330,7 +330,7 @@ def qualify_current_survey_person_status(preparation):
     # This is the maintained issuer's complete three-cohort read contract.
     student_pins = tuple(student._MEMBER_PINS)
     require(
-        tuple(p[0] for p in student_pins) == (2022, 2023, 2024)
+        tuple(p[0] for p in student_pins) == (2023, 2024, 2025)
         and student_pins == tuple(original.asec._MEMBER_PINS),
         "STUDENT_SOURCE_PIN_ROSTER",
     )

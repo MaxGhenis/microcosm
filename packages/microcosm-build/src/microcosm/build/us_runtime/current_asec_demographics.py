@@ -223,7 +223,7 @@ def qualify_current_asec_demographics(preparation):
         parent,
         member_paths={
             year: state.root / "asec" / f"pppub{year - 1999}.csv"
-            for year in (2022, 2023, 2024)
+            for year in (2023, 2024, 2025)
         },
     )
     sex_receipt = observed.receipt

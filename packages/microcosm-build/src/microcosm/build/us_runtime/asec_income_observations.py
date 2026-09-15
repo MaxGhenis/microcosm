@@ -35,7 +35,10 @@ from .asec_current_money import (
     _validate_money,
 )
 from .asec_student_controls import _snapshot
-from .education_assistance_source import ASEC_EDUCATION_ASSISTANCE_ARCHIVES
+from .education_assistance_source import (
+    ASEC_EDUCATION_ASSISTANCE_ARCHIVES,
+    ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS,
+)
 
 MAGIC = b"MCAINCOB\x01"
 FILENAME = "asec_income_observations.bin"
@@ -67,7 +70,10 @@ _TOKEN = object()
 _CSV_DIALECT = "excel"
 _CSV_ENCODING = "utf-8"
 _PRICE_TARGET = "174.4"
-_PRICE_YEARS = (2022, 2023, 2024)
+#: The pooled income-year roster, which is also the set of years the price
+#: basis must carry a restatement cell for.
+SOURCE_YEARS = ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS
+_PRICE_YEARS = SOURCE_YEARS
 
 
 def parser_profile() -> dict:

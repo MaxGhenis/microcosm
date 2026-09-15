@@ -57,9 +57,9 @@ _SOURCE_ROSTER = (
     "asec/parent.h5",
     "asec/household-attachment.h5",
     "asec/person-income-attachment.h5",
-    "asec/pppub23.csv",
     "asec/pppub24.csv",
     "asec/pppub25.csv",
+    "asec/pppub26.csv",
     "asec/hhpub25.csv",
 )
 _TOKEN = object()
@@ -359,7 +359,7 @@ def _file_limits():
         **{name: asec_native._MAX_CHECKPOINT_BYTES for name in _SOURCE_ROSTER},
         **{
             f"asec/pppub{year}.csv": asec_native.coverage_owner.literal.MAX_MEMBER_BYTES
-            for year in (23, 24, 25)
+            for year in (24, 25, 26)
         },
         "asec/hhpub25.csv": asec_native.anchor_owner._MAX_MEMBER_BYTES,
         "selection-request.json": MAX_REQUEST_BYTES,
@@ -1263,9 +1263,9 @@ def prepare_authenticated_survey_population(
             household_attachment_path=root / "asec/household-attachment.h5",
             person_income_attachment_path=root / "asec/person-income-attachment.h5",
             person_member_paths={
-                2022: root / "asec/pppub23.csv",
                 2023: root / "asec/pppub24.csv",
                 2024: root / "asec/pppub25.csv",
+                2025: root / "asec/pppub26.csv",
             },
             household_member_path=root / "asec/hhpub25.csv",
         )

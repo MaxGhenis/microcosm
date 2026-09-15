@@ -170,7 +170,7 @@ def _registry() -> tuple[_origin.AsecNativeMemberPin, ...]:
         for pin in pins:
             _origin.AsecNativeMemberPin(**asdict(pin))
             _require(
-                pin.income_year in (2022, 2023, 2024)
+                pin.income_year in (2023, 2024, 2025)
                 and pin.size_bytes <= _MAX_MEMBER_BYTES
                 and pin.rows <= _MAX_ROWS,
                 "MEMBER_REGISTRY",

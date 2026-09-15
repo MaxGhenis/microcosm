@@ -637,7 +637,7 @@ def issue_asec_source_catalogue(
                 "producer_sha256": _sha(producer),
                 "source_authority_sha256": _sha(source_authority),
                 "parent_custody": {
-                    "cohorts": [2022, 2023, 2024],
+                    "cohorts": [2023, 2024, 2025],
                     "catalogue_cohorts": [2024],
                     "identity": identity,
                     "frame_sha256": parent_identity,

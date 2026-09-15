@@ -47,7 +47,7 @@ PREFIX = "native_household_origins"
 ACS_NODE = PREFIX + ".acs"
 ASEC_NODE = PREFIX + ".asec"
 ACS_SOURCE = "native_origin_acs"
-ASEC_SOURCES = tuple(f"native_origin_asec_{year}" for year in (2022, 2023, 2024))
+ASEC_SOURCES = tuple(f"native_origin_asec_{year}" for year in (2023, 2024, 2025))
 SOURCES = (
     SourceRef(ACS_SOURCE, native.acs.ACS_HU_CODEC),
     *(SourceRef(name, "raw-bytes-v1") for name in ASEC_SOURCES),
@@ -108,7 +108,7 @@ class NativeASECOriginKernel(_Kernel):
         source = native.produce_asec_native_origins(
             {
                 year: context.sources[name]
-                for year, name in zip((2022, 2023, 2024), ASEC_SOURCES, strict=True)
+                for year, name in zip((2023, 2024, 2025), ASEC_SOURCES, strict=True)
             }
         )
         return _source_result(source)

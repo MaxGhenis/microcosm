@@ -188,7 +188,7 @@ def _derive(raw: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         _require(
             bool(((raw[name] >= 0) & (raw[name] <= maximum)).all()), "CONTEXT_DOMAIN"
         )
-    _require(bool(np.isin(raw["income_year"], [2022, 2023, 2024]).all()), "INCOME_YEAR")
+    _require(bool(np.isin(raw["income_year"], [2023, 2024, 2025]).all()), "INCOME_YEAR")
     _require(bool((raw["survey_year"] == raw["income_year"] + 1).all()), "SURVEY_YEAR")
     _require(bool((raw["H_SEQ"] > 0).all()), "NATIVE_KEY")
     _require(len(np.unique(raw["household_id"])) == n, "DUPLICATE_HOUSEHOLD_ID")

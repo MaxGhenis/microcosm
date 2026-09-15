@@ -233,7 +233,7 @@ def bind_income_observations(
         ids, years = result.array("person_id"), result.array("income_year")
         _require(
             len(np.unique(ids)) == rows
-            and bool(np.isin(years, [2022, 2023, 2024]).all()),
+            and bool(np.isin(years, list(source.SOURCE_YEARS)).all()),
             "BOUND_INCOME_COORDINATES",
         )
         age, yn, nominal = (result.array(n) for n in ("A_AGE", "PAW_YN", "PAW_VAL"))
@@ -249,7 +249,7 @@ def bind_income_observations(
                 name: int(((years == y) & (classes == i)).sum())
                 for i, name in enumerate(source.ZERO_CLASSES)
             }
-            for y in (2022, 2023, 2024)
+            for y in source.SOURCE_YEARS
         }
         _require(
             data["zero_origin_derivation"]

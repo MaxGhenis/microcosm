@@ -116,13 +116,13 @@ def _inputs(parent, household, restored, persons, member, selected, candidate):
     for year in persons:
         _require(
             type(year) is int
-            and year in (2022, 2023, 2024)
+            and year in (2023, 2024, 2025)
             and year not in paths
             and len(paths) < 3,
             "PERSON_PATHS",
         )
         paths[year] = _path(persons[year])
-    _require(set(paths) == {2022, 2023, 2024} and len(persons) == 3, "PERSON_PATHS")
+    _require(set(paths) == {2023, 2024, 2025} and len(persons) == 3, "PERSON_PATHS")
     if selected is not None:
         _require(
             type(selected) is tuple and 0 < len(selected) <= _MAX_HOUSEHOLDS,
@@ -615,7 +615,7 @@ def load_authenticated_asec_2024_native_population(
                 "context_sha256": _sha(context),
                 "producer_sha256": _sha(producer),
                 "parent_custody": {
-                    "cohorts": [2022, 2023, 2024],
+                    "cohorts": [2023, 2024, 2025],
                     "population_cohorts": [2024],
                     "parent_identity": identity,
                     "frame_sha256": parent_identity,

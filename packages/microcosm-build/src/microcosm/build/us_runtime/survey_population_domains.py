@@ -212,7 +212,7 @@ def _key(key: HouseholdKey) -> tuple[Source, int, int, str | int]:
         native = key.native_id
     else:
         _require(
-            key.source_year in (2022, 2023, 2024)
+            key.source_year in (2023, 2024, 2025)
             and key.survey_year == key.source_year + 1,
             "COHORT_IDENTITY",
         )
