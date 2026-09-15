@@ -263,3 +263,23 @@ First 10 clusters back: **17 DISTINCT, 6 OVERLAPS-CONSIDER-MERGING, 0 DUPLICATE-
 held: #346 vs #347 (cosine 0.448) ruled DISTINCT because #346 asks for the *capability*
 (informed-init L0 reselection) and #347 for a *country run* that explicitly depends on it;
 their 0.448 comes from Max cross-posting one correction comment to both.
+
+### Owner verification of the deferral layer + a coherence defect
+
+Read 3 of the 7 `RULED-DEFERRED` rulings at source on main and all three hold exactly as
+cited: **#467** (`uk/source_stages.json:3162-3170` declares the CGT-band fence with
+`"calibration_permitted": false`, 76 fenced facts, a rationale, a promotion path and an
+adjudication pointer to #552 — a reviewed refusal of precisely what #467 asks);
+**#687** (`uk/frs_release.json` pins `frs_2024_25`, noting "Adopted from the old E11 scope
+(microcosm#723)" — the 2023 build is the road not taken); **#697**
+(`specs/us_imputation_lineage.yaml` ABSENT from main, deleted by ancestor `f85c24840`;
+`docs/spec-engine.md` is "v3 — APPROVED by Max 2026-08-16" and rules it "retired at the flip").
+
+**Coherence defect caught by extending the validator: #224 is closed as a duplicate into
+#213, but #213 is itself `STALE-ASK`.** That would leave the 20k-sample ask carried only by
+an issue this same report asks Max whether he still wants. Added `SURVIVOR-IS-STALE-ASK`
+and `EPIC-CHAIN` checks so the pair must be resolved before either line is published.
+
+**STALE-ASK floor re-measured:** all 12 candidates are genuinely idle 63–90 days
+(recomputed from `updatedAt` plus every comment date). Of the **94** issues idle ≥ 60 days,
+only 12 are STALE-ASK and **55 are KEEP** — silence is not treated as evidence.
