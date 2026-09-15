@@ -838,3 +838,31 @@ re-run after more adjudication will catch any new instance.
 State: 184 KEEP · 28 RESOLVED-CLOSE · 8 STALE-ASK · 7 RULED-DEFERRED · 6 MERGE-INTO-EPIC ·
 1 DUPLICATE-CLOSE. Adjudicators at 5 and climbing; STALE-ASK has already fallen 10 → 8 as
 they land.
+
+### Adjudication is landing, and it confirms the predicted collapse
+
+First adjudicated rows, all three changed and all three in the predicted direction:
+**#303 STALE-ASK → KEEP**, **#305 STALE-ASK → KEEP**, **#661 MERGE-INTO-EPIC → KEEP** (the
+first epic row to fall). The #303 adjudicator is a good example of re-running the deciding
+command rather than arbitrating: it checked whether anyone still wants the work and found
+`gh api repos/PolicyEngine/microcosm/issues/263/comments` showing MaxGhenis on the Belgium
+lane 16 days ago ("In progress on branch be-contract-gates-diagnostic"), with the BE country
+package live on main — so idle, but plainly still wanted.
+
+### Fifth sweep overturn: #30 → RESOLVED-CLOSE, and it is a real contest
+
+The sweep argues the lane "found only the source-coverage half (PR #53) and missed the PR
+that delivers the headline ask" — **PR #405** ("Chesterton's-fence audit: wire NIPA
+wages/proprietors, net worth, LIHEAP; fence every exclusion"), which I verified is MERGED
+2026-07-13 with `dc7031882` an ANCESTOR of main. It walks all five acceptance criteria.
+
+But the standing KEEP says the four `bea-nipa-*` aliases sit in `REVIEWED_EXCLUDED_ALIASES`
+reasoned "not certified by this release", and that Build P calibrates **only 2** BEA targets:
+`total_wages_salaries` and `proprietors_income`. Those are exactly the two the PR title says
+it wired. So both sides are citing true facts and the dispute is really about scope — did
+#30 ask for the NIPA controls that landed, or for the fuller coverage still fenced out?
+Sent to the same two-lens challenge (`wf_7f15ca95-935`) rather than decided on either side's
+framing.
+
+Running sweep totals: **176 KEEP issues swept, 5 overturns** — 2 duplicates (both rejected),
+2 resolution claims (#253 rejected, #30 under challenge), 1 deferral (#777, applied).
