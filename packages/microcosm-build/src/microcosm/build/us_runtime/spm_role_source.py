@@ -57,7 +57,11 @@ ASEC_SPM_ROLE_SOURCES: dict[int, AsecSpmRoleSource] = {
         csv_sha256=pin.member_sha256,
         csv_size_bytes=pin.member_size_bytes,
         persons=pin.rows,
-        units={2022: 59_181, 2023: 58_711, 2024: 58_147}[year],
+        # Census SPM units per vintage: the distinct-SPM_ID group count of
+        # the pinned person member, measured through this module's own
+        # _reconcile_units (which also proves the adult/child/person and
+        # one-head-per-unit identities hold in that file).
+        units={2023: 58_711, 2024: 58_147, 2025: 55_401}[year],
         official_archive_url=pin.zip_url,
         archive_sha256=pin.zip_sha256,
         member=pin.member,
