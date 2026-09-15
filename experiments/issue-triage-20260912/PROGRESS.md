@@ -283,3 +283,24 @@ and `EPIC-CHAIN` checks so the pair must be resolved before either line is publi
 **STALE-ASK floor re-measured:** all 12 candidates are genuinely idle 63–90 days
 (recomputed from `updatedAt` plus every comment date). Of the **94** issues idle ≥ 60 days,
 only 12 are STALE-ASK and **55 are KEEP** — silence is not treated as evidence.
+
+### Whole-corpus citation audit (owner, mechanical)
+
+Extracted every repo path and backticked symbol from the evidence of all 40 close-class
+rows and checked each against `origin/main`:
+
+- **96 cited paths → 1 absent**, and that one is `specs/us_imputation_lineage.yaml` on
+  **#697**, where the absence *is* the evidence (retired at the spec-engine flip).
+- **53 cited symbols → 1 with zero files on main**: `work_experience_inputs` on **#719**,
+  which exists only in still-open PR #745 — independent corroboration that #719 is
+  misdispositioned (its claimed epic #922 names it only in a prose `Related:` line).
+
+With the 26/26 PR-ancestry result, the citation layer holds: the only failures are the two
+rows the validator already flagged, and both are real defects rather than noise.
+
+Two more rows read at source: **#57/PR #855** (`calibrate/hierarchy.py` present on main with
+`HierarchyCategory`/`HierarchyGeography`/`HierarchyDimension`) confirmed; **#449/PR #741**
+confirmed, but with a correction — the evidence says the parity knob was "retired", while
+`gate_congressional_district_targets` still exists and is merely **defaulted to `True`**
+(`tools/build_us_fiscal_refresh_release.py:2307`), with the `False` path still exercised in
+tests. The close comment must say "defaulted", not "retired".
