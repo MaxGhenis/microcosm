@@ -189,3 +189,29 @@ survivor-valid / unique-residual; MERGE-INTO-EPIC: literal-listing / detail-loss
 RULED-DEFERRED: ruling-real / premise-changed; FOLDED-INTO-893: 893-delivers) ‖ a
 STALE-ASK reality check ‖ a per-batch missed-resolution sweep over every KEEP row →
 a per-batch adjudicator that re-runs the deciding command itself.
+
+### Citation validator rebuilt (`r5/owner_validate5.py`) — three real bugs fixed
+
+Run 4's `owner_validate4.py` reported 24 findings over the 226 candidate rows. Rebuilt and
+corrected, it reports **13**, all genuine. The three bugs, each of which manufactured
+false alarms that would have sent agents chasing nothing:
+
+1. **Decimal GitHub comment ids read as commit shas.** `\b([0-9a-f]{9,40})\b` matches
+   `4885524525`, so every `#299#issuecomment-4885524525` URL surfaced as
+   `CITED-SHA-UNKNOWN`. Now a hex run must contain at least one `a-f`, and
+   `issuecomment-\d+` anchors are stripped before scanning.
+2. **A 64-char sha256 sliced into two fake shas.** The crosswalk digest
+   `c7cb040b1f57ca2e…c4b640cd421e766f…` (64 chars, a file-content sha256, not a commit)
+   was reported as the two unknown "shas" `c7cb040b1f57` and `c4b640cd421e` on #314
+   and #449. A maximal-run lookaround now rejects any fragment of a longer hex run.
+3. **Escaping/arity slips found by running it**: the regex literal had been written with
+   `\\w` (a literal backslash class) rather than `\w`, and after the regex was reduced to
+   one group `findall` returned strings, so the consumer iterated *characters* — 330
+   single-character "shas". Both fixed.
+
+Remaining 13 findings, triaged by the owner: #324 cites `engine_abi.lock` where main has
+`engine_abi.lock.json` (typo; artifact present — row text to be corrected); #640 and #697
+cite a path's **absence** as the evidence, which is the point, not a defect; #76 `#8352`
+and #299/#333 `#893` are cross-repo or incidental mentions the disposition does not rest
+on; **#416 (epic #530 has no list line) and #719 (cites OPEN PR #745 and five
+non-ancestor commits) are real defects** and match the owner's own epic check.
