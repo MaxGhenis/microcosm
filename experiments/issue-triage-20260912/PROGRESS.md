@@ -304,3 +304,30 @@ confirmed, but with a correction — the evidence says the parity knob was "reti
 `gate_congressional_district_targets` still exists and is merely **defaulted to `True`**
 (`tools/build_us_fiscal_refresh_release.py:2307`), with the `False` path still exercised in
 tests. The close comment must say "defaulted", not "retired".
+
+### Cluster pass complete (`wf_6783fa4b-567`, 28 agents, 0 errors)
+
+**107 relations: 90 DISTINCT, 13 OVERLAPS-CONSIDER-MERGING, 4 SUBSUMED-BY-EPIC, and
+zero DUPLICATE-OF.** The hypothesis held: across all 15 near-duplicate clusters — cosine
+ceiling 0.503 — **not one pair is a true duplicate**. This repo files adjacent work as
+separate, well-specified issues. The 13 overlaps are real and reported as a
+"consider merging" section rather than closed, e.g. #471 and #472 open with "Audit finding
+1 / finding 8 of #468, split out as its own increment", and #546 is a sharper restatement
+of #380's gap 2 on the same `REFORM_VECTOR_CACHE_CONTEXT_KEYS` cache.
+
+Of the 4 epic-subsumption proposals (#262 #263 #264 #265 → epic #259), the independent
+challengers **overturned three**: each has a genuine literal `- [ ]` line in #259, but
+closing it would drop tracked work that main itself points at — `be/source_stages.json:80`
+("the base population stage (populace#262 owns the runtime)"),
+`be/release_contract.json:38` (#262 owns the destination guards), and `be/gates.json:4`
+("External-oracle implementation ... remains separate work in #264 and is not implemented
+here"). Form passed, substance failed — which is the right order.
+
+**Owner override on #265 (documented in `assemble5.py`, not silent).** Its challenger
+returned UPHOLD, but its own `unique_to_this_issue` lists five concrete publishing
+mechanics that exist only in #265 and are undelivered on main (a BE path in
+`publish_release.sh`, `latest.json` uploaded last as the atomic pointer, the
+`populace-be-staging` telemetry repo named in `be/release_contract.json` with no writer,
+the BE Slack alert, and a `("be", year)` DatasetSpec in `microcosm-data/registry.py`).
+The batch agent independently reached KEEP on the same evidence, and merging one of five
+epic children while #262/#263/#264 all stay open is incoherent. **#265 stays KEEP.**
