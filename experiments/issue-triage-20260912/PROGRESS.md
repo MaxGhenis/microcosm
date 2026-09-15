@@ -443,3 +443,28 @@ The new pass also produced the sharpest boundary evidence in the report, e.g. #7
 body line 21 *hands* `local_authority_support_floor_excluded` and
 `council_tax_band_h_spine_support_absent` to #796 "because the fix is frame rows for those
 areas, not targets". Merging either way would have destroyed a deliberate partition.
+
+### Report pipeline green end-to-end
+
+`assemble5.py → owner_validate5.py → build_extra5.py → render5.py` runs clean:
+**234 rows, 0 structural errors, 0 warnings**. Draft is ~600 KB because section 2 carries
+the full evidence for every issue (~2 KB each) — that bulk *is* the deliverable, and the
+summary table gives a short pointer per row for navigation.
+
+Fixes made while reviewing the draft: section 6 and 7 were emitted out of order; section 4
+("consider merging") was empty and is now wired to the 8 deduped overlapping pairs from the
+cluster passes; the validator block was computed but never rendered; and every headline
+figure was hardcoded — the idle-≥60d KEEP count had already drifted from 55 to 64 as rows
+finalized, so all of them are now computed from `final_rows.json` at render time.
+
+Section 4 turned out to be one of the most useful parts: it names concrete merge actions
+(e.g. "add literal `- [ ] #471` and `- [ ] #472` lines to #468 and mark findings 1 and 8 as
+tracked there, leaving #468 to carry 2-7") and flags that #468/#472's cited line numbers
+have drifted with the populace→microcosm rename (the preflight call is
+`us_runtime/release_gate_preflight.py:827`, not `:776`).
+
+### Remaining
+
+Verify / sweep / adjudicate stages of `wf_66de6532-038` are still running and can still
+move rows. On completion: reassemble from the adjudicated rows, run the close-comment pass,
+re-run the validator, regenerate, and write the two deliverables.
