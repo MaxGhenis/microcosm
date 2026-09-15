@@ -531,3 +531,23 @@ item" standard, but epic #922's item 5 reads "**Industry and worked-last-year on
 records.** #745 (`work_experience_inputs` stage; parent #719) is still a draft" — the tracked
 unit is **PR #745**, with #719 only named parenthetically as its parent. Two independent
 refuters caught that; they are right and I was wrong.
+
+### #31's Tier-2 residual verified at source
+
+Since #31 is the one close whose leftover names no successor, I checked its residual claim
+rather than trusting it. `git grep -n frozen_vs_recomputed origin/main -- packages/ tools/`
+finds exactly one implementation: `uk_runtime/size_evaluation.py:864`,
+`frozen_vs_recomputed(run: RowwiseRun, surface_evaluation: ...)`, docstring "Compare frozen
+national contributions with recomputed surface values" — a **dataset-size** surface metric
+feeding `frozen_vs_recomputed_max` (:1033, :1124, :1164), not an audit of UK formula-owned
+columns. No other stored-vs-recomputed per-column report exists on main. The residual stands:
+closing #31 without recording it erases the only trace of that fix-direction bullet.
+
+### Collector for the adjudicated rows written (`collect_wf.py`)
+
+Pulls the workflow's final per-batch returns out of `journal.jsonl` into `r5/wf_final.json`,
+which `assemble5.py` already consumes at highest precedence. Running tally as the verify
+stage works through its queue: **11 UPHOLD / 13 OVERTURN / 10 AMEND** across the close-class
+refuters, and **17 of 17 KEEP-sweeps returning zero overturns**. A ~38% challenge rate on
+close-class rows against a clean KEEP layer is the expected shape — the contested decisions
+are the ones that close things.
