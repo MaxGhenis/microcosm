@@ -488,3 +488,11 @@ matters when closing — *does the leftover work have somewhere to live?*
   each with a named soft edge (an acceptance criterion only an out-of-PR-CI certification
   run can settle; a successor PR still open and non-ancestor; a mechanism delivered for the
   named cases but not generically).
+
+### Mid-lane closure recheck: zero churn
+
+Re-pulled the open-issue list and re-fetched `origin/main` at the end of the lane
+(`gh rc=0`): **still exactly 234 open issues, identical membership, and main still
+`18271b28d`**. Nothing closed or opened while the triage ran, so no row in the report
+describes an issue whose state has since moved. That fact is now stated in the report's
+method section rather than left implicit.
