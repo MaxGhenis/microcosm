@@ -231,3 +231,35 @@ Observation to test, not assume: the highest near-duplicate cosine in the whole 
 same class of defect). True duplicates usually score far higher, so the expected finding
 is that this repo has very few real duplicates and many adjacent-but-distinct issues.
 The cluster agents are told DISTINCT is the expected answer and a good one.
+
+### Owner sweep: the PR half of every RESOLVED-CLOSE is sound
+
+Ran all **26** RESOLVED-CLOSE candidates' cited PRs through corpus state +
+`git merge-base --is-ancestor <mergeCommit> origin/main`: **26/26 MERGED with a
+verified-ancestor merge commit**, zero citing an open or unreachable PR. So the open
+question on each row is only whether that PR delivers the issue's *whole* ask — which is
+what the `whole-ask` refuter lens tests.
+
+Two rows verified at source by the owner: **#546/PR #557** (main carries
+`TARGET_MATERIALIZATION_CACHE_SCHEMA_VERSION = 3` "Bumped 2 -> 3 for #557" and both
+identity digests in `REFORM_VECTOR_CACHE_CONTEXT_KEYS`) — ask delivered.
+**#511/PR #517** (mortgage measures rebound to `deductible_mortgage_interest`, both rows
+registered `allow_incumbent_improvement=False`) — delivered, **but reading the code
+surfaced a residual the evidence had not**: the amount row still carries
+`max_abs_relative_error=0.20` with an in-file comment to ratchet it "once microcosm#515
+lands and a run holds 0.15", and #515 is CLOSED. That ratchet is now due.
+
+### Assembler + report scaffolding written
+
+`assemble5.py` merges rows by precedence (workflow-adjudicated > run-5 stage-1 salvage >
+run-3 candidate, each row tagged with its `_source`) and applies cluster overrides only
+where an independent challenger upheld them. `build_extra5.py` generates the report's
+cross-cutting sections. `render5.py` emits the report + JSON and runs the structural gate.
+
+### Cluster pass, early returns
+
+First 10 clusters back: **17 DISTINCT, 6 OVERLAPS-CONSIDER-MERGING, 0 DUPLICATE-OF,
+0 SUBSUMED-BY-EPIC** — consistent with the 0.503 cosine ceiling. Example of the bar being
+held: #346 vs #347 (cosine 0.448) ruled DISTINCT because #346 asks for the *capability*
+(informed-init L0 reselection) and #347 for a *country run* that explicitly depends on it;
+their 0.448 comes from Max cross-posting one correction comment to both.
