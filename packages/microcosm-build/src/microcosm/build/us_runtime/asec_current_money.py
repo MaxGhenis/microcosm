@@ -286,7 +286,7 @@ class SyntheticAsecSource:
             "COHORT_PINS",
         )
         _require(
-            tuple(p[0] for p in self.cohort_sha256) == (2022, 2023, 2024),
+            tuple(p[0] for p in self.cohort_sha256) == (2023, 2024, 2025),
             "SOURCE_YEAR_MAPPING",
         )
         _require(
@@ -474,7 +474,7 @@ def compile_asec_current_money_spec(
             f"174.4/{price['cells'][str(y)]}",
             struct.pack("<d", float("174.4") / float(price["cells"][str(y)])).hex(),
         )
-        for y in (2022, 2023, 2024)
+        for y in (2023, 2024, 2025)
     )
     identity = _json(
         {
@@ -544,8 +544,8 @@ class AsecMoneyScope:
             "HOUSEHOLD_MEMBERSHIP",
         )
         _require(
-            set(self.person_years) <= {2022, 2023, 2024}
-            and set(self.household_years) <= {2022, 2023, 2024},
+            set(self.person_years) <= {2023, 2024, 2025}
+            and set(self.household_years) <= {2023, 2024, 2025},
             "SOURCE_YEAR_MAPPING",
         )
         expected = dict(zip(self.household_ids, self.household_years, strict=True))
@@ -717,7 +717,9 @@ def _validate_field(
     )
     expected_origin = (s == expected_zero).astype("u1") * int(zero_origin_code)
     _require(np.array_equal(z, expected_origin), "ZERO_ORIGIN_ENCODING", domain.name)
-    factor_max = 1.0 if nominal else float("174.4") / float("163.6")
+    # The widest restatement factor across the pooled window: the target
+    # year's index over the earliest pooled year's index.
+    factor_max = 1.0 if nominal else float("174.4") / float("170.0")
     lo = min(domain.minimum, domain.minimum * factor_max)
     hi = max(domain.maximum, domain.maximum * factor_max)
     _require(((a >= lo) & (a <= hi)).all(), "AMOUNT_DOMAIN", domain.name)
@@ -1057,7 +1059,7 @@ def restate_asec_current_money(
         )
         _require(_sha(data) == header[entity + "_year_sha256"], "YEAR_BINDING")
         vector = np.frombuffer(data, dtype="<i8")
-        _require(np.isin(vector, [2022, 2023, 2024]).all(), "SOURCE_YEAR_MAPPING")
+        _require(np.isin(vector, [2023, 2024, 2025]).all(), "SOURCE_YEAR_MAPPING")
         years[entity] = vector
     result = []
     for domain, field in zip(spec.fields, decoded.fields, strict=True):

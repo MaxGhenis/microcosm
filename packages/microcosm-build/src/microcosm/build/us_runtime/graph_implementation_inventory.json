@@ -405,6 +405,7 @@
     "microcosm.build/us_runtime/asec_person_coverage_source.py": {
       "imports": [
         "microcosm.build.us_runtime",
+        "microcosm.build.us_runtime.education_assistance_source",
         "pandas"
       ],
       "resource_accesses_sha256": "d048b0a585f81a8902dc11ef2fa5da96c8874f77802885fdaa08c7e69764994b",

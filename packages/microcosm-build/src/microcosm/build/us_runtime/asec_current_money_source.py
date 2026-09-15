@@ -43,7 +43,10 @@ from .asec_current_money import (
     restate_asec_current_money,
 )
 from .asec_current_money_resources import load_current_money_resources
-from .education_assistance_source import ASEC_EDUCATION_ASSISTANCE_ARCHIVES
+from .education_assistance_source import (
+    ASEC_EDUCATION_ASSISTANCE_ARCHIVES,
+    ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS,
+)
 
 # Exact reviewed bytes from the accepted current-money source contract and the
 # completed household-observation receipt. Tests monkeypatch this PRIVATE tuple
@@ -261,7 +264,10 @@ def _scope(frame):
         return tuple(int(v) for v in values.to_numpy())
 
     years = ints("source_year")
-    _require(set(years) == {2022, 2023, 2024}, "SOURCE_YEAR_MAPPING")
+    _require(
+        set(years) == set(ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS),
+        "SOURCE_YEAR_MAPPING",
+    )
     return AsecMoneyScope(
         ints("person_id"),
         tuple(int(v) for v in keys.household_id),
@@ -560,8 +566,11 @@ def _load(parent_path, attachment_path):
     cohorts = _validate_attachment(parent, metadata, loaded, _SOURCE_PINS[0])
     sidecars = []
     actual_pins = metadata["raw_source_mappings"]["ED_VAL"]["source_pins"]
-    _require(len(actual_pins) == 3, "ED_VAL_SOURCE_COVERAGE")
-    for year in (2022, 2023, 2024):
+    _require(
+        len(actual_pins) == len(ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS),
+        "ED_VAL_SOURCE_COVERAGE",
+    )
+    for year in ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS:
         registered = ASEC_EDUCATION_ASSISTANCE_ARCHIVES[year]
         expected = {
             "income_year": year,

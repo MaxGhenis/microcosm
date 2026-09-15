@@ -582,14 +582,14 @@ def _reconstruct(source, member_paths: Mapping[int, str | Path]):
     parent = _parent_binding(source)
     _require(
         isinstance(member_paths, Mapping)
-        and set(member_paths) == {2022, 2023, 2024}
+        and set(member_paths) == set(literal.SOURCE_YEARS)
         and all(type(year) is int for year in member_paths)
         and all(isinstance(p, (str, Path)) for p in member_paths.values()),
         "COVERAGE_MEMBER_PATHS",
     )
     _require(
-        tuple(p[0] for p in _MEMBER_PINS) == (2022, 2023, 2024)
-        and len({p[1] for p in _MEMBER_PINS}) == 3,
+        tuple(p[0] for p in _MEMBER_PINS) == literal.SOURCE_YEARS
+        and len({p[1] for p in _MEMBER_PINS}) == len(literal.SOURCE_YEARS),
         "COVERAGE_PIN_COHORTS",
     )
     person = source.frame.person
@@ -631,7 +631,7 @@ def _reconstruct(source, member_paths: Mapping[int, str | Path]):
         paths, identities, sources = {}, {}, []
         budget = [_BODY_MAX]
         pins = {pin[0]: pin for pin in _MEMBER_PINS}
-        for year in (2022, 2023, 2024):
+        for year in literal.SOURCE_YEARS:
             _, member, archive, digest, rows, size = pins[year]
             _require(
                 type(rows) is int
