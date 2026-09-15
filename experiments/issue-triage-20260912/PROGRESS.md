@@ -624,3 +624,15 @@ to OVERTURN). My own read is that **#424 is an overlap rather than a duplicate**
 aggregate eligible-mass shortfall with four named candidate causes, while #644's sharper
 claim is an age-*composition* defect (+55% at 18-24, -85% at 60-64) and it explicitly says
 "Do not force eligibility to recipient counts". The challenge decides, not me.
+
+### Both paths now consume the duplicate challenge, and a rejection is recorded, not dropped
+
+`assemble5.py` (the normal path) and `fallback_adjudicate.py` (the insurance path) both read
+`r5/dup_challenge.json` and apply a sweep-proposed duplicate **only where both lenses upheld
+it**. A rejected proposal is not silently discarded either: the row keeps its KEEP
+disposition and gains an `owner_note` saying a sweep proposed closing it as a duplicate of
+#N and an independent two-lens challenge rejected it. That way the report shows the
+near-miss and its reasoning rather than looking like the question was never asked.
+
+Also extended the fallback to cover sweep duplicates, so the insurance path produces the same
+answer as the normal path if adjudication never lands.
