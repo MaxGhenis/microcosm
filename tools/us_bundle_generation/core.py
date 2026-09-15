@@ -88,7 +88,7 @@ _LOADER_BY_ROLE = {
     "puf_source_year": "kernel:load_puf_tax_unit_donor",
 }
 _VINTAGES_BY_ROLE = {
-    "asec_raw_stage": ("vintage:asec_2024", "vintage:asec_2023"),
+    "asec_raw_stage": ("vintage:asec_2025", "vintage:asec_2024"),
     "acs_household": ("vintage:acs_2024",),
     "acs_person": ("vintage:acs_2024",),
     "acs_rent_donor": ("vintage:acs_2022",),
@@ -377,11 +377,10 @@ def build_sources() -> dict[str, Any]:
     """Build pinned inputs and first-class typed source-stage declarations."""
 
     from microcosm.build.us_runtime.acs_pums import ACS_2024_1YR_VINTAGE
-    from microcosm.build.us_runtime.multispine_pool import POOL_TIME_PERIOD
-    from microcosm.build.us_runtime.puf_source_agi import PUF_SOURCE_YEAR
-    from microcosm.build.us_runtime.weeks_unemployed import (
-        ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR,
+    from microcosm.build.us_runtime.education_assistance_source import (
+        ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS,
     )
+    from microcosm.build.us_runtime.puf_source_agi import PUF_SOURCE_YEAR
 
     pins = canonical_input_pins()
     rows: list[dict[str, Any]] = []
@@ -399,22 +398,15 @@ def build_sources() -> dict[str, Any]:
         )
 
     authority_rows = {
+        # One survey-period authority per pooled ASEC income year, read from
+        # the archive registry so a vintage rollover moves in one place.
         "asec_raw_stage": [
             {
-                "id": "asec_2022",
+                "id": f"asec_{income_year}",
                 "kind": "survey_period",
-                "value": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR,
-            },
-            {
-                "id": "asec_2023",
-                "kind": "survey_period",
-                "value": POOL_TIME_PERIOD - 1,
-            },
-            {
-                "id": "asec_2024",
-                "kind": "survey_period",
-                "value": POOL_TIME_PERIOD,
-            },
+                "value": income_year,
+            }
+            for income_year in ASEC_EDUCATION_ASSISTANCE_INCOME_YEARS
         ],
         "acs_household": [
             {
@@ -811,15 +803,6 @@ def build_vintages() -> dict[str, Any]:
             },
         },
         {
-            "id": "asec_2022",
-            "kind": "survey_period_ref",
-            "authority_ref": {
-                "kind": "source_record",
-                "source": "source:asec_raw_stage",
-                "authority": "asec_2022",
-            },
-        },
-        {
             "id": "asec_2023",
             "kind": "survey_period_ref",
             "authority_ref": {
@@ -835,6 +818,15 @@ def build_vintages() -> dict[str, Any]:
                 "kind": "source_record",
                 "source": "source:asec_raw_stage",
                 "authority": "asec_2024",
+            },
+        },
+        {
+            "id": "asec_2025",
+            "kind": "survey_period_ref",
+            "authority_ref": {
+                "kind": "source_record",
+                "source": "source:asec_raw_stage",
+                "authority": "asec_2025",
             },
         },
         {
@@ -947,9 +939,9 @@ def build_vintages() -> dict[str, Any]:
     reviewed_compatibility = {
         "acs_2022": {"target_2024"},
         "acs_2024": {"target_2024"},
-        "asec_2022": {"target_2024"},
-        "asec_2023": {"asec_2024", "target_2024"},
-        "asec_2024": {"asec_2023", "target_2024"},
+        "asec_2023": {"target_2024"},
+        "asec_2024": {"asec_2025", "target_2024"},
+        "asec_2025": {"asec_2024", "target_2024"},
         "cd_117": {"cd_119"},
         "cd_119": {"cd_117", "census_2020", "puma_2020"},
         "census_2020": {"cd_119", "puma_2020"},
@@ -962,9 +954,9 @@ def build_vintages() -> dict[str, Any]:
         "target_2024": {
             "acs_2022",
             "acs_2024",
-            "asec_2022",
             "asec_2023",
             "asec_2024",
+            "asec_2025",
             "org_2024",
             "policyengine_us_surface",
             "release_us_2024",

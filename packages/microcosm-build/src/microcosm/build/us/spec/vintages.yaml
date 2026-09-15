@@ -16,14 +16,6 @@ records:
     authority: acs_2024
   compatible_with:
   - vintage:target_2024
-- id: asec_2022
-  kind: survey_period_ref
-  authority_ref:
-    kind: source_record
-    source: source:asec_raw_stage
-    authority: asec_2022
-  compatible_with:
-  - vintage:target_2024
 - id: asec_2023
   kind: survey_period_ref
   authority_ref:
@@ -31,7 +23,6 @@ records:
     source: source:asec_raw_stage
     authority: asec_2023
   compatible_with:
-  - vintage:asec_2024
   - vintage:target_2024
 - id: asec_2024
   kind: survey_period_ref
@@ -40,7 +31,16 @@ records:
     source: source:asec_raw_stage
     authority: asec_2024
   compatible_with:
-  - vintage:asec_2023
+  - vintage:asec_2025
+  - vintage:target_2024
+- id: asec_2025
+  kind: survey_period_ref
+  authority_ref:
+    kind: source_record
+    source: source:asec_raw_stage
+    authority: asec_2025
+  compatible_with:
+  - vintage:asec_2024
   - vintage:target_2024
 - id: cd_117
   kind: geography_vintage_ref
@@ -127,9 +127,9 @@ records:
   compatible_with:
   - vintage:acs_2022
   - vintage:acs_2024
-  - vintage:asec_2022
   - vintage:asec_2023
   - vintage:asec_2024
+  - vintage:asec_2025
   - vintage:org_2024
   - vintage:policyengine_us_surface
   - vintage:release_us_2024

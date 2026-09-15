@@ -6,18 +6,18 @@ sources:
   byte_size: 653410492
   loader: kernel:load_asec_raw_stage_checkpoint
   vintages:
+  - vintage:asec_2025
   - vintage:asec_2024
-  - vintage:asec_2023
   vintage_authorities:
-  - id: asec_2022
-    kind: survey_period
-    value: 2022
   - id: asec_2023
     kind: survey_period
     value: 2023
   - id: asec_2024
     kind: survey_period
     value: 2024
+  - id: asec_2025
+    kind: survey_period
+    value: 2025
 - id: acs_household
   role: acs_household
   sha256: 8281008e53de98f0ef81e7a2ee5a8725991dda1ecfd2713ead73246425e515d0

@@ -462,7 +462,7 @@ _PINS: dict[str, tuple[int, str]] = {
     ),
     "resolved_vintage_authorities": (
         63,
-        "5f2edfe9826e1200e2b8706780c9f53b7c61f01aad8cab5907f08c37a0b1ead2",
+        "f637644c345ba6ad77e6ab395827a723c857bee9bd47a1bd1fffa8dc308de2ef",
     ),
     "selection": (
         87,

@@ -10,26 +10,52 @@ written, historical afterwards.
 The pooled ASEC window ROLLS to income years `{2023, 2024, 2025}` (survey files
 `pppub24/25/26`). Income year 2022 (`pppub23`) leaves the roster.
 
-## State
+## The invariant this lane established
 
-- Environment synced (`uv sync --all-packages --locked --extra us --extra uk`, exit 0).
-- Survey-2026 registry pins recomputed from the local archive with the module's own
-  audit formulas; the survey-2025 archive recomputed as a control and reproduces
-  every pinned field exactly.
+The pooled roster and the **current-money anchor** are different things and only
+the roster rolls here. The current anchor is income year 2024 / survey 2025
+(`hhpub25.csv`, `CURRENT_INCOME_YEAR`, `catalogue_cohorts`, `population_cohorts`,
+`key[0] == 2024`), and it is pinned to the ACS 2024 vintage, the PUF 2015→2024
+money year and the C-CPI-U 2024 price target — none of which roll. Income 2024
+is still inside the new window, so every `== 2024` selection keeps its meaning.
+Moving the anchor needs an ACS 2025 and a new price target; that is not layer 1.
 
 ## Done
 
-- (nothing code-side yet)
+- Registry (`education_assistance_source`): survey-2026/income-2025 entry added,
+  income-2022 dropped. Every pinned field independently recomputed from the local
+  `asecpub26csv.zip`; the 2024 and 2025 archives recomputed as controls and
+  reproduce their pins exactly (zip/member size, sha256, crc32, rows, ED_VAL
+  positive rows, weighted share, weighted total).
+- Roster rolled across 20 US runtime modules plus microcosm-data, deriving from
+  the registry wherever the module already imports it.
+- Measured per-vintage pins rolled: PAW_TYP audit registry (income-2025 measured),
+  SPM unit counts, hhpub26 native member pin, source-enrichment census pins.
+- US implementation inventory contract re-recorded for
+  `asec_person_coverage_source` (its registry import landed in 6711f1b4 without
+  the matching inventory entry).
+- US spec constants rolled and the bundle regenerated:
+  `spec_sha256 46e20546… → 3c614292…`; the `resolved_vintage_authorities`
+  pointer claim re-pinned (63 pointers, `5f2edfe9… → f637644c…`).
 
 ## Next
 
-1. Registry entry: add survey-2026/income-2025, drop income-2022.
-2. Roll the hard-coded roster across the US runtime modules.
-3. Roll the invented-fixture vintages in the ASEC-facing tests.
-4. US spec constants + regeneration; report identity drift.
-5. Verification battery.
+1. Test fixtures that invent the three cohorts.
+2. Full ASEC-facing battery; report the tests that need layer-2 artifacts.
+3. Report: layer-2 inventory and the decisions needing Max.
+
+## Pre-existing, NOT caused by this lane
+
+`tools/spec_engine_coverage.py --check` already fails at `4fc4ee6dd` with
+`seed_protocol_and_owner_map_digests_exact` (seed protocol content digest and
+compiled seed map digest). Measured at HEAD with this lane's spec changes
+reverted: identical observed digests, identical failure. Not re-pinned here.
+`ruff format --check` also already fails on `us_runtime/wic_claim.py` (from
+`17ed9a0be`); CI only runs `ruff check`, which is green.
 
 ## Layer 2 (NOT this lane)
 
 The `asec_raw_stage` checkpoint (sha `51e9fafc…`, 653 MB) is built from gated
-Hugging Face inputs. No checkpoint is invented here.
+Hugging Face inputs. No checkpoint is invented here; the regenerated spec still
+pins the income-2022–2024 artifact against the new vintage authorities, which is
+exactly the inconsistency layer 2 must resolve by rebuilding it.
