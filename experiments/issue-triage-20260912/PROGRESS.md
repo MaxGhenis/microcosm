@@ -215,3 +215,19 @@ cite a path's **absence** as the evidence, which is the point, not a defect; #76
 and #299/#333 `#893` are cross-repo or incidental mentions the disposition does not rest
 on; **#416 (epic #530 has no list line) and #719 (cites OPEN PR #745 and five
 non-ancestor commits) are real defects** and match the owner's own epic check.
+
+### Cross-cutting cluster pass launched (a gap the batch fan-out cannot cover)
+
+The 37 TF-IDF near-duplicate pairs mostly **span batches** (#74 is in `us-calibration-1`,
+#168 in `us-calibration-2`), so no batch agent can read both sides of a candidate
+duplicate. Built the pairs into **15 connected components** and added the **7 epic
+families**, and launched workflow `wf_6783fa4b-567`: 22 cluster agents judging
+DUPLICATE-OF / SUBSUMED-BY-EPIC / OVERLAPS / DISTINCT, each proposed close then
+challenged by an independent agent (duplicates: would work actually be dropped;
+epics: is there a literal `- [ ]` line, and does it create a chain).
+
+Observation to test, not assume: the highest near-duplicate cosine in the whole repo is
+**0.503** (#867 housing benefit vs #869 JSA claimants — two different programs with the
+same class of defect). True duplicates usually score far higher, so the expected finding
+is that this repo has very few real duplicates and many adjacent-but-distinct issues.
+The cluster agents are told DISTINCT is the expected answer and a good one.
