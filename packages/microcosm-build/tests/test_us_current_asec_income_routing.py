@@ -24,12 +24,12 @@ from microcosm.build.us_runtime import current_asec_income_routing_source as own
 
 # Invented current-year people. Ages 55/14 come from the shared fixture; the
 # older adult exercises the printed age-58 distribution route.
-CURRENT_PEOPLE = (105, 106, 107, 108)
-AGES = {105: 55, 106: 14, 107: 70, 108: 14}
+CURRENT_PEOPLE = (103, 104, 107, 108)
+AGES = {103: 55, 104: 14, 107: 70, 108: 14}
 AMOUNTS = {
     #            PNSN   ANN   DSTV1 DSTV1Y DSTV2 DSTV2Y   RNT    FRSE    OI
-    105: (12000.0, -1.0, 0.0, 7000.0, 0.0, 0.0, -400.0, 0.0, 3000.0),
-    106: (0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+    103: (12000.0, -1.0, 0.0, 7000.0, 0.0, 0.0, -400.0, 0.0, 3000.0),
+    104: (0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
     107: (9000.0, 0.0, 5000.0, 0.0, 0.0, 0.0, 500.0, -9000.0, 250.0),
     108: (0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 700.0),
 }
@@ -45,7 +45,7 @@ AMOUNT_ORDER = (
     "OI_VAL",
 )
 LITERALS = {
-    105: {
+    103: {
         "PEN_YN": "1",
         "ANN_YN": "0",
         "DST_YN": "0",
@@ -57,7 +57,7 @@ LITERALS = {
         "OI_YN": "1",
         "OI_OFF": "20",
     },
-    106: {},
+    104: {},
     107: {
         "PEN_YN": "2",
         "ANN_YN": "1",
@@ -160,11 +160,11 @@ def test_actual_invented_member_joins_the_real_preparation_by_native_keys(
     person = qualified.person.set_index("native_person_id")
     assert set(person.index) == set(CURRENT_PEOPLE)
     # Borrowed money, native identity and member literal agree row by row.
-    assert person.loc[105, "pension_annuity_pension_source_total"] == 12000.0
-    assert person.loc[105, "pension_annuity_pension_reporting_status"] == (
+    assert person.loc[103, "pension_annuity_pension_source_total"] == 12000.0
+    assert person.loc[103, "pension_annuity_pension_reporting_status"] == (
         "known_receipt"
     )
-    assert person.loc[105, "pension_annuity_pension_known_amount"] == 12000.0
+    assert person.loc[103, "pension_annuity_pension_known_amount"] == 12000.0
     assert person.source_age.to_dict() == {k: float(v) for k, v in AGES.items()}
     literals = qualified.asec_literals.set_index("PERIDNUM")
     for person_id in CURRENT_PEOPLE:
@@ -217,16 +217,16 @@ def test_pension_and_annuity_totals_stay_separate_and_unsplit(tmp_path, monkeypa
     person = qualified.person.set_index("native_person_id")
     # PNSN_VAL is the printed combined total over all pension sources. Neither
     # a private share nor a taxable share is derived from it.
-    assert person.loc[105, "pension_annuity_combined_total_scope"] == (
+    assert person.loc[103, "pension_annuity_combined_total_scope"] == (
         owner.PENSION_TOTAL_SCOPE
     )
     assert not person.pension_annuity_private_share_applied.any()
     assert not person.pension_annuity_taxable_amount_known.any()
     assert not person.pension_annuity_pension_total_has_published_flag.any()
     # ANN_VAL's printed -1 is a NIU code, never a one dollar annuity loss.
-    assert np.isnan(person.loc[105, "pension_annuity_annuity_source_total"])
-    assert person.loc[105, "pension_annuity_annuity_amount_kind"] == "declared_niu"
-    assert person.loc[105, "pension_annuity_annuity_reporting_status"] == "niu"
+    assert np.isnan(person.loc[103, "pension_annuity_annuity_source_total"])
+    assert person.loc[103, "pension_annuity_annuity_amount_kind"] == "declared_niu"
+    assert person.loc[103, "pension_annuity_annuity_reporting_status"] == "niu"
     # ANN_VAL is the one entry here whose printed zero is valid dollars (its NIU
     # is the separate -1 code), so a yes answer with a zero amount resolves.
     assert person.loc[107, "pension_annuity_annuity_reporting_status"] == (
@@ -250,19 +250,19 @@ def test_distribution_routing_preserves_slots_ages_and_unresolved_accounts(
 ):
     _, qualified = _qualified(tmp_path, monkeypatch)
     person = qualified.person.set_index("native_person_id")
-    assert person.loc[105, "retirement_distribution_route"] == "under_age58"
+    assert person.loc[103, "retirement_distribution_route"] == "under_age58"
     assert person.loc[107, "retirement_distribution_route"] == "age58_and_over"
     # Regular IRA is account code 4; the slot amount is not a taxable amount.
-    assert person.loc[105, "retirement_distribution_slot1_young_account_code"] == 4
-    assert person.loc[105, "retirement_distribution_slot1_young_account_label"] == (
+    assert person.loc[103, "retirement_distribution_slot1_young_account_code"] == 4
+    assert person.loc[103, "retirement_distribution_slot1_young_account_label"] == (
         "Regular IRA"
     )
-    assert person.loc[105, "retirement_distribution_regular_ira_amount"] == 7000.0
-    assert person.loc[105, "retirement_distribution_regular_ira_slots"] == 1
-    assert person.loc[105, "retirement_distribution_source_total"] == 7000.0
+    assert person.loc[103, "retirement_distribution_regular_ira_amount"] == 7000.0
+    assert person.loc[103, "retirement_distribution_regular_ira_slots"] == 1
+    assert person.loc[103, "retirement_distribution_source_total"] == 7000.0
     assert not person.retirement_distribution_taxable_amount_known.any()
     assert bool(person.loc[107, "retirement_distribution_route_has_published_flag"])
-    assert not bool(person.loc[105, "retirement_distribution_route_has_published_flag"])
+    assert not bool(person.loc[103, "retirement_distribution_route_has_published_flag"])
     # An account literal outside the printed range leaves the composition and
     # the regular IRA share unresolved rather than defaulting either way.
     assert person.loc[107, "retirement_distribution_slot1_account_literal"] == "9"
@@ -279,8 +279,8 @@ def test_distribution_routing_preserves_slots_ages_and_unresolved_accounts(
     assert person.loc[107, "retirement_distribution_source_total"] == 5000.0
     # The printed distribution universes name only the age 58 split, so
     # coverage below age 15 is a source question, not a resolved answer.
-    assert pd.isna(person.loc[106, "retirement_distribution_source_reporting_universe"])
-    assert person.loc[106, "retirement_distribution_reporting_status"] == (
+    assert pd.isna(person.loc[104, "retirement_distribution_source_reporting_universe"])
+    assert person.loc[104, "retirement_distribution_reporting_status"] == (
         "unresolved_reporting_universe"
     )
 
@@ -290,16 +290,16 @@ def test_signed_property_and_farm_totals_keep_losses_and_net_zero_receipt(
 ):
     _, qualified = _qualified(tmp_path, monkeypatch)
     person = qualified.person.set_index("native_person_id")
-    assert person.loc[105, "net_property_source_total"] == -400.0
-    assert person.loc[105, "net_property_known_amount"] == -400.0
-    assert person.loc[105, "net_property_reporting_status"] == "known_receipt"
-    assert bool(person.loc[105, "net_property_is_net_loss"])
+    assert person.loc[103, "net_property_source_total"] == -400.0
+    assert person.loc[103, "net_property_known_amount"] == -400.0
+    assert person.loc[103, "net_property_reporting_status"] == "known_receipt"
+    assert bool(person.loc[103, "net_property_is_net_loss"])
     # The receipt question is wider than the amount question, so the total is
     # not independently labelled rental and no component split is claimed.
-    assert person.loc[105, "net_property_receipt_scope"] == (
+    assert person.loc[103, "net_property_receipt_scope"] == (
         owner.NET_PROPERTY_RECEIPT_SCOPE
     )
-    assert person.loc[105, "net_property_amount_scope"] == (
+    assert person.loc[103, "net_property_amount_scope"] == (
         owner.NET_PROPERTY_AMOUNT_SCOPE
     )
     assert not person.net_property_component_split_known.any()
@@ -312,16 +312,16 @@ def test_signed_property_and_farm_totals_keep_losses_and_net_zero_receipt(
     # Farm receipt with a net zero stays distinct from absence, NIU and missing,
     # but FRSE_VAL prints "0 = none or niu" just as the gross entries do, so the
     # amount is not completed to a known zero.
-    assert person.loc[105, "farm_reporting_status"] == "receipt_with_net_zero"
-    assert np.isnan(person.loc[105, "farm_known_amount"])
-    assert person.loc[105, "farm_source_total"] == 0.0
+    assert person.loc[103, "farm_reporting_status"] == "receipt_with_net_zero"
+    assert np.isnan(person.loc[103, "farm_known_amount"])
+    assert person.loc[103, "farm_source_total"] == 0.0
     assert "receipt_with_net_zero" not in owner.KNOWN_AMOUNT_STATUSES
     assert person.loc[107, "farm_source_total"] == -9000.0
     assert person.loc[107, "farm_reporting_status"] == "known_receipt"
     assert bool(person.loc[107, "farm_is_net_loss"])
     assert not person.farm_is_nonfarm_self_employment.any()
     # The farm universe comes from ERN_YN/FRMOTR evidence, never from age.
-    assert bool(person.loc[105, "farm_source_reporting_universe"])
+    assert bool(person.loc[103, "farm_source_reporting_universe"])
     assert pd.isna(person.loc[108, "farm_source_reporting_universe"])
     assert person.loc[108, "farm_reporting_status"] == "unresolved_reporting_universe"
 
@@ -331,11 +331,11 @@ def test_other_income_keeps_reported_alimony_apart_from_residual_rules(
 ):
     _, qualified = _qualified(tmp_path, monkeypatch)
     person = qualified.person.set_index("native_person_id")
-    assert person.loc[105, "other_income_category_code"] == 20
-    assert person.loc[105, "other_income_category_label"] == "alimony"
-    assert person.loc[105, "other_income_routing_status"] == "reported_category"
-    assert bool(person.loc[105, "other_income_is_reported_alimony"])
-    assert person.loc[105, "other_income_source_total"] == 3000.0
+    assert person.loc[103, "other_income_category_code"] == 20
+    assert person.loc[103, "other_income_category_label"] == "alimony"
+    assert person.loc[103, "other_income_routing_status"] == "reported_category"
+    assert bool(person.loc[103, "other_income_is_reported_alimony"])
+    assert person.loc[103, "other_income_source_total"] == 3000.0
     # A receipt without a category is retained as an unresolved pattern; no
     # residual rule assigns it to alimony or to miscellaneous income.
     assert person.loc[107, "other_income_routing_status"] == "receipt_without_category"

@@ -220,8 +220,8 @@ def retirement_arguments(owner, tmp_path, monkeypatch, *, annuity_niu=False):
         )
     }
     literals = {
-        105: row(owner, I_PENVAL1="4", ANN_VAL="-1" if annuity_niu else "0"),
-        106: row(owner, **zeros, A_AGE="14"),
+        103: row(owner, I_PENVAL1="4", ANN_VAL="-1" if annuity_niu else "0"),
+        104: row(owner, **zeros, A_AGE="14"),
         107: row(
             owner,
             **{**zeros, "A_AGE": "70", "PEN_YN": "2", "DIS_YN": "2", "SUR_YN": "2"},
@@ -291,13 +291,13 @@ def test_actual_annuity_niu_preserves_literal_and_normalized_owner(
     result = owner.qualify_current_asec_retirement_detail(parent)
     values = result.person.set_index("native_person_id")
     money = owner.routing.money
-    assert values.loc[105, "ANN_VAL_literal"] == "-1"
-    assert values.loc[105, "ANN_VAL_published_amount"] == -1
-    assert values.loc[105, "ANN_VAL_parent_validity"] == 1
+    assert values.loc[103, "ANN_VAL_literal"] == "-1"
+    assert values.loc[103, "ANN_VAL_published_amount"] == -1
+    assert values.loc[103, "ANN_VAL_parent_validity"] == 1
     assert (
-        values.loc[105, "ANN_VAL_parent_statuses"] == money.CodebookStatus.DECLARED_NIU
+        values.loc[103, "ANN_VAL_parent_statuses"] == money.CodebookStatus.DECLARED_NIU
     )
-    assert values.loc[105, "ANN_VAL_parent_zero_origin"] == money.ZeroOrigin.NOT_ZERO
+    assert values.loc[103, "ANN_VAL_parent_zero_origin"] == money.ZeroOrigin.NOT_ZERO
     assert values.loc[107, "ANN_VAL_literal"] == "0"
     assert (
         values.loc[107, "ANN_VAL_parent_statuses"] != money.CodebookStatus.DECLARED_NIU
@@ -354,10 +354,10 @@ def test_actual_owner_qualifies_new_literals_without_fabricating_money_fields(
     result = owner.qualify_current_asec_retirement_detail(parent)
     assert tuple(compared) == owner.RETAINED_MONEY_FIELDS
     values = result.person.set_index("native_person_id")
-    assert values.loc[105, "PEN_VAL1_amount"] == 100
-    assert values.loc[105, "survivor_total_minus_visible_slots"] == 150
+    assert values.loc[103, "PEN_VAL1_amount"] == 100
+    assert values.loc[103, "survivor_total_minus_visible_slots"] == 150
     assert values.loc[107, "SUR_VAL1_amount"] == 0
-    assert not values.loc[106, "SUR_VAL1_amount_known"]
+    assert not values.loc[104, "SUR_VAL1_amount_known"]
     assert not values.loc[108, "SUR_VAL1_amount_known"]
     assert not result.evidence["source_admission_issued"]
     assert not result.evidence["taxability_assigned"]

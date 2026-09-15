@@ -164,8 +164,8 @@ def child_support_arguments(tmp_path, monkeypatch):
     people = load_frame_checkpoint(parent_path).frame.person
     ids = people.person_id.to_numpy()
     literals = {
-        105: row(I_CHSPVAL="4"),
-        106: row(
+        103: row(I_CHSPVAL="4"),
+        104: row(
             A_AGE="14",
             CSP_VAL="0",
             CSP_YN="0",
@@ -236,8 +236,8 @@ def test_actual_owner_keeps_obligation_distinct_and_refuses_copied_owner(
     parent = prepared(tmp_path, monkeypatch)
     result = owner.qualify_current_asec_child_support(parent)
     values = result.person.set_index("native_person_id")
-    assert values.loc[105, "CHSP_VAL_amount"] == 2000
-    assert values.loc[105, "CSP_VAL_amount"] == 1200
+    assert values.loc[103, "CHSP_VAL_amount"] == 2000
+    assert values.loc[103, "CSP_VAL_amount"] == 1200
     assert values.loc[107, "CSP_VAL_amount"] == 0
     assert not values.loc[107, "CHSP_VAL_amount_known"]
     assert not values.loc[108, "CHSP_VAL_amount_known"]

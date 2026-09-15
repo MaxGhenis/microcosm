@@ -58,15 +58,16 @@ def _rebuild_observations(
         # it; the newest pooled cohort is a different year now.
         anchor = np.flatnonzero(tables["person"].source_year.to_numpy() == 2024)
         extra = tables["person"].iloc[anchor].copy(deep=True)
-        extra["person_id"] = np.array([107, 108], dtype=np.int64)
-        # add_people writes the anchor cohort's keys plus two into the member
-        # file, so the parent's extra household must carry exactly those keys.
+        extra_ids = np.array([107, 108], dtype=np.int64)
+        extra["person_id"] = extra_ids
+        # The fixture invariant is PERIDNUM == person_id - 100, and add_people
+        # writes the anchor cohort's keys plus this offset into the anchor
+        # member file. The anchor cohort is no longer the last one, so the
+        # offset is measured from its keys rather than assumed to be two.
+        anchor_keys = [int(v) for v in tables["person"].iloc[anchor]["PERIDNUM"]]
+        key_offset = int(extra_ids[0]) - 100 - anchor_keys[0]
         extra["PERIDNUM"] = pd.array(
-            [
-                str(int(value) + 2).zfill(22)
-                for value in tables["person"].iloc[anchor]["PERIDNUM"]
-            ],
-            dtype="string",
+            [str(int(v) - 100).zfill(22) for v in extra_ids], dtype="string"
         )
         extra["source_household_id"] = 8
         extra["PH_SEQ"] = 4
@@ -93,7 +94,7 @@ def _rebuild_observations(
         def add_people(rows):
             extra_rows = [r.copy() for r in rows[1:]]
             for row in extra_rows:
-                row[0] = str(int(row[0]) + 2).zfill(22)
+                row[0] = str(int(row[0]) + key_offset).zfill(22)
                 row[1] = "8"
             rows.extend(extra_rows)
 

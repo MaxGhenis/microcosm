@@ -66,10 +66,10 @@ def members(tmp_path, monkeypatch):
 
 def test_whole_cohort_lookup_preserves_literal_codes_and_reported_count(members):
     source = coverage.load_authenticated_asec_household_coverage_fields(
-        members(years=(2022, 2023, 2024))
+        members(years=(2023, 2024, 2025))
     )
     doc = source.document
-    assert [row["income_year"] for row in doc["records"]] == [2022, 2023, 2024]
+    assert [row["income_year"] for row in doc["records"]] == [2023, 2024, 2025]
     assert len({row["origin_key"] for row in doc["records"]}) == 3
     row = source.households_for([(2024, 1)])[0]
     assert [row[name] for name in coverage.COLUMNS] == ["00001", "1", "09", "08", "03"]
@@ -450,7 +450,7 @@ def test_capture_growth_refuses_below_text_decoder(members, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "invalid", [{}, {True: "invented.csv"}, {2025: "invented.csv"}, {2024: object()}]
+    "invalid", [{}, {True: "invented.csv"}, {2026: "invented.csv"}, {2024: object()}]
 )
 def test_source_requests_require_a_nonempty_closed_cohort_subset(members, invalid):
     members()
@@ -610,12 +610,12 @@ def test_private_constructor_bounds_precede_issuance(
 @pytest.mark.parametrize(
     "keys,reported_size,lookups",
     [
-        ([2022, 2023, 2024, 2025], 4, []),
-        ([2025], 1, []),
+        ([2023, 2024, 2025, 2026], 4, []),
+        ([2026], 1, []),
         ([True], 1, []),
         (["2024"], 1, []),
         ([2024, 2024], 2, [2024]),
-        ([2022, 2023, 2024, 2025], 3, [2022, 2023, 2024]),
+        ([2023, 2024, 2025, 2026], 3, [2023, 2024, 2025]),
         ([2024, 2023], 1, [2024]),
         ([2024], 2, [2024]),
     ],
@@ -624,7 +624,7 @@ def test_mapping_bounds_and_keys_precede_value_lookup(
     capsule_owner, members, keys, reported_size, lookups
 ):
     owner = capsule_owner
-    paths = members(years=(2022, 2023, 2024))
+    paths = members(years=(2023, 2024, 2025))
 
     class HostileMapping(Mapping):
         fetched = []

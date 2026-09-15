@@ -197,8 +197,8 @@ def interest_arguments(tmp_path, monkeypatch):
     ids = people.person_id.to_numpy()
     amounts, ages = people.INT_VAL.to_numpy(copy=True), people.A_AGE.to_numpy(copy=True)
     literals = {
-        105: row(),
-        106: row(
+        103: row(),
+        104: row(
             A_AGE="14",
             INT_VAL="0",
             INT_YN="0",
@@ -288,8 +288,8 @@ def test_actual_owner_join_keeps_source_total_and_requalifies(tmp_path, monkeypa
     assert values.loc[107, "INT_VAL_amount"] == 500
     assert values.loc[107, "combined_minus_published_components"] == -100
     assert values.loc[107, "TRINT_VAL1_code"] == 1
-    assert values.loc[105, "RINT_SC1_label"] == "Regular IRA"
-    assert values.loc[106, "INT_VAL_reporting_status"] == "outside_reporting_universe"
+    assert values.loc[103, "RINT_SC1_label"] == "Regular IRA"
+    assert values.loc[104, "INT_VAL_reporting_status"] == "outside_reporting_universe"
     assert values.loc[108, "RINT_VAL2_reporting_status"] == "known_nonreceipt"
     assert owner.interest_values_seal(
         owner.qualify_current_asec_interest(parent)

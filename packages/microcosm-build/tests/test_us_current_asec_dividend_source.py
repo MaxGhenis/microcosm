@@ -313,8 +313,8 @@ def dividend_arguments(tmp_path, monkeypatch, *, fraction=Fraction(1)):
     people = load_frame_checkpoint(parent_path).frame.person
     ids = people.person_id.to_numpy()
     literals = {
-        105: row(I_DIVYN="5"),
-        106: row(A_AGE="14", DIV_VAL="0", DIV_YN="0", SUR_YN="0"),
+        103: row(I_DIVYN="5"),
+        104: row(A_AGE="14", DIV_VAL="0", DIV_YN="0", SUR_YN="0"),
         107: row(A_AGE="70", DIV_VAL="500", SUR_YN="1", SUR_SC2="8", TDIV_VAL="1"),
         108: row(DIV_VAL="0", SUR_YN="1", SUR_SC1="10"),
     }
@@ -379,9 +379,9 @@ def test_actual_owner_qualified_source_values_and_requalification(
     parent = prepared(tmp_path, monkeypatch)
     result = owner.qualify_current_asec_dividend(parent)
     values = result.person.set_index("native_person_id")
-    assert values.loc[105, "DIV_VAL_amount"] == 140
-    assert values.loc[105, "I_DIVYN_codebook_status"] == "header_reference_conflict"
-    assert values.loc[106, "DIV_VAL_reporting_status"] == "outside_reporting_universe"
+    assert values.loc[103, "DIV_VAL_amount"] == 140
+    assert values.loc[103, "I_DIVYN_codebook_status"] == "header_reference_conflict"
+    assert values.loc[104, "DIV_VAL_reporting_status"] == "outside_reporting_universe"
     assert values.loc[107, "DIV_VAL_amount"] == 500
     assert not bool(values.loc[107, "survivor_property_route_clear"])
     assert pd.isna(values.loc[108, "survivor_property_route_clear"])
