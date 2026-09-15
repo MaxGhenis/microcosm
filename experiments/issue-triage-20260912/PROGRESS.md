@@ -427,3 +427,19 @@ truncated file-content sha256 read as a commit (#314), and one correct-and-delib
 PR (#719's #745, which epic #922 tracks *because* it is still a draft). Two regex defects
 in the validator were fixed along the way: a `.lock.json` path truncated to `.lock`, and
 the earlier sha/comment-id bugs.
+
+### Second cluster pass complete (`wf_97f1f4e3-e0f`, 33 agents, 0 errors)
+
+Both passes merged: **170 relations — 151 DISTINCT, 15 OVERLAPS-CONSIDER-MERGING,
+4 SUBSUMED-BY-EPIC, and still zero DUPLICATE-OF**, now covering 70 pairs down to
+cosine **0.130** (not just the 37 above 0.28). The rank-based sweep found no duplicate the
+threshold sweep had missed, which is the answer that makes the original result trustworthy
+rather than an artifact of the cutoff: the duplicate layer of this repo really is
+**one pair, #224 → #213**, and it was found by reading dossiers, not by similarity.
+
+The new pass also produced the sharpest boundary evidence in the report, e.g. #736 vs #796
+(cosine 0.413, the highest unexamined pair): they are deliberately complementary registers
+— #736 is the contract/calibration-target side, #796 the spine/frame side — and #736's own
+body line 21 *hands* `local_authority_support_floor_excluded` and
+`council_tax_band_h_spine_support_absent` to #796 "because the fix is frame rows for those
+areas, not targets". Merging either way would have destroyed a deliberate partition.
