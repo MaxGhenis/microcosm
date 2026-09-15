@@ -551,3 +551,19 @@ stage works through its queue: **11 UPHOLD / 13 OVERTURN / 10 AMEND** across the
 refuters, and **17 of 17 KEEP-sweeps returning zero overturns**. A ~38% challenge rate on
 close-class rows against a clean KEEP layer is the expected shape — the contested decisions
 are the ones that close things.
+
+### The KEEP sweep is a real negative result, and the report now says so
+
+Checked that the missed-resolution sweeps were doing work rather than returning empty: they
+enumerate the exact KEEP rows of their batch, and **94 KEEP issues have now been individually
+re-checked for "is this already done / already duplicated / already ruled" — with zero
+overturns**. That negative result is worth as much as the closes: it is the evidence that
+this backlog is long because the work is real, not because finished work was left open.
+
+Added an "Adversarial verification" block to the report that reads its numbers live from the
+workflow journal (refuter verdict split, KEEP rows swept, sweep overturns, rows decided by an
+adjudicator) so the figures cannot drift from what actually ran.
+
+(Two shell-quoting slips fixed along the way: an unquoted heredoc let zsh evaluate the
+backticked `KEEP`/`STALE-ASK` literals as commands and silently blank them, and `T` was not
+exported into the python child on the first repair attempt.)
