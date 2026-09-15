@@ -98,28 +98,6 @@ ASEC_EDUCATION_ASSISTANCE_ARCHIVES: dict[int, AsecEducationArchive] = {
     archive.income_year: archive
     for archive in (
         AsecEducationArchive(
-            survey_year=2023,
-            income_year=2022,
-            zip_url=(
-                "https://www2.census.gov/programs-surveys/cps/datasets/2023/"
-                "march/asecpub23csv.zip"
-            ),
-            zip_size_bytes=150_165_063,
-            zip_sha256=(
-                "d2e000250782adfbdd7f29c82b66d866591a30f0d330496698ec19f9c784ce11"
-            ),
-            member="pppub23.csv",
-            member_size_bytes=281_065_733,
-            member_crc32="49c09e5f",
-            member_sha256=(
-                "19b56537e50e7663f954361ef2bb5ce9cef8d9d45f156fe1a69a99b654198ffe"
-            ),
-            rows=146_133,
-            positive_rows=2_588,
-            weighted_positive_share=0.019982647283099255,
-            weighted_total=68_484_835_026.81,
-        ),
-        AsecEducationArchive(
             survey_year=2024,
             income_year=2023,
             zip_url=(
@@ -162,6 +140,28 @@ ASEC_EDUCATION_ASSISTANCE_ARCHIVES: dict[int, AsecEducationArchive] = {
             positive_rows=2_948,
             weighted_positive_share=0.023247141039884213,
             weighted_total=83_164_893_924.73,
+        ),
+        AsecEducationArchive(
+            survey_year=2026,
+            income_year=2025,
+            zip_url=(
+                "https://www2.census.gov/programs-surveys/cps/datasets/2026/"
+                "march/asecpub26csv.zip"
+            ),
+            zip_size_bytes=139_103_894,
+            zip_sha256=(
+                "fe819d0d2fc4470c282e76c247b8aa8b6054811619730307e9f2fe6186707d93"
+            ),
+            member="pppub26.csv",
+            member_size_bytes=259_887_437,
+            member_crc32="477a9e19",
+            member_sha256=(
+                "f78920699bf671cc211cb720ff8c6274392524a22138aedaf9e3954f91ba4334"
+            ),
+            rows=134_729,
+            positive_rows=2_574,
+            weighted_positive_share=0.022465627092607597,
+            weighted_total=84_013_616_601.91,
         ),
     )
 }
