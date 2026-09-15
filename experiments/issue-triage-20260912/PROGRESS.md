@@ -351,3 +351,34 @@ in the original 37-pair set**, spanning 66 issues and reaching as low as cosine 
 Launched workflow `wf_97f1f4e3-e0f` over those 33 as a second cluster pass with the same
 challenger gate, so the duplicate layer no longer rests on an absolute cutoff that is
 known to have failed once.
+
+### Correction: my #449 "overstatement" note was itself a conflation
+
+I earlier flagged the #449 evidence for saying PR #741 "retired" the CD knob while
+`gate_congressional_district_targets` still exists on main. Those are **two different
+flags** and both observations are true:
+`include_congressional_district_targets` (inclusion) is genuinely gone — `git grep` over
+all of `origin/main` returns one hit, in the `_LANE-NOTES.md` journal — while
+`gate_congressional_district_targets` (gating) is still live and defaults `True`.
+`us/spec/calibration.yaml:15-20` reconciles them: `cd_policy:
+always_present_report_attainment`, `congressional_district: {included: true,
+gate_by_default: false}`. The evidence was accurate; no row change is needed.
+
+### Verification is overturning candidates, in both directions
+
+173 of 234 rows in. **8 differ from the run-3 candidate** — and the interesting thing is
+that they move both ways, which is what an honest verification layer looks like:
+
+- `RESOLVED-CLOSE → KEEP`: **#32** (inventory half landed, the HSA/childcare input-depth
+  gap did not), **#258** (PR #229 routed net VAT through the Axiom rules engine, but the
+  near-threshold density half is still on main), **#449** (CD surface unconditional, epic's
+  other deliverables open — re-scope rather than close).
+- `RESOLVED-CLOSE → STALE-ASK`: **#296**, where main's own artifacts falsify the issue's
+  premise (`build_j_recert/base_j.summary.json` records ASEC 2022/2023/2024 row counts
+  matching the pinned Census files exactly) while the number is still used as a live
+  handle — so the right output is a question to Max, not a close.
+- `KEEP → RESOLVED-CLOSE`: **#250**, delivered by PR #277 (`10881bfa5`, ANCESTOR), which
+  created `us_runtime/geography_ladder.py` with `county_fips` derived for every household.
+- `STALE-ASK → KEEP`: **#48**, **#366**. `RULED-DEFERRED → MERGE-INTO-EPIC`: **#687**.
+
+Zero rows came back `UNDETERMINED` and zero at low confidence (150 high, 23 medium).
