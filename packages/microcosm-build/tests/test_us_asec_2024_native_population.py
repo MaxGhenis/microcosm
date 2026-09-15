@@ -53,18 +53,35 @@ def _rebuild_observations(
     tables = {e: loaded.frame.table(e).copy(deep=True) for e in loaded.frame.entities}
     strata = loaded.frame.strata.copy(deep=True)
     if extra_household:
-        extra = tables["person"].iloc[-2:].copy(deep=True)
+        # The extra household belongs to the ANCHOR cohort, because the invented
+        # anchor household member (hhpub25.csv, income year 2024) is what lists
+        # it; the newest pooled cohort is a different year now.
+        anchor = np.flatnonzero(tables["person"].source_year.to_numpy() == 2024)
+        extra = tables["person"].iloc[anchor].copy(deep=True)
         extra["person_id"] = np.array([107, 108], dtype=np.int64)
-        extra["PERIDNUM"] = pd.array([str(i).zfill(22) for i in (7, 8)], dtype="string")
+        # add_people writes the anchor cohort's keys plus two into the member
+        # file, so the parent's extra household must carry exactly those keys.
+        extra["PERIDNUM"] = pd.array(
+            [
+                str(int(value) + 2).zfill(22)
+                for value in tables["person"].iloc[anchor]["PERIDNUM"]
+            ],
+            dtype="string",
+        )
         extra["source_household_id"] = 8
         extra["PH_SEQ"] = 4
         for entity in loaded.frame.schema.group_entities:
+            # Clone the ANCHOR cohort's group row, so the extra household carries
+            # that cohort's invented state/tenure and joins its cohort member.
+            anchor_id = int(tables["person"].iloc[anchor[0]][f"person_{entity}_id"])
+            group = tables[entity][tables[entity][f"{entity}_id"] == anchor_id].copy(
+                deep=True
+            )
             extra[f"person_{entity}_id"] = 4
-            group = tables[entity].iloc[-1:].copy(deep=True)
             group[f"{entity}_id"] = 4
             tables[entity] = pd.concat([tables[entity], group], ignore_index=True)
         tables["person"] = pd.concat([tables["person"], extra])
-        strata = pd.concat([strata, strata.iloc[-2:]])
+        strata = pd.concat([strata, strata.iloc[anchor]])
         cohort_path = tmp_path / "invented-cohort-2024.h5"
         cohort = pd.read_hdf(cohort_path, key="household")
         extra_cohort = cohort.iloc[-1:].copy(deep=True)
@@ -251,7 +268,7 @@ def test_real_three_cohort_loader_selects_2024_original_anchors(tmp_path, monkey
     result = native.load_authenticated_asec_2024_native_population(**paths)
     frame, receipt = result.frame, result.receipt
     assert frame.person.source_year.tolist() == [2024, 2024]
-    assert frame.person.person_id.tolist() == [105, 106]
+    assert frame.person.person_id.tolist() == [103, 104]
     assert frame.person.A_AGE.tolist() == [55, 14]
     assert frame.person.asec_PTOTVAL.tolist() == [-9999, 0]
     assert frame.weights_for("household").kind is WeightKind.DESIGN
@@ -430,7 +447,7 @@ def test_changed_original_source_refuses_existing_borrow(tmp_path, monkeypatch, 
     paths = _fixture(tmp_path, monkeypatch)
     result = native.load_authenticated_asec_2024_native_population(**paths)
     path = (
-        paths["person_member_paths"][2022] if which == "older_person" else paths[which]
+        paths["person_member_paths"][2023] if which == "older_person" else paths[which]
     )
     with path.open("ab") as handle:
         handle.write(b"changed")
@@ -474,7 +491,7 @@ def test_mixed_zero_complete_households_and_selected_zero_refusal(
 ):
     paths = _fixture(tmp_path, monkeypatch, extra_household=True)
     result = native.load_authenticated_asec_2024_native_population(**paths)
-    assert result.frame.person.person_id.tolist() == [105, 106, 107, 108]
+    assert result.frame.person.person_id.tolist() == [103, 104, 107, 108]
     assert result.frame.person.A_AGE.tolist() == [55, 14, 55, 14]
     assert result.frame.weights_for("household").values.tolist() == [2552.12, 0]
     assert [r["fraction"] for r in result.receipt["households"]] == [
@@ -484,9 +501,9 @@ def test_mixed_zero_complete_households_and_selected_zero_refusal(
     selected = native.load_authenticated_asec_2024_native_population(
         **paths, selected_households=((2024, 7),)
     )
-    assert selected.frame.person.person_id.tolist() == [105, 106]
+    assert selected.frame.person.person_id.tolist() == [103, 104]
     for entity in selected.frame.schema.group_entities:
-        assert selected.frame.table(entity)[f"{entity}_id"].tolist() == [3]
+        assert selected.frame.table(entity)[f"{entity}_id"].tolist() == [2]
     with pytest.raises(native.AsecNativePopulationError):
         native.load_authenticated_asec_2024_native_population(
             **paths, selected_households=((2024, 8),)

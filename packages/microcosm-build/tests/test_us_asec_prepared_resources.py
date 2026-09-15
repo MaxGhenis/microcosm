@@ -20,7 +20,7 @@ _RESTORED_RESOURCES = {
         "67432a10d05e11dd4b97a80cd4f04ed0eb6e56c4c8e21d5dffe87c5f67e27c66"
     ),
     "asec_income_observations_v1.json": (
-        "6e37855ddd6642d02231efc664644029ed6131885eb743a00197261bc5a6a51f"
+        "d357a8c163689dff13c29ab4f6aca2528925500c602d90128e08a2e7a66680e4"
     ),
 }
 

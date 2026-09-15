@@ -29,7 +29,7 @@ def _classify(
     rows = len(sex)
     return demographic.classify_asec_demographic_observations(
         income_year=np.array(
-            years if years is not None else [2022] * rows, dtype=np.int64
+            years if years is not None else [2023] * rows, dtype=np.int64
         ),
         household_id=np.array(
             households if households is not None else [1] * rows, dtype=np.int64
@@ -154,8 +154,8 @@ def test_exact_readset_and_declared_production_fields(tmp_path):
     assert {
         v["column"] for v in declared["restored_observations"] + declared["derived"]
     } == set(demographic.ALIASES + demographic.DERIVED)
-    assert contract["cohorts"]["2022"]["survey_year"] == 2023
-    assert contract["cohorts"]["2024"]["survey_year"] == 2025
+    assert contract["cohorts"]["2023"]["survey_year"] == 2024
+    assert contract["cohorts"]["2025"]["survey_year"] == 2026
     assert not contract["wired_into_prepared_source"]
     assert not contract["other_than_two_is_male"]
 
@@ -193,7 +193,7 @@ def test_valid_sex_retains_allocation_provenance():
 
 def test_domain_diagnostics_distinguish_unnamed_and_out_of_range_codes():
     result = _classify(sex=(0, 2), flag=(1, 5), relationship=(1, 6), sequence=(1, 99))
-    domains = result.diagnostics["by_cohort"]["2022"]["field_domains"]
+    domains = result.diagnostics["by_cohort"]["2023"]["field_domains"]
     assert domains["A_SEX"]["rows_outside_declared_range"] == 1
     assert domains["AXSEX"]["rows_in_unnamed_range_codes"] == 1
     assert domains["AXSEX"]["rows_outside_declared_range"] == 1
@@ -213,7 +213,7 @@ def test_source_tokens_cannot_exceed_printed_width(tmp_path, field, token):
 
 
 @pytest.mark.parametrize(
-    "years,households", [([2021, 2021], [1, 1]), ([2022, 2022], [0, 0])]
+    "years,households", [([2022, 2022], [1, 1]), ([2023, 2023], [0, 0])]
 )
 def test_unknown_cohort_or_nonpositive_household_refuses(years, households):
     with pytest.raises(
@@ -306,9 +306,9 @@ def test_three_cohort_restoration_joins_native_keys_and_preserves_parent(
     assert observations.array("asec_A_EXPRRP").tolist() == [1, 5] * 3
     assert [r["joined_rows"] for r in observations.receipt["sources"]] == [2] * 3
     assert set(observations.receipt["diagnostics"]["by_cohort"]) == {
-        "2022",
         "2023",
         "2024",
+        "2025",
     }
     attached = demographic.attach_asec_demographic_source(source, observations)
     attached.validate()
@@ -374,7 +374,7 @@ def _verify(years, natives, groups):
 
 
 #: Three cohorts, each publishing one household, all under the same native id.
-_REUSED_YEARS = [2022, 2022, 2023, 2023, 2024, 2024]
+_REUSED_YEARS = [2023, 2023, 2024, 2024, 2025, 2025]
 _REUSED_NATIVE_IDS = [7, 7, 7, 7, 7, 7]
 _REUSED_GROUPS = [1, 1, 2, 2, 3, 3]
 
@@ -387,9 +387,9 @@ def test_native_household_id_reuse_across_cohorts_is_admitted_and_counted():
     assert result["native_household_ids_reused_across_cohorts"] == 1
     assert result["native_household_id_reuse_across_cohorts_is_admitted"]
     assert result["published_household_key"] == ["income_year", "source_household_id"]
-    assert result["by_cohort"]["2023"] == {
-        "income_year": 2023,
-        "survey_year": 2024,
+    assert result["by_cohort"]["2024"] == {
+        "income_year": 2024,
+        "survey_year": 2025,
         "rows": 2,
         "grouping_households": 1,
         "published_households": 1,
@@ -421,9 +421,9 @@ def test_membership_verification_does_not_depend_on_row_order():
         # household: its single reference person would otherwise be read as
         # the head of both, and the other published household would silently
         # lose its own.
-        ([2022, 2022], [7, 8], [1, 1], "MEMBERSHIP_MERGED_NATIVE_HOUSEHOLDS"),
+        ([2023, 2023], [7, 8], [1, 1], "MEMBERSHIP_MERGED_NATIVE_HOUSEHOLDS"),
         (
-            [2022, 2022, 2022],
+            [2023, 2023, 2023],
             [7, 7, 8],
             [1, 1, 1],
             "MEMBERSHIP_MERGED_NATIVE_HOUSEHOLDS",
@@ -431,12 +431,12 @@ def test_membership_verification_does_not_depend_on_row_order():
         # One published household split across two grouping households: each
         # part is classified on a subset of the roster the reference-person
         # cardinality is defined over.
-        ([2022, 2022], [7, 7], [1, 2], "MEMBERSHIP_SPLIT_NATIVE_HOUSEHOLDS"),
-        ([2022] * 3, [7, 7, 7], [1, 1, 2], "MEMBERSHIP_SPLIT_NATIVE_HOUSEHOLDS"),
+        ([2023, 2023], [7, 7], [1, 2], "MEMBERSHIP_SPLIT_NATIVE_HOUSEHOLDS"),
+        ([2023] * 3, [7, 7, 7], [1, 1, 2], "MEMBERSHIP_SPLIT_NATIVE_HOUSEHOLDS"),
         # A grouping household spanning cohorts, with the native id reused and
         # with two different native ids.
-        ([2022, 2023], [7, 7], [1, 1], "MEMBERSHIP_COHORT_COLLISION"),
-        ([2022, 2023], [7, 8], [1, 1], "MEMBERSHIP_COHORT_COLLISION"),
+        ([2023, 2024], [7, 7], [1, 1], "MEMBERSHIP_COHORT_COLLISION"),
+        ([2023, 2024], [7, 8], [1, 1], "MEMBERSHIP_COHORT_COLLISION"),
     ],
 )
 def test_unequal_household_partitions_refuse_without_naming_a_household(
@@ -450,10 +450,10 @@ def test_unequal_household_partitions_refuse_without_naming_a_household(
 @pytest.mark.parametrize(
     "years,natives,groups,message",
     [
-        ([2021, 2021], [7, 7], [1, 1], "income_year: MEMBERSHIP_COHORT"),
-        ([2022, 2022], [0, 7], [1, 1], "source_household_id: MEMBERSHIP_COORDINATE"),
+        ([2022, 2022], [7, 7], [1, 1], "income_year: MEMBERSHIP_COHORT"),
+        ([2023, 2023], [0, 7], [1, 1], "source_household_id: MEMBERSHIP_COORDINATE"),
         (
-            [2022, 2022],
+            [2023, 2023],
             [7, 7],
             [0, 1],
             "person_household_id: MEMBERSHIP_COORDINATE",
@@ -471,7 +471,7 @@ def test_membership_coordinates_must_be_declared_and_positive(
 @pytest.mark.parametrize("name", ["income_year", "source_household_id", "household_id"])
 def test_membership_refuses_non_integer_coordinate_arrays(name):
     arrays = {
-        "income_year": np.array([2022, 2022], dtype=np.int64),
+        "income_year": np.array([2023, 2023], dtype=np.int64),
         "source_household_id": np.array([7, 7], dtype=np.int64),
         "household_id": np.array([1, 1], dtype=np.int64),
     }
@@ -486,7 +486,7 @@ def test_classifier_refuses_a_grouping_household_spanning_two_cohorts():
     with pytest.raises(
         demographic.DemographicSourceRefusalError, match="CLASSIFY_HOUSEHOLD_COHORT"
     ):
-        _classify(years=[2022, 2023], households=[1, 1])
+        _classify(years=[2023, 2024], households=[1, 1])
 
 
 @pytest.mark.parametrize("field", ["PH_SEQ", "A_LINENO", "A_AGE"])
@@ -528,7 +528,7 @@ def test_restoration_records_the_verified_household_membership(tmp_path, monkeyp
     assert membership["membership_edges"] == 3
     # The parent publishes the same native household id in all three cohorts.
     assert membership["native_household_ids_reused_across_cohorts"] == 1
-    assert set(membership["by_cohort"]) == {"2022", "2023", "2024"}
+    assert set(membership["by_cohort"]) == {"2023", "2024", "2025"}
     assert all(
         membership[name] == 0 for name in demographic.MEMBERSHIP_REFUSAL_COUNTERS
     )
@@ -546,7 +546,7 @@ def test_merged_published_households_refuse_before_the_demographic_reader(
 ):
     """Pin the layering the demographic fence restates.
 
-    The 2022 cohort now publishes households 7 and 8 while the parent roster
+    The 2023 cohort now publishes households 7 and 8 while the parent roster
     still groups both persons together. The parent's own authentication
     refuses that roster first: ``asec_household_observations._household_keys``
     requires the same equivalence, and it is reached from ``_scope``, so from
