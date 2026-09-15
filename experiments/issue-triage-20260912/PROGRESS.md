@@ -671,3 +671,34 @@ candidates came from reading bodies; an adversarial challenge killed two; **#224
 the one real duplicate. Each rejected candidate keeps its KEEP row plus an `owner_note`
 recording the near-miss and why it was refused, so the reasoning is visible rather than the
 question looking unasked.
+
+### Salvage-path bug found and fixed: the journal never records stage returns
+
+`collect_wf.py` was looking for the workflow's stage-3 `batch_id` objects in
+`journal.jsonl`. **They are never there** — the journal records only `agent()` results, and
+stage-2/stage-3 returns are plain JS objects computed inside the script, visible only in the
+final workflow result. Worse, adjudicator agents return the **same `{"rows": [...]}` shape**
+as stage-1 triage agents, so shape alone cannot tell them apart and my collector would have
+silently merged adjudicated rows into the triage bucket (or missed them entirely).
+
+Fixed by mapping `result.agentId` → `agent-<id>.meta.json`'s `description` (the `agent()`
+label), which matches **122/122**. The collector now separates `triage:` from `adjudicate:`
+from `verify:` from `sweep-keep:` reliably, and adjudicated rows win the merge.
+Current: 234 triage rows, 0 adjudicated (none spawned yet), 63 refuter verdicts
+(20 UPHOLD / 17 OVERTURN / 26 AMEND), 24 sweeps covering **127** KEEP issues.
+
+### A third sweep overturn — and it contradicts a verified KEEP head-on
+
+**#253 → RESOLVED-CLOSE citing PR #399.** Unlike the two duplicates, this one proposes
+*closing on delivery*, and it directly contradicts the batch agent's own high-confidence
+KEEP, which reads: `with_us_education_inputs` (`us_runtime/education_inputs.py:186`) is
+"factual-input-only" — it restores ASEC `ED_VAL` via a pinned `PERIDNUM` join and derives the
+five affirmative AOTC flags *from* positive tuition, but **never predicts tuition**, so it
+delivers the flag half of the ask and none of the tuition half. It also notes main still
+names this issue as the live tracker at
+`tools/build_us_release_input_coverage_manifest.py:666` (`"issue": "PolicyEngine/microcosm#253"`).
+
+Two agents read the same repo and disagree on whether a declared stage output means the leaf
+is imputed. Launched `wf_0d25090f-d8f` with whole-ask and citation-real lenses to settle it
+by running the commands, rather than letting a single adjudicator arbitrate a factual
+dispute about what `education_inputs` actually computes.
