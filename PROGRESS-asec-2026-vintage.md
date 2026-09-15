@@ -38,11 +38,20 @@ Moving the anchor needs an ACS 2025 and a new price target; that is not layer 1.
   `spec_sha256 46e20546… → 3c614292…`; the `resolved_vintage_authorities`
   pointer claim re-pinned (63 pointers, `5f2edfe9… → f637644c…`).
 
+- Price basis extended to the new window (Census P60-289, 2025 cell 178.7,
+  target year unchanged at 2024); the two digest cascades re-pinned.
+- Every invented-cohort fixture rolled, including the ASEC-2024 native
+  population fixture where "the anchor cohort" and "the last cohort" came apart.
+- **All 39 ASEC-facing test files pass: 2,002 tests, 0 failures, 0 errors**
+  (one pytest process per file, as CI runs them).
+- Report at `experiments/asec-2026-vintage-layer1-report-20260915.md`, with the
+  layer-2 inventory and five decisions for Max.
+
 ## Next
 
-1. Test fixtures that invent the three cohorts.
-2. Full ASEC-facing battery; report the tests that need layer-2 artifacts.
-3. Report: layer-2 inventory and the decisions needing Max.
+Layer 2: rebuild the raw-stage checkpoint from the gated inputs and re-pin it;
+then the `_SOURCE_PINS` cohort digests, the income-2025 frozen H5, the
+source-enrichment re-run, and the ASEC-2026 dictionary evidence.
 
 ## Pre-existing, NOT caused by this lane
 
