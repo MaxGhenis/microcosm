@@ -375,8 +375,8 @@ def reported_tanf_enrollment_by_spm_unit(
     receiving TANF: the engine's ``receives_tanf`` input is TANF-specific,
     and conflating other cash welfare with TANF would poison the downstream
     ``is_tanf_enrolled`` formula and its TANF helpers (microcosm#591). The
-    conflation is material — in the 2023 ASEC (income year 2022), 271 of 682
-    PAW-positive SPM units (39.7% unweighted, 42.6% SPM-weighted) have no
+    conflation is material — in the 2024 ASEC (income year 2023), 266 of 655
+    PAW-positive SPM units (40.6% unweighted, 38.9% SPM-weighted) have no
     member reporting a TANF type.
 
     ``PAW_TYP`` is read from ``person`` when present (the pool's raw-stage

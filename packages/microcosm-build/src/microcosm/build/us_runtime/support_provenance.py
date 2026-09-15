@@ -571,7 +571,8 @@ def us_reported_coverage_vintage_signal_gate(
 ) -> GateResult:
     """Require every pooled source vintage to carry reported-coverage signal.
 
-    Microcosm #720: the pooled income-year 2022/2023 ASEC inputs carried only
+    Microcosm #720, observed on the pre-rollover income-year 2022-2024 window:
+    the pooled income-year 2022/2023 ASEC inputs carried only
     ``NOW_GRP``/``NOW_MRK`` of the 18 ``NOW_*`` at-interview recodes, so
     :func:`derive_us_cps_carried_inputs` silently mapped every 2022/2023
     -vintage person to ``False`` for seven of the nine reported-coverage

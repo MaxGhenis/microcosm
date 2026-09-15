@@ -3,8 +3,8 @@
 ``PAW_VAL`` alone cannot identify TANF: the ASEC public-assistance amount
 covers TANF/AFDC *and* other cash welfare (general assistance), and the
 official dictionaries split the program with ``PAW_TYP`` (1 = TANF/AFDC,
-2 = other, 3 = both).  In the 2024 ASEC (income year 2023), 298 of 710
-PAW-positive SPM units — 39.7% unweighted, 42.6% SPM-weighted — have no
+2 = other, 3 = both).  In the 2024 ASEC (income year 2023), 266 of 655
+PAW-positive SPM units — 40.6% unweighted, 38.9% SPM-weighted — have no
 member reporting a TANF type, so gating the ``receives_tanf`` input on
 ``PAW_VAL > 0`` alone would mark non-TANF cash welfare as TANF enrollment.
 

@@ -20,7 +20,7 @@ separately reviewed contract; there is no caller-supplied legacy-schema waiver.
 
 `spm_role_source.py` reuses Microcosm's existing Census ASEC archive/member
 pins from `education_assistance_source.py`. The complete source person CSVs
-are `pppub23.csv`, `pppub24.csv`, and `pppub25.csv` (income years 2022–2024).
+are `pppub24.csv`, `pppub25.csv`, and `pppub26.csv` (income years 2023–2025).
 The release gate independently checks each survey year's exact archive SHA256,
 official URL, person member and income year, alongside its existing CSV pin.
 Rehashing provenance and enclosing manifests cannot authorize another archive.

@@ -108,11 +108,17 @@ CENSUS_ARCHIVE_PINS = {
         "member": "pppub26.csv",
     },
 }
+# total_source_people and total_source_units are exact sums over the pooled
+# archive registries above (person rows, and the Census SPM unit counts in
+# spm_role_source), so they roll with a vintage window. The other four are
+# measured against the parent population by the enrichment producer and can only
+# move when that build is re-run; they still describe the income-2022..2024
+# pool and will refuse a new-window candidate until it is.
 EXPECTED_COUNTS = {
     "persons_joined": 166321,
     "native_spm_units": 59900,
-    "total_source_people": 432523,
-    "total_source_units": 176039,
+    "total_source_people": 421119,
+    "total_source_units": 172259,
     "minor_only_units_resolved": 28,
     "classification_changed_units_vs_age_only": 132,
 }

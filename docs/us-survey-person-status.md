@@ -71,7 +71,8 @@ recorded in the result receipt. `SCHL` is excluded because it measures completed
 attainment. ASEC `A_ENRLW`/`A_FTPT` are retained as current-cohort literals as well
 as cross-checked against the maintained `asec_student_controls` issuer. Calling
 that issuer consumes its existing **three-cohort** contract (income years
-2022–2024); only the matched 2024 cohort is selected into this projection. The
+2023–2025); only the matched 2024 current cohort is selected into this
+projection. The
 extra current-cohort `A_HSCOL` and allocation fields are authenticated from the
 pinned original member rather than assumed to be covered by the control issuer.
 Where the parent retains known `A_HSCOL` or `PEDIS*` cells, the qualifier also
