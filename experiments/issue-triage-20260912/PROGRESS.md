@@ -773,3 +773,41 @@ So I am deliberately **not** locking #296. Leaving it at `STALE-ASK` is the hone
 that disposition exists exactly for a well-specified issue whose delivery state cannot be
 settled from the repo and whose right next step is a question to Max. That question is
 already written into its `next_step`.
+
+### #253 challenge: both lenses OVERTURN, and the challenge corrected the row it upheld
+
+`wf_0d25090f-d8f` returned 2 agents, 0 errors, **both OVERTURN** — the KEEP stands and the
+sweep's RESOLVED-CLOSE is refused. Two things came out of it that I had not found myself:
+
+**A stronger decider than mine.** I had settled it on a source comment; the challenge found
+main *enforces* it in a test: `packages/microcosm-build/tests/test_us_education_inputs.py:312`
+`test_with_inputs_does_not_rewrite_upstream_tuition` asserts byte-equality of the column, and
+the spec ownership matrix (`us/spec/imputation.yaml:33359-33439`) records all six
+`qualified_tuition_expenses` rows for this producer as `owns_final: false`,
+`action: consume_only_byte_exact_noop`. The manifest `outputs` list the sweep relied on is a
+passthrough declaration, not authorship.
+
+**The KEEP's own evidence was overstated, and is now fixed.** Main *does* carry a whole-pool
+QRF imputation of this leaf — `late/person/puf_tax_itemization__batch_2` declares
+`model: regime_gated_qrf`, `output_coverage_scope: whole_pool`, and the leaf is absent from
+`ecps_parity_known_gaps.json` so the parity gate requires it populated. So the
+**structural-zero half of #253 is delivered**; "still only a PUF-QRF clone output" was wrong.
+What keeps the issue alive is narrower and better stated: the leaf's *level* is a
+PUF-donor-rate reproduction with no SOI anchor (every guard added is a structural-zero floor
+the reported state already passes — `_TUITION_SHARE_BAND = (0.001, 0.05)`,
+`min_nonzero_records: 500`, and an `aotc_abolition` probe whose $100M `min_abs_effect` cannot
+detect a ~$3B shortfall), the five AOTC flags are a tautology on the tuition mask
+(`education_inputs.py:179` sets `aotc_student = tuition > 0.0`, `:182` assigns it to all five
+including the half-time flag), and no education-credit calibration target exists.
+
+It also caught a methodological slip in the original KEEP: its `git grep -rni 'ipeds|nces'`
+was unanchored and matched the substring inside "refe**rences**"; the word-anchored
+`\b(IPEDS|ipeds|NCES)\b` returns zero hits, which is the claim that actually holds.
+
+Row rewritten with the corrected evidence, residual and next step, plus an `owner_note`
+recording the near-miss and one thing neither side could check read-only: PR #399's body
+cites a $12.28B AOTC abolition probe, but that figure lives only in the PR body, is a total
+rather than the nonrefundable concept the $7.55B benchmark uses, and never reached an
+artifact on main.
+
+**Adjudicators are now running** (2 spawned) — stage 3 has begun.
