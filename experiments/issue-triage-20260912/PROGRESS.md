@@ -567,3 +567,31 @@ adjudicator) so the figures cannot drift from what actually ran.
 (Two shell-quoting slips fixed along the way: an unquoted heredoc let zsh evaluate the
 backticked `KEEP`/`STALE-ASK` literals as commands and silently blank them, and `T` was not
 exported into the python child on the first repair attempt.)
+
+### Refuter verdicts persisted as salvage — and MERGE-INTO-EPIC is collapsing
+
+Saved all refuter verdicts and KEEP-sweeps to `r5/refuter_verdicts.json` / `r5/keep_sweeps.json`
+so the AMEND corrections (which carry materially better residuals than the originals, e.g.
+#324, #252, #731) survive even if adjudication does not finish. 39 verdicts over 23 issues.
+
+The signal is consistent and one-directional on the epic layer — **all six**
+`MERGE-INTO-EPIC` rows drew at least one OVERTURN:
+
+| row | lens verdicts |
+|---|---|
+| #395 | OVERTURN, OVERTURN |
+| #719 | OVERTURN, OVERTURN |
+| #661 | UPHOLD, OVERTURN |
+| #687 | UPHOLD, OVERTURN |
+| #403 | OVERTURN, AMEND |
+| #731 | OVERTURN, AMEND |
+
+That is the independent confirmation of the structural finding above: in this repo an epic
+is an index over independently-tracked children, so closing a child into it destroys the
+child's specification. #416 (already downgraded by owner adjudication) drew OVERTURN + AMEND
+from the agents too, which agrees.
+
+Clean UPHOLDs on the close side: **#470 and #640 (both lenses), #697 (both lenses), #31,
+#159, #419, #454**. The three `STALE-ASK` reality checks that returned so far — **#104, #303,
+#305** — all say KEEP: each is a clear, still-true, well-specified item that nobody has worked
+on, which is exactly the case the rulebook says must never become an ask.
