@@ -595,3 +595,32 @@ Clean UPHOLDs on the close side: **#470 and #640 (both lenses), #697 (both lense
 #159, #419, #454**. The three `STALE-ASK` reality checks that returned so far — **#104, #303,
 #305** — all say KEEP: each is a clear, still-true, well-specified item that nobody has worked
 on, which is exactly the case the rulebook says must never become an ask.
+
+### The headline claim was wrong, and the way it was wrong is the finding
+
+The KEEP missed-resolution sweep produced its first overturns — **two proposed duplicates
+that neither similarity pass had ever examined**: #390 → #578 (Build L epic subsumed by the
+"US base v2" scope-hardening Max ratified 2026-07-29) and #424 → #644 (SSI eligible-mass
+shortfall restated on a two-builds-newer measurement).
+
+Checked whether the similarity passes had seen either pair: **neither was a candidate.**
+Cosines: #390~#578 = **0.135**, #424~#644 = **0.236**, both under the 0.28 threshold and
+neither a mutual top-1 pair. Together with #224~#213 at **0.162**, that means **every
+duplicate candidate in this report was found by an agent reading both issue bodies in full,
+and lexical similarity found none of them** — across 70 pairs and two independent passes.
+
+So the earlier headline ("exactly one duplicate ... two cluster passes returned no second
+duplicate") was reading a null result from the wrong instrument. Rewritten to say what is
+actually true: these issues use dense, fast-moving domain vocabulary, so the same ask filed
+three weeks later shares almost no words with the first, and similarity-based triage of this
+repo should be treated as unreliable. That is a more useful finding than the tidy claim it
+replaced — and it is exactly why the multi-modal design (similarity **and** a read-everything
+sweep) mattered.
+
+**Neither new duplicate is being taken on the sweep's word.** DUPLICATE-CLOSE is the
+highest-stakes disposition and these two never got the challenger the cluster duplicates did,
+so `wf_fab767b7-c08` puts both through the same two lenses (same-ask / detail-loss, defaulting
+to OVERTURN). My own read is that **#424 is an overlap rather than a duplicate**: #424 is an
+aggregate eligible-mass shortfall with four named candidate causes, while #644's sharper
+claim is an age-*composition* defect (+55% at 18-24, -85% at 60-64) and it explicitly says
+"Do not force eligibility to recipient counts". The challenge decides, not me.
