@@ -99,9 +99,9 @@ producing the full map separately):
 
 - **Per-node manifest `wall_time` covers the WHOLE node loop body**, not just
   the kernel: `node_started = time.perf_counter()` at
-  `executor.py:2303` is the first statement of `for node_id in compiled.order`
-  (`executor.py:2302`), and `wall_time=time.perf_counter() - node_started` at
-  `executor.py:2612` is in the `NodeReceipt` built at the end of the same body.
+  `executor.py:2297` is the first statement of `for node_id in compiled.order`
+  (`executor.py:2296`), and `wall_time=time.perf_counter() - node_started` at
+  `executor.py:2616` is in the `NodeReceipt` built at the end of the same body.
   So the 1,143 s of v4 node time already includes store reads/writes, identity
   work and `_apply_result`; the missing ~3,543 s is entirely outside
   `run_graph`'s node loop (its own preflight, plus the runner's work around
@@ -116,7 +116,7 @@ producing the full map separately):
   transient allocation.
 - That identity is recomputed at least five times per pilot run:
   `_source_paths_and_keys` is called by `run_graph` itself
-  (`executor.py:2283`) once per graph, and the pilot runs three graphs (base
+  (`executor.py:2284`) once per graph, and the pilot runs three graphs (base
   survey, 9-node atomic, 19-node financial), *and* the runners call it directly
   first — `graph_atomic_survey_population.py:214` and
   `graph_atomic_survey_financial.py` before `run_graph`. On top of that,
@@ -203,7 +203,7 @@ Every node of every graph run pays, in addition to its kernel:
    `pickle.loads(pickle.dumps((tables, frame.strata), protocol=5))` at
    `executor.py:372` over every entity table and the strata, plus `deepcopy` of
    the schema records at `:378` and `:388-389`. `run_graph` calls it at
-   `executor.py:2568` for **every** node — and `run_graph`'s own docstring
+   `executor.py:2569` for **every** node — and `run_graph`'s own docstring
    (`executor.py:2263-2264`) states it "runs for cold execution and for restored
    cache hits alike", so a cached node that does no work still pays a full
    serialization of the whole population.
@@ -254,7 +254,7 @@ run, no matter how small the requested fraction, in pure Python:
   households. Sampling happens after the whole universe has been materialized.
 - `_archive`'s parse loop (`:311-366`) runs, per row of the whole universe:
   `stream.readline` (`:313`), `digest.update(raw)` (`:322`), `_csv_record(raw)`
-  (`:324`) — a stdlib CSV parse of every column of the line, the receipt records
+  (`:327`) — a stdlib CSV parse of every column of the line, the receipt records
   `"engine": "stdlib_csv_reader"` at `:590` — a width check (`:353`), a row
   build (`:355-359`), and then **`selected_bytes += len(_json(row))` (`:360`) —
   a full JSON encode of every row whose only use is to accumulate a size
@@ -297,3 +297,18 @@ Then the caller adds `selected_bytes += len(_json(row))` (`:360`). Put together,
 one ACS capture makes at least three full Python passes over ~4.9M rows
 (parse + per-row JSON encode + `_tables`' per-cell type validation at
 `:415-425`), and the v4 run performed four captures.
+
+---
+
+## Line-number correction (2026-09-16)
+
+Four citations committed earlier in this journal came from `sed -n 'A,Bp'`
+ranges and were off by a few lines. Re-derived with `grep -n` and corrected in
+place above: the node loop is `executor.py:2296`, `node_started` is `:2297`,
+`wall_time=...` is `:2616`, the observer call is `:2569`,
+`_source_paths_and_keys` inside `run_graph` is `:2284` (and `_all_node_keys`
+`:2285`), `tokens = _csv_record(raw)` is
+`acs_housing_universe_source.py:327`, the source symlink refusal is
+`survey_population_preparation.py:391`, the request-fraction equality is
+`:1239`, and the canonical-request check is `:340`. Everything else I had cited
+came from `grep -n` and verified unchanged. The conclusions are unaffected.
