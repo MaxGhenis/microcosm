@@ -364,3 +364,41 @@ absolute terms this path costs about **19 CPU-minutes** at full scale, not
 days. It is a correction worth making explicitly: the static reviewer flagged it
 as the scaling blocker, and the measurement says it is not. The blocker is
 elsewhere.
+
+---
+
+## Measured per-cell constants (microbenchmarks, not profiled graph runs)
+
+`.profile-runs/harness/bench_per_cell_identity.py` imports the repo's own
+`_frame_cell_encode`, `_update_series` and `_storage_parts` and times their
+verbatim inner loops. Receipt: `.profile-runs/per-cell-bench.json`. Per cell,
+flat in row count (so these are pure O(cells) with a Python constant):
+
+| loop | float64 | int64 | bool | Int64 (nullable) |
+|---|---|---|---|---|
+| `_frame_identity` per-cell (`survey_population_preparation.py:688-689`) | **0.74-0.83 us** | 0.36-0.47 us | 0.31-0.37 us | 0.48-0.55 us |
+| `_context_digest` via `_update_series` (`executor.py:452-463`) | 0.14-0.22 us | 0.30-0.35 us | 0.19-0.25 us | **0.006-0.065 us** |
+| `_storage_parts` (`population.py:2742`) | 0.001-0.06 us | 0.001-0.04 us | 0.001-0.03 us | ~0.000 us |
+
+Two results worth stating plainly:
+
+- **`_context_digest` is ~50x cheaper on nullable dtypes.** `Int64` takes the
+  masked-buffer fast path (`executor.py:458-460`) at 0.006 us/cell; plain
+  `int64`/`float64`/`bool` fall through to `series.to_numpy(dtype=object)`
+  (`executor.py:462`) and then a per-value Python loop (`executor.py:446`) at
+  0.14-0.35 us/cell. The declared dtype set (`store.py:85-87`) permits both.
+- **I was wrong about the pickle round trip.** `_observer_snapshot`'s
+  `pickle.dumps`/`loads` (`executor.py:372`) measures **0.0017-0.003 us/cell** —
+  a 214-column x 32,000-row table round-trips in 11 ms. It is two to three
+  orders of magnitude cheaper per cell than `_frame_identity`. It is not a
+  meaningful cost and I am withdrawing it from the avoidable-cost shortlist.
+
+### Frame shape, from the pilot's own exported graph declaration
+
+`financial-artifacts/graph.json` shows the CREATE node declaring **245
+columns** — person 214, household 41, tax_unit 6, spm_unit 6, family 5,
+marital_unit 5 — and `preparation.json` gives the 1/1000 entity row counts
+(household 1,584, person 3,464, marital_unit 2,774, tax_unit 2,128,
+spm_unit 1,585, family 1,594), doubling on the clone. That is
+**~537 cells per cloned household**, so one whole-frame `_frame_identity` pass
+costs ~1.7M cells (~0.85 s) at 1/1000 and ~1.70 x 10^9 cells at full source.
