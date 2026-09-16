@@ -1079,3 +1079,77 @@ branch (`:293-296`) digests members in 4 KiB blocks with no per-byte Python at
 all; only the applicable branch drops into `_records`. The recommendation in §9
 is therefore not speculative: block-wise digest plus a vectorized boundary scan
 is the shape of the code sitting three lines above.
+
+---
+
+## Run 3 completed — it did not hit the cap, it hit a REFUSAL
+
+`outcome: PYTEST_EXIT_1`. **840.6 CPU-s** (823.6 user + 17.0 sys), **935.2 s
+wall** (89.9% CPU-bound), peak RSS **6.75 GB**, children CPU 0.005 s, 96,109
+samples at an effective 9.73 ms interval. It spent less than half the CPU budget
+and stopped because the build refused, not because the cap fired.
+
+```json
+{"phase":"ACTUAL_NINETEEN_NODE_COLD_EXECUTION","exception_type":
+"SurveyPopulationPreparationError","status":"INCOMPLETE","elapsed_seconds":930.93,
+"automatic_retry":false,"release_eligible":false,"static_codes":[]}
+```
+
+pytest's traceback ends at
+`survey_population_preparation.py:1418: SurveyPopulationPreparationError:
+PREPARATION_ISSUANCE_REFUSED`, raised by
+
+```python
+    except SurveyPopulationPreparationError:
+        raise
+    except Exception:
+        raise SurveyPopulationPreparationError("PREPARATION_ISSUANCE_REFUSED") from None
+```
+
+**a catch-all that discards the cause** (`from None`, and `static_codes` is
+empty). I cannot say what failed, because the code is written not to say. That
+is itself a reportable finding for a merge decision: the preparation step
+converts every unexpected exception into one static code, so a failure at scale
+is undiagnosable from its receipt. The same path completed at 1/1000 in v4 on
+the same sources, so the difference is the requested fraction; I did not spend a
+fourth run to bisect it, and I am not guessing at the cause.
+
+**The sampler says exactly where it died.** Last timeline marks:
+`acs_population_catalogue.py:275(consume)` at t=914 s,
+`asec_current_money.py:519(__post_init__)` at t=924 s,
+`asec_person_income_source.py:312(_verify)` at t=934 s. So it fell over entering
+**ASEC** restoration verification, having completed the whole ACS side.
+
+### What run 3 bought: the first unprofiled phase attribution
+
+| bucket (deepest in-repo frame) | share | ≈ CPU-s |
+|---|---|---|
+| **store IO — source ingest** | **94.9%** | **798.1** |
+| identity / canonical JSON / digest verification | 4.2% | 35.3 |
+| other | 0.5% | 4.3 |
+| **kernel compute** | **0.4%** | **3.0** |
+
+| heaviest in-repo frames | share | ≈ CPU-s |
+|---|---|---|
+| `acs_person_coverage_authentication.py:188(_records)` | 53.20% | 447.2 |
+| `acs_housing_universe_source.py:262(_archive)` | 18.82% | 158.2 |
+| `acs_person_coverage_columns.py:130(lines)` | 10.87% | 91.4 |
+| `acs_housing_universe_source.py:497(_select)` | 3.99% | 33.5 |
+| `canonical.py:18(_json_value)` | 1.87% | 15.8 |
+| `acs_housing_universe_source.py:398(_tables)` | 1.57% | 13.2 |
+| `acs_person_coverage_authentication.py:69(_json)` | 1.36% | 11.4 |
+
+The heaviest *self* frame is **zipfile at 80.7%** — the decompression the byte
+loop drives. Phase timeline: `_records` from t=10 to t=450, `_archive` to
+t=580, then a mixed reconstruct/canonical-JSON/select phase to t=914, then ASEC.
+
+**The headline number this run buys: the ACS source-ingest phase costs ~830
+CPU-s, unprofiled, fixed at any fraction.** The draft inferred ~364–450 CPU-s by
+dividing the profiled figure by 5.05; the direct measurement is roughly twice
+that, because the profiled runs were killed before finishing the phase and the
+5.05x factor applies to `_records`, not to the zipfile and pandas work around
+it. That is **15.7% of v4's entire 5,278.6 CPU-s build**, paid identically by a
+1/8000 toy build and a full-source build.
+
+It also independently confirms the cProfile bucket shape with a profiler that
+costs ~0 per call: kernel compute **0.4%**, identity **4.2%**, ingest **94.9%**.
