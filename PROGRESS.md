@@ -452,3 +452,28 @@ accept and which materially change the extrapolation:
 `FIXED + c x households` plus one O(H^2) term worth ~19 CPU-minutes at full
 source and an O(R log R) term. The naive "weeks" extrapolation assumed the whole
 5,279 CPU-s scales; most of it does not scale at all.
+
+### The verifiers' biggest catch: `_apply_result` is unguarded and copies twice
+
+Every reader missed this and every relevant verifier flagged it. I verified it
+directly:
+
+- `executor.py:2497` calls `_apply_result` **outside both guards** — outside
+  `if result is None:` (`:2406`) and outside `if not hit:` (`:2571`). It runs
+  for every node, **cache hits included**.
+- For an ordinary NONE-structural node it reaches `_patch_columns`
+  (`population.py:1767`), whose first statement is
+  `tables = _copied_tables(population.frame)` (`:1770`), and `_copied_tables`
+  (`population.py:2680-2683`) is
+  `{entity: frame.table(entity).copy(deep=True) for entity in frame.entities}`
+  — **a full deep copy of every entity table**.
+- It then calls `_rebuild_frame` (`population.py:1851` -> `:2686-2694`), which
+  constructs a new `Frame`, and `Frame.__init__` copies **every table again** at
+  `bundle.py:118` (`target[name] = frame.copy()`) and re-runs all six validators
+  (`bundle.py:121-126`), including `np.sort(id_values)` (`:225`) and
+  `np.unique(membership.to_numpy())` (`:230`) per group entity.
+
+So each node pays **two full frame deep copies plus a complete constructor
+validation**, unconditionally. That is the per-node population-scaling floor of
+the executor, and the nine nodes that "hit the store" in the v4 run paid it in
+full while doing no work.
