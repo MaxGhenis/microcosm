@@ -402,3 +402,53 @@ marital_unit 5 — and `preparation.json` gives the 1/1000 entity row counts
 spm_unit 1,585, family 1,594), doubling on the clone. That is
 **~537 cells per cloned household**, so one whole-frame `_frame_identity` pass
 costs ~1.7M cells (~0.85 s) at 1/1000 and ~1.70 x 10^9 cells at full source.
+
+---
+
+## What the adversarial verifiers overturned (this changes the answer)
+
+Seven verifiers re-opened every cited line. Their consensus corrections, which I
+accept and which materially change the extrapolation:
+
+1. **Almost nothing is superlinear in POPULATION.** Of the 24 `superlinear`
+   flags the readers raised, the verifiers found the flag was really "linear in
+   rows x a graph/schema constant" in all but two cases. The survivors are:
+   - `population.py:1270` `_remapped_expand_memberships`, genuinely
+     O(groups x people) — **measured above at ~1,130 CPU-s at full source**; and
+   - `Frame.revalidate` -> `bundle.py:225 np.sort(id_values)` /
+     `:230 np.unique(...)`, O(R log R) per group entity, re-run on every
+     `put_frame` (`store.py:931`) and every `_validate_create`
+     (`executor.py:1051`) — a log factor, not a power.
+   A lane asking for a population scaling law would have been badly misled by
+   the bare `superlinear: true` flags.
+2. **`_context_digest` does NOT hash an accumulating population.**
+   `_project_context` (`executor.py:605-642`) projects only the structural
+   columns plus each slice's declared columns (`:616`), deduped at `:635`. A
+   verifier counted the declared input columns per node from the pilot's own
+   `financial-artifacts/graph.json`, in compiled order:
+   `0, 24, 4, 24, 0, 0, 4, 7, 12, 245, 245, 245, 8, 8, 8, 0, 0, 0, 256` —
+   **1,090 column-passes over the whole 19-node graph, with no growth in node
+   index.** The k-th node hashes its own declaration, not O(k).
+3. **The carried column set barely grows.** `survey_population.create` declares
+   245 of the graph's 277 total outputs; the other 18 nodes add 32. The carried
+   set goes 245 -> 277 (+13%) across the entire run. The per-node whole-frame
+   work is O(nodes x rows x ~constant columns), not O(nodes^2 x rows).
+4. **The per-node source re-hash fires for zero nodes here.** I had flagged
+   `executor.py:2453` (`source_content_key` re-derived after each cold node) as
+   repeated 3.7 GB directory hashing inside the node loop. A verifier checked
+   the declarations: **no node of the financial graph declares the source**, so
+   that line runs zero times in this run. Withdrawn.
+5. **Cold-path work is skipped on cache hits.** `_context_digest` (x2),
+   `_project_context`/`_freeze_frame`, and `_write_node` are all guarded by
+   `if result is None:` (`executor.py:2406`) or `if not hit:` (`executor.py:2571`).
+   Nine of the financial run's 19 nodes were store hits in v4 and paid none of it.
+6. **`_write_frame`/`put_column` redundancy is a constant factor, not
+   superlinearity.** Writing the same bytes twice (column objects + whole frame)
+   and storing the entity-id index next to *every* column (`store.py:848`,
+   hashed again at `:849` on write and `:895` on read) are genuine waste
+   multipliers, but they are linear.
+
+**Consequence.** The architecture's cost is essentially
+`FIXED + c x households` plus one O(H^2) term worth ~19 CPU-minutes at full
+source and an O(R log R) term. The naive "weeks" extrapolation assumed the whole
+5,279 CPU-s scales; most of it does not scale at all.
