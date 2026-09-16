@@ -1617,3 +1617,30 @@ One independent confirmation worth recording: the `mechanism` dimension found th
 **same** five-group-entity quadratic defect I had found an hour earlier, and
 computed the same ~6,970 CPU-s / ~1.9 CPU-h. Two independent routes to the same
 number.
+
+## Three more verifier findings confirmed and applied
+
+**§3a's bucket agreement was circular (corrections 14).** The draft "corrected"
+run 2's wall-polluted bucket seconds by subtracting each bucket's delta against
+run 1 and renormalising onto run 2's CPU basis — which sets run 2's buckets equal
+to run 1's rescaled — then reported that the two "agree to a tenth of a percent
+in every bucket". I reproduced the printed values exactly as
+run 1 × (1,803.4138/1,842.3918): 1,310.709 → 1,282.98 (printed 1,283.0),
+518.001 → 507.04 (printed 507.1). Withdrawn. Fraction-independence now rests
+solely on the five bit-for-bit identical call counters — integers from two
+independent profiles with no correction applied, which is the stronger claim
+anyway.
+
+**`raise ... from None` does not discard the cause (correction 15).** Verified on
+this interpreter: `__cause__` is None and `__suppress_context__` is True, but
+`__context__` still holds the original exception. So §3c's "the code is written
+not to say" was wrong. The real reason the lane cannot name the failure is that
+*my own harness* recorded only `type(error).__name__` plus a regex over three
+prefixes (`CURRENT_SURVEY_PREDICTOR_`, `ATOMIC_SURVEY_RECONSTRUCTION_`,
+`SURVEY_FINANCIAL_SUCCESSOR_`) that `PREPARATION_ISSUANCE_REFUSED` cannot match —
+which is exactly why `static_codes` is `[]`. §3c now says so and records it as my
+defect; the repo-side claim is downgraded from "diagnosability defect" to a
+smell, and the verdict's finding (d) carries the same qualification.
+
+**"Roughly 12 minutes" of suspension was an impression (correction 16).** The
+profile puts it at 511–551 s = 8.5–9.2 minutes.
