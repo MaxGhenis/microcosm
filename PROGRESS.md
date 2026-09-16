@@ -181,3 +181,13 @@ excludes children. No profile or measurement was taken from that attempt; it is
 counted here for full disclosure of machine time used. The driver now sets all
 eight names and additionally records `RUSAGE_CHILDREN` so any child CPU is
 visible rather than invisible.
+
+---
+
+## Report destination
+
+The repo root `out.md` is a **tracked file already carrying another lane's
+committed report** (`git log -- out.md` → 72e477caf, 27e593db3, c35cd8a85). This
+lane therefore writes its deliverable to `out.md` **without committing that
+overwrite**, and commits an identical durable copy at
+`experiments/us-native-executor-cost-attribution-20260915.md`.
