@@ -808,3 +808,41 @@ is the one to use.
 
 The cap watcher now detects state `T` and sends SIGCONT automatically so a
 second suspension cannot silently stall the lane.
+
+---
+
+## Run 2 (1/2000): the floor is fraction-independent, exactly
+
+```
+CPU CAP HIT: RLIMIT_CPU soft=1800s reached; SIGXCPU raised at cpu=1803.4s wall=2354.1s
+```
+
+`outcome: KILLED_AT_CPU_CAP`; CPU **1,803.4 s** (1,782.7 user + 20.7 sys), peak
+RSS **1.38 GB**, children CPU 0.005 s, no manifest written (it never reached the
+graph either). Wall 2,354.1 s is **not a valid measurement** — it includes the
+~12-minute suspension.
+
+Comparing the two partial profiles at a **4x difference in sample fraction**:
+
+| function | 1/8000 ncalls | 1/2000 ncalls | ratio |
+|---|---|---|---|
+| `acs_person_coverage_authentication.py:188(_records)` | 5,054,865 | 5,054,865 | **1.0000** |
+| `bytearray.append` | 3,382,952,633 | 3,382,952,633 | **1.0000** |
+| `acs_person_coverage_authentication.py:60(_require)` | 5,418,945,835 | 5,418,945,835 | **1.0000** |
+| `acs_person_coverage_authentication.py:230(_decode_record)` | 5,054,861 | 5,054,861 | **1.0000** |
+| `acs_person_coverage_authentication.py:278(_inventory)` | 2 | 2 | **1.0000** |
+| `builtins.len` | 4,424,967,359 | 4,214,038,477 | 0.952 |
+| `acs_housing_universe_source.py:236(_csv_record)` | 3,673,585 | 2,962,934 | 0.807 |
+
+The five ACS-authentication counters are **bit-for-bit identical** — not
+approximately equal, identical — across a fourfold change in the requested
+sample. The two that differ (`len`, `_csv_record`) are simply where each run's
+cap happened to land inside the second `_archive` pass.
+
+This is the measured proof of what §4 read out of the code: **the sample
+fraction changes nothing about the source-ingest work.** It is a fixed tax,
+and it alone exceeds the lane's entire 30-CPU-minute budget.
+
+Run 2 bucket split (self time 2,354.1 s over 14.94e9 calls): store IO 1,810.6 s
+(76.9%), other 529.9 s (22.5%), identity 13.6 s (0.6%), **kernel compute 0.0 s**
+— same shape as run 1.
