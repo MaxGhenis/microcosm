@@ -239,3 +239,41 @@ Modules that are NOT a population-scaling cost, checked and cleared:
 `graph/canonical.py` (metadata only — `canonical_json` at `:42` never sees a row
 payload), `graph/availability.py` (receipt-shape validation only),
 `graph/artifact_edges.py` (descriptors and numeric scopes only).
+
+---
+
+## The constant floor: the whole ACS universe is parsed and JSON-encoded before sampling
+
+`acs_housing_universe_source.py` reads the **entire** ACS PUMS universe on every
+run, no matter how small the requested fraction, in pure Python:
+
+- `_reconstruct` (`:563`) calls `_archive` (`:262`) on the household and person
+  archives, builds a `full` projection of **every** household and person row
+  (`:566-572`), writes it out as `full-projection.json` (`:573-574`), and only
+  **then** calls `_select(full, serialnos)` (`:575`) to keep the sampled
+  households. Sampling happens after the whole universe has been materialized.
+- `_archive`'s parse loop (`:311-366`) runs, per row of the whole universe:
+  `stream.readline` (`:313`), `digest.update(raw)` (`:322`), `_csv_record(raw)`
+  (`:324`) — a stdlib CSV parse of every column of the line, the receipt records
+  `"engine": "stdlib_csv_reader"` at `:590` — a width check (`:353`), a row
+  build (`:355-359`), and then **`selected_bytes += len(_json(row))` (`:360`) —
+  a full JSON encode of every row whose only use is to accumulate a size
+  bound**, discarded immediately. The retained rows are then JSON-encoded a
+  second time as a whole at `:573`.
+- `_capture` (`:190-216`) first copies each archive into a snapshot and hashes
+  it twice: `_copy` returns a digest while copying (`:213`), then
+  `_persisted_sha` re-reads the persisted file and hashes it again (`:215`).
+- The v4 snapshot tree contains **four** capture directories
+  (`acs-hu-capture-33i6ivgc`, `acs-hu-capture-bp36xasy`,
+  `acs-native-coverage-uu1suvx_/acs-hu-capture-x03gedgg`,
+  `acs-native-preparation-800qjeft/acs-hu-capture-us72r6yw`), i.e. the 854 MB of
+  ACS archives are copied, hashed twice and re-parsed several times per run.
+
+**Why this matters more than anything else in the lane.** This cost is
+*independent of the sample fraction*: a 1/8000 run does the same ACS work as a
+full-source run. So whatever the profile measures for this phase at 1/8000 is
+already the full-scale figure — it will not grow when the fraction grows. The
+consequence is the opposite of the naive worry: the 19-node graph's
+population-scaling work is *not* the thing that makes a 1/1000 run take 5,279
+CPU-s. A large share of that is a fixed pre-sampling tax paid on every run of
+any size.
