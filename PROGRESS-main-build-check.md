@@ -12,8 +12,19 @@ tracked files owned by other lanes — see CLAUDE.md "Root journals are history"
 
 ## State
 
-Phase 1 complete pending final report. Lineage reconstructed, all 14 entry
-points smoked, inputs pinned, both deliverables written to the lanes dir.
+Phase 1 complete pending the verification pass + final report. Lineage
+reconstructed, all 14 entry points smoked, inputs pinned, both deliverables
+written to the lanes dir.
+
+**2026-09-15 23:14 — the lane restarted and the subfleet wrapper truncated the
+`-o` path `out-main-can-build-map.md` to 0 bytes.** Content was salvaged from
+the prior session's transcript (`88061ab5-…jsonl`, the `cat > … <<'OUTEOF'`
+heredoc at record 612 plus the critic patch at record 643) and replayed;
+the file is back at 503 lines and byte-identical to what was lost.
+`BUILD-PLAN-main.md` was never at the `-o` path and survived intact (457 lines).
+A restart-proof copy now lives beside it as
+`out-main-can-build-map.SALVAGED-COPY.md`. **Lesson: never let the only copy of
+a lane deliverable sit at the `-o` path.**
 
 ## Done
 
