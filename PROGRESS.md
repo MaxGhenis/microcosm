@@ -1238,3 +1238,71 @@ No `RUN3_*` placeholder remains anywhere in the report.
    claim checked against code I can point at.
 2. Then `out.md` (uncommitted, per the destination decision above) plus the
    committed durable copy under `experiments/`.
+
+---
+
+## Verification pass: two defects I found myself, both in the recommendation
+
+An 8-dimension adversarial verification fan-out is running over the finished
+report. While it ran I checked the load-bearing mechanism claims myself, because
+the headline recommendation is the one place a fabricated mechanism would do
+real damage — it is what a merge decision would act on.
+
+**Defect 1 (material — the headline recommendation names the wrong mechanism).**
+§10 item 1 and §11 both say: "the executor already derives a content-addressed
+`frame_key` for every stored frame (`keys.py:106`); verification can compare
+stored digests instead of recomputing a per-cell digest." I opened `keys.py`:
+
+```python
+def frame_key(node_key: str) -> str:
+    """Derive the structural frame artifact identity from its node."""
+    return _hash_parts("frame", node_key)          # keys.py:106-109
+```
+
+`frame_key` is a hash of the **node key alone**. It carries no frame content
+whatsoever — it is recipe-addressed, not content-addressed. Two different frames
+produced by the same node recipe get the same `frame_key`. Comparing `frame_key`
+would verify nothing about cell contents, so as written the recommendation does
+not work.
+
+The *substance* survives, because a real stored content digest does exist — it
+is just somewhere else. `_payload_table` (`store.py:140-152`) records
+`sha256` + `size` for every payload file of every stored object, using
+`_sha256_file` (`:132-137`), which reads in 1 MiB blocks through C hashlib.
+
+**Defect 2 (material — a static-map gap in a category the brief named
+explicitly).** The brief asked for "identity recomputation on read". §8b answers
+"found, and cheap — `artifact_edges.py:208` … the expensive read-side
+recomputation is in `manifest.py` instead." That misses the store entirely.
+`_verified_meta` (`store.py:227-290`) **re-hashes every payload byte of the
+object** at `:271` (`actual_hash = _sha256_file(payload_path)`) and compares it
+against the recorded digest, and it is called on **every** store read and on
+every write that finds an existing object: `:721`, `:735`, `:765`, `:878`
+(`load_column`), `:969` and `:981` (`load_frame`), `:1007`, `:1038`. So a
+cache-hit node re-hashes the entire stored frame's bytes. It is C-speed and
+therefore cheap per byte — which is exactly why it belongs in the map: it is the
+*cheap* counter-example that makes the per-cell Python loop look as bad as it is.
+
+**The correct fix, now that I have read both ends of it.** `_population_stamp`'s
+own docstring (`survey_atomic_geography.py:230-237`) says it is a "pure
+in-process seal" that must "never [be] persisted or compared across
+reconstructions", so a stored digest genuinely cannot be substituted for it. The
+expensive part is inside `_frame_identity`
+(`survey_population_preparation.py:641`), whose cost is literally
+
+```python
+    for value in series:          # :688-689
+        update_cell(value)        # _frame_cell_encode + two digest.update per cell
+```
+
+— a per-cell Python loop over every cell of every column. It is already a pure
+function of cell values plus dtype metadata, so it can be replaced by a
+per-column vectorized hash over the column buffer and its null mask without
+changing what it seals. That is a one-function change and it needs no store
+digest at all. The report will say this instead.
+
+## Next
+
+- Fold both corrections into §8b, §10 and §11 with the line numbers above.
+- Adjudicate the verification fan-out's surviving findings when it returns.
+- Then `out.md` (uncommitted) + the committed copy under `experiments/`.
