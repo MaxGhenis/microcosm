@@ -54,3 +54,34 @@ If the ~3,543 s of non-node cost is largely constant (source copy + hash +
 ingest), every run at the 1800 s CPU cap may be killed before finishing. The
 harness therefore installs a SIGXCPU handler that dumps the partial profile, and
 run 1 is the smallest fraction so the constant floor is measured first.
+
+---
+
+## Update — harness staged
+
+- `.profile-runs/harness/` holds a verbatim copy of the pilot's
+  `atomic_financial_artifacts.py` (sha256 `c8ba82bb…`) and
+  `test_native_nineteen_node_financial.orig.py` (sha256 `84ab06bf…`); both
+  hashes match the identities the v4 receipt records, so the profiled harness is
+  provably the same code the accepted pilot ran.
+- The working copy differs in exactly ten path/fraction edits, enumerated in
+  `.profile-runs/harness/HARNESS-CHANGES.md`. No assertion was weakened.
+- `profile_run.py` replaces the pilot's `run_v2.py` outer guard (a provenance
+  guard, not a profiler). It keeps run_v2's single-thread numeric environment
+  (`OMP/OPENBLAS/MKL/VECLIB/NUMEXPR/BLIS_NUM_THREADS=POPULACE_FIT_N_JOBS=1`,
+  torch threads 1, `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, `TZ=UTC`, TMPDIR inside
+  the run dir) so CPU numbers stay comparable with the v4 receipt, and adds
+  cProfile, an RSS watchdog and a SIGXCPU handler that dumps the partial profile
+  before the cap kills the process.
+- **The fraction is not a free parameter.** `survey_population_preparation.py`
+  requires `sources/selection-request.json` to carry exactly the fraction the
+  runner is called with (`REQUEST_ARGUMENTS`), refuses symlinked source files
+  (`SOURCE_SYMLINK`), and its `_stat_identity` (line 269) includes `st_ctime_ns`
+  — so a hard link into the pilot tree would perturb a concurrent reader. Each
+  fraction therefore gets a real 3.7 GB copy of the nine source files, verified
+  against the pilot config's pinned sha256s, with only the request file's
+  fraction changed.
+
+## Next
+
+- Run 1 (1/8000), then 1/4000, then 1/2000.
