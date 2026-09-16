@@ -1416,3 +1416,14 @@ what was checked (the package-wide grep), name the BLAS caveat, and then explain
 why the conclusion survives anyway — the dominant measured costs are a per-byte
 Python loop and a per-cell Python hashing loop, both single-threaded, and kernel
 compute is 0.4%.
+
+## Brief-compliance check I could make myself: cumtime top-40
+
+The brief asked for "the top 40 by cumtime per run". The report's in-text table
+is by **self** time, which looked like a gap until I opened the artifacts:
+`f8000.top40.txt` and `f2000.top40.txt` both carry pstats' own header
+`Ordered by: cumulative time` / `List reduced from 7544 to 40`, so the required
+artifact exists and is correctly ordered. Its first ten rows are `_pytest` and
+`pluggy` frames at 1,842 s cumulative — true, and useless for attribution, which
+is why the report tabulated self time in the text. §3 now says both things
+explicitly instead of leaving the reader to assume the brief was skipped.
