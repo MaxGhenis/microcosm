@@ -1395,3 +1395,24 @@ not allowed to stand.
 
 Markdown table integrity checked programmatically: 0 ragged tables across the
 whole report.
+
+## Fourth self-check: the "CPU-hours are wall-hours" claim, scoped
+
+I verified the executor's serial loop myself rather than relying on the
+fan-out: `for node_id in compiled.order:` at `executor.py:2296` with
+`node_started` on the next line and `wall_time=time.perf_counter() - node_started`
+at `:2616`; the observer call at `:2568-2569` sits immediately **above** the
+`if not hit:` at `:2571`, confirming §8a's "every node, hits included"; and
+`grep -rn` for `threading` / `multiprocessing` / `concurrent` / `joblib` /
+`n_jobs` across `packages/microcosm-graph/src/microcosm/graph/` returns
+**nothing**.
+
+But §7's sentence said the loop has "no threading or multiprocessing, so for it
+CPU-hours and wall-hours are the same number", and that is one step further than
+the evidence: the *executor* has no concurrency, yet a kernel could still get
+parallelism from threaded BLAS under numpy or torch, which this lane's harness
+pinned to 1 and therefore could not have observed. Rewritten to say exactly
+what was checked (the package-wide grep), name the BLAS caveat, and then explain
+why the conclusion survives anyway — the dominant measured costs are a per-byte
+Python loop and a per-cell Python hashing loop, both single-threaded, and kernel
+compute is 0.4%.
