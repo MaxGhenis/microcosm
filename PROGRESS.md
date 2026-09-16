@@ -1021,3 +1021,61 @@ artifact records it directly: `selection.supplied_households = 1587376`. Using
 the pilot's own figure, the full-source payload is **1,048–1,055 MiB = 16.4–16.5x
 the limit**, and the cloned population at full source is 3,174,752 (the brief's
 "~3.17M"). Encoding cost re-derives as 33.29 us/hh x 1,587,376 = **52.8 CPU-s**.
+
+---
+
+## Every derived number now regenerates from a script
+
+`.profile-runs/harness/final_tables.py` recomputes the node decomposition, the
+ceiling range and the whole predictions table from the receipts and the
+microbenchmark constants — no number in the report is hand-carried. Its output,
+with the corrected source count (1,587,376) and the re-summed node timings:
+
+```
+nodes 28  wall 1143.16s
+  4 ASEC predictor nodes 957.15s; observed_geography (both) 142.24s
+  source-bound 1099.38s; population-scaling 43.78s over 22 nodes (mean 1.99s)
+
+ceiling 96,247-96,867 source hh (6.06-6.10% of 1,587,376)
+full-source payload 1,048-1,055 MiB (16.4-16.5x the limit)
+encode cost at full source 52.8 CPU-s
+
+target                       source hh   cloned hh    +scaling    +O(H^2)  total CPU-h
+1/1000 (v4, measured)            1,584       3,168           -          -         1.47
+1/100                           15,873      31,746         395        1.1         1.58
+ceiling (~96,557)               96,557     193,114       2,625       10.2         2.20
+1/10                           158,737     317,474       4,343       20.9         2.68
+full source                  1,587,376   3,174,752      43,826    1,141.9        13.96
+
+naive 1000x extrapolation 1,466 CPU-h = 61 CPU-days; wrong by 105x
+quadratic term at full source 1,142.0 CPU-s (19 min); log-log slope 1.10
+```
+
+The corrected source count moves nothing in the third digit: the draft's 13.94
+CPU-h becomes **13.96**, the ceiling row stays at 2.20 CPU-h, and 105x stands.
+
+## The ingest mechanism, read rather than inferred
+
+I read `_records` (`acs_person_coverage_authentication.py:188-227`) and
+`_inventory` (`:278-320`) myself rather than taking the profile's word:
+
+- The loop is `while block := stream.read(4096):` then **`for byte in block:`** —
+  Python-level, per byte. Per byte it runs `_require(len(record) < cap, ...)`
+  (one `_require`, one `len`) and `record.append(byte)`; non-comma bytes run a
+  second `_require(token_bytes <= MAX_TOKEN_BYTES, ...)`.
+- **The call counts corroborate the mechanism arithmetically.** 3,382,952,633
+  `bytearray.append` = one per byte = **3.38 GB scanned**, which matches the
+  staged ACS person (2.41 GB) + household (0.98 GB) uncompressed members. The
+  5,418,945,835 `_require` calls split as 3.38e9 unconditional + 2.04e9
+  token-guard, implying **1.34e9 commas over 5,054,865 records = 265 commas per
+  record**, against the ~280 ACS person fields. The profile and the source agree.
+- In `_inventory` each record is `digest.update(raw)`-ed, `_decode_record`-ed
+  into a full CSV row, width-checked, and projected to `cells` — and only then
+  does `if cells[0] not in serialnos: continue` discard it. The sample filter is
+  literally the last statement.
+
+**The module already contains the fast pattern it needs.** Its non-applicable
+branch (`:293-296`) digests members in 4 KiB blocks with no per-byte Python at
+all; only the applicable branch drops into `_records`. The recommendation in §9
+is therefore not speculative: block-wise digest plus a vectorized boundary scan
+is the shape of the code sitting three lines above.
