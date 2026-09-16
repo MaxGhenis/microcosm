@@ -312,3 +312,55 @@ place above: the node loop is `executor.py:2296`, `node_started` is `:2297`,
 `survey_population_preparation.py:391`, the request-fraction equality is
 `:1239`, and the canonical-request check is `:340`. Everything else I had cited
 came from `grep -n` and verified unchanged. The conclusions are unaffected.
+
+---
+
+## Static fan-out complete; the one quadratic path measured
+
+The static attribution ran as a 14-agent workflow (7 scope readers + 7
+adversarial verifiers, 0 errors). 214 cited hot paths:
+**identity 120** (91 of which also run on a verification path), other 43,
+store IO 35, kernel compute 16. Raw output kept at
+`.profile-runs/static-map.json` and `.profile-runs/static-rows.json`.
+
+I re-derived every line number I had committed with `grep -n`; four earlier
+`sed`-range citations were wrong and are corrected above.
+
+**The one genuinely superlinear path, measured rather than assumed.**
+`population.py:1270-1273` (`_remapped_expand_memberships`) runs, for **every**
+source group, a full-length boolean comparison over the entire person table:
+
+```python
+for source_group, targets in group_targets.items():
+    members = source_person.loc[
+        source_person[membership] == source_group, person_id
+    ]
+```
+
+That is O(groups x people) = O(households^2). I measured the isolated loop on
+synthetic frames at the pilot's people-per-household ratio (3,464/1,584 =
+2.187), at 500 … 128,000 groups — a seconds-long microbenchmark that runs no
+graph and reads no source, so it is **not** one of the lane's three profiled
+runs (`.profile-runs/harness/bench_expand_membership.py`,
+receipt `.profile-runs/expand-membership-bench.json`):
+
+| groups | people | CPU |
+|---|---|---|
+| 500 | 1,093 | 0.032 s |
+| 2,000 | 4,374 | 0.147 s |
+| 8,000 | 17,495 | 0.597 s |
+| 32,000 | 69,980 | 2.688 s |
+| 128,000 | 279,919 | 15.07 s |
+
+Naive log-log slope over that range is only **1.10**, because the ~67-73 us
+per-group pandas `.loc` setup still dominates the scan below ~30k households.
+Fitting the two-term form the code implies, `t = G x (c + k x P)`, gives
+**c = 66.8-72.8 us per group** and **k = 0.185-0.188 ns per person per group**
+across two runs. Extrapolating to the full source (G = 1,584,000,
+P = 3,464,000): **~1,130 CPU-s, about 0.32 CPU-hours.**
+
+So the quadratic term is real and does dominate above ~30k households — but in
+absolute terms this path costs about **19 CPU-minutes** at full scale, not
+days. It is a correction worth making explicitly: the static reviewer flagged it
+as the scaling blocker, and the measurement says it is not. The blocker is
+elsewhere.
