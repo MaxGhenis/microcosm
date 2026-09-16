@@ -20,7 +20,8 @@ in full.
 **Memory is the second constraint, but it binds later than the ceiling does.**
 The executor snapshots a full population copy per node and this runner retains
 all nineteen — a mechanism read in the code, not inferred. I measured what a
-retained snapshot costs (**9.6–9.8 bytes per cell**, flat across a 16× size range and four repeats)
+retained snapshot costs (**9.6–9.8 bytes per cell**, flat across a 16× size
+range and four repeats)
 rather than subtracting two RSS peaks, because that subtraction turns out to be
 confounded by 1.85 GiB of ASEC source one run never loaded. On the measurement:
 the largest build the payload ceiling permits needs ~**26 GiB**, and a
@@ -96,7 +97,8 @@ puts the suspension at **~511–551 s (8.5–9.2 minutes)**: run 2's wall−CPU 
 is 2,354.14 − 1,803.41 = 550.73 s, of which run 1's ordinary wall−CPU gap
 accounts for 39.1 s, and the `_records` tottime delta that locates it is
 +509.2 s. (An earlier draft said "roughly 12 minutes" from an unrecorded
-wall-clock impression the profile does not corroborate.) I resumed it with `kill -CONT` and it continued
+wall-clock impression the profile does not corroborate.) I resumed it with `kill
+-CONT` and it continued
 normally. A stopped process accrues no CPU, so run 2's **CPU figure and its cap
 are unaffected**. But cProfile times with `perf_counter`, i.e. **wall**, not
 CPU, so the suspension *is* inside its profile: 2,354.1 s of profiled time
@@ -579,7 +581,8 @@ constants blended by the frame's real dtype mix) = **0.89–1.02 s**. The 22
 population-work nodes total 43.8 s, i.e. **43–49 whole-frame passes, about 2.0
 per node** — what the static map predicts: one `_population_stamp` per node from
 the observer, plus the store writes, the two `_context_digest` passes on cold
-nodes and the two frame deep copies. **That is a factor-of-two consistency check with an unexplained residual, not
+nodes and the two frame deep copies. **That is a factor-of-two consistency check
+with an unexplained residual, not
 agreement, and the report should not have called it agreement.** §8d's own
 measured constants make the named companions negligible — two deep copies plus
 validation are 2.9 ns/cell (0.005 s, ~0.5% of a ~0.95 s pass) and the pickle round
@@ -694,7 +697,8 @@ For comparison, the naive linear extrapolation the brief started from —
 v4's runner time sits outside both the node loop and the ACS ingest — the
 manifest's runner CPU is 4,605.35, the 28 node wall times sum to 1,143.16, and
 ingest is 798 — and no run reached it. (An earlier draft said "roughly 3,000",
-which was 13% high and inflated the one-sided bound below.) Its known composition is the repeated
+which was 13% high and inflated the one-sided bound below.) Its known
+composition is the repeated
 `qualify_current_survey_predictors`, the ASEC native loads and restoration
 verification (where run 3 died), and `reconstruct_atomic_survey_geography`.
 Those are principally source-bound — run 3's 94.9%-ingest attribution is direct
@@ -1007,7 +1011,8 @@ to withdraw.
    and are corrected throughout (e.g. `_project_context` is called at
    `executor.py:2414`, not 2413; the cache guard is `:2406`, not 2404).
 5. The ACS ingest cost was first inferred as ~364–450 CPU-s by dividing the
-   profiled figure by 5.05. Run 3 measured it directly at **798 CPU-s** (the store-IO bucket of its 840.6 CPU-s run). The
+   profiled figure by 5.05. Run 3 measured it directly at **798 CPU-s** (the
+   store-IO bucket of its 840.6 CPU-s run). The
    inference was roughly half the truth; the direct measurement replaces it.
 6. The draft reported the four ASEC predictor nodes as 957.5 s and the US source
    as ~1,584,000 households. Re-summed from the manifest: **957.15 s**; read from
@@ -1078,7 +1083,9 @@ to withdraw.
     `asec_person_income_source.py:312(_verify)` — entering ASEC HDF5 loads whose
     three files total **1,982,625,563 B = 1.846 GiB**, i.e. nearly the entire
     difference. Rather than bound it, I measured the retention directly
-    (`bench_observer_retention.py`, no graph/source/engine, seconds): **9.6–9.8 bytes per cell per snapshot**, flat across a 16× range. Nineteen snapshots cost
+    (`bench_observer_retention.py`, no graph/source/engine, seconds): **9.6–9.8
+    bytes per cell per snapshot**, flat across a 16× range. Nineteen snapshots
+    cost
     **0.29 GiB at 1/1000**, not 1.93 GiB. Consequences: the source floor is
     **8.38 GiB** (reconciling v4 and run 3 exactly); the ceiling build needs
     **~26 GiB**, not 124; full source needs **~300 GiB**, not 1.9 TiB; and the
@@ -1291,7 +1298,8 @@ is about **5.7× leaner** than the incumbent's **57.9 KiB per household**
 (94,183,096,320 B = 87.7 GiB peak over 1,588,854 households; the incumbent's own
 log labels that peak "94.18GB", decimally). An earlier draft called these "the
 same range"; they are not, and the difference runs in the native path's favour.
-That is the available sanity check and it passes: the representation is lean. **Retaining nineteen is the problem, not the
+That is the available sanity check and it passes: the representation is lean.
+**Retaining nineteen is the problem, not the
 representation** — and it is a runner-level fix, not an architectural one, for
 every use of `observed` except the final population and the replay comparisons.
 
@@ -1449,8 +1457,9 @@ build is impossible today.
   would have died in a later phase instead of in ingest. The brief's
   three-fraction plan needs this fix **and** a larger cap.
 - **Observer to zero** (item 1): at full source the build drops from **15.58 to
-  7.6–8.7 CPU-hours** (the stamp is 6.9–8.0 of the 15.58), and the memory requirement falls from **~300 GiB to ~24 GiB**
-  (one snapshot plus the 8.38 GiB floor).
+  7.6–8.7 CPU-hours** (the stamp is 6.9–8.0 of the 15.58), and the memory
+  requirement falls from **~300 GiB to ~24 GiB** (one snapshot plus the ~8.4 GiB
+  floor).
 - **Both**: full source at **~7.2–8.3 CPU-hours** — and with the 12.7× parallelism
   the incumbent already demonstrates on this machine, that is a wall-clock
   afternoon rather than a day.
@@ -1472,12 +1481,13 @@ preparation receipt is a single 64 MiB-bounded JSON document holding one record
 per household and per person (`survey_population_preparation.py:1346` → `:108`),
 and a full-source payload would be 1,048–1,055 MiB; I did not infer that, I fed
 the pilot's own preparation document, scaled, through the repository's own
-encoder and watched it refuse at 101,376 households. Memory is the second constraint but a
-looser one than an earlier draft of this report claimed: the observer pickles a
-full population copy per node and the runner retains all nineteen, which I
-measured at 9.6–9.8 bytes per cell per snapshot, putting the largest build the
-transport permits at **~26 GiB of RAM** and a full-source build at **~300 GiB**. And at 1/8000 the build refuses
-outright, and neither this lane's receipt nor the default traceback says why.
+encoder and watched it refuse at 101,376 households. Memory is the second
+constraint but a looser one than an earlier draft of this report claimed: the
+observer pickles a full population copy per node and the runner retains all
+nineteen, which I measured at 9.6–9.8 bytes per cell per snapshot, putting the
+largest build the transport permits at **~26 GiB of RAM** and a full-source build
+at **~300 GiB**. And at 1/8000 the build refuses outright, and neither this
+lane's receipt nor the default traceback says why.
 Where cost *is* the question,
 the naive extrapolation is wrong by **94×**: only **43.8 CPU-s** of v4's
 5,278.6 CPU-s is population-scaling node work and the rest is a fixed
@@ -1504,9 +1514,9 @@ else runs; it costs ~53 CPU-s of encoding at full source, so it is a design
 decision, not a performance trade-off. **(2) Stop retaining every node's
 population** and stop stamping the whole frame on every node: one callback
 (`executor.py:2569` → `graph_atomic_survey_financial.py:1625-1626`) is both the
-memory wall and **44–51% of the full-source CPU**, and the per-cell Python loop it runs
-(`survey_population_preparation.py:688-689`) seals a quantity a vectorized
-per-column pass seals identically. **(3) Replace the
+memory wall and **44–51% of the full-source CPU**, and the per-cell Python loop
+it runs (`survey_population_preparation.py:688-689`) seals a quantity a
+vectorized per-column pass seals identically. **(3) Replace the
 byte-at-a-time source scanners** and push the sample filter above the row decode
 — that is the whole cost of every build that can run today, it is fixed at every
 size, and the fast pattern already exists three lines away in the same file.
