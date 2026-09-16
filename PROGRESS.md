@@ -1487,3 +1487,13 @@ the band is that it is well under the naive 1,466 CPU-h and in the incumbent's
   since before this lane began.
 - Nothing was written under the system temp directories; no branch, no push,
   no stash.
+
+## A measured number the report was sitting on and not using
+
+`profiler-overhead-bench.json` already recorded
+`unprofiled_bytes_per_second: 12927527.6` — the per-byte scanner's actual
+throughput, **12.9 MB/s** — and the report never printed it. It is the most
+communicable number in the whole lane: for comparison I measured
+`hashlib.sha256` on this machine at ~2,870 MB/s, so the loop that is only looking
+for commas and newlines runs **222× slower than cryptographic hashing of the same
+bytes**. Added to §4 with both figures and their provenance.
