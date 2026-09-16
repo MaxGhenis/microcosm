@@ -1427,3 +1427,24 @@ artifact exists and is correctly ordered. Its first ten rows are `_pytest` and
 `pluggy` frames at 1,842 s cumulative — true, and useless for attribution, which
 is why the report tabulated self time in the text. §3 now says both things
 explicitly instead of leaving the reader to assume the brief was skipped.
+
+## Fifth self-found defect: §6d's rows did not add up
+
+Cross-footing the predictions table instead of just checking its totals: the
+`fixed (measured)` column printed 5,234.8 s while `+ linear` and `+ O(H²)` are
+increments over the **whole v4 build** (5,278.6 s) — which is what
+`final_tables.py` computes (`total = V4_CPU_TOTAL + scale_inc + quad_inc`). Two
+decompositions mixed in one table, so every row was short of its own total by
+exactly 43.8 s: v4's own population-scaling work, counted once where the columns
+implied twice.
+
+Fixed by naming the base for what it is — `v4 base (measured)`, 5,278.6 s — and
+stating the incremental model above the table, then cross-footing the absolute
+split underneath (5,234.8 + 43,870 + 1,142 = 50,247 s = 13.96 CPU-h). §10's
+bucket table moved from the incremental 43,826 (87.2%) to the absolute 43,870
+(87.3%) so that column sums to the 50,246 CPU-s it prints. No total, no
+percentage and no CPU-hour figure changes. Recorded as correction 10 in §8c.
+
+This one is worth noting for method: it was invisible to checking totals, and
+invisible to the generator script, which is self-consistent. Only adding the
+columns across caught it.
