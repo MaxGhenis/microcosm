@@ -191,3 +191,51 @@ committed report** (`git log -- out.md` → 72e477caf, 27e593db3, c35cd8a85). Th
 lane therefore writes its deliverable to `out.md` **without committing that
 overwrite**, and commits an identical durable copy at
 `experiments/us-native-executor-cost-attribution-20260915.md`.
+
+---
+
+## The per-node whole-population cost chain (found by reading, pending profile)
+
+Every node of every graph run pays, in addition to its kernel:
+
+1. **A full pickle round trip of the entire population.**
+   `executor.py:355 _observer_snapshot` does
+   `pickle.loads(pickle.dumps((tables, frame.strata), protocol=5))` at
+   `executor.py:372` over every entity table and the strata, plus `deepcopy` of
+   the schema records at `:378` and `:388-389`. `run_graph` calls it at
+   `executor.py:2568` for **every** node — and `run_graph`'s own docstring
+   (`executor.py:2263-2264`) states it "runs for cold execution and for restored
+   cache hits alike", so a cached node that does no work still pays a full
+   serialization of the whole population.
+2. **A full per-cell Python hash of the entire frame.** The observer the US
+   runner installs (`graph_atomic_survey_financial.py:1623 observe`, wired at
+   `:1634`; the same shape at `graph_atomic_survey_population.py:218/230` and
+   `graph_survey_population.py:942/1086`) calls
+   `reconstruction._population_stamp(population)`
+   (`survey_atomic_geography.py:230`), which at `:245` calls
+   `survey_population_preparation.py:641 _frame_identity`. That function loops
+   **every cell of every column** in pure Python —
+   `for value in series: update_cell(value)` at `:688-689`, and the same for
+   every index value at `:676-677` — where each `update_cell` runs
+   `_frame_cell_encode` (`:601`) → `_cell` (`:585`) → `_check_scalars` (`:82`)
+   → `.encode()` → two `digest.update()` calls. That is ~8-12 Python-level
+   operations **per cell**, i.e. O(rows x columns) with a large constant.
+3. **Two `_context_digest` passes per cold node** (`executor.py:2423`, `:2449`),
+   each hashing every column, the weights and the strata (`:466-495`).
+4. **Every column written twice**: `_write_node` loops all entity columns into
+   `store.put_column` (`executor.py:1524-1533`) and then writes the whole frame
+   again via `store.put_frame` (`:1547`), which itself calls `frame.revalidate()`
+   (`store.py:931`) and `_write_frame` (`store.py:1121`), serializing every
+   column a second time. Each `_put` fsyncs every file and directory of the
+   staged object (`store.py:754` → `store.py:164 _fsync_tree`). The read side is
+   symmetric: a cache hit loads every column (`executor.py:1882`) **and** the
+   whole frame (`:1899`).
+5. **The stamps are recomputed again after the run** for verification:
+   `graph_atomic_survey_financial.py:1895` and `:1910` re-run
+   `_population_stamp` per node, so the per-cell Python loop runs at least twice
+   per node per graph.
+
+Modules that are NOT a population-scaling cost, checked and cleared:
+`graph/canonical.py` (metadata only — `canonical_json` at `:42` never sees a row
+payload), `graph/availability.py` (receipt-shape validation only),
+`graph/artifact_edges.py` (descriptors and numeric scopes only).
