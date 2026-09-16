@@ -145,3 +145,30 @@ lesson: never let the only copy sit at the `-o` path).
 B2 relaunch against `checkpoints/base-q1/asec_raw_stage.checkpoint.h5` → B2 (1% rung, `tools/us_stacked_pool_smoke.sh.example`
 verbatim) → B3 release from the pool manifest → preflight gates → publisher
 contract check (no publish) → loader checks → Path A (if memory allows).
+
+
+## Adversarial verification pass (16 agents, 2026-09-16 ~04:40Z)
+
+Three skeptics per finding, each assigned a distinct lens and told to refute.
+Results:
+
+- **F1 — claim stands, wording fixed.** No other producer exists anywhere
+  (exhaustive `write_frame_checkpoint` call-site sweep). But Path B owes Path A
+  only the `source_construction` stage, not the whole base build, and the
+  monolithic `--stage all` *without* `--checkpoint-dir` never emits the artifact.
+- **F5 (ledger) — claim stands**, independently confirmed: 111 machine-wide
+  `consumer_facts*.jsonl`, none with a sibling `manifest.json`.
+- **F6 — MATERIALLY WRONG, corrected.** The surface digest hashes only the
+  target-identity rows; `n_records` is a sibling report field, not an input
+  (`microcosm/calibrate/diagnostics.py:179-199`, re-read directly to confirm).
+  A 1% pool is NOT excluded by record count. What stands instead: the comparison
+  runs *after* the multi-hour ladder, and its raise is conditional. Corrected in
+  both the receipt and the report; the original reason must not be repeated.
+
+New reachability facts folded into the receipt: `--exact-k N` semantics and the
+pool-load-time cardinality check; a gate_failed pool cannot enter the exact-k
+arm at all; `chronicle build-consumer-artifact` exists but refuses the pinned
+feed and would mint a new identity (hand-writing a manifest would be fabricated
+provenance — not done, and recommended against); preflight on a Path-B pool with
+the only available Path-A selection manifest is a guaranteed `selection_carryover`
+FAIL; the publisher preflight needs `--artifact-root`.
