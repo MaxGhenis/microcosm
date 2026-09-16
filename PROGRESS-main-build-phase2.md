@@ -192,3 +192,31 @@ gates, and the direct test of whether main's fresh base carries the frozen
 support Build P's selection source names).
 
 B2 still running (transfer target 35/47 at 05:36Z, ~1 h 30 m in).
+
+
+## Preflight + publisher contract check DONE (2026-09-16 ~05:45Z)
+
+**Preflight on Path A's fresh base: rc 1, 32.58 s, peak RSS 9.76 GB.**
+One hard failure, quantified:
+`selection_carryover` FAIL — "Frozen support does not preserve the PUF
+capital-gains own-tail stratum: missing 15228 donor(s), extra 0 donor(s).
+Regenerate the selection-source manifest from the rebuilt support before
+release." -> **F8: the plan's Stage A2 cannot run against a freshly built base.**
+Build P's frozen support is bound to July's base.
+**F9**: the preflight misreports a supplied `--ledger-facts` as
+"not provided" (`inputs.ledger_facts` in the JSON records the file); the true
+cause is the upstream selection failure. Predicted by the verification pass from
+`release_gate_preflight.py:878,:886-896`, reproduced live. Its tally also labels
+SKIPPED checks as AT-RISK.
+
+**Publisher contract check: `--preflight-only` exists and was exercised live.**
+Hub-free, no credentials, rc 1 with 46 enumerated contract failures as a bare
+traceback on stderr (empty stdout). Pointed at the HF cache dir, which holds only
+2 of 9 artifacts — so those failures demonstrate the checker runs, they are NOT a
+judgement on the certified release. Recorded that caveat explicitly.
+
+A2 rewritten with two documented deviations forced by F8 (drop the stale
+selection manifest; drop its dependent `--selection-mass-protection`, whose only
+purpose is protecting carriers inside a frozen selection). Both are supported
+configurations on the `--base-h5` arm, not bypasses. A2 stays QUEUED until B2
+finishes — 85 GB + 64 GiB will not co-exist on a 128 GB box.
