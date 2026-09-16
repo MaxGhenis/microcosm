@@ -33,8 +33,8 @@ points smoked, inputs pinned, both deliverables written to the lanes dir.
 
 ## Next
 
-1. Finish inputs inventory (sha256 pins) and resource estimate.
-2. Write `BUILD-PLAN-main.md` and `out-main-can-build-map.md` to the lanes dir.
+Both deliverables are written. Remaining: fold in the two accuracy/completeness
+critics when they return, then final report.
 
 ## Open questions for Max
 
@@ -97,3 +97,34 @@ No US build tool exposes `--dry-run`, `--smoke`, `--preflight-only`, or
 `build_us_multispine_pool.py`; `build_us_multispine_pool.py` makes no network
 calls. fiscal_refresh only asserts the operator-supplied id matches the
 manifest. No Hugging Face round trip is implied.
+
+## Deliverables written (2026-09-15)
+
+- `~/PolicyEngine/_recovered/scratch-backup/893/lanes/BUILD-PLAN-main.md` (452 lines)
+- `~/PolicyEngine/_recovered/scratch-backup/893/lanes/out-main-can-build-map.md` (478 lines)
+
+### Additional verified findings
+
+- **Graph executor is absent from the US chain.** Zero `tools/build_us_*.py`
+  import `microcosm.graph`. The only production `run_graph` caller is
+  `tools/build_uk_frs_spine.py`. Brief correction: the node graph merged in
+  **#836** (`90293e0a`, 2026-09-02), not #847.
+- **Main cannot load its own certified default dataset.** The certified default
+  declares pe-us `>=2.0.0,<2.3`; microcosm-data's `us` extra caps at `<2` and
+  `loader.py:437` fail-closes on the mismatch.
+- **Path B has never produced a full-scale artifact**, on any commit or machine:
+  f025 measured 9.6-14 h; f100 exceeded a 24 h cap twice on a 16-CPU/330-GB box.
+- **`build_us_fiscal_refresh_release.py` defaults `--base-h5` to a Hugging Face
+  download**, so the no-argument path is a refresh of a published dataset, not a
+  from-scratch build.
+- **Two CD crosswalks are needed**: Path A uses `383a6666…`; the stacked pool
+  hard-pins `c7cb040b…` (`build_us_multispine_pool.py:363-365`) and rejects the
+  other. Both are on disk. The PUMA ladder is shared and its on-disk copy
+  matches main's `_STACKED_PUMA_LADDER_SHA256` exactly.
+- **#893 diff**: at the brief's `2bc6976a8`, only `uv.lock` differs among the
+  twelve tool paths — but `packages/` differs by 404 files / 177,595 insertions
+  (`us_runtime/` alone 187 files / 96,911). The tools are identical; their
+  behaviour is not. The 893 worktree also moved mid-session to `f7bb88525`.
+- **`SYSTEM_REQUIREMENTS.md` is structurally stale**: its core memory formula
+  describes code deleted 2026-06-25 by `578d2ad59`; measured peak was 85 GB vs
+  its projected 29 GB.
