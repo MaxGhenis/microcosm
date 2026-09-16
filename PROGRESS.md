@@ -76,7 +76,7 @@ run 1 is the smallest fraction so the constant floor is measured first.
 - **The fraction is not a free parameter.** `survey_population_preparation.py`
   requires `sources/selection-request.json` to carry exactly the fraction the
   runner is called with (`REQUEST_ARGUMENTS`), refuses symlinked source files
-  (`SOURCE_SYMLINK`), and its `_stat_identity` (line 269) includes `st_ctime_ns`
+  (`SOURCE_SYMLINK`), and its `_stat_identity` (`survey_population_preparation.py:268-269`) includes `st_ctime_ns`
   — so a hard link into the pilot tree would perturb a concurrent reader. Each
   fraction therefore gets a real 3.7 GB copy of the nine source files, verified
   against the pilot config's pinned sha256s, with only the request file's
