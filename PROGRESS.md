@@ -277,3 +277,23 @@ consequence is the opposite of the naive worry: the 19-node graph's
 population-scaling work is *not* the thing that makes a 1/1000 run take 5,279
 CPU-s. A large share of that is a fixed pre-sampling tax paid on every run of
 any size.
+
+### The per-row cost of that floor, in detail
+
+`_csv_record` (`acs_housing_universe_source.py:236-259`) runs once per row of
+the whole ACS universe and, per row:
+
+- calls `capture_csv_reader(csv)` (`:237`), which re-checks the stdlib binding
+  (`source_csv_builtin.py:25-27`);
+- scans the raw line three separate times for NUL, CR and LF (`:246`);
+- decodes it as UTF-8 (`:251`);
+- **constructs a brand-new `csv.reader` object for that single line** (`:249-254`)
+  instead of streaming the member through one reader;
+- re-encodes **every parsed field** back to UTF-8 to length-check it
+  (`:256-258`), for all ~280 ACS person columns even though only
+  `SERIALNO/SPORDER/PWGTP` are kept (`_P_FIELDS`, `:56`).
+
+Then the caller adds `selected_bytes += len(_json(row))` (`:360`). Put together,
+one ACS capture makes at least three full Python passes over ~4.9M rows
+(parse + per-row JSON encode + `_tables`' per-cell type validation at
+`:415-425`), and the v4 run performed four captures.
