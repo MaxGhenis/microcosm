@@ -12,7 +12,8 @@ tracked files owned by other lanes — see CLAUDE.md "Root journals are history"
 
 ## State
 
-Phase 1: lineage reconstructed and every entry point smoked. Drafting deliverables.
+Phase 1 complete pending final report. Lineage reconstructed, all 14 entry
+points smoked, inputs pinned, both deliverables written to the lanes dir.
 
 ## Done
 
@@ -21,7 +22,11 @@ Phase 1: lineage reconstructed and every entry point smoked. Drafting deliverabl
 - Pinned the environment main's lock actually produces:
   - policyengine-us **1.819.0**
   - policyengine-core **3.31.0**
-  - policyengine-us-spm-calculator **ABSENT** (not in the `us` extra)
+  - spm-calculator **0.3.1** (transitive via pe-us). NOTE: an earlier entry in
+    this file said "policyengine-us-spm-calculator ABSENT" — that was a
+    wrong-package-name query; no such distribution exists. The real package is
+    `spm-calculator`, it IS installed, and four pe-us variable modules import
+    it. The certified enrichment used spm_calculator **1.0.0**.
   - numpy 2.4.6, torch 2.12.0, scikit-learn 1.8.0, pandas 3.0.3
 - Noted `tools/_legacy/` contains exactly one module:
   `build_us_acs_multispine_base.py`.
