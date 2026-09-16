@@ -623,3 +623,58 @@ projection at `:566-574` and only then calls `_select(full, serialnos)` at
 fraction, including 1/8000.** Run 2 (1/2000, a 4x larger sample) is now running
 to confirm that empirically: if the fixed-tax reading is right, its profile
 should show the same ~5.05M `_records` and ~5.42B `_require` call counts.
+
+---
+
+## cProfile overhead on this workload: 5.05x, measured
+
+With 15.6 billion profiled calls, the profiler is not a passive observer, so I
+measured its inflation on the exact dominant function rather than assuming it.
+`.profile-runs/harness/bench_profiler_overhead.py` (receipt
+`.profile-runs/profiler-overhead-bench.json`) runs `_records` over a real
+209,715,200-byte slab of `psam_pusa.csv` from the staged archive, with and
+without `cProfile`:
+
+| | CPU |
+|---|---|
+| unprofiled | **16.222 s** (299,540 records, 12.9 MB/s) |
+| profiled | **81.935 s** |
+| **inflation** | **5.051x** |
+
+So run 1's 1,803.3 profiled CPU-s correspond to roughly **357 unprofiled
+CPU-s**. Every profiled figure below is reported as profiled, with the 5.05x
+factor stated, not silently deflated.
+
+**Consequence for the lane's design.** The 1,800 s cap was never going to admit
+a completed run: the v4 receipt shows 4,605 CPU-s for the runner *unprofiled* at
+1/1000, and the fixed part of that does not shrink at 1/8000. Under a profiler
+that multiplies the most call-dense phase by 5x, the capped run reached only the
+ACS ingest. The three-fraction design in the brief cannot produce a scaling law
+under a 1,800 CPU-s cap, and I am not going to manufacture one from runs that
+all die in the same fixed phase.
+
+### Run 1 bucket attribution (profiled self time, 1,842.4 s total)
+
+| bucket | self | share | calls |
+|---|---|---|---|
+| (c) store IO / codecs — **ACS source ingest** | **1,297.7 s** | **70.4%** | 6,505,612,377 |
+| (d) other — Python builtins called per byte by that loop (`bytearray.append`, `len`, `str.encode`, `next`, `isinstance`, `re.search`) | 452.3 s | 24.6% | 8,869,637,843 |
+| (d) other — unclassified (zipfile, io, codecs) | 65.5 s | 3.6% | 177,472,416 |
+| (c) store IO — stdlib CSV/zip parse | 13.0 s | 0.7% | 24,116,910 |
+| (a) identity — canonical JSON | 8.7 s | 0.5% | 14,741,553 |
+| (a) identity — sha256 | 5.0 s | 0.3% | 8,737,374 |
+| (b) kernel compute (numpy/pandas/sklearn/torch) | **0.0 s** | 0.0% | 18,126 |
+| (a) identity — `_frame_identity` per-cell | **0.0 s** | 0.0% | 2,756 |
+
+**95% of the run is ACS source ingest and the per-byte builtins it drives.**
+Identity work is 0.7%, kernel compute is 0.0%, and the graph store is
+effectively untouched (1,003 calls) — the run never reached a node.
+
+### The measured fixed ACS tax, unprofiled
+
+Uncompressed data members in the staged archives: ACS person
+**2,405,468,113 B (2.41 GB)**, ACS household **977,484,520 B (0.98 GB)**.
+At the measured unprofiled `_records` rate of 12.9 MB/s, one byte-loop pass over
+the person members is **186 CPU-s**, and `_inventory` runs **twice** per run —
+**~373 CPU-s** of pure per-byte Python scanning, before `acs_housing_universe_source._archive`'s
+own two passes. None of it varies with the sample fraction.
