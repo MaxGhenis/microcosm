@@ -220,3 +220,42 @@ selection manifest; drop its dependent `--selection-mass-protection`, whose only
 purpose is protecting carriers inside a frozen selection). Both are supported
 configurations on the `--base-h5` arm, not bypasses. A2 stays QUEUED until B2
 finishes — 85 GB + 64 GiB will not co-exist on a 128 GB box.
+
+
+## B2 / B3 DONE — Path B's answer is in (2026-09-16 06:14-06:17Z)
+
+**B2: rc 1, 2 h 10 m, peak RSS 66.92 GiB, 0 swaps.** Pool built:
+36,734 households / 80,395 persons, H5 155,054,588 B
+(`7b626086a2d87ab929d7acbc29a5bd2a194a261569a76e82f63999f007e55754`),
+manifest `7c9d9b27c41390fd2b2845db16cf55871af216260eef82a57cc26a6e13ca1078`.
+**`status=gate_failed`, `simulation_ready=False`** — `us_stacked_completeness`
+passed, `us_by_origin_battery` failed (health-coverage incidence ratios outside
+[0.8, 1.25], one envelope-distance breach, one dead comparison). These are NOT
+the `insufficient_support` receipts the docstring says to expect at 1%; no
+quality claim is made either way.
+
+Two corrections it confirms: the minted id carries **f001** (F7), and the run
+**exceeded the committed example's own "<=64 GiB" envelope** at 66.92 GiB while
+staying inside its 2-4 h envelope.
+
+**B3: rc 1 in 23.91 s.** `ValueError: US multispine pool manifest ... is not
+simulation-ready.` (`us_runtime/h5_io.py:1119`). **This is the S2 answer and it
+is NOT the zero-support gate** — a gate_failed pool cannot enter the exact-k arm
+at all, and `--allow-gate-failed-base-pool` requires `--base-h5` so it is
+unavailable on the pool arm by construction. No bypass sought; none exists.
+B3 never reached F5's Ledger blocker or F6's frozen surface — the red battery
+stops it first.
+
+**Preflight on the pool**: refused at the same simulation-ready gate.
+
+**F10 — the plan's A1 and A2 are mutually incompatible.** A2 refused the base
+A1 built from the plan's own command: CD crosswalk `383a6666…` != expected
+`c7cb040b…` (`build_us_fiscal_refresh_release.py:2729`). The plan's SS1 calls
+`c7cb040b…` "Path B (pinned)" and gives it only a `_buildo-runtime` path; it is
+in fact **packaged in the repo** and required by the release stage on ANY base.
+A1 relaunched 06:18:30Z with the packaged crosswalk, fresh `base-q3`, separate
+`--out` so the first base survives.
+
+## Next
+
+A1d -> A2 (Path A release, the amendment's second lineage) -> final report.
