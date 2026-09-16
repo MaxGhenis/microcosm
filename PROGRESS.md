@@ -1754,3 +1754,42 @@ is the `_archive`/`_csv_record`/JSON/pandas work items 4 and 5 target. And the
 ASEC byte total was 3 bytes high (1,982,625,563, not ...566) and I had labelled the
 incumbent's peak 94 GiB where it is 87.7 GiB — both my own slips from the §9
 rewrite, both fixed.
+
+## Final batch of confirmed findings applied
+
+- **The per-cell constant was blended wrong.** "~0.5 µs/cell" understated it.
+  Weighting §8d's measured constants by the frame's real dtype mix — read from
+  `graph.json`: **Int64 154, float64 54, int64 30, string 28, bool 1, boolean 2** —
+  gives **0.52–0.60 µs/cell**, and the 28 string columns are not measured at all
+  (a UTF-8 encode per cell, very likely more). Every observer figure is now a
+  range: one pass **0.89–1.02 s**; 22 stamps **19.6–22.5 s = 45–51%** of the
+  43.8 s term; full source **24,900–28,700 CPU-s = 6.9–8.0 CPU-h = 44–51%** of the
+  build; observer-to-zero **15.58 → 7.6–8.7 CPU-h**; both fixes **→ 7.2–8.3**.
+  Four-significant-figure totals off a "~0.5" constant are gone.
+- **Store-hit nodes: eleven executions totalling 11.0 CPU-s** (two prefix + nine
+  financial); the nine financial hits alone are 8.7 s. The draft paired the
+  nine-node count with the eleven-node total.
+- **Comma arithmetic re-derived exactly**: 2 × 3,382,952,633 − 5,418,945,835 =
+  **1,346,959,431 commas = 266.5 per record**, against the ACS person file's 286
+  fields. The draft rounded to 1.34e9 first and got 265 against "~280 fields".
+- **`canonical.py` is 106 lines and does have element-walking loops** (`:31`,
+  `:37`) — which is the very copy the next sentence describes. "No loops" →
+  "no loops over rows".
+- **696.9 B/hh is the marginal rate**, not total/1,584 (= 717.2). Labelled.
+- **Quotation fidelity.** The `release_manifest.json` timing block is now marked
+  abridged (it drops `elapsed_through_calibration_seconds`), the raw log lines
+  carry their file:line, §7's preamble says the first three rows come from
+  `donor/release_manifest.json` rather than `logs/`, and §3c says the refusal
+  record is re-wrapped from a single sorted-key line.
+- **The sha256 contrast is unreceipted** — it was a one-line measurement in this
+  session with no committed bench. Now given to one significant figure
+  (~2,900 MB/s, "a couple of hundred times") and explicitly marked as such, while
+  the 12.9 MB/s keeps its receipt. §4 also now gives the scanner's own share,
+  **~261 CPU-s** of the 798.
+- **Brief compliance, disclosed rather than silently substituted**: §11 opens by
+  saying it is three paragraphs where the brief asked for one, and why; §7 drops
+  the within-10% and ESS calibration-quality numbers the brief excluded; §3b cites
+  `s8000r.samples.json` (80 self + 80 in-repo frames) as run 3's full listing and
+  says a sampler yields no cumtime ranking.
+- Ceiling point estimates unified on the 96,200–96,900 range; §9's stale 2.20
+  CPU-h → 2.21.
