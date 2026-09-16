@@ -18,7 +18,28 @@ declares `>=2.0.0,<2.3` and was built with 2.2.1.
 
 ## State
 
-B1 (pooled ASEC source frame) launched detached 2026-09-16T03:50:43Z.
+**Finding F1 is already in hand: the plan's Path-B chain does not connect.**
+B1 ran exactly as BUILD-PLAN-main.md §3 prescribes and succeeded (rc 0, 122 s,
+7.07 GB peak). B2 then rejected B1's output in 31.7 s:
+
+    ValueError: Frame checkpoint .../asec_raw_stage.h5 is missing HDF group
+    '_populace_frame_checkpoint'.
+
+`build_us_asec_pooled_source_base.py --out-h5` writes a plain pooled H5;
+`build_us_multispine_pool.py --asec-raw-stage-h5` demands a **Frame
+checkpoint** with a raw-stage binding. `load_asec_raw_stage_checkpoint`
+(`packages/microcosm-build/src/microcosm/build/us_runtime/asec_checkpoint.py:145-180`)
+documents this: *"Only the dedicated auxiliary producer artifact is accepted."*
+The sole producer on main is Path A's `build_us_puf_support_base.py`, in its
+`source_construction` stage, via `_ensure_asec_raw_stage_checkpoint`
+(`tools/build_us_puf_support_base.py:1691-1693, 1811-1868`), and only when
+`--asec-h5` is supplied. So **Path B cannot start without running Path A's base
+stage first** — which BUILD-PLAN-main.md §1 states in prose, and §3's Stage B1
+command contradicts.
+
+A1 (`build_us_puf_support_base.py --stage all`) therefore launched
+2026-09-16T03:59:37Z as a **prerequisite of B2**, not only as the amendment's
+second lineage.
 
 ## Rules in force
 
@@ -59,6 +80,6 @@ in the report — it does not claim a zero-swap run.
 
 ## Next
 
-B1 → hash its output → B2 (1% rung, `tools/us_stacked_pool_smoke.sh.example`
+B2 relaunch against `checkpoints/base-q1/asec_raw_stage.checkpoint.h5` → B2 (1% rung, `tools/us_stacked_pool_smoke.sh.example`
 verbatim) → B3 release from the pool manifest → preflight gates → publisher
 contract check (no publish) → loader checks → Path A (if memory allows).
