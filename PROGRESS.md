@@ -1461,3 +1461,29 @@ Also softened the opening's reproducibility claim from "none is hand-carried" to
 name the two exceptions §8c now records — corrections 9 and 10 were both
 hand-carried numbers, and a blanket claim that the verification pass just
 falsified should not survive it.
+
+## Sixth self-found defect: the headline uncertainty band did not follow from its inputs
+
+§6d's "realistic full-source figure is ~26–40 CPU-hours" is repeated in the
+verdict, so it is one of the report's most-quoted numbers — and it was asserted,
+not derived. Its stated inputs are "roughly 50–100 CPU-s at 1/1000" of
+unattributed runner-level population work. Scaling that by the row ratio
+3,174,752/3,168 = 1,002.1 and adding to 13.96 gives **27.9–41.8**, not 26–40.
+The one-sided upper bound "~900 CPU-hours" likewise computes to **848**.
+
+Both corrected, and both now show the arithmetic in line so the next reader can
+check them without re-deriving the ratio. The verdict's clause moved to
+"~28–42 ... (§6d derives that band)". The conclusion is untouched — the point of
+the band is that it is well under the naive 1,466 CPU-h and in the incumbent's
+30.15 CPU-h neighbourhood, which holds at 28–42 exactly as it did at 26–40.
+
+## Read-only and containment discipline, verified rather than assumed
+
+- `git status` clean; `git ls-files | grep -c profile-runs` = **0**. Nothing
+  under `.profile-runs/` is tracked, and `git check-ignore -v` confirms the
+  exclusion is real (`/.profile-runs/` at `.git/info/exclude:22`).
+- A `-maxdepth 1 -newermt "2026-09-15 21:00"` scan of the pilot run directory
+  returns **nothing**: the tree the sibling v5 lane reads has not been written
+  since before this lane began.
+- Nothing was written under the system temp directories; no branch, no push,
+  no stash.
