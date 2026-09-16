@@ -745,3 +745,33 @@ ACS phase, so a third fraction yields a third copy of the same number. The
 authorization is a ceiling on machine time, not a quota. The report states this
 and names the measurement that would actually close the remaining gap: one
 uncapped profiled run at 1/8000, about 2.5 CPU-hours.
+
+---
+
+## Reversing the run-3 decision: spend it on a sampling profiler
+
+I said above I would not spend run 3, on the grounds that a third fraction dies
+in the same fixed phase. That reasoning holds for a third **cProfile** run — but
+it overlooked the lever the overhead measurement handed me.
+
+cProfile inflates this workload **5.05x** (measured). That is precisely why the
+capped runs never got past ACS ingest: 1,800 profiled CPU-s is only ~357
+unprofiled CPU-s of pipeline. A **statistical** sampler costs ~0 per call, so
+the same 1,800 CPU-s cap covers roughly **five times as much of the pipeline** —
+plausibly through the ASEC ingest and into the prefix graph.
+
+That matters because the largest remaining hole in the report is the **3,012
+CPU-s of v4's runner time (65%)** that sits outside both the node loop and the
+ACS ingest, and whose scaling split drives the full-source estimate from 13.9 to
+53 CPU-hours. Run 3 is the one chance to attribute it.
+
+`.profile-runs/harness/sample_run.py` therefore replaces cProfile with a daemon
+thread sampling the main thread's stack every 5 ms via `sys._current_frames()`,
+accumulating self-function counts, the deepest in-repo frame, and a 10-second
+phase timeline. Same eight thread-env names, same RLIMIT_CPU 1800/1810, same
+SIGXCPU dump, same RSS watchdog, same harness. It trades exact call counts for
+reach — which is the right trade here, because the call counts are already
+measured and the reach is not.
+
+Run 3 will be 1/8000 (reusing the staged `sources-8000`), launched after run 2
+completes so the two measurements do not share a machine.
