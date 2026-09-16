@@ -846,3 +846,9 @@ and it alone exceeds the lane's entire 30-CPU-minute budget.
 Run 2 bucket split (self time 2,354.1 s over 14.94e9 calls): store IO 1,810.6 s
 (76.9%), other 529.9 s (22.5%), identity 13.6 s (0.6%), **kernel compute 0.0 s**
 — same shape as run 1.
+
+## Report updated with run 2; run 3 launched
+
+All run-2 placeholders are filled and §2 is rewritten for the run-3 reversal.
+Run 3 (`sample_run.py s8000 8000`) started 2026-09-16, sampling at 5 ms with the
+auto-resume watcher armed. Its row in the runs table is the last placeholder.
