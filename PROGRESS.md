@@ -1547,3 +1547,10 @@ Two things I am flagging rather than smoothing over:
 This is the only one of the seven corrections that moves a headline number, and
 it moves it **against** the architecture — which is the direction that has to be
 checked hardest before a merge decision leans on the report.
+
+## Opening summary realigned
+
+"it is linear, not quadratic" in the short answer was true of the report as
+drafted and false after correction 11, so it now reads "its dominant exponent is
+1 — though one genuinely quadratic path costs 1.9 CPU-hours at full source, 12%
+of the build (§6b)", and the ingest sentence carries the measured 12.9 MB/s.
