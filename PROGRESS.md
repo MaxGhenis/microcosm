@@ -775,3 +775,13 @@ measured and the reach is not.
 
 Run 3 will be 1/8000 (reusing the staged `sources-8000`), launched after run 2
 completes so the two measurements do not share a machine.
+
+## Arithmetic correction in the predictions table
+
+The O(H^2) column was wrong: it showed +43 s at the ceiling but +21 s at 1/10,
+i.e. a larger value at a smaller size. Recomputed from the measured two-term fit
+`t = G x (c + k x 2.187G)` with G as **source** households (the loop runs on the
+pre-clone person table), minus its value at the 1/1000 anchor: +1.1 s at 1/100,
++10.2 s at the ceiling, +20.8 s at 1/10, +1,137.3 s at full source. Full-source
+total is **13.94 CPU-h**, and the naive 1000x extrapolation (1,466 CPU-h =
+61 CPU-days) is wrong by **105x**.
