@@ -980,3 +980,44 @@ Two of the brief's named cost categories, **codec encode/decode** and **identity
 recomputation on read**, therefore have no line-cited answer. A second workflow
 (6 readers, one per module, each operation re-verified at its line by a skeptic)
 is closing it now; the result becomes §8b.
+
+---
+
+## §5 reproduced independently, and the source count sharpened
+
+I re-measured the pilot's exported `financial-artifacts/preparation.json`
+(1,136,063 B, sha256 `34b362d85d2f06ac…`, matching the manifest's export record)
+by encoding each component with the repo's own canonical separators:
+
+| component | bytes | n | per source hh |
+|---|---|---|---|
+| `origins.households` | 269,000 | 1,584 | |
+| `origins.entities` | 224,755 | 6 | |
+| `origins.persons` | 210,924 | 2 | |
+| `origins` (with `storage_transitions` 13,268 and age normalization 762) | **718,800** | | 453.8 B |
+| `selection.selected` | **385,122** | **1,584** | 243.1 B |
+| fixed (producer 21,135, `selection.excluded` 7,250, source_files, catalogues, hashes) | **32,141** | | — |
+| total | **1,136,063** | | **696.9 B/hh** |
+
+718,800 + 385,122 + 32,141 = 1,136,063 exactly. The draft's split is right.
+
+Code constants confirmed by reading: `MAX_PAYLOAD_BYTES = 64 * 1024**2` at
+`survey_population_preparation.py:50`; `_encode(value, maximum=MAX_PAYLOAD_BYTES)`
+at `:104` raising `_require(..., "PAYLOAD_LIMIT")` at `:108`; the whole-document
+`payload = _encode(` at `:1346`; the second budget
+`_require(budget[0] + size <= MAX_PAYLOAD_BYTES, "ORIGIN_LIMIT")` at `:818`.
+
+**The ceiling is a range, and the report should print it as one.** Against the
+67,108,864-byte budget:
+
+- from the x1 artifact's own rate (696.9 B/hh, fixed 32,141 B): **96,247 hh**
+- from the measured x1→x16 marginal rate (692.4 B/hh): **96,867 hh**
+
+So **96,200–96,900 source households**, i.e. **6.1%**. The draft's point estimate
+of "~96,700" sits inside that; I will print the range and keep 6.1%.
+
+**The source is 1,587,376 households, not "~1,584,000".** The preparation
+artifact records it directly: `selection.supplied_households = 1587376`. Using
+the pilot's own figure, the full-source payload is **1,048–1,055 MiB = 16.4–16.5x
+the limit**, and the cloned population at full source is 3,174,752 (the brief's
+"~3.17M"). Encoding cost re-derives as 33.29 us/hh x 1,587,376 = **52.8 CPU-s**.
