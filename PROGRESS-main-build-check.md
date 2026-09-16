@@ -128,3 +128,22 @@ manifest. No Hugging Face round trip is implied.
 - **`SYSTEM_REQUIREMENTS.md` is structurally stale**: its core memory formula
   describes code deleted 2026-06-25 by `578d2ad59`; measured peak was 85 GB vs
   its projected 29 GB.
+
+### Critic pass — corrections applied
+
+- **The `asec_raw_stage` digest is NOT a gate.** `build_us_multispine_pool.py:960-965`
+  verifies it with `_verify_file(..., args.asec_raw_stage_h5_sha256)` —
+  self-consistency only. Contrast `:954-959`, which hard-raises when
+  `--acs-rent-h5-sha256 != ACS_2022_RENT_ARTIFACT_SHA256`. An earlier draft of
+  the report implied the missing pinned artifact could block the pool; corrected.
+  Three distinct `asec_raw_stage.checkpoint.h5` files exist on disk
+  (653,334,557 / 653,419,922 B) and none matches the `sources.yaml` pin
+  (653,410,492 B).
+- **`tools/build_us_puf_support_base.py`'s docstring is stale** (lines 1-7 claim
+  it "starts from an existing Microcosm US H5") while `:282-288` is a required
+  mutually-exclusive `--base-h5 | --asec-h5` group whose `--asec-h5` arm builds
+  from raw pooled ASEC. This is the single most load-bearing tool in the
+  from-scratch chain, and the stale sentence is plausibly why the chain looked
+  broken from outside.
+- `tools/ci_test_groups.py --verify` → `verification=ok`, rc 0 on this tree.
+- Lane repo footprint: exactly one file (`PROGRESS-main-build-check.md`).
