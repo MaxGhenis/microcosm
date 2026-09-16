@@ -511,3 +511,53 @@ is not the scaling problem.
 `_frame_identity` is ~170x more expensive per cell than the frame copies it is
 usually blamed alongside. It is the dominant population-scaling cost in the
 architecture, and every one of its passes exists to produce a digest.
+
+---
+
+## DECISIVE: the architecture refuses a full US source by an explicit bound, before time matters
+
+The lane asked whether this executor can build a full US dataset and at what
+cost. It cannot, and the reason is not CPU. Two hard limits cap the build at a
+fraction of the source:
+
+**1. The preparation payload — the binding one.**
+`survey_population_preparation.py:1346` encodes the whole preparation document
+with `_encode(...)`, which defaults to `MAX_PAYLOAD_BYTES = 64 * 1024**2`
+(`:50`) and raises `PAYLOAD_LIMIT` at `:108` the moment the accumulated bytes
+exceed it. That document embeds **one record per source household and one per
+person**: `"origins": origins` and `"selection": _plan_document(plan)`.
+
+Measured on the pilot's own exported artifact — whose sha256
+`34b362d85d2f06ac…` matches the manifest's `preparation_sha256` exactly, so it
+is the bounded payload, not a re-render:
+
+| component | bytes at 1,584 source households | per source household |
+|---|---|---|
+| `origins` (households 269,000 B, entities 224,755 B, persons 210,924 B, …) | 718,800 | 453.8 B |
+| `selection` (`selected` has exactly 1,584 entries) | 385,122 | 243.1 B |
+| everything else (producer, source_files, catalogues, hashes) | 32,141 | fixed |
+| **total** | **1,136,063** | **696.9 B** |
+
+Ceiling = (67,108,864 - 32,141) / 696.9 = **~96,250 source households — 6.1% of
+the ~1,584,000-household US source.** At full source the payload the code must
+encode is **1.03 GiB, 16.4x the limit.**
+
+A second, independent 64 MiB budget guards the same lists inside
+`_plan_document`: `_bounded_append` (`:816-820`) raises `ORIGIN_LIMIT` on
+`budget[0] + size <= MAX_PAYLOAD_BYTES`.
+
+**2. The allocation payload.** `graph_survey_population.py:62` sets
+`ALLOCATION_MAX_BYTES = 64 * 1024**2`, and `_allocation_payload` (`:344-369`)
+streams **one `_instruction_document` per household** (`:325-341`) into a single
+bytearray, checking `ALLOCATION_LIMIT` before every append (`:359-363`). An
+`_instruction_document` canonical-encodes to ~320 B, so that payload refuses at
+**~209,700 households — 13.2% of the source.**
+
+So the first wall the architecture hits at scale is `PAYLOAD_LIMIT` at roughly
+**96,000 source households**, about one sixteenth of the US source. No CPU
+budget, no parallelism and no profiler changes that: the build refuses. **Every
+timing question in this lane is downstream of a refusal that arrives first.**
+
+These are single-document, whole-roster JSON transports in a design that is
+otherwise columnar. They are not intrinsic to the graph executor — they are
+receipt/provenance payloads that chose one JSON document per run.
