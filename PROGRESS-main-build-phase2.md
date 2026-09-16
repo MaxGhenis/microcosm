@@ -259,3 +259,35 @@ A1 relaunched 06:18:30Z with the packaged crosswalk, fresh `base-q3`, separate
 ## Next
 
 A1d -> A2 (Path A release, the amendment's second lineage) -> final report.
+
+
+## TERMINAL FINDING F11 (2026-09-16 07:07Z) — both chains blocked on the Ledger feed
+
+A1 attempt 4 (packaged crosswalk): **rc 0, 46 m 28 s, peak RSS 72.47 GB**, base
+sha `475ca33fcdbf60f107ba212c762e9e9ea9587e96b5a645750e61aaa2395b7822`.
+
+A2 attempt 2 against it: **rc 1 in 49.59 s** —
+`LedgerHierarchyMetadataError: ... dimension 'bea_nipa.series_code' requires
+exactly one non-empty label, got []`
+(`ledger_targets.py:1023`, via `fiscal_targets.py:982`).
+
+**Tested every Ledger feed on the machine through the same entry point: all five
+fail identically**, same fact id. Mechanism confirmed by reading the validator
+AND surveying the feed: of 37,405 rows, **0 carry
+`layout.groupby_dimension_label` and 0 carry non-null `dimension_labels`** — the
+two and only two sources `_validate_chronicle_hierarchy_labels`
+(`ledger_targets.py:1009-1019`) will accept. Its docstring states it refuses
+identifier-derived substitutes, so this is deliberate strictness against a feed
+generation that predates the contract.
+
+**Net: on today's main, with this machine's inputs, NEITHER documented chain
+reaches calibration.** Path B stops at its own red pool battery (B3,
+`h5_io.py:1119`). Path A gets a clean base but cannot compile a target surface
+(F11). The Ledger feed blocks both arms for different reasons — F5 (no
+manifest-bearing artifact) in the exact-k arm, F11 (no dimension labels) in the
+base-h5 arm.
+
+## Remaining
+
+Write the final report: answer, stage table, gates verbatim, loader result,
+questions for Max.
