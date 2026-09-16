@@ -1215,3 +1215,26 @@ cost (reasons cited); `kernel.py` holds every row-scaled object by reference and
 that structurally refuses a Frame/DataFrame/Series/ndarray (`:38-40`) — but it
 materializes a full recursive copy of its argument before encoding (`:18-40`),
 which is what makes the per-row call sites expensive.
+
+---
+
+## Run 3 filled into §1; the last placeholders are gone
+
+`report-final.md` §1 now carries run 3's real row (1/8000, 5 ms sampler, 935.2 s
+wall / **840.6 CPU-s** / 6.75 GB, outcome `PYTEST_EXIT_1` — the refusal, not the
+cap) and a paragraph saying explicitly that **no cap line was emitted for run 3**
+because it never approached the cap. Two prose inaccuracies fixed at the same
+time: "all three died inside ACS source ingest" was wrong for run 3 (it cleared
+ACS and fell over entering ASEC verification), and the children-CPU line now
+prints all three measured values (0.0043 / 0.0047 / 0.0048 s) plus the fact that
+the 16 GB RSS watchdog never fired in any run.
+
+No `RUN3_*` placeholder remains anywhere in the report.
+
+## Next
+
+1. Full verification pass over the finished report: every number re-derived from
+   its receipt, every line number re-opened at #893's head, every mechanism
+   claim checked against code I can point at.
+2. Then `out.md` (uncommitted, per the destination decision above) plus the
+   committed durable copy under `experiments/`.
