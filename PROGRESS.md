@@ -561,3 +561,65 @@ timing question in this lane is downstream of a refusal that arrives first.**
 These are single-document, whole-roster JSON transports in a design that is
 otherwise columnar. They are not intrinsic to the graph executor — they are
 receipt/provenance payloads that chose one JSON document per run.
+
+---
+
+## Run 1 (1/8000) hit the CPU cap. Cap line, verbatim:
+
+```
+CPU CAP HIT: RLIMIT_CPU soft=1800s reached; SIGXCPU raised at cpu=1803.3s wall=1842.4s
+```
+
+`outcome: KILLED_AT_CPU_CAP`; CPU 1,803.3 s (1,783.0 user + 20.3 sys), wall
+1,842.4 s, peak RSS **1.72 GB**, children CPU 0.004 s (the thread-env fix held —
+no child processes). The SIGXCPU handler dumped a 1.26 MB partial profile before
+the kernel killed the process.
+
+**Where those 1,800 CPU-seconds went.** The run never reached the graph. It was
+still in ACS source ingest, and the profile names the cost precisely
+(self time, 15.6 billion total profiled calls):
+
+| self | cum | ncalls | function |
+|---|---|---|---|
+| **890.4 s** | 1,361.5 s | 5,054,865 | `acs_person_coverage_authentication.py:188(_records)` |
+| 168.0 s | 168.0 s | **3,382,952,633** | `bytearray.append` |
+| 167.0 s | 167.0 s | **4,424,967,359** | `builtins.len` |
+| 160.4 s | 160.4 s | **5,418,945,835** | `acs_person_coverage_authentication.py:60(_require)` |
+| 136.2 s | 221.5 s | 980,880,110 | `acs_housing_universe_source.py:257(<genexpr>)` |
+| 53.2 s | 53.2 s | 980,888,715 | `str.encode` |
+| 50.3 s | 296.9 s | 3,673,585 | `acs_housing_universe_source.py:236(_csv_record)` |
+| 16.4 s | 94.4 s | 5,054,861 | `acs_person_coverage_authentication.py:230(_decode_record)` |
+| 13.8 s | **1,473.3 s** | **2** | `acs_person_coverage_authentication.py:278(_inventory)` |
+| 11.8 s | 364.0 s | **2** | `acs_housing_universe_source.py:262(_archive)` |
+
+Two call sites account for the whole run: `_inventory` (1,473.3 s over **two**
+calls) and `_archive` (364.0 s over **two** calls) = 1,837 s of 1,842 s.
+
+**The mechanism.** `_records` (`acs_person_coverage_authentication.py:188-227`)
+is a **byte-by-byte Python loop over the entire ACS person CSV**:
+
+```python
+while block := stream.read(4096):
+    for byte in block:                                    # every byte, in Python
+        ...
+        _require(len(record) < cap, "CSV_RECORD_BYTES")   # a call per byte
+        ...
+        _require(token_bytes <= MAX_TOKEN_BYTES, ...)     # another call per byte
+        record.append(byte)                               # a call per byte
+```
+
+3.38 billion `bytearray.append` calls is ~3.4 GB — the uncompressed ACS person
+member — walked one byte at a time to find CSV quote boundaries, twice. That
+alone is the 4.4 billion `len()` and 5.4 billion `_require()` calls.
+`_decode_record` (`:230`) then builds a fresh `io.TextIOWrapper` over a fresh
+`io.BytesIO` and a fresh CSV reader **per row** (5,054,861 calls, 94.4 s).
+
+**And the sample filter runs last.** `_inventory` reaches
+`if cells[0] not in serialnos: continue` only *after* each row has been
+byte-scanned, hashed and decoded. The same holds in
+`acs_housing_universe_source.py`, where `_reconstruct` (`:563`) builds the full
+projection at `:566-574` and only then calls `_select(full, serialnos)` at
+`:575`. **So this entire ~1,840 CPU-s is paid identically at every sample
+fraction, including 1/8000.** Run 2 (1/2000, a 4x larger sample) is now running
+to confirm that empirically: if the fixed-tax reading is right, its profile
+should show the same ~5.05M `_records` and ~5.42B `_require` call counts.
