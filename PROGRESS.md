@@ -785,3 +785,26 @@ pre-clone person table), minus its value at the 1/1000 anchor: +1.1 s at 1/100,
 +10.2 s at the ceiling, +20.8 s at 1/10, +1,137.3 s at full source. Full-source
 total is **13.94 CPU-h**, and the naive 1000x extrapolation (1,466 CPU-h =
 61 CPU-days) is wrong by **105x**.
+
+---
+
+## Run 2 was suspended mid-flight; disclosed
+
+At ~1,370 CPU-s I found run 2's process in state **`T` (stopped)** with `%CPU
+0.0` and its CPU counter frozen — something had sent it SIGSTOP/SIGTSTP (most
+likely SIGTTOU from the backgrounded shell's process group). It had been
+suspended for roughly **12 minutes of wall time** (elapsed 37:01 against 22:53
+of CPU). I resumed it with `kill -CONT`; it returned to state `R` at 100% CPU
+and continued from where it stopped.
+
+**What this does and does not affect.** A stopped process accrues no CPU time,
+so run 2's **CPU measurement and its RLIMIT_CPU cap are unaffected** — the cap
+still fires at 1,800 CPU-s of real work, and the profile is unchanged. What is
+corrupted is run 2's **wall time**, which now includes ~12 minutes of doing
+nothing. The report will give run 2's CPU figure and mark its wall figure as
+invalid rather than printing a number that looks like a measurement. Run 1's
+wall time (1,842.4 s against 1,803.3 s CPU, 97.9% CPU-bound) is unaffected and
+is the one to use.
+
+The cap watcher now detects state `T` and sends SIGCONT automatically so a
+second suspension cannot silently stall the lane.
