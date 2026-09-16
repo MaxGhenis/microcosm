@@ -1321,3 +1321,37 @@ digest at all. The report will say this instead.
 - §6a's stale 1,700,710 cells → 1,700,582 (the figure §8d derives); the
   discrepancy is disclosed in §8d and changes no printed digit.
 - Both recorded as entries 7 and 8 in §8c, the report's own corrections list.
+
+## Third self-found defect, and it is the biggest: §9 mixed decimal and binary GB
+
+Recomputing the memory wall from raw byte counts rather than from the report's
+own rounded figures:
+
+- the three profiled runs print `peak_rss_bytes / 1024³` (**binary**);
+- v4's "9.31 GB" is `9,313,337,344 / 10⁹` (**decimal**); in binary it is 8.67 GiB.
+
+So §9 subtracted 6.75 GiB from 9.31 GB and got a "2.56 GB" population-dependent
+delta. The true difference is 9,313,337,344 − 7,244,562,432 = **2,068,774,912 B
+= 1.93 GiB**, and every number downstream of it was ~33% too high:
+
+| | was | is |
+|---|---|---|
+| per retained population copy | 138 MB | **103.8 MiB** |
+| per cloned household per copy | 45 KB | **33.6 KiB** |
+| per cell | 85 B | **64.0 B** |
+| 19 retained at the ceiling, + floor | 163 GB | **124 GiB** |
+| 19 retained at full source, + floor | 2,575 GB | **1,938 GiB (1.9 TiB)** |
+| incumbent, for comparison | 62 KB/hh | **57.9 KiB/hh** |
+
+§9 is rewritten on binary units with the raw byte counts printed, a 1/10 row
+added, and the unit hazard stated in the text so no later reader repeats it.
+§10's "falls to ~140 GB" → **~108 GiB**; §11's "~163 GB … ~2.6 TB" → **~124 GiB
+… ~1.9 TiB**; §7's incumbent peaks now print GiB (37.37 / 87.71) with a note that
+the incumbent's log labels its own peak "94.18GB" decimally; §1's v4 row now
+reads 8.67 GiB so the whole run table is one unit system, and its column header
+says GiB.
+
+**No qualitative conclusion changes.** Memory still binds below the payload
+ceiling, a ceiling build still needs far more RAM than this machine has, and the
+per-population footprint is still in the incumbent's range — which is why the
+error survived three readings. Recorded as correction 9 in §8c.
