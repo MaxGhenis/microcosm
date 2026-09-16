@@ -78,6 +78,44 @@ in the report — it does not claim a zero-swap run.
   background (`inputs/recomputed-sha256.txt`).
 - Built the detached launch harness; B1 launched.
 
+## B3's argument surface is much larger than the plan says (read at source, 2026-09-16)
+
+`--exact-k` is not a five-flag group. `tools/build_us_fiscal_refresh_release.py:1618-1690`
+forces ALL of: the five (`--exact-k`, `--exact-k-pi-hi`, `--pool-manifest`,
+`--pool-manifest-sha256`, `--pool-release-id`), **plus** an explicit non-negative
+`--seed`, `--no-staging`, `--incumbent-diagnostics`,
+`--incumbent-diagnostics-sha256`, `--frozen-target-surface-sha256`,
+`--ledger-facts-sha256` **and** `--ledger-manifest-sha256`; and it forbids
+`--base-h5`, `--dense-default-dataset`, `--evidence-release` and any
+`--selection-source-*`. BUILD-PLAN-main.md §3 lists five of the twelve.
+
+Three consequences, each a candidate finding:
+
+- **L1 — the pinned Ledger feed is structurally unusable in this arm.**
+  `--ledger-manifest-sha256` requires `--ledger-facts` to be a Chronicle
+  *consumer artifact directory* (`manifest.json` + `consumer_facts.jsonl`).
+  A bare feed raises: *"A manifest hash pin was provided but the Ledger feed is
+  a bare consumer-facts file with no manifest"*
+  (`packages/microcosm-build/src/microcosm/build/ledger_artifact.py:258-262`).
+  The plan's release-stage pin `consumer_facts_buildn_v9_4.jsonl` (b3c0835…) is
+  a bare file, and a bounded search of every `_build*-runtime` root plus
+  `~/PolicyEngine/chronicle` finds **no consumer artifact directory anywhere on
+  this machine** — only bare `consumer_facts_*.jsonl` and one chronicle test
+  fixture.
+- **I1 — the incumbent diagnostics ARE obtainable.** The certified release
+  publishes `calibration_diagnostics.json`
+  (sha `870449b44e86b13b25bcea1a57f0e7af37f4d4db18be815eea3acdf9fe6eb40e`,
+  19,512,724 B). Downloaded read-only from
+  `policyengine/populace-us@populace-us-2024-spm-20260915`; the recomputed
+  sha256 matches the manifest exactly. Its `target_surface` block carries
+  `sha256 49bb0fe3dfd4c399e7b3f900b0e5ba29d9d72413d9170dfc155a9fa5e91c6f6f`,
+  `n_targets 5659`, `n_records 57240`.
+- **S1' — the frozen-surface check pins the rung.** `--frozen-target-surface-sha256`
+  is compared post-calibration against the surface the run actually compiles
+  (`tools/build_us_fiscal_refresh_release.py:11108-11117`), so the exact-k arm
+  demands the run reproduce the incumbent's surface. The incumbent's is over
+  57,240 records; a 1% pool is far smaller.
+
 ## Next
 
 B2 relaunch against `checkpoints/base-q1/asec_raw_stage.checkpoint.h5` → B2 (1% rung, `tools/us_stacked_pool_smoke.sh.example`
