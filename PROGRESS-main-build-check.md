@@ -44,6 +44,14 @@ a lane deliverable sit at the `-o` path.**
 
 ## Next
 
+**2026-09-15 23:24 — the `-o` path was truncated a SECOND time** (subfleet
+retried the lane after `max@policyengine.org` hit a hard limit; see
+`out-main-can-build-map.lane.log`). Restored again from
+`out-main-can-build-map.SALVAGED-COPY.md`; sha256
+`a5d51dfd98a4b4df06f2a1e5f49042338a3a36960f0d59be6f30fa7161505391` on both.
+The verification pass launched by `be0067bb0` never executed — the lane died at
+launch. Relaunching it now.
+
 Both deliverables are written and restored. A 9-dimension adversarial
 verification pass is running over every load-bearing claim in both of them
 (engine/constraints, tool source + line numbers, graph + git archaeology,
