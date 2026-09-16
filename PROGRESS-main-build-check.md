@@ -44,8 +44,13 @@ a lane deliverable sit at the `-o` path.**
 
 ## Next
 
-Both deliverables are written. Remaining: fold in the two accuracy/completeness
-critics when they return, then final report.
+Both deliverables are written and restored. A 9-dimension adversarial
+verification pass is running over every load-bearing claim in both of them
+(engine/constraints, tool source + line numbers, graph + git archaeology,
+inputs on disk incl. recomputed sha256, July lineage receipts, resource
+receipts, smoke re-runs, completeness-vs-brief, plan executability), each
+non-confirmed finding getting an adversarial second opinion. Remaining: fold
+the surviving corrections into both deliverables, then final report.
 
 ## Open questions for Max
 
