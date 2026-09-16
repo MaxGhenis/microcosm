@@ -722,3 +722,26 @@ Two things fall out:
 - **Store-hit nodes still cost 11.0 s**, which is the unguarded `_apply_result`
   double frame copy plus the observer stamp (`executor.py:2497`, `:2569`)
   charging nodes that did no work.
+
+---
+
+## Report drafted; waiting on run 2 to fill its row
+
+`.profile-runs/report-draft.md` (566 lines) holds the full report: runs table,
+bucket attribution, the fixed floor, the hard ceiling, the scaling law,
+incumbent durations, the line-cited static map, the avoidable-cost
+recommendation, the verdict, and a method/caps section. Run 2's row, cap line
+and children-CPU figure are the only placeholders left.
+
+Prediction table now anchors on the v4 receipt's measured 5,278.6 CPU-s rather
+than a partial fixed term, and adds only the measured scaling increment:
+full source = 5,278.6 + 43,756 + 1,130 = **~13.9 CPU-hours** on measured terms.
+The naive extrapolation the brief opened with (5,278.6 x 1000 = 1,466 CPU-h =
+61 CPU-days) is **wrong by ~105x**, because it multiplies a fixed source-ingest
+tax by the sample ratio.
+
+**Decision: run 3 will not be spent.** Both profiled runs die in the same fixed
+ACS phase, so a third fraction yields a third copy of the same number. The
+authorization is a ceiling on machine time, not a quota. The report states this
+and names the measurement that would actually close the remaining gap: one
+uncapped profiled run at 1/8000, about 2.5 CPU-hours.
