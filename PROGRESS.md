@@ -165,3 +165,19 @@ So the incumbent builds the 1.59M-household local-area dataset in **~4.7 h wall
 and ~30.1 CPU-hours total** (staging + release chain), and the 57k-household
 certified default in **2 h 16 m**. Those are the numbers the native executor has
 to be compared against.
+
+---
+
+## Aborted attempt, disclosed
+
+The first launch of the 1/8000 run was **aborted by me at 349 CPU-s** (2026-09-16
+~01:58Z) for a harness-fidelity defect, not a retry: I had replicated seven of
+`run_v2.py`'s eight `THREAD_ENV` names. The missing
+`POPULACE_FIT_PREDICT_WORKERS` falls back to `os.cpu_count()` at
+`worker_identity.py:1243`, which would have fanned QRF predict work out to 18
+child processes — violating this lane's no-child-processes authorization and,
+worse, silently *undercounting* CPU, because `resource.getrusage(RUSAGE_SELF)`
+excludes children. No profile or measurement was taken from that attempt; it is
+counted here for full disclosure of machine time used. The driver now sets all
+eight names and additionally records `RUSAGE_CHILDREN` so any child CPU is
+visible rather than invisible.
