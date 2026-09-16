@@ -477,3 +477,37 @@ So each node pays **two full frame deep copies plus a complete constructor
 validation**, unconditionally. That is the per-node population-scaling floor of
 the executor, and the nine nodes that "hit the store" in the v4 run paid it in
 full while doing no work.
+
+### Per-node unconditional copy + validation: measured, and it is cheap
+
+`.profile-runs/harness/bench_per_node_unconditional.py` (receipt
+`.profile-runs/per-node-unconditional-bench.json`) builds tables at the pilot's
+exact declared shape — person 214 cols x 2.187 rows/household, household 41,
+tax_unit 6 x 1.343, spm_unit 6, family 5, marital_unit 5 x 1.751, i.e.
+**536.8 cells per cloned household** — and times the two deep copies plus the
+five-group linkage validation:
+
+| cloned hh | cells | copy A | copy B | validate | total | per cell |
+|---|---|---|---|---|---|---|
+| 3,168 | 1,700,710 | 0.002 s | 0.001 s | 0.002 s | 0.005 s | 2.90 ns |
+| 50,688 | 27,212,815 | 0.022 s | 0.018 s | 0.027 s | 0.067 s | 2.46 ns |
+| 202,752 | 108,851,063 | 0.101 s | 0.107 s | 0.160 s | 0.368 s | 3.38 ns |
+
+**~2.9 ns/cell**, i.e. fully vectorized. At full source that is 4.9 s per node,
+**93 CPU-s across 19 nodes (0.026 CPU-h)**. The double copy is real waste but it
+is not the scaling problem.
+
+### Per-cell cost ranking of the whole-frame passes (all measured)
+
+| pass | per cell | relative |
+|---|---|---|
+| `_frame_identity` (per-cell Python, `survey_population_preparation.py:688`) | **~500 ns** | **1x** |
+| `_context_digest` on plain numpy dtypes (`executor.py:446`) | ~200 ns | 2.5x cheaper |
+| `_storage_parts` (`population.py:2742`) | 1-60 ns | 8-500x cheaper |
+| deep copy + linkage validation (`population.py:2681`, `bundle.py:118-126`) | 2.9 ns | 170x cheaper |
+| `pickle` round trip (`executor.py:372`) | 2 ns | 250x cheaper |
+| `_context_digest` on nullable dtypes (`executor.py:458-460`) | 6 ns | 80x cheaper |
+
+`_frame_identity` is ~170x more expensive per cell than the frame copies it is
+usually blamed alongside. It is the dominant population-scaling cost in the
+architecture, and every one of its passes exists to produce a digest.
