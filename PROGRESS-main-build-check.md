@@ -50,7 +50,9 @@ retried the lane after `max@policyengine.org` hit a hard limit; see
 `out-main-can-build-map.SALVAGED-COPY.md`; sha256
 `a5d51dfd98a4b4df06f2a1e5f49042338a3a36960f0d59be6f30fa7161505391` on both.
 The verification pass launched by `be0067bb0` never executed — the lane died at
-launch. Relaunching it now.
+launch. Relaunched 23:3x as workflow `wf_c0567a59-9a2` (9 verify dimensions →
+adversarial second opinion on every non-CONFIRMED check → completeness critic).
+Script: `.../workflows/scripts/verify-build-lane-deliverables-wf_c0567a59-9a2.js`.
 
 Both deliverables are written and restored. A 9-dimension adversarial
 verification pass is running over every load-bearing claim in both of them
