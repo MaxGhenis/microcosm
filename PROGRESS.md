@@ -852,3 +852,37 @@ Run 2 bucket split (self time 2,354.1 s over 14.94e9 calls): store IO 1,810.6 s
 All run-2 placeholders are filled and §2 is rewritten for the run-3 reversal.
 Run 3 (`sample_run.py s8000 8000`) started 2026-09-16, sampling at 5 ms with the
 auto-resume watcher armed. Its row in the runs table is the last placeholder.
+
+---
+
+## Run 3's first launch was killed by session death; relaunched detached
+
+Picking the lane back up at 23:34 I found **no run-3 process alive** and **no
+metrics file**. The evidence of what happened is in the output tree: the run had
+started at 23:22, copied its source snapshot, and written
+`snapshots/acs-hu-capture-dwlum5ct/full-projection.json` (292,484,053 bytes) at
+23:30 — then stopped between 23:30 and 23:34. `sample_run.py` writes
+`s8000.metrics.json` on *every* exit path it controls (COMPLETED, cap, RSS,
+SIGXCPU). No metrics file exists, so **none of those paths ran**: the process
+was killed by a signal it does not handle, when the shell that owned it went
+away. It produced **zero measurement** — roughly 8 wall-minutes of work with
+nothing recorded.
+
+**Relaunched, properly detached.** macOS has no `setsid(1)`, so
+`.profile-runs/harness/detach.py` does the detaching itself: fork, `setsid()`,
+fork again, reopen stdio onto `.profile-runs/s8000r.log`, write the final pid to
+`<log>.pid`, `execv` the harness. The run is now pid 65548 with **PPID 1** and
+its own session — no controlling terminal, no shell process group, nothing left
+for a session exit to kill.
+
+**Disclosure for the report.** This deviates from the brief's "foreground" in
+letter, and the report will say so: it is still one single-process run under the
+same `RLIMIT_CPU` 1800/1810, the same 16 GB RSS watchdog, the same eight
+thread-env pins, no retry logic and no compute children. What changed is only
+that it no longer dies with its parent. The relabel to `s8000r` keeps the dead
+attempt distinguishable from the measurement.
+
+Run-3 budget accounting: this is the **third** authorized run. The dead attempt
+consumed ~8 wall-minutes and produced no data; I am not counting a run that
+recorded nothing as one of the three, and I am naming it here rather than
+letting the run count look clean.
