@@ -1644,3 +1644,47 @@ smell, and the verdict's finding (d) carries the same qualification.
 
 **"Roughly 12 minutes" of suspension was an impression (correction 16).** The
 profile puts it at 511–551 s = 8.5–9.2 minutes.
+
+## Six more verifier findings confirmed and applied
+
+- **Kernel parallelism is real and on by default, not hypothetical BLAS.**
+  `microcosm.fit.qrf` fits with `n_jobs=_fit_n_jobs()` (`qrf.py:542`) and
+  `_fit_n_jobs()` returns **-1 — every core —** when `POPULACE_FIT_N_JOBS` is
+  unset (`qrf.py:435-447`). This lane pinned it to 1 (as the pilot's `run_v2.py`
+  does), so no measurement here can see it. §7 now says this explicitly instead
+  of hedging about BLAS, keeps "treat CPU-hours as wall-hours" for the dominant
+  single-threaded Python loops, and states that the predictor nodes could go
+  faster in wall-clock on an unpinned build by an amount this report cannot give.
+- **The observer's share used a 28-node numerator over a 22-node denominator.**
+  Corrected to 18.7 s = **43%** of the 43.8 s scaling term, with the leftover
+  ~5 CPU-s of stamping named for what it is: **proof that the "fixed" term is not
+  entirely fixed.**
+- **"Measured identical at 1/8000, 1/2000 and 1/1000" was false** — v4 was never
+  profiled. Now "measured identical at 1/8000 and 1/2000; assumed so at 1/1000
+  and above, from §4's code", and the column is relabelled `fixed (residual)`.
+- **§2's "1,800 profiled CPU-s buys ~357 s of pipeline" used the whole-run
+  division §8c already withdrew.** Now states that 5.05× is `_records`-specific,
+  that the whole-run inflation is nearer 2.2× on run 3's evidence, and that the
+  conclusion holds either way.
+- **"The 1/8000 and 1/2000 runs would have completed" is unsupported by the
+  report's own arithmetic** — ~3,731 CPU-s still exceeds the 1,800 s cap.
+  Corrected: they would have died in a later phase, and the brief's plan needs the
+  fix *and* a larger cap.
+- **The block-hash branch is a weaker precedent than claimed.**
+  `acs_person_coverage_authentication.py:293-297` only *hashes* in blocks; it does
+  no record framing, no quote parity, no token ceilings. §4 and §10 now say it is
+  evidence the style is idiomatic, not that the rewrite is drop-in. The stale
+  "§9" cross-reference (should be §10 item 2) is fixed.
+
+**Two real static-map gaps in brief-named categories, both added:**
+
+- **DataFrame concats** — the brief named "DataFrame copies/concats" and the word
+  "concat" appeared nowhere in the report. `population.py:1314`
+  (`pd.concat([carried, remapped])`, per group entity inside the EXPAND rebuild),
+  `:1552`, `:1625`.
+- **Per-cell Python in the store's series codec** — §8b had answered "codec
+  encode/decode" with `codecs.py` only and concluded "per-table pandas, not
+  per-row Python". The store's own codec is per-cell Python for string columns on
+  write (`store.py:463`), object columns (`:481`), and **on every cache-hit read**
+  (`:548-558`). Same shape as `_frame_identity`, and §8d's float64-only constants
+  do not price it — named as an unmeasured gap rather than estimated.
