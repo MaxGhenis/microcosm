@@ -1146,7 +1146,15 @@ to withdraw.
     named. `graph_atomic_survey_financial.py:1686` is a second whole-graph loop
     outside the executor with `same_replayed_population` comparisons. Added, and
     flagged as unmeasured.
-24. **Smaller ones, all applied:** eleven store-hit node executions cost 11.0 CPU-s,
+24. **The observer's full-source share divided a 28-stamp numerator by a base
+    containing 22 of them.** §6d's model scales only the 22 population-work nodes;
+    the other six stamps sit inside the term it holds fixed. §10 now gives both
+    consistent readings — **5.4–6.3 CPU-h = 35–40% of 56,072 s** scaling only what
+    §6d scales, or **6.9–8.0 CPU-h = 41–46%** of a ~61,400–62,200 s total if the
+    six fixed-term stamps are scaled too — and says which is the more honest about
+    the architecture. The verdict's share becomes **35–46%**. This is the residual
+    half of correction 11's node-count fix; the 54%→43% half landed earlier.
+25. **Smaller ones, all applied:** eleven store-hit node executions cost 11.0 CPU-s,
     not nine (the nine financial-lane hits are 8.7); commas re-derived exactly as
     1,346,959,431 = 266.5 per record against 286 fields, not 1.34e9/265/~280;
     `canonical.py` is 106 lines and *does* walk elements at `:31`/`:37`; 696.9 B/hh
@@ -1357,8 +1365,20 @@ remaining ~5 CPU-s of stamping sits inside the term §6a classified as fixed,
 **which means the fixed term is not entirely fixed**: a few of its 5,234.8 CPU-s
 scale with population.
 
-At full source the stamp across all 28 executions is **24,900–28,700 CPU-s =
-6.9–8.0 CPU-hours, 44–51% of the whole build.**
+**At full source, on either consistent basis.** Quoting a 28-stamp numerator
+against the 56,072 CPU-s total would repeat the same mismatch, because that total
+scales only the 22. So, both ways:
+
+- **Scaling only what §6d scales** (the 22 in the linear term): the stamp is
+  **19,600–22,600 CPU-s = 5.4–6.3 CPU-hours — 45–51% of the 43,870 s linear term
+  and 35–40% of the 56,072 s total.**
+- **Scaling all 28** (i.e. conceding that the six stamps inside the "fixed" term
+  grow too): the stamp is **24,900–28,700 CPU-s = 6.9–8.0 CPU-hours**, but the
+  total rises with them to ~61,400–62,200 CPU-s, so the share is **41–46%.**
+
+Either way it is the largest single avoidable item in the build, and the second
+reading is the more honest one about the architecture: six of the stamps sit in a
+term this report calls fixed and they are not fixed.
 The fix is inside `_frame_identity` itself. Its cost is literally
 `for value in series: update_cell(value)`
 (`survey_population_preparation.py:688-689`, and `:675-676` over the index) —
@@ -1457,10 +1477,11 @@ build is impossible today.
   would have died in a later phase instead of in ingest. The brief's
   three-fraction plan needs this fix **and** a larger cap.
 - **Observer to zero** (item 1): at full source the build drops from **15.58 to
-  7.6–8.7 CPU-hours** (the stamp is 6.9–8.0 of the 15.58), and the memory
-  requirement falls from **~300 GiB to ~24 GiB** (one snapshot plus the ~8.4 GiB
-  floor).
-- **Both**: full source at **~7.2–8.3 CPU-hours** — and with the 12.7× parallelism
+  9.3–10.2 CPU-hours** on §6d's own basis (removing the 5.4–6.3 CPU-h of stamping
+  that §6d actually scales), or to **~9.5–9.8** if the six fixed-term stamps are
+  counted and removed as well. The memory requirement falls from **~300 GiB to
+  ~24 GiB** (one snapshot plus the ~8.4 GiB floor).
+- **Both**: full source at **~8.9–9.8 CPU-hours** — and with the 12.7× parallelism
   the incumbent already demonstrates on this machine, that is a wall-clock
   afternoon rather than a day.
 
@@ -1514,9 +1535,10 @@ else runs; it costs ~53 CPU-s of encoding at full source, so it is a design
 decision, not a performance trade-off. **(2) Stop retaining every node's
 population** and stop stamping the whole frame on every node: one callback
 (`executor.py:2569` → `graph_atomic_survey_financial.py:1625-1626`) is both the
-memory wall and **44–51% of the full-source CPU**, and the per-cell Python loop
-it runs (`survey_population_preparation.py:688-689`) seals a quantity a
-vectorized per-column pass seals identically. **(3) Replace the
+memory wall and **35–46% of the full-source CPU** depending on which of the two
+bases in §10 you take, and the per-cell Python loop it runs
+(`survey_population_preparation.py:688-689`) seals a quantity a vectorized
+per-column pass seals identically. **(3) Replace the
 byte-at-a-time source scanners** and push the sample filter above the row decode
 — that is the whole cost of every build that can run today, it is fixed at every
 size, and the fast pattern already exists three lines away in the same file.

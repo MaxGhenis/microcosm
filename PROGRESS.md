@@ -1860,3 +1860,33 @@ retention bench reproduces §9's table within its stated spread.
 - Everything under `.profile-runs/` stays uncommitted (excluded at
   `.git/info/exclude:22`): the three run receipts, both cProfile files, the
   sampler's samples.json, six microbenchmark receipts, and the harness.
+
+## Workflow closed: 92 agents, 0 errors, 40 confirmed findings
+
+The verification fan-out finished formally (2,312 tool calls, 8.4M subagent
+tokens). Its completion report surfaced one residual I had applied only half of,
+now fixed as correction 24:
+
+**The observer's full-source share divided a 28-stamp numerator by a base
+containing 22 of them.** I had corrected the 1/1000 figure (54% → 45–51% of the
+43.8 s term) but left the full-source line quoting all 28 stamps against the
+56,072 CPU-s total — which scales only the 22. §10 now gives both consistent
+readings rather than splitting the difference:
+
+- scaling only what §6d scales: **5.4–6.3 CPU-h = 45–51% of the 43,870 s linear
+  term, 35–40% of the 56,072 s total**;
+- scaling all 28 (conceding the six "fixed-term" stamps grow too): **6.9–8.0
+  CPU-h**, but the total rises to ~61,400–62,200 s, so **41–46%**.
+
+The verdict's clause becomes **35–46%**, and the observer-to-zero counterfactual
+becomes **15.58 → 9.3–10.2 CPU-h** (or ~9.5–9.8 removing all 28), with both fixes
+together at **~8.9–9.8 CPU-h**. The second reading is the more honest one about
+the architecture and the report says so: six of the stamps sit inside a term this
+report calls fixed, and they are not fixed.
+
+The store-hit count the same report flagged was already correct in the delivered
+file (eleven executions, 11.0 CPU-s; nine financial-lane hits, 8.7 s) — verified
+against the manifest's own `store_hit` flags.
+
+All three copies re-synced and re-validated: 0 ragged tables, balanced code
+fences, no prose line over 95 characters.
