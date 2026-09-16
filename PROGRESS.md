@@ -85,3 +85,54 @@ run 1 is the smallest fraction so the constant floor is measured first.
 ## Next
 
 - Run 1 (1/8000), then 1/4000, then 1/2000.
+
+---
+
+## Update — run 1 launched, first static findings
+
+Run 1 (1/8000) started 2026-09-16T01:51Z, `ulimit`-equivalent RLIMIT_CPU soft
+1800 s / hard 1810 s (the 10 s of grace exists only so the SIGXCPU handler can
+dump the partial profile).
+
+Static findings I verified myself while it ran (the fan-out readers are
+producing the full map separately):
+
+- **Per-node manifest `wall_time` covers the WHOLE node loop body**, not just
+  the kernel: `node_started = time.perf_counter()` at
+  `executor.py:2303` is the first statement of `for node_id in compiled.order`
+  (`executor.py:2302`), and `wall_time=time.perf_counter() - node_started` at
+  `executor.py:2612` is in the `NodeReceipt` built at the end of the same body.
+  So the 1,143 s of v4 node time already includes store reads/writes, identity
+  work and `_apply_result`; the missing ~3,543 s is entirely outside
+  `run_graph`'s node loop (its own preflight, plus the runner's work around
+  three separate `run_graph` calls).
+- **The graph's single declared source is the whole 3.7 GB source directory.**
+  `graph_survey_population.py:919` declares `SourceRef(SOURCE_NAME, SOURCE_CODEC)`
+  and `:1082`/`:1143` bind `sources={SOURCE_NAME: source_dir}`.
+  `keys.py:54 source_content_key` therefore takes the directory branch
+  (`keys.py:67-68`) into `keys.py:31 _directory_identity`, which at
+  `keys.py:45` does `candidate.read_bytes()` — **the entire file into memory** —
+  for every file under the tree, then hashes it. A 662 MB ASEC H5 is a 662 MB
+  transient allocation.
+- That identity is recomputed at least five times per pilot run:
+  `_source_paths_and_keys` is called by `run_graph` itself
+  (`executor.py:2283`) once per graph, and the pilot runs three graphs (base
+  survey, 9-node atomic, 19-node financial), *and* the runners call it directly
+  first — `graph_atomic_survey_population.py:214` and
+  `graph_atomic_survey_financial.py` before `run_graph`. On top of that,
+  `executor.py:2453-2456` re-derives `source_content_key` for every source a
+  **cold** node declares, after that node's kernel returns.
+- **`_context_digest` runs twice per cold node** (`executor.py:2423` and
+  `:2449`), hashing every column of every entity table, the weights and the
+  strata of the incumbent population, plus each artifact payload
+  (`executor.py:466-495`).
+- **`_write_node` stores every column of the whole frame as its own store
+  object AND the whole frame again**: `executor.py:1524-1527` loops every
+  entity/column into `store.put_column` (`:1533`), then `:1547` calls
+  `store.put_frame` for the same data. Each `_put` (`store.py:723`) fsyncs the
+  whole staged object tree (`store.py:754 _fsync_tree`) and the destination
+  directory twice (`:756`, `:770`).
+
+## Next
+
+- Wait for run 1, then 1/4000 and 1/2000.
