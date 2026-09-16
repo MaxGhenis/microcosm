@@ -1688,3 +1688,35 @@ profile puts it at 511–551 s = 8.5–9.2 minutes.
   write (`store.py:463`), object columns (`:481`), and **on every cache-hit read**
   (`:548-558`). Same shape as `_frame_identity`, and §8d's float64-only constants
   do not price it — named as an unmeasured gap rather than estimated.
+
+## Seven more confirmed findings applied
+
+- **The 245-column breakdown was a different object.** Read from the pilot's own
+  `graph.json`: the CREATE node declares 245 as **person 198, household 29,
+  tax_unit 5, spm_unit 5, family 4, marital_unit 4** (sums to 245). The report
+  printed "person 214, household 41, 6, 6, 5, 5", which sums to **277** — that is
+  the *frame width* the benches model (the 269-column union of all nineteen
+  nodes' outputs, plus id and membership columns), which is the right object for a
+  per-cell cost but is not "what the CREATE node declares". §8d now distinguishes
+  the two and says where 536.84 comes from.
+- **Only ~605 of the ~830 CPU-s is measured fraction-independent.** §3a's
+  identical counters cover `_records` (447.2) + `_archive` (158.2); the remaining
+  ~225 CPU-s (`lines`, `_select`, `_tables`, canonical JSON) is argued from §4's
+  code, and `_select` does filter on sampled serialnos. Stated as
+  "~605 measured fixed, ~225 argued fixed"; the conclusion holds at either bound.
+- **The "2.3 passes per node" cross-check is a factor-of-two check with a
+  residual, not agreement.** §8d's own constants make the named companions
+  negligible (deep copies 2.9 ns/cell = 0.6% of a pass), so the bottom-up model
+  reaches ~1.25 equivalents against 2.3 measured — **~0.9 s per node
+  unattributed**. Now said plainly.
+- **"2.9 ns/cell (all dtypes)" was float64-only** → "2.4–3.4 ns/cell, mean 2.9
+  (float64 only; dtype sensitivity not measured)".
+- **The regeneration claim was too broad.** `final_tables.py` covers §6a, §5's
+  payload ceiling and §6d — not §3's buckets, §5's allocation ceiling, §8d, §9 or
+  §10. §1 now enumerates what it does and does not regenerate.
+- **"Seven call sites" was seven invocations from three sites.** Corrected in
+  both places.
+- **The allocation ceiling's "209,700 (13.2%)" carried three significant figures
+  its evidence cannot support** — the ~320 B/row is an estimate and the code's
+  only hard bound is 4,096 B. Now "roughly 200,000 (~13%)", with the reason, and
+  noted as sitting above the preparation ceiling so it never binds first.
