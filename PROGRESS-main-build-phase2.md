@@ -291,3 +291,18 @@ base-h5 arm.
 
 Write the final report: answer, stage table, gates verbatim, loader result,
 questions for Max.
+
+
+## Report DELIVERED (2026-09-16 ~07:15Z)
+
+`~/PolicyEngine/_recovered/scratch-backup/893/lanes/out-main-build-phase2.md`
+(327 lines), master copy alongside as `out-main-build-phase2.SALVAGED-COPY.md`,
+both byte-identical (Phase 1's lesson: never let the only copy sit at the `-o`
+path). Receipts: `_buildq-runtime/RECEIPT-phase2.md`.
+
+Answer: **no, the documented chain does not execute end to end at 1%.** Source
+artifacts build fine (B1, A1 rc 0, B2 pool). Neither arm reaches calibration and
+neither produced a release directory. S2's zero-support gate was never reached.
+
+Eleven findings F1-F11, of which F6 was corrected after an adversarial pass
+refuted the reason this lane first gave for it.
