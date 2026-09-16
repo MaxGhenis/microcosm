@@ -1845,3 +1845,18 @@ ranges: ceiling **17.6–18.0 GiB retained, ~26 GiB total**; full source
 Both generators re-run clean at the end: `final_tables.py` reproduces §6d
 character-for-character (15.58 CPU-h, 94×, 6,966.7 s quadratic), and the
 retention bench reproduces §9's table within its stated spread.
+
+## Delivered
+
+- **`out.md`** — the brief's named output file, written and **deliberately not
+  committed**. It is a tracked file already carrying another lane's committed
+  report (Amendment 19; `git log -- out.md` → 72e477caf, 27e593db3, c35cd8a85),
+  and committing over it would delete that lane's work. It shows as `M out.md` in
+  `git status` and that is the intended state.
+- **`experiments/us-native-executor-cost-attribution-20260916.md`** — an identical
+  durable copy, committed, following the directory's `us-<topic>-<date>.md`
+  convention. Dated 20260916 because the runs and the verification pass finished
+  after midnight; the lane was chartered 2026-09-15.
+- Everything under `.profile-runs/` stays uncommitted (excluded at
+  `.git/info/exclude:22`): the three run receipts, both cProfile files, the
+  sampler's samples.json, six microbenchmark receipts, and the harness.
