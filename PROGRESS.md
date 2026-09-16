@@ -1832,3 +1832,16 @@ since a cold node calls `_normal_json_mapping` at `:1250` before the EXPAND
 lineage is attached at `:1274`/`:1286` — so a fresh full-source build does not pay
 it there), and a dangling "listed in §11" pointer for a benchmark inventory that
 does not exist in §11.
+
+## The retention bench is repeat-stable to ~2%, and the report now says so
+
+Re-running `bench_observer_retention.py` four times gives 9.6, 9.7, 9.7, 9.8
+bytes per cell — RSS measurement wobbles ~2% run to run. Quoting 9.74 to three
+digits (and 293.6 GiB off it) claimed precision the method does not have. §9 now
+prints **9.6–9.8 B/cell** with the repeat spread stated, and its table gives
+ranges: ceiling **17.6–18.0 GiB retained, ~26 GiB total**; full source
+**290–296 GiB retained, ~300 GiB total**. Conclusions unchanged.
+
+Both generators re-run clean at the end: `final_tables.py` reproduces §6d
+character-for-character (15.58 CPU-h, 94×, 6,966.7 s quadratic), and the
+retention bench reproduces §9's table within its stated spread.
