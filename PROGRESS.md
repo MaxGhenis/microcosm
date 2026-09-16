@@ -1448,3 +1448,16 @@ percentage and no CPU-hour figure changes. Recorded as correction 10 in §8c.
 This one is worth noting for method: it was invisible to checking totals, and
 invisible to the generator script, which is self-consistent. Only adding the
 columns across caught it.
+
+## The opening summary now carries the memory wall
+
+§9's finding arrived late and never reached the report's own short answer, which
+listed only the payload ceiling and the ingest tax. For a report a merge
+decision rests on, the second binding constraint belongs in the first paragraph.
+Added, with its epistemic status attached in the same breath (computed from two
+measured RSS peaks plus a retention read, not measured end-to-end).
+
+Also softened the opening's reproducibility claim from "none is hand-carried" to
+name the two exceptions §8c now records — corrections 9 and 10 were both
+hand-carried numbers, and a blanket claim that the verification pass just
+falsified should not survive it.
