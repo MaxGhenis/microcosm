@@ -1306,3 +1306,18 @@ digest at all. The report will say this instead.
 - Fold both corrections into §8b, §10 and §11 with the line numbers above.
 - Adjudicate the verification fan-out's surviving findings when it returns.
 - Then `out.md` (uncommitted) + the committed copy under `experiments/`.
+
+## Both self-found defects applied to the report
+
+- §10 item 1 rewritten: the recommendation is now "vectorize `_frame_identity`'s
+  per-cell loop" with the loop cited at `survey_population_preparation.py:688-689`
+  / `:675-676`, plus an explicit paragraph saying why the stored-digest shortcut
+  does **not** work (`frame_key` = `_hash_parts("frame", node_key)`,
+  `keys.py:106-109`; `_population_stamp` documented as a pure in-process seal,
+  `survey_atomic_geography.py:230-237`).
+- §11 verdict's clause corrected the same way.
+- §8a gained a table row and §8b a paragraph for the store's whole-payload
+  re-hash on every read (`store.py:271` via `_verified_meta` `:227-290`).
+- §6a's stale 1,700,710 cells → 1,700,582 (the figure §8d derives); the
+  discrepancy is disclosed in §8d and changes no printed digit.
+- Both recorded as entries 7 and 8 in §8c, the report's own corrections list.
