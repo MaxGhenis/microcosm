@@ -936,3 +936,47 @@ Third, smaller: `analyze_profile.py`'s docstring claims tottime "sums exactly to
 the profiled CPU total". It sums to the profiled **wall** total. For run 1 the
 two differ by 2.1% (1,842.4 wall vs 1,803.3 CPU); for run 2, by 30%. The report
 must label profiled totals as wall and reconcile them against CPU.
+
+---
+
+## Independent re-derivations: §6 exact, §7 exact, §8 has a brief-level gap
+
+**§6's 43.8 s is right, under its own stated classification.** I re-summed the
+v4 manifest's `timing` block myself. 28 nodes, **1,143.16 s**. Four ASEC
+predictor nodes **957.15 s** (the draft prints 957.5 — a typo; 957.2 is
+correct), prefix `observed_geography` **141.93 s**, financial
+`observed_geography` (a store hit) **0.31 s**; source-bound total
+**1,099.39 s**; population-work **43.77 s over 22 nodes, mean 1.99 s** — the
+draft's 43.8 / 22 / 1.99 exactly. The store-hit subtotal re-derives as 10.98 s
+against the draft's 11.0. The predictions table's scaling increments follow from
+43.8 x (cloned/3,168) − 43.8: 394 / 2,628 / 4,336 / 43,756. All reproduce.
+
+**§7 is exact, every figure, from the files themselves:**
+
+| figure | draft | source line |
+|---|---|---|
+| staging wall / user / sys | 7,829.5 / 99,337.7 / 3,215.6 s | `staging_run.log`: `7829.54 real 99337.73 user 3215.55 sys` |
+| staging peak RSS | 40.13 GB | `40126742528 maximum resident set size` |
+| release chain wall / user / sys | 9,156.4 / 5,672.8 / 302.3 s | `release_chain_run.log`: `9156.43 real 5672.78 user 302.27 sys` |
+| release chain peak RSS | 94.18 GB | `94183096320 maximum resident set size` |
+| release chain stages | `(9147.4s)` | `DONE stages=['materialize','calibrate','qa','finalize','package'] (9147.4s)` |
+| target compilation | 1,132.1 s | `donor/release_manifest.json` `build.timing.target_compilation_seconds` 1132.080194915994 |
+| calibration | 1,072.4 s | `calibration_seconds` 1072.4242046249856 |
+| total build | 8,161.1 s | `total_build_seconds` 8161.056042167009 |
+
+Summary arithmetic re-derived: (7,829.54 + 9,156.43)/3600 = **4.72 wall-hours**;
+(99,337.73 + 3,215.55 + 5,672.78 + 302.27)/3600 = **30.15 CPU-hours**;
+99,337.73/7,829.54 = **12.7x** user-only parallelism (13.1x including sys).
+The staging lane's wall also re-derives from `staging.log`'s own bracket
+(03:38:59Z → 05:49:28Z = 7,829 s).
+
+**§8 has a real gap against the brief.** The brief named ten files to read:
+`executor.py`, `population.py`, `store.py`, **`kernel.py`**, **`canonical.py`**,
+**`manifest.py`**, **`codecs.py`**, **`availability.py`**, **`artifact_edges.py`**
+and the frame identity code. The draft's static map cites the first three plus
+`keys.py` and `bundle.py`, and mentions the bolded six **zero times** — and
+`static-map.json` barely reaches them either (`availability.py`: 0 mentions).
+Two of the brief's named cost categories, **codec encode/decode** and **identity
+recomputation on read**, therefore have no line-cited answer. A second workflow
+(6 readers, one per module, each operation re-verified at its line by a skeptic)
+is closing it now; the result becomes §8b.
