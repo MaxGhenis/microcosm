@@ -172,3 +172,23 @@ feed and would mint a new identity (hand-writing a manifest would be fabricated
 provenance — not done, and recommended against); preflight on a Path-B pool with
 the only available Path-A selection manifest is a guaranteed `selection_carryover`
 FAIL; the publisher preflight needs `--artifact-root`.
+
+
+## A1 (Path A base stage) COMPLETE — rc 0, 2026-09-16T05:34Z
+
+First completed from-raw-sources US base build on today's main.
+**5,058.35 s wall (1 h 24 m), peak RSS 65.10 GB, 0 swaps.**
+`base_populace_us_2024_puf_support.h5`, 2,351,269,694 B, sha256
+`033821f140a2230ff4c2cf887bbfaae6536f4585a0edf4ea0ae3ca57b23d71ad`.
+168,852 base households / 432,523 persons -> 352,932 expanded / 907,382.
+
+Revises the plan on both axes: the plan's "18 min" is July's figure (this is
+4.6x it, on a loaded box), and the plan left A1's memory blank while
+`SYSTEM_REQUIREMENTS.md` projects ~29 GB for the WHOLE end-to-end build —
+the base stage alone is 2.2x that.
+
+Preflight gates launched against that base H5 (a cheap preview of the release
+gates, and the direct test of whether main's fresh base carries the frozen
+support Build P's selection source names).
+
+B2 still running (transfer target 35/47 at 05:36Z, ~1 h 30 m in).
