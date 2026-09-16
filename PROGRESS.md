@@ -886,3 +886,53 @@ Run-3 budget accounting: this is the **third** authorized run. The dead attempt
 consumed ~8 wall-minutes and produced no data; I am not counting a run that
 recorded nothing as one of the three, and I am naming it here rather than
 letting the run count look clean.
+
+---
+
+## Two arithmetic hazards checked myself; one is a real defect
+
+While the audit fleet ran I checked the two places the draft could be
+double-counting or reporting polluted numbers.
+
+**1. `_inventory` + `_archive` do NOT nest — the sum is legitimate.** §3 adds two
+*cumulative* times (1,473.3 s + 364.0 s = 1,837 s of 1,842 s), which is only
+valid if neither is an ancestor of the other. From the profile's own caller
+table: `_inventory` (`acs_person_coverage_authentication.py:278`) is called by
+`acs_population_catalogue.py:141(_preflight)`; `_archive`
+(`acs_housing_universe_source.py:262`) is called by `_reconstruct` (`:563`),
+called by `acs_population_catalogue.py:435(issue_acs_source_catalogue)`. Two
+sibling call trees. The claim stands.
+
+**2. Run 2's bucket seconds are polluted by the suspension — a real defect.**
+cProfile times with `perf_counter` (wall), not CPU, so run 2's profiled total is
+its **wall** total of 2,354.1 s, which includes the ~12-minute suspension. I
+found where it landed by diffing per-function `tottime` between the runs:
+
+| function | run 1 ncalls | run 2 ncalls | run 1 tottime | run 2 tottime | delta |
+|---|---|---|---|---|---|
+| `acs_person_coverage_authentication.py:188(_records)` | 5,054,865 | 5,054,865 | 890.4 s | 1,399.6 s | **+509.2 s** |
+| `:60(_require)` | 5,418,945,835 | 5,418,945,835 | 160.4 s | 177.4 s | +17.1 s |
+| `bytearray.append` | 3,382,952,633 | 3,382,952,633 | 168.0 s | 177.3 s | +9.3 s |
+
+**Identical call counts, 509 extra seconds.** That is stopped time attributed to
+whichever function held the interpreter, not extra work — and it lands almost
+entirely in one function, inside the `store_io` bucket.
+
+Re-deriving run 2's split on the measured **1,803.4 CPU-s** basis (subtracting
+each bucket's delta against run 1, renormalised to the CPU total):
+
+| bucket | printed (polluted) | corrected | run 1 |
+|---|---|---|---|
+| store IO | 1,810.6 s / 76.9% | **1,283.0 s / 71.1%** | 1,310.7 s / 71.1% |
+| other | 529.9 s / 22.5% | **507.1 s / 28.1%** | 518.0 s / 28.1% |
+| identity | 13.6 s / 0.6% | **13.3 s / 0.7%** | 13.7 s / 0.7% |
+| kernel | 0.0 s / 0.0% | **0.0 s** | 0.0 s / 0.0% |
+
+Corrected, the two runs agree **to the tenth of a percent in every bucket** —
+a stronger statement than the draft's polluted "same shape", and honest. The
+report will print the corrected row and say why.
+
+Third, smaller: `analyze_profile.py`'s docstring claims tottime "sums exactly to
+the profiled CPU total". It sums to the profiled **wall** total. For run 1 the
+two differ by 2.1% (1,842.4 wall vs 1,803.3 CPU); for run 2, by 30%. The report
+must label profiled totals as wall and reconcile them against CPU.
