@@ -136,3 +136,32 @@ producing the full map separately):
 ## Next
 
 - Wait for run 1, then 1/4000 and 1/2000.
+
+---
+
+## Incumbent durations — what `_buildp-runtime` actually records
+
+The logs do carry durations (they are not silent). Three independent receipts:
+
+1. **Certified default dataset** (`populace_us_2024_buildp.h5`, 57,240
+   households), `_buildp-runtime/donor/release_manifest.json` → `build.timing`:
+   - `target_compilation_seconds` 1,132.1
+   - `calibration_seconds` 1,072.4
+   - `elapsed_through_calibration_seconds` 2,800.6
+   - **`total_build_seconds` 8,161.1 (2 h 16 m)**
+   Method `dense_no_l0`, 6,000 epochs, final loss 0.01768.
+2. **ACS-local staging** (`logs/acs-local/staging.log` + `staging_run.log`
+   tail): 2026-08-14T03:38:59Z → 05:49:28Z, and the `time` line records
+   **7,829.54 s real / 99,337.73 s user / 3,215.55 s sys**, peak RSS 40.13 GB.
+   That is 28.5 CPU-hours at ~13x parallelism.
+3. **ACS-local release chain** over 1,588,854 households
+   (`logs/acs-local/release_chain_run.log`): **9,156.43 s real / 5,672.78 s user
+   / 302.27 s sys**, peak RSS 94.18 GB. Stage detail from the log:
+   staging frame load 60.7 s; materialize 4,149.3 s (3,972 admin measures over
+   40 chunks); calibrate 1,797 s (800 epochs, within10% 98.74%); qa, finalize
+   and package the remainder; `DONE stages=[...] (9147.4s)`.
+
+So the incumbent builds the 1.59M-household local-area dataset in **~4.7 h wall
+and ~30.1 CPU-hours total** (staging + release chain), and the 57k-household
+certified default in **2 h 16 m**. Those are the numbers the native executor has
+to be compared against.
