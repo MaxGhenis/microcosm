@@ -1554,3 +1554,66 @@ checked hardest before a merge decision leans on the report.
 drafted and false after correction 11, so it now reads "its dominant exponent is
 1 — though one genuinely quadratic path costs 1.9 CPU-hours at full source, 12%
 of the build (§6b)", and the ingest sentence carries the measured 12.9 MB/s.
+
+## The verification fan-out landed, and its best finding overturns §9
+
+Eight dimensions returned ~45 alleged defects. The most important is one I would
+not have found: **§9's memory argument rested on a confounded subtraction.**
+
+The draft subtracted run 3's peak RSS (0 populations built) from v4's (19
+retained) and called the 1.93 GiB difference the population-dependent part. But
+§3c already recorded that run 3 died at
+`asec_person_income_source.py:312(_verify)` — **entering the ASEC HDF5 loads that
+v4 completed**. Those three files:
+
+```
+parent.h5                     653,419,922
+household-attachment.h5       662,871,719
+person-income-attachment.h5   666,333,922
+                            ---------------
+                            1,982,625,566 B = 1.846 GiB
+```
+
+against a 1.927 GiB difference. Nearly the whole delta is source v4 loaded and
+run 3 never reached. The report's own §3c contained the evidence that falsified
+its own §9, two sections apart.
+
+**So I measured the retention instead of bounding it.**
+`.profile-runs/harness/bench_observer_retention.py` runs `executor.py:355-372`'s
+exact operation — `pickle.loads(pickle.dumps((tables, strata)))` — nineteen times
+on the pilot's declared frame shape and retains all of them, reading RSS growth.
+No graph, no source, no engine, seconds of CPU; not one of the three authorized
+runs.
+
+```
+hh=   3,168 cells=  1,700,710  19 snapshots grew RSS by   301.9 MiB ( 15.9 MiB each, 9.8 B/cell)
+hh=  12,672 cells=  6,803,256  19 snapshots grew RSS by  1198.9 MiB ( 63.1 MiB each, 9.7 B/cell)
+hh=  50,688 cells= 27,212,815  19 snapshots grew RSS by  4775.8 MiB (251.4 MiB each, 9.7 B/cell)
+```
+
+**9.7 bytes per cell per snapshot, flat across a 16× range.** Nineteen snapshots
+cost **0.29 GiB at 1/1000**, not 1.93 — the confound was a factor of six. And the
+two measurements now reconcile: v4's 8.67 GiB − 0.29 GiB retention = a **8.38 GiB
+source floor**, which is run 3's ACS-only 6.75 GiB plus most of the 1.85 GiB of
+ASEC it never loaded.
+
+| target | was (confounded) | is (measured) |
+|---|---|---|
+| 19 snapshots at 1/1000 | 1.93 GiB | **0.29 GiB** |
+| ceiling build, total | 124 GiB | **26.2 GiB** |
+| full source, total | 1,938 GiB (1.9 TiB) | **302 GiB** |
+
+**"Memory binds below the payload ceiling" is withdrawn.** It does not: a ceiling
+build needs ~26 GiB, unremarkable hardware. The retention is still a real defect
+(302 GiB → ~24 GiB if fixed), but it is not what stops a full build — the payload
+ceiling is. Recorded as correction 12; the units correction 9 is now marked as
+superseded by it.
+
+I also broke §6a's cell count mid-verification and have reverted it: **1,700,710**
+is exact (536.8402778 × 3,168, and the bench's own `cells` field); my "fix" to
+1,700,582 multiplied by the rounded 536.8 and was backwards. Correction 13.
+
+One independent confirmation worth recording: the `mechanism` dimension found the
+**same** five-group-entity quadratic defect I had found an hour earlier, and
+computed the same ~6,970 CPU-s / ~1.9 CPU-h. Two independent routes to the same
+number.
