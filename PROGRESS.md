@@ -1793,3 +1793,42 @@ rewrite, both fixed.
   says a sampler yields no cumtime ranking.
 - Ceiling point estimates unified on the 96,200–96,900 range; §9's stale 2.20
   CPU-h → 2.21.
+
+## The last three material findings
+
+**The dominant `_inventory` call has no sample filter to hoist.** It is reached
+from `acs_population_catalogue.py:152`, which passes **`frozenset()`** — an empty
+selection, deliberately, because that call is a whole-source gate over
+`member["rows"]`, not native's selected-row gate. So `if cells[0] not in
+serialnos` is always true there and every row is scanned, digested, decoded into
+cells and **thrown away**. §10 item 4 is rewritten: on that path the fix is to
+skip `_decode_record` when `serialnos` is empty (cheaper than hoisting a filter
+that does not exist); hoisting genuinely applies only to the selection-aware
+`_reconstruct`/`_select` path. §4 now says the same thing, and notes that this is
+*why* §3a's counters do not move — it is the same cost at every fraction by
+construction, not a sampling inefficiency.
+
+**The replay path was missing from the static map**, in a category the brief named
+("whether it re-runs on verification/replay paths"). `graph_atomic_survey_financial.py:1686`
+opens a **second** `for node_id in compiled.order:` loop *outside* the executor
+that reconstructs each node's expected Population, with column-by-column
+comparison by `same_replayed_population` at `:1768`, `:1915` (and `:279`, `:847`).
+A whole second population-scaling pass over the graph, outside every node's
+`wall_time`, sitting inside the 2,664 CPU-s of unattributed runner time. Added to
+§8a with its status: structural, unmeasured, and directly relevant to whether the
+remainder scales.
+
+**§10's "source ingest is essentially the entire cost today" conflated the fixed
+term with the measured part of it.** The fixed term is 99.2% of v4; only **1,755
+CPU-s of it is attributed** (798 measured ingest + 957.2 predictor nodes), and the
+other 3,480 is the unattributed remainder. And at the payload ceiling — the
+largest build that runs — the fixed term is 66% while per-node population work is
+already 34%. Rewritten to say exactly that.
+
+Also fixed: two table-placement errors §8a carried (the kernel source re-hash row
+cites `_all_node_keys` at `executor.py:2285`, which runs *before* the loop; and
+`executor.py:110`'s canonical encode is row-sized only on the **cache-hit** path,
+since a cold node calls `_normal_json_mapping` at `:1250` before the EXPAND
+lineage is attached at `:1274`/`:1286` — so a fresh full-source build does not pay
+it there), and a dangling "listed in §11" pointer for a benchmark inventory that
+does not exist in §11.
