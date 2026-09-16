@@ -1153,3 +1153,65 @@ it. That is **15.7% of v4's entire 5,278.6 CPU-s build**, paid identically by a
 
 It also independently confirms the cProfile bucket shape with a profiler that
 costs ~0 per call: kernel compute **0.4%**, identity **4.2%**, ingest **94.9%**.
+
+---
+
+## The finding the draft missed entirely: memory binds before CPU
+
+`_observer_snapshot` (`executor.py:355-372`) does
+`pickle.loads(pickle.dumps((tables, frame.strata)))` — a full independent copy of
+every table and link — and the executor calls it at `:2569`, **outside the
+`if not hit:` guard**. Its own docstring says "this costs one full detached
+population and a temporary serialized table buffer per callback. Observers may
+retain that snapshot."
+
+The financial runner's observer retains all of them:
+`observed[node_id] = population` (`graph_atomic_survey_financial.py:1625`),
+never cleared, read at `:1768`, `:1788`, `:1791`, `:1794`, `:1864`, `:1911`,
+`:1915`, handed out as `node_populations=observed` at `:1941`. **Nineteen full
+population copies held at once.**
+
+Run 3 makes the subtraction possible for the first time: it peaked at
+**6.75 GB having built zero populations** (it refused in preparation), so that is
+the fraction-independent source-handling floor. v4 peaked at **9.31 GB** with 19
+retained at 3,168 cloned households. The difference — **2.56 GB** — is the
+population-dependent part: ~138 MB per copy, ~45 KB per cloned household,
+**~85 bytes per cell** over 1,700,582 cells.
+
+| target | one population | 19 retained | + floor |
+|---|---|---|---|
+| ceiling (~96,557 source hh) | 8.2 GB | **156 GB** | **163 GB** |
+| full source | 135 GB | **2,569 GB** | **2,575 GB** |
+
+So the 2.20 CPU-hour build at the payload ceiling needs ~163 GB of RAM. Memory
+binds **below** the ceiling the report already identified. Per population the
+footprint is unremarkable — 89 KB per source household against the incumbent's
+measured 62 KB — so it is the retention, not the representation, and it is a
+runner-level fix.
+
+Flagged honestly in the report as computed from two measured RSS peaks plus a
+retention read in the source, not measured directly.
+
+## Six-module gap closed (71 agents, 0 errors)
+
+`availability.py` and `artifact_edges.py` contribute **zero** population-scaling
+cost (reasons cited); `kernel.py` holds every row-scaled object by reference and
+`KernelResult` has no `__post_init__` at all. `codecs.py` is per-table pandas,
+11 of 14 operations row-scaled but vectorized. Two real finds:
+
+- **`manifest.py` carries per-row EXPAND lineage.** `executor.py:1274` puts
+  `receipt["expand"]` (one pair per expanded row) and `:1286`
+  `receipt["entrant_strata"]` into the node receipt; the manifest then deep-copies
+  it (`:277`→`:124`), encodes every node's payload for the content key (`:594`),
+  embeds each receipt twice in `to_json` (`:651-664`), re-derives the key twice on
+  read (`:740-746`), parses the document twice (`:772`/`:684`), and canonicalizes
+  the whole body once more **just to build an error-message label** (`:786`).
+- **`randomness.py:69-75` is per-row canonical JSON + per-row SHA-256** —
+  `canonical_json([_coordinate(v) for v in key])` then `hashlib.sha256(...)`
+  inside `for key in keys:`. I opened both files and confirmed them myself
+  rather than taking the agents' word.
+
+`canonical.py` itself is exonerated: 107 lines, no loops, and a value grammar
+that structurally refuses a Frame/DataFrame/Series/ndarray (`:38-40`) — but it
+materializes a full recursive copy of its argument before encoding (`:18-40`),
+which is what makes the per-row call sites expensive.
