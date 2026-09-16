@@ -678,3 +678,47 @@ At the measured unprofiled `_records` rate of 12.9 MB/s, one byte-loop pass over
 the person members is **186 CPU-s**, and `_inventory` runs **twice** per run —
 **~373 CPU-s** of pure per-byte Python scanning, before `acs_housing_universe_source._archive`'s
 own two passes. None of it varies with the sample fraction.
+
+---
+
+## The ceiling, demonstrated rather than inferred
+
+`.profile-runs/harness/bench_canonical_encode.py` feeds the **pilot's own**
+`preparation.json` — scaled by replicating its per-household and per-person
+lists — through the repo's own bounded encoder
+`survey_population_preparation._encode`:
+
+| scale | source households | payload bytes | encode CPU | |
+|---|---|---|---|---|
+| x1 | 1,584 | 1,136,063 | 0.052 s | 717.2 B/hh |
+| x4 | 6,336 | 4,426,274 | 0.206 s | 698.6 B/hh |
+| x16 | 25,344 | 17,587,118 | 0.844 s | 693.9 B/hh |
+| x64 | **101,376** | — | 3.193 s | **REFUSED: `SurveyPopulationPreparationError: PAYLOAD_LIMIT`** |
+
+The refusal is real and reproducible, at **~96,700 source households (6.1% of
+the ~1,584,000-household US source)**. The full source would need a
+**1,048 MiB** payload — **16.4x the 64 MiB limit**.
+
+And the encoding itself is cheap: **33.3 us per source household**, i.e. only
+**52.7 CPU-s** at full source. So the ceiling costs nothing to raise in CPU
+terms — it is a transport-shape decision (one bounded JSON document per run
+carrying one record per household), not a performance trade-off.
+
+## The scaling decomposition, from the v4 receipt's own node timings
+
+Splitting v4's 28 timed nodes into source-bound and population-bound:
+
+| | prefix run (9 nodes) | financial run (19 nodes) | total |
+|---|---|---|---|
+| source-bound nodes (4 ASEC predictor nodes + `observed_geography`) | 141.9 s | 957.5 s | **1,099.4 s** |
+| population-work nodes (22 of them) | 33.3 s | 10.5 s | **43.8 s** (mean 1.99 s/node) |
+| of which nodes that were store **hits** and still cost time | 2.3 s | 8.7 s | 11.0 s |
+
+Two things fall out:
+
+- **The population-scaling work of the whole 28-node graph is 43.8 CPU-s at
+  3,168 cloned households.** The 1,099.4 s that dominates the node timings is
+  source ingest, which does not grow with the sample.
+- **Store-hit nodes still cost 11.0 s**, which is the unguarded `_apply_result`
+  double frame copy plus the observer stamp (`executor.py:2497`, `:2569`)
+  charging nodes that did no work.
