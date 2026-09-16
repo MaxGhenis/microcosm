@@ -1720,3 +1720,37 @@ profile puts it at 511–551 s = 8.5–9.2 minutes.
   its evidence cannot support** — the ~320 B/row is an estimate and the code's
   only hard bound is 4,096 B. Now "roughly 200,000 (~13%)", with the reason, and
   noted as sitting above the preparation ceiling so it never binds first.
+
+## The last four dimensions landed; four more material findings applied
+
+**The sampler's "zipfile at 80.7%" was an artifact, and I have withdrawn it.**
+Run 1's deterministic profile settles it: summing every `zipfile`/`zlib` self-time
+entry in `f8000.prof` gives **22.74 s of 1,842.4 = 1.23%**, with
+`zlib.Decompress.decompress` itself at 9.22 s. A factor-of-65 disagreement
+between a per-call count and a 5 ms sampler is the sampler's problem. §3b now says
+the two profilers agree on the *bucket shape* — which is what it was there to
+show — and that where they disagree about naming a frame inside ingest, cProfile
+wins. The mechanism sentence "the decompression the byte loop drives one 4 KiB
+block at a time" is gone.
+
+**My own §9 sanity check was backwards.** 15.45 GiB per full-source snapshot over
+1,587,376 source households is **10.2 KiB/household**, against the incumbent's
+57.9 KiB — about **5.7× leaner**, not "the same range" as I wrote an hour ago. The
+correction runs in the native path's favour and strengthens the point it was
+making (the representation is lean; the retention is the problem).
+
+**"~830 CPU-s" was in no receipt.** Run 3's receipt is 840.6 CPU-s for the *whole
+process*; the store-IO ingest bucket is **798.1**, and 833.4 with identity folded
+in. "~830" silently included non-ingest work. The report now uses **798 CPU-s**
+throughout, with the decomposition stated, and 15.7% → **15.1%** of the v4 build.
+
+**"Roughly 3,000 CPU-s unattributed" was 13% high.** 4,605.35 − 1,143.16 − 798 =
+**2,664 CPU-s**, so the one-sided "if everything scaled" bound drops from 850 to
+**756 CPU-hours**.
+
+Also: **item 2 of §10 was over-credited.** Replacing the per-byte scanners is
+worth ~265 CPU-s (3.38 GB at the measured 12.9 MB/s), not the whole 798 — the rest
+is the `_archive`/`_csv_record`/JSON/pandas work items 4 and 5 target. And the
+ASEC byte total was 3 bytes high (1,982,625,563, not ...566) and I had labelled the
+incumbent's peak 94 GiB where it is 87.7 GiB — both my own slips from the §9
+rewrite, both fixed.
