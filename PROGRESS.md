@@ -1497,3 +1497,53 @@ communicable number in the whole lane: for comparison I measured
 `hashlib.sha256` on this machine at ~2,870 MB/s, so the loop that is only looking
 for commas and newlines runs **222× slower than cryptographic hashing of the same
 bytes**. Added to §4 with both figures and their provenance.
+
+## Seventh self-found defect, and the only one that moves a headline
+
+`bench_expand_membership.py` measures the loop at `population.py:1270-1273` with
+`MEMBERSHIP = "household_id"` — i.e. it models **one** group entity, groups =
+households. But `population.py:1266` wraps that loop in
+
+```python
+    for group in before.schema.group_entities:
+```
+
+and `US_SCHEMA` declares **five** (`microcosm/frame/units.py:45-51`: household,
+tax_unit, spm_unit, family, marital_unit), with `source_person` — the whole
+person table — scanned in full for every one of them. Using the pilot's own
+per-household entity ratios, which the sibling bench
+`bench_per_node_unconditional.py:22-29` already carried (household 1.0,
+tax_unit 1.343, spm_unit 1.0006, family 1.0063, marital_unit 1.7513), there are
+**6.1012 groups per source household**.
+
+The quadratic term is therefore **6.10× what the report said**:
+
+| | was | is |
+|---|---|---|
+| quadratic at full source | 1,142 CPU-s (19 min) | **6,967 CPU-s (1.94 CPU-h)** |
+| quadratic at 1/1000 | 0.1 CPU-s | **0.7 CPU-s** |
+| full-source total | 13.96 CPU-h | **15.58 CPU-h** |
+| quadratic share of the build | 2.3% | **12.4%** |
+| naive-extrapolation error | 105× | **94×** |
+| observer's share of the build | 47% | **43%** |
+| realistic band incl. unattributed runner time | ~28–42 CPU-h | **~30–43 CPU-h** |
+| if `observed_geography` moves to the scaling side | 53 CPU-h | **55 CPU-h** |
+
+`final_tables.py` now carries `GROUPS_PER_HH` and a docstring citing
+`population.py:1266`, so the corrected term regenerates rather than being
+hand-carried; its printed table matches the report's.
+
+Two things I am flagging rather than smoothing over:
+
+1. **"A rounding error against the fixed term" is withdrawn.** The H² term is now
+   the second-largest scaling term in the build. The *conclusion* still holds —
+   the dominant exponent is 1, and at every size the architecture can actually
+   reach today the quadratic term is under a minute — but the sentence that
+   dismissed it was wrong and is gone.
+2. **It is still a lower bound.** The bench times the boolean comparison only;
+   the code then runs `for source_member in members:` (`:1274`) over every
+   matched person, ~5 × P Python iterations the bench never paid.
+
+This is the only one of the seven corrections that moves a headline number, and
+it moves it **against** the architecture — which is the direction that has to be
+checked hardest before a merge decision leans on the report.
