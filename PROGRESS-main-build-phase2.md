@@ -116,6 +116,30 @@ Three consequences, each a candidate finding:
   demands the run reproduce the incumbent's surface. The incumbent's is over
   57,240 records; a 1% pool is far smaller.
 
+## Established since (all reproduced, all with verbatim errors)
+
+- **F2** — plan §2 Stage A1 omits `--puf-source-year-csv`; A1 died at stage 3 of
+  24 after 205.10 s, peak RSS 12.37 GB.
+- **F3** — S5 is enforced in code: `outer_stage_runtime.py:277` refuses a
+  checkpoint dir whose run_config changed. Fresh dir `base-q2` used.
+- **F5 / F6** — the two structural B3 blockers (bare Ledger feed; frozen target
+  surface pinned to the incumbent's 5,659 x 57,240 rung).
+- **F7** — the plan mislabels the pool rungs. `build_us_multispine_pool.py:618`
+  and `:345` make the label fraction x 100, so the plan's "f025 (2.5%),
+  9.6-14 h" is the **25%** rung. Full scale is ~4x that, not ~40x.
+- **Loader check answered.** `loader.py:440` (guarded by the test at `:437`)
+  reproduced verbatim. Correction to Phase 1: it is one line but not one
+  package — Core 3.31.0 also fails the certified `==3.32.5`. The certified H5
+  itself opens cleanly through `USSingleYearDataset` under 1.819.0
+  (57,240 households / 166,321 persons). And `microcosm.data` has **no
+  local-path entry point at all**.
+- **Publisher validate-only mode exists**: `microcosm-publish-release <dir>
+  --preflight-only`, Hub-free, confirmed live. No `--dry-run`/`--check-only`.
+
+Report deliverable: `~/PolicyEngine/_recovered/scratch-backup/893/lanes/out-main-build-phase2.md`,
+with the master copy at `out-main-build-phase2.SALVAGED-COPY.md` (Phase 1's
+lesson: never let the only copy sit at the `-o` path).
+
 ## Next
 
 B2 relaunch against `checkpoints/base-q1/asec_raw_stage.checkpoint.h5` → B2 (1% rung, `tools/us_stacked_pool_smoke.sh.example`
