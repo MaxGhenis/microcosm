@@ -1355,3 +1355,43 @@ says GiB.
 ceiling, a ceiling build still needs far more RAM than this machine has, and the
 per-population footprint is still in the incumbent's range — which is why the
 error survived three readings. Recorded as correction 9 in §8c.
+
+## Independent re-derivation of the numeric spine (mine, not an agent's)
+
+I recomputed the report's load-bearing tables from their stated inputs with a
+throwaway `python3 -c`, without looking at the report's own figures first:
+
+- **§6d predictions** — fixed 5,278.6 − 43.78, linear 43.78 per 3,168 cloned hh,
+  quadratic from c = 66.8 µs/group and k = 0.188 ns/person/group at P = 2.187 G:
+  totals **1.47 / 1.58 / 2.20 / 2.68 / 13.96 CPU-h**, naive **1,466 CPU-h**,
+  ratio **105×**. Every figure matches. The `+scaling` column is the *increment*
+  over the 1/1000 baseline (395 = 439 − 43.8), which is why it differs from an
+  absolute linear term by exactly 43.8 in each row; §6d's own bucket table prints
+  the absolute 43,870 alongside the incremental 43,826, and both are right.
+- **§5 ceiling** — (67,108,864 − 32,141)/696.9 = **96,247**; 1,584 +
+  (67,108,864 − 1,136,063)/692.4 = **96,867**; full payload **1,048.2–1,055.1 MiB
+  = 16.38–16.49×**; 96,557/1,587,376 = **6.08%**; allocation ceiling
+  67,108,864/320 = **209,715**; encode 33.3 µs × 1,587,376 = **52.9 CPU-s**. All
+  match.
+- **§3 buckets** — run 1's four bucket rollups sum to 1,842.4 s exactly; run 3's
+  four sum to 840.7 against a measured 840.6 (rounding). 830/5,278.6 = **15.7%**.
+- **§7 incumbent** — re-read from the logs themselves, per file rather than with a
+  multi-file grep: `staging_run.log:12735` carries `7829.54 real 99337.73 user
+  3215.55 sys` with `40126742528` RSS, and `release_chain_run.log:126` carries
+  `9156.43 real 5672.78 user 302.27 sys` with `94183096320`. **The report's
+  attribution is correct** (I briefly misread a combined grep as inverting them,
+  and checked per-file before believing it). Derived: **4.718 wall-h**,
+  **30.147 CPU-h**, **12.69× user/wall**, total build **2.267 h**. The
+  `donor/release_manifest.json` timing block matches to six decimals.
+- **§10 shares** — 34%, 10.4%, 87.2%, 2.3%, 47%, 54%, 71%, and the 7.3 / 6.9
+  CPU-h counterfactuals all reproduce against a full-source total of 50,246.8 s.
+- `final_tables.py` is stdlib-only (`json`, `pathlib`); I ran it with the system
+  `python3` and its printed table is character-identical to §6d's.
+
+**One slip fixed:** the `fixed` column printed **5,234.7** where 5,278.6 − 43.78
+= 5,234.82. Corrected to **5,234.8** in all seven places. It moves no total, but
+the report claims every number regenerates, so a hand-carried rounding error is
+not allowed to stand.
+
+Markdown table integrity checked programmatically: 0 ragged tables across the
+whole report.
