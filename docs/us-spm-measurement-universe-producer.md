@@ -195,24 +195,55 @@ packages/microcosm-build/tests/test_us_stacked_spine.py:3707-3708
 That asymmetry *is* the universe asymmetry, already in the frame. The producer
 formalizes it; it does not introduce it.
 
-**5 — Release H5.** `TYPEHUGQ` does not reach it, and cannot. It is not a
-PolicyEngine-US variable, and the export contract is closed against exactly
-that:
+**5 — Release H5. `TYPEHUGQ` reaches it.** This is worth stating carefully,
+because the obvious guess is wrong in both directions.
+
+The unexpected-column gate is conditional on a *closed* contract:
 
 ```
 packages/microcosm-frame/src/microcosm/frame/adapters/policyengine_us.py:958-968
         unexpected: set[str] = set()
         if contract.closed:
-            allowed = (
-                set(contract.required) | set(contract.optional)
-                | self._structural_columns() | {_HOUSEHOLD_WEIGHT_COLUMN}
-            )
+            allowed = (...)
             unexpected = present_columns - allowed
 ```
 
-**Net: the ACS group-quarters fact is present through the frame and stops at
-the export boundary.** The producer's job is to translate it into a variable
-the engine knows, at the entity the engine asks for, at that boundary.
+and in production the contract is not closed. Every release tool constructs the
+adapter with no argument — `tools/build_us_acs_local_release.py:227`, `:303`,
+`:1220`; `tools/build_us_fiscal_refresh_release.py:11306`;
+`tools/_legacy/build_us_acs_multispine_base.py:361`, `:1085` — which yields
+`ExportContract.empty()`, "a contract with no constraints (everything passes)"
+(`packages/microcosm-frame/src/microcosm/frame/rules.py:135-137`), with
+`closed` defaulting to false (`rules.py:123`). Unknown columns pass silently.
+
+And `TYPEHUGQ` is not flagged as formula-owned either, precisely because it is
+unknown to the engine: "Names unknown to the tax-benefit system are not
+flagged: they cannot be classified as formula-owned here"
+(`policyengine_us.py:699-701`).
+
+**Net: the raw Census code survives end to end, on the household table, ACS
+rows only. The semantic flag does not exist and the producer must define it.**
+So the producer is not rescuing a fact that is about to be lost — it is
+translating a raw source code into the variable, entity and vocabulary the
+engine asks for. That is a weaker motivation than "otherwise the information
+disappears", and the note should not overclaim it.
+
+One consequence that must not be garbled, because it is a live footgun:
+interpreting `TYPEHUGQ` on a pooled file **requires the spine tag**. ASEC rows
+carry it as NaN (stage 4), so `TYPEHUGQ.isin([2, 3])` is safe but
+`TYPEHUGQ == 1` means "ACS housing unit", **not** "not group quarters" — ASEC
+rows fail that test too. Every existing consumer pairs the code test with a
+spine test, and the producer must do the same:
+
+```
+tools/_legacy/build_us_acs_multispine_base.py:599-604
+    kind = pd.to_numeric(household["TYPEHUGQ"], errors="coerce")
+    gq_households = household.loc[
+        household[spine_column("household")].eq(ACS_2024_1YR_SPINE)
+        & kind.isin([2, 3]),
+        "household_id",
+    ]
+```
 
 ### How ACS SPM units are formed
 
@@ -281,10 +312,27 @@ packages/microcosm-frame/src/microcosm/frame/adapters/policyengine_us.py:1102-11
 Enum value types are deliberately absent from `_DTYPE_KIND_BY_VALUE_TYPE` and
 fall back to `"str"` (`policyengine_us.py:108-110`,
 `variable_metadata` at `policyengine_us.py:645-666`). So the frame column is a
-plain string column of member names. **Store `"OUTSIDE"`, not `2`, not
-`"SPMUniverseStatus.OUTSIDE"`, not the label text.** The engine reads it back
-with `.decode_to_str()` and compares against member names
-(`policyengine-us#9462` `policyengine_us/spm.py:70-77`).
+plain object column of member-name strings — there is no bytes, `EnumArray` or
+fixed-width `"S"` encoding anywhere in microcosm-frame's writer. **Store
+`"OUTSIDE"`, not `2`, not `"SPMUniverseStatus.OUTSIDE"`, not the label text.**
+The engine reads it back with `.decode_to_str()` and compares against member
+names (`policyengine-us#9462` `policyengine_us/spm.py:70-77`).
+
+The live precedent to copy is `ssn_card_type`, which maps integer source codes
+straight to member names:
+
+```
+packages/microcosm-build/src/microcosm/build/us_runtime/immigration.py:360-366
+    code_to_name = {0: "NONE", 1: "CITIZEN",
+                    2: "NON_CITIZEN_VALID_EAD", 3: "OTHER_NON_CITIZEN"}
+    result["ssn_card_type"] = pd.Series(ssn_codes, index=result.index).map(code_to_name)
+```
+
+declared in the catalog as `dtype: string` / `unit: categorical`
+(`us/spec/catalogs.yaml:1164-1173`). Note this differs from the
+*enrichment-lane* storage discussed in §3: that path writes fixed-width bytes
+into an existing PyTables record and rejects object dtypes outright. Two paths,
+two encodings — do not carry one's rule into the other.
 
 On the engine side the variable is (read on that PR's branch,
 `policyengine_us/variables/household/income/spm_unit/spm_unit_spm_universe_status.py:5-21`):
@@ -623,8 +671,16 @@ that is its entire content — and registering it as an agreement surface would
 assert that ASEC and ACS should agree about a fact they are defined to
 disagree about. (The TVD would pass today at roughly 0.003, which makes it
 worse, not better: it would pass quietly and then fail the day a spine with
-more group quarters is added.) Leave it unregistered and say so in the module
-docstring, or the next person will add it.
+more group quarters is added.)
+
+The good news is that the registry is not an open door: it must *exactly*
+cover the chartered surface derived from the declared ACS transfer families,
+the derived-transfer expectations, the take-up contract and `_SIMULATED_OUTPUTS`
+— so a column cannot be added to it without first being made a declared
+transfer, derived, take-up or simulated target. Since the producer must never
+become any of those (above), the status cannot drift into the agreement gate by
+accident. Say so in the module docstring anyway, so the reasoning is on the
+record rather than rediscovered.
 
 **Packaging.** Item 6 adds no new *file* under `build/us/` — it edits an
 existing JSON — so the two-place package-data declaration
@@ -678,6 +734,29 @@ and `write_dataset` refuses the export outright when a formula-owned column is
 present (`policyengine_us.py:955-987`), with:
 
 > `Export contract violated; nothing was written. ... formula-owned column(s) present: ['spm_unit_spm_universe_status']; ...`
+
+This gate is unconditional. Per §1 stage 5 the production contract is
+`ExportContract.empty()` with `closed=False`, so the unexpected-column gate
+never fires — which means **formula-owned and enum-domain are the only two
+gates that bite in production**, and the status column runs straight into the
+first of them.
+
+It is worth being precise about where the mismatch lives, because it is not a
+bug on either side. PolicyEngine-core lets a dataset column win over a formula
+through the holder cache
+(`policyengine_core/simulations/simulation.py:757-760`), so the engine's design
+— "the formula supplies the default, the dataset is authoritative" — is
+internally coherent. Microcosm's adapter simply has no vocabulary for that
+third category: it knows "input leaf" and "computed output" and nothing in
+between.
+
+**And this hits twice.** `spm_unit_ordinary_housing_subsidy_reported` — the
+other input the engine asks a dataset to supply for `OUTSIDE` units (§5) — is
+built the same way: `default_value = -1` *and* a `def formula`
+(`policyengine_us/variables/household/income/spm_unit/spm_unit_ordinary_housing_subsidy_reported.py:5-13`).
+Whatever resolves this for the status resolves it for the reported subsidy too,
+which is an argument for fixing the category rather than special-casing one
+name.
 
 The refusal is deliberate and documented: "persisting a formula-owned variable
 as a dataset input pins its baseline and masks reforms"
@@ -740,7 +819,21 @@ Today's pin is `policyengine-us>=2.2.1,<3` in three `pyproject.toml` files
 
 **(a) Carry as a held-back frame column.** The producer runs and the status
 lives in the frame; the adapter emits it only when the installed system
-declares the variable *and* accepts it as an input. This is the right shape,
+declares the variable *and* accepts it as an input.
+
+"Held back" has to be an explicit decision, not a default, because the naive
+implementation behaves perversely. On today's pin the column is **unknown** to
+the engine, so `_engine_computed_columns` does not flag it — its predicate is
+`column in variables and _is_engine_computed(variables[column], period=period)`
+(`policyengine_us.py:1078-1084`), and an unknown name fails the first
+conjunct. `_enum_domain_failures` skips it for the same reason
+(`policyengine_us.py:1096-1097`: `if column in structural or column not in
+variables: continue`). And the unexpected gate is off. **It would be silently written into the release
+H5 as an unrecognized column.** On a post-#9462 pin it becomes known, carries a
+formula, and is **refused**. So doing nothing gets *worse* when the engine
+improves: harmless-but-meaningless today, hard build failure later. That
+inversion is the reason to write the capability check deliberately now rather
+than discover it at the pin bump. This is the right shape,
 and it is the only option that lets the producer, its tests, its refusals, its
 registry entries and its measurements all land and stay green now. The
 capability predicate is `name in engine.variables()` — which, note, is
