@@ -290,7 +290,7 @@ risks, not footnotes:
   calibration objective, so validity must be scored on held-out targets and
   variables the objective never saw — otherwise "passes calibration" launders
   into "is correct."
-- **Survey-measured tax-benefit quantities are permanent holdouts.** The
+- **Survey-measured tax-benefit quantities are excluded from calibration.** The
   rule: never calibrate against ANY tax-benefit quantity from a survey —
   reported or computed — or anything derived from such. Tax-benefit quantities from
   administrative data are targets (SOI, FNS, SSA, ACF); raw survey
@@ -299,8 +299,8 @@ risks, not footnotes:
   downstream of survey tax-benefit measurement — SPM/OPM poverty above
   all — may never be fitted. The rebuild replaces the survey's tax-benefit
   measurement with imputed, computed, and admin-calibrated values; fitting
-  the survey-derived version launders its error back in and destroys the
-  held-out signal the evaluation depends on.
+  the survey-derived version reintroduces its measurement errors and weakens
+  its usefulness as a comparison. Poverty is not a held-out scoring target.
 - **Survey poverty is comparison-only.** Report comparable US SPM/OPM, UK
   HBAI and other survey poverty measures with their definitions and periods.
   Do not use them as calibration targets, objective terms, informal tuning

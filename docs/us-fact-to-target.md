@@ -28,9 +28,9 @@ taxes), and other models' survey-based tax-benefit estimates
 
 Rationale: microcosm replaces the survey's tax-benefit measurement with
 imputed, computed, and admin-calibrated values — that is the product.
-Fitting a survey-derived tax-benefit quantity launders the
-measured-with-error version back in and destroys the held-out validation
-signal. Poverty comparisons must also stay outside candidate-selection scores
+Fitting a survey-derived tax-benefit quantity reintroduces its measurement
+errors and weakens its usefulness as a comparison. Poverty is not a held-out
+scoring target. Poverty comparisons must also stay outside candidate-selection scores
 and release gates based on agreement with a survey estimate. Holding a measure
 out of the calibration objective does not justify tuning toward it afterward.
 Do not choose weights, imputations, take-up assignments, target deferrals or
