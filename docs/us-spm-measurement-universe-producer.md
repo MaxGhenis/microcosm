@@ -22,8 +22,11 @@ The headline finding is not in the brief: **as drafted, the engine variable
 cannot be exported by Microcosm at all**, for a reason unrelated to the pin.
 See [§4](#4-the-engine-version-problem). Two other findings change the plan:
 the "outside units have no housing" assumption
-[does not hold](#5-outside-housing), and the release's poverty consumer
-[fails silently rather than loudly](#6-consumers) under nullable indicators.
+[does not hold](#5-outside-housing) — and the reason is a live defect on
+`main`, not a consequence of the universe rule — and the release's single
+poverty consumer [fails silently rather than loudly](#6-consumers) under
+nullable indicators, in the one code path where every neighbouring path
+fails loudly.
 
 ---
 
@@ -85,6 +88,26 @@ This is consistent with the measured counts: the published national default
 `populace-us-2024-spm-20260915` has **0** SPM units without a classified adult
 over the same 166,321 persons / 59,900 units, and the July Build P donor's 28
 come from the absence of the native role column, not from a universe problem.
+
+**And the producer could not condition on an ASEC record-type field even if it
+wanted to: Microcosm reads none.** `H_TYPE`, `HRHTYPE`, `H_HHTYPE`, `HUNITS`,
+`H_LIVQRT` and the string "armed forces" have zero occurrences in this
+repository. The only ASEC *household* fields read anywhere are `H_SEQ` and
+`HSUP_WGT` (`asec_pool.py:243`), `state_fips` and `H_TENURE`
+(`asec_pool.py:183`). `TYPEHUGQ` is an ACS PUMS field and every group-quarters
+mechanism in the repo is ACS-only — do not transplant it onto the ASEC arm.
+The ASEC ruling is therefore necessarily **spine-level**, which is the right
+level given §1's Census finding, but it must be written as a declaration with
+its own refusal rather than derived from a per-record field that does not
+exist.
+
+Three things narrow the ASEC spine, and none of them is a universe predicate:
+a smoke-only head-N truncation (`asec_pool.py:245-248`), a seeded uniform
+household subsample with mass renormalization on the production stacked spine
+(`stacked_spine.py:635-651`), and a refusal — not a silent drop — of
+non-positive household weights (`asec_checkpoint.py:479-483`). Random sampling
+does not change a universe; it is safe to declare the whole spine `INCLUDED`
+regardless of which subsample a build takes.
 
 ### What field identifies group quarters at each ACS stage
 
@@ -307,6 +330,7 @@ Each is a hard `ValueError`, named, fail-closed, in the `_require` style of
 | `SPM_UNIVERSE_ORPHAN_MEMBER` | a `person_spm_unit_id` absent from the `spm_unit` table |
 | `SPM_UNIVERSE_UNDECLARED_SPINE` | a support channel the producer has no universe ruling for |
 | `SPM_UNIVERSE_GQ_MULTI_PERSON` | a `TYPEHUGQ` 2/3 household with more than one native person (mirrors `stacked_spine.py:434-437`) |
+| `SPM_UNIVERSE_DEGRADED_PARTITION` | the frame's SPM partition silently degraded to the household fallback (see below) |
 
 `SPM_UNIVERSE_UNIT_SPANS_KINDS` is the one that earns its keep. Natively it is
 unreachable — ACS GQ households have `NP == 1`. It becomes reachable the
@@ -318,6 +342,27 @@ would be a fabricated universe decision. Refuse.
 worth keeping even though `spm_role_source.py:294-297` already asserts exact
 membership coverage. Two independent assertions of the same invariant is the
 right cost here.
+
+`SPM_UNIVERSE_DEGRADED_PARTITION` closes the largest silent-failure mode in
+this area, and it is not hypothetical:
+
+```
+packages/microcosm-frame/src/microcosm/frame/units.py:124-129
+    * **SPM unit**: the native ``SPM_ID`` when fully present (passthrough),
+      otherwise ``household_id`` (documented fallback). ... A
+      partially missing ``SPM_ID`` (any NaN) also triggers the household
+      fallback.
+```
+
+One NaN `SPM_ID` on one ASEC person row silently converts **every** SPM unit in
+the frame into a household, and `asec_pool` explicitly tolerates NaN `SPM_ID`
+when globalizing (`asec_pool.py:363-380`). A universe producer that declared
+`INCLUDED` over a silently-degraded partition would be attesting to a unit
+structure that does not exist. Assert the partition is native before declaring
+anything over it, and refuse — do not probe, do not warn. (I did not read
+`microunit.units.assign_spm_partition` itself; the fallback behaviour above is
+Microcosm's own documented contract, **not** a claim about that package's
+implementation.)
 
 ### Why this is a declaration, not an inference
 
@@ -461,26 +506,65 @@ packages/microcosm-data/src/microcosm/data/source_enrichment.py:296-297
         failures.append("source enrichment operation must add only the native SPM role")
 ```
 
-Three separate things therefore change, and only one of them is a refactor:
+Three separate things therefore change, and none of them is only a rename.
 
-1. **Entity.** `_TABLE` is `person/table`. The status lives on `spm_unit`.
-   The append must target a caller-named entity table.
-2. **Dtype.** A 1-byte bitfield becomes a fixed-width string column. In
-   PyTables that is a different itemsize, a different column-registration
-   story (`_REGISTRATION = {"data_columns", "values_cols", "non_index_axes",
-   "info"}`, `h5_enrichment.py:23`) and a different exactness proof. This is
-   the real work, and it is not a rename.
+1. **Entity — the largest of the three, and it is not "smallest" anything.**
+   `_TABLE` is `person/table` (`h5_enrichment.py:22`), the validator's evidence
+   CSV is keyed `person_id`/`person_spm_unit_id`
+   (`source_enrichment.py:160`), and `added_variable` pins entity `person`
+   (`source_enrichment.py:321-329`). An `spm_unit`-entity variable is a second
+   table, a second registration-attribute set and a second evidence key. It
+   should be scoped and reviewed as its own piece of work, not folded into a
+   generalization PR as if it were arity.
+2. **Dtype — nine bool-typed sites, not one.** The 1-byte record growth is
+   arithmetic, not naming: `compound.set_size(old_size + 1)`
+   (`h5_enrichment.py:138`) and the splice
+   `extended.view(np.uint8).reshape(-1, old_size + 1)[:, :old_size]`
+   (`h5_enrichment.py:161-163`). A non-bool column changes the offset math, the
+   HDF member type (`NATIVE_B8`), `FIELD_n_FILL`, the `<name>_dtype`/`_kind`/
+   `_meta` attributes (`h5_enrichment.py:74-81`), the validator's bitfield
+   assertion (`source_enrichment.py:182-186`), the Boolean domain check
+   (`h5_enrichment.py:377`), the evidence CSV's literal `False`/`True` parse
+   (`source_enrichment.py:164`), the registered-`value_type` check
+   (`source_enrichment.py:1148-1155`), the `.astype(bool)` loader cast
+   (`source_enrichment.py:1193-1194`) and the `(False, True)` precedence probe
+   (`source_enrichment.py:1287-1293`).
 3. **Arity.** `ROLE` → a sequence of `(entity, column, dtype, values)`
    descriptors; `operation` → a sorted list of declared operations;
    `EXPECTED_COUNTS` (`source_enrichment.py:111-118`) → keyed per variable.
+   The preservation report's `role_sha256`, `appended_field` and
+   `record_size_increase_bytes: 1` (`h5_enrichment.py:400-408`) are compared
+   for exact equality against the producer's recorded copy
+   (`source_enrichment.py:365-369`), so they are contract, not cosmetics.
+
+**One hard constraint that shapes all of it: the lane cannot be run twice,
+once per variable.** The parent is pinned to one exact pre-role Build P digest
+(`source_enrichment.py:56-58`, `tools/build_us_spm_role_enrichment.py:117-118`)
+and the writer refuses a parent that already carries the column
+(`h5_enrichment.py:98-99`). Two columns means **one pass, one new H5, one new
+release id** — so the arity generalization is not optional convenience, it is
+the only shape that works.
 
 **Smallest safe generalization:** make `append_native_spm_role` a thin
 compatibility wrapper over `append_native_source_columns(parent, candidate,
 columns=[...])`, where each descriptor declares its entity table, its HDF
 member type, and its values; keep the *existing* boolean/person path
-byte-identical and prove it with the existing tests; add the string/`spm_unit`
-path as new code with its own exactness proof. Generalize the descriptor
-list, not the verification.
+byte-identical and prove it with the existing tests; add the string and
+`spm_unit` paths as new code with their own exactness proofs. Generalize the
+descriptor list, not the verification.
+
+Two constraints on where the shared pieces live. Object and variable-length
+dtypes are rejected outright (`h5_enrichment.py:100-101`, `:221-223`), so the
+status must be a fixed-width byte string. Size it to the full engine domain,
+not to what the producer emits: `"UNRESOLVED"` is 10 bytes, so `S10`, even
+though a producer never writes that value (§2). Sizing to the emitted set
+(`"INCLUDED"`, 8 bytes) would silently truncate any later read-back of a
+defaulted value. And
+the shared constant must live in `microcosm-data` and be imported by
+`microcosm-build`, never the reverse: the data shard deliberately does not
+depend on the build shard (`source_enrichment.py:80-82`), and
+`docs/shared-constants.md:12-13` requires the lowest shared package with a
+parity test.
 
 **Do not loosen** the single-parent exactness core: the SHA-256 checks before,
 during and after the copy (`h5_enrichment.py:118-119`, `135-136`, `185-186`),
@@ -703,15 +787,38 @@ assistance; a missing or invalid one raises
 `SPM_ORDINARY_HOUSING_VALUE_REQUIRED` (engine doc, "Housing in ordinary
 income").
 
-**The question is whether an ACS group-quarters unit can carry positive
-`housing_assistance`. The answer is: nothing in this repo guarantees it
-cannot.**
+**Can an ACS group-quarters unit ever carry positive housing assistance after
+the donor transfer? Yes. Nothing in this repo prevents it, and several things
+actively require it to be decided one way or the other.**
 
-`housing_assistance` is engine-computed, not a Microcosm input
-(`policyengine_us/variables/gov/hud/housing_assistance.py:3-19` on the PR
-branch):
+This is the part of the brief whose expected answer ("structurally null, per
+`_reviewed_limitations`") turns out to be wrong, so the chain is given in full.
 
-```python
+### First, the two housing concepts must be kept apart
+
+Microcosm never produces a housing *amount*. Its entire housing output surface
+is five columns:
+
+```
+packages/microcosm-build/src/microcosm/build/us_runtime/housing_inputs.py:107-118
+US_HOUSING_PERSON_OUTPUT_COLUMNS: tuple[str, ...] = ("pre_subsidy_rent",)
+US_HOUSING_HOUSEHOLD_OUTPUT_COLUMNS: tuple[str, ...] = ("tenure_type",)
+US_HOUSING_SPM_UNIT_OUTPUT_COLUMNS: tuple[str, ...] = (
+    "receives_housing_assistance",
+    "takes_up_housing_assistance_if_eligible",
+    "spm_unit_tenure_type",
+)
+```
+
+`pre_subsidy_rent` is *rent*, not subsidy. `housing_assistance` and
+`spm_unit_capped_housing_subsidy` are engine-computed and exist in this repo
+only as a take-up program label, an operator family name, and prose. So the
+defensible sentence is **not** "Microcosm writes positive housing assistance";
+it is "Microcosm writes a True receipt flag that the engine turns into a
+positive capped subsidy". The engine half:
+
+```
+policyengine-us#9462  policyengine_us/variables/gov/hud/housing_assistance.py:3-19
 class housing_assistance(Variable):
     entity = SPMUnit
     defined_for = "is_eligible_for_housing_assistance"
@@ -721,8 +828,25 @@ class housing_assistance(Variable):
         return spm_unit("hud_hap", period) * takes_up
 ```
 
-Microcosm supplies one leaf of that chain, and it *is* a donor-transfer target
-at `spm_unit` level with no group-quarters exclusion:
+On the ASEC donor path both booleans are the same thresholded source amount —
+`SPM_CAPHOUSESUB > 0` (`housing_inputs.py:528-529`, over the SPM-unit-constant
+subsidy at `housing_inputs.py:500-507`). The dollar amount is thresholded away
+and never carried.
+
+### Second, the ACS native path produces no housing-assistance flag at all
+
+ACS `RNTP`/`GRNTP` are kept as rent *predictors* and are deliberately never
+mapped to `pre_subsidy_rent` (`acs_inputs.py:7-9`). On group quarters ACS `TEN`
+is blank, so `tenure_type` and `spm_unit_tenure_type` come out NULL rather than
+failing — only non-NaN codes are validated against the enum
+(`acs_inputs.py:207-211`).
+
+Which means every ACS housing flag arrives by **transfer from the ASEC donor**.
+
+### Third, the transfer has no group-quarters carve-out for the flags
+
+`takes_up_housing_assistance_if_eligible` is a hand-declared spm_unit transfer
+target with no GQ condition:
 
 ```
 packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:446-450
@@ -731,27 +855,29 @@ packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:446-450
         "benefit_participation": ("takes_up_housing_assistance_if_eligible",),
 ```
 
-So an ACS group-quarters unit **can** receive `takes_up == True` from the
-donor. The zero then has to come from `hud_hap`:
+and `receives_housing_assistance` is a target too — auto-added as the spm_unit
+family `source_operator_housing_inputs`, because the pool plan appends every
+pre-clone source-operator output that is not already declared, not
+ACS-native-complete, and not formula-owned
+(`multispine_pool.py:755-769`). The attested spec confirms it, over **all**
+recipient rows and with **no** absence rule:
 
 ```
-policyengine_us/variables/gov/hud/hud_hap.py:14-19
-        max_subsidy = spm_unit("hud_max_subsidy", period)
-        ttp = spm_unit("hud_ttp", period)
-        gross_rent = spm_unit("hud_gross_rent", period)
-        rent_minus_ttp = max_(0, gross_rent - ttp)
-        return min_(max_subsidy, rent_minus_ttp)
+packages/microcosm-build/src/microcosm/build/us/spec/imputation.yaml:1282-1312
+- id: early/asec_survey_to_acs/spm_unit/source_operator_housing_inputs
+  recipient_contract:
+    selection: all_rows_in_declared_recipient_channel
+  targets:
+  - name: receives_housing_assistance
 ```
 
-and `hud_gross_rent` is an aggregate of two things, not one
-(`policyengine_us/variables/gov/hud/hud_gross_rent.py:13`):
+The donor pool is not a degenerate all-False draw — incidence is ~2.0% receipt
+and ~4.8% take-up (`us/ecps_parity_reference.json:130`, `:160`).
 
-```python
-    adds = ["pre_subsidy_rent", "hud_utility_allowance"]
-```
+### Fourth, the carve-out that *does* exist is scoped by a literal string
 
-**`pre_subsidy_rent` is genuinely protected for ACS group quarters.** There is
-a named, enforced absence rule:
+`pre_subsidy_rent` is genuinely protected. There is a named, enforced absence
+rule:
 
 ```
 packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:1714-1720
@@ -763,68 +889,155 @@ _ACS_GQ_RENT_ABSENCE_REASON = (
 )
 ```
 
-enforced by refusing any GQ row with synthesized tenure
-(`stacked_spine.py:9700-9706` and again at `:9793-9799`), and corroborated by
-the transfer side, which reports that `pre_subsidy_rent` "has no donor
-housing-tenure feature source" (`acs_transfer.py:917-919`).
+But the gap-fill plan routes families into the direction that owns that rule by
+comparing the **family name to the literal string `"housing"`**
+(`stacked_spine.py:1868-1900`, with `_GAP_FILL_HOUSING_FAMILY = "housing"` at
+`stacked_spine.py:1702`). `source_operator_housing_inputs` and
+`benefit_participation` are not spelled `"housing"`, so they land in
+`asec_survey_to_acs`, which is constructed with zero absence rules.
 
-**`hud_utility_allowance` is not protected, and it is not zero everywhere.**
-It is a *Household*-entity variable set per public housing agency by bedroom
-size (`policyengine_us/variables/gov/hud/hud_utility_allowance.py:9-20`),
-"encoded for the counties PolicyEngine models (LA County, the Texas TDHCA
-service area, and four Kansas PHAs)". A group-quarters placeholder household
-in one of those counties gets a positive utility allowance from its geography
-alone, with no rent and no tenure involved.
+The carve-out looks concept-scoped. It is string-scoped. That is the defect.
 
-So the chain is:
+And it cannot be widened by configuration — the absence-rule machinery is
+hard-coded to that one rule and raises on any other combination:
 
 ```
-pre_subsidy_rent = 0 (protected)  +  hud_utility_allowance ≥ 0 (NOT protected)
-  → hud_gross_rent can be > 0 in LA County / TX TDHCA / four Kansas PHAs
-  → hud_hap = min(max_subsidy, max(0, gross_rent − ttp)) can be > 0 if ttp is small
-  → housing_assistance > 0, if is_eligible_for_housing_assistance and takes_up
+packages/microcosm-build/src/microcosm/build/us_runtime/stacked_spine.py:9659-9667
+    if (rule.rule_id != _ACS_GQ_RENT_ABSENCE_RULE_ID
+        or rule.selection != _ACS_GQ_RENT_ABSENCE_SELECTION
+        or rule.entity != "person"
+        or rule.column != "pre_subsidy_rent" ...
 ```
 
-Two hops I did **not** verify and which may or may not close the gap:
-`hud_ttp`'s magnitude for a zero-income group-quarters minor (plausibly zero,
-which would make `rent_minus_ttp` equal the full utility allowance — i.e. the
-*worse* case), and whether `is_eligible_for_housing_assistance` excludes a
-null-`tenure_type` unit. It reads `SPMUnitTenureType`
-(`policyengine_us/variables/gov/hud/is_eligible_for_housing_assistance.py:5-7`),
-and the GQ absence rule keeps `tenure_type` null, so the enum default may well
-gate it out — **inferred, not read**. I stopped rather than guess, because the
-conclusion does not depend on it.
+### Fifth, the build is *required* to fill the flag
 
-**What must be added.** Not a claim, a gate. Before export, for every unit the
-producer declares `OUTSIDE`, assert `housing_assistance == 0` — or, to keep it
-inside the frame and out of an engine run, assert the *inputs* that can make it
-nonzero are absent: `takes_up_housing_assistance_if_eligible` is False (or the
-unit is ineligible) **and** the owning household's utility allowance is zero.
-The first form is the honest one and should be preferred if a simulation is
-already being run; the second is the cheap pre-export form.
+A residual null on a rule-less target is a terminal build failure
+(`stacked_spine.py:10200-10207`: "undeclared gap-fill residual is forbidden").
+The legacy tool says the same thing directly — anything other than
+person/`pre_subsidy_rent` left unmodeled on ACS rows is a `SystemExit`
+(`tools/_legacy/build_us_acs_multispine_base.py:562-571`). And the catalog
+forbids absence as a representation:
 
-If the gate ever fires, the remedy is *not* to force the input to zero. It is
-either to supply the explicit
-`spm_unit_ordinary_housing_subsidy_reported` the engine asks for, or to refuse
-the build. The engine doc is explicit that a computed zero is not evidence:
+```
+packages/microcosm-build/src/microcosm/build/us/spec/catalogs.yaml:1549-1557
+- key: spm_unit.receives_housing_assistance
+  entity: spm_unit
+  dtype: bool
+  nullable: false
+  domain: source_operator_housing_inputs
+```
+
+The repo's own architecture doc states the whole rule in one line: "every
+recipient null is filled except the exact ACS group-quarters rent rule"
+(`docs/us-multispine-operator-ordering.md:968`, and again at `:984`).
+
+So the build **must** write `True` or `False` on every ACS group-quarters SPM
+unit, and the draw that decides which is a QRF over a donor with ~2–5%
+incidence.
+
+### And `_reviewed_limitations` does not cover it
+
+The brief expected this record to supply the guarantee. It does not — its
+`affected_columns` list tenure, rent and property tax only:
+
+```
+tools/_legacy/build_us_acs_multispine_base.py:652-677
+    "id": "acs_group_quarters_housing_universe",
+    "status": "reviewed_structural_absence",
+    "affected_columns": {
+        "household": ["tenure_type", "acs_monthly_contract_rent",
+                      "acs_monthly_gross_rent", "acs_annual_property_tax"],
+        "spm_unit": ["spm_unit_tenure_type"], ...
+```
+
+Neither `receives_housing_assistance` nor
+`takes_up_housing_assistance_if_eligible` appears. The reviewed limitation is
+real and correctly scoped to what it covers; it simply does not cover the
+flags.
+
+### The remaining engine-side hop, and why the conclusion survives it
+
+With `pre_subsidy_rent` absent, `hud_gross_rent` is not automatically zero: it
+`adds ["pre_subsidy_rent", "hud_utility_allowance"]`
+(`policyengine_us/variables/gov/hud/hud_gross_rent.py:13`), and
+`hud_utility_allowance` is a *Household* variable set per public housing agency
+by bedroom size, "encoded for the counties PolicyEngine models (LA County, the
+Texas TDHCA service area, and four Kansas PHAs)"
+(`policyengine_us/variables/gov/hud/hud_utility_allowance.py:9-20`). Then
+`hud_hap = min(max_subsidy, max(0, hud_gross_rent − hud_ttp))`
+(`hud_hap.py:14-19`).
+
+Two hops I did **not** read and do not need to: `hud_ttp`'s magnitude for a
+zero-income group-quarters minor, and whether
+`is_eligible_for_housing_assistance` gates out a null-`tenure_type` unit (it
+reads `SPMUnitTenureType`,
+`is_eligible_for_housing_assistance.py:5-7`, so plausibly yes — **inferred,
+not read**). Those hops decide the *magnitude* of the leak. They do not decide
+its existence, because the Microcosm-side conclusion is already established
+without them: a True receipt flag on a group-quarters unit is not a structural
+impossibility, it is a modelled draw the build is required to make.
+
+### What must be added
+
+Not a claim — a structural policy, and the repo already has the pattern to
+copy. `_pregnancy_structural_policy_identity` forces `False` on structurally
+ineligible rows rather than nulling them, and receipts the count:
+
+```
+packages/microcosm-build/src/microcosm/build/us_runtime/acs_transfer.py:147-181
+    "ineligible_missing_value": False,
+    "qrf_scope": "one_eligible_representative_per_source_person",
+```
+
+enforced at `acs_transfer.py:1181`. A group-quarters housing rule would set
+`receives_housing_assistance` and `takes_up_housing_assistance_if_eligible` to
+`False` on the `acs_typehugq_2_or_3` mask, with its own receipt. That respects
+`nullable: false`, satisfies the no-residual gate, and states the decision
+rather than letting a QRF make it.
+
+Four places it lands (the first three read this session, the fourth inferred):
+a structural-eligibility policy plus receipt in `acs_transfer.py` alongside
+`_pregnancy_structural_policy_identity`; registration in
+`acs_transfer_execution_contract_identity`'s `structural_target_policies`
+(`acs_transfer.py:313-320`); the stacked-spine terminal contract
+(`stacked_spine.py:10085` onward); and the attested `imputation.yaml` entry.
+
+Whatever form it takes, the remedy is **not** to assert the engine computes
+zero. The engine doc is explicit that a computed zero is not evidence:
 "accepting the country's computed/input assistance of zero does not certify
 observed nonreceipt; the release still must validate its source inputs."
 
-This is the part of the design most likely to be wrong in an optimistic
-reading, and it is worth one actual-data measurement before any code
-(see [§7](#7-plan), M2).
+**Two adjacent risks worth recording while this is open.** `county_fips` is a
+`declared_absent_engine_input` on the simulation projection
+(`us/engine_abi.lock.json`, `remaining_stage_input_manifest.rows`), and the
+2.x capped-subsidy path needs five-digit string county FIPS for an SPM unit
+with positive housing assistance — so a group-quarters unit that draws a True
+flag may hit the geography contract before the housing one. And the mapping
+from Microcosm's `TYPEHUGQ` 2/3 mask to whatever the engine ultimately calls
+`OUTSIDE` should be asserted, not assumed equal; today no `OUTSIDE` token
+exists anywhere in this repo.
 
----
+Run M2 ([§7](#7-plan)) before writing any of this. It is a frame-column
+cross-tab, it costs seconds, and it converts this entire section from a
+mechanism argument into a count.
 
 ## 6. Consumers
 
-### `reform_validation` — silently wrong, not loudly broken
+There is exactly **one** production consumer of SPM poverty in the repo, and
+it is a report, never a gate: `reform_validation`'s rate path. The full
+enumeration is at the end of this section. The risk is entirely concentrated
+in one function.
+
+### `reform_validation._person_rate` — the only place that fails silently
 
 The 104 state SPM poverty levels are `statistic="rate"` specs over `in_poverty`
-(`us_runtime/reform_validation.py:592-609`), evaluated by `_person_rate`:
+(`us_runtime/reform_validation.py:592-611`), evaluated by `_person_rate`
+(`reform_validation.py:920-954`). The aggregation is a hand-rolled weighted
+share — **not** a mean, and there is no `.astype(bool)` and no `~` negation
+anywhere in the path:
 
 ```
-packages/microcosm-build/src/microcosm/build/us_runtime/reform_validation.py:928-951
+packages/microcosm-build/src/microcosm/build/us_runtime/reform_validation.py:933-954
         values = baseline.calculate(level.variable, level.period, map_to="person")
         weights = np.asarray(values.weights)
         flags = np.asarray(values) > 0
@@ -838,105 +1051,177 @@ packages/microcosm-build/src/microcosm/build/us_runtime/reform_validation.py:928
         return float((flags[mask] * weights[mask]).sum() / denominator)
 ```
 
-Under nullable indicators, `np.asarray(values) > 0` evaluates `NaN > 0` as
-`False`. Outside persons are therefore counted as **not poor** and **left in
-the denominator**. Every affected state rate moves *down*, by a real number, in
-a JSON that publishes fine and looks fine.
+Three distinct silent failures follow, all within those twenty lines.
 
-This is exactly the pattern the engine doc forbids: "Do not cast these
+**(1) Nulled persons become "not poor" and stay in the denominator.**
+`np.asarray(values) > 0` evaluates `NaN > 0` as `False` (IEEE 754: every
+ordered comparison with NaN is false), at `reform_validation.py:935`. Every
+affected state rate moves *down*, by a real number, in a JSON that publishes
+fine and looks fine.
+
+**(2) The denominator half of the universe rule has no implementation and
+cannot arrive by itself.** The mask is initialised all-True over every person
+(`reform_validation.py:936`) and is narrowed only by `mask_variable` and by
+state. Nothing in the engine change narrows it — "outside units leave the
+denominator" is a *consumer* obligation, and this is the consumer.
+
+**(3) A fully nulled slice publishes `0.0`, a real-looking 0% poverty rate**
+(`reform_validation.py:951-953`), indistinguishable downstream from a genuine
+zero.
+
+Contrast this with the dollar rows, and the asymmetry is the whole point: a
+`statistic="total"` level goes through `.sum()`, which propagates NaN
+(`reform_validation.py:646-648`), into `_finite`, which turns NaN into `None`
+(`reform_validation.py:167-169`), into a writer with `allow_nan=False`
+(`reform_validation.py:1034`). **Every dollar row fails loudly. Only the rate
+rows fail quietly.** This is the single most important consumer fact in the
+design.
+
+This is also exactly the pattern the engine doc forbids: "Do not cast these
 indicators to `bool`, negate them with `~`, or use them directly as Boolean
 selection masks. Compare an observed indicator with `1` when selecting poor
 units and separately retain its missingness mask."
 
-The fix is three lines and must land in the same PR as any pin bump:
+The fix, all inside `_person_rate`:
 
 ```python
-observed = ~np.isnan(np.asarray(values, dtype=float))
-flags = np.asarray(values) == 1
+raw = np.asarray(values, dtype=float)
+observed = ~np.isnan(raw)
+flags = raw == 1
 mask &= observed                 # outside persons leave the denominator
+...
+if denominator == 0:
+    return None                  # missing rate, not 0.0
 ```
 
-Two further changes in the same function:
+and `None` must then be threaded through the row assembly
+(`reform_validation.py:997-1002`), because `allow_nan=False` would reject a
+bare `NaN` at serialization. The engine doc: "An empty eligible denominator
+yields a missing rate; serialize it as JSON `null`."
 
-- `if denominator == 0: return 0.0` must become a missing rate. The engine doc:
-  "An empty eligible denominator yields a missing rate; serialize it as JSON
-  `null`." And `write_reform_validation` writes with `allow_nan=False`
-  (`reform_validation.py:1034`), so a bare `NaN` would raise at serialization
-  — the `None` must be threaded explicitly through the row assembly at
-  `reform_validation.py:997-1002`.
-- The `mask_variable` comparison (`is_child`, `> 0`) is fine; `is_child` is a
-  real boolean and is not among the nullable outputs.
+The `mask_variable` comparison (`is_child`, `> 0`) is left alone — `is_child`
+is a real boolean and is not among the nullable outputs — but note that 52 of
+the 104 rows carry it, so half the surface has a second denominator that would
+need the same treatment if any masking variable ever became nullable.
 
-`US_RELEASE_SPM_SELECTION` (`reform_validation.py:682-694`) is unaffected —
-geography selection is orthogonal to universe scope — but its comment about
-"a later change to the engine default cannot silently reinterpret the 104
-state SPM poverty levels" is precisely the failure mode above, arriving by a
-different door. Worth citing in the fix.
+`US_RELEASE_SPM_SELECTION` (`reform_validation.py:684`) is unaffected —
+geography selection is orthogonal to universe scope — but its stated intent,
+that "a later change to the engine default cannot silently reinterpret the 104
+state SPM poverty levels", is precisely the failure above arriving by a
+different door. It is also the natural place to declare a *universe* selection
+alongside the geography one.
 
-### Poverty is not a target — verified
+### `state_spm_poverty_levels.json`
 
-The brief asserts poverty must never be a target or a release gate. That is
-true at this head, and it is asserted in the code's own words:
+104 entries, every one `variable: "in_poverty"`, `statistic: "rate"`,
+`period: 2024`; 51 state codes plus 2 national rows; 52 overall and 52 child.
+Benchmarks are Census P60-287, state rows on 2022–2024 three-year averages.
+
+### Poverty as target and as gate — one verified, one narrower than the brief
+
+**Never a calibration target: verified.** `git grep -i poverty` returns zero
+hits across `microcosm-calibrate`, `microcosm-fit`, `microcosm-frame` and
+`microcosm-graph`, and zero in `fiscal_targets.py` and `target_aging.py`. The
+code says so itself:
 
 ```
 packages/microcosm-build/src/microcosm/build/us_runtime/reform_validation.py:598-604
-    ... compared to the Census P60-287 2022–2024 three-year-average state SPM
-    rates. Poverty is nowhere in the calibration target surface, so these are
+    ... Poverty is nowhere in the calibration target surface, so these are
     genuinely out-of-sample; the person/child *counts* in each state are
     calibrated, which pins the denominators but not the rates.
 ```
 
-`state_spm_poverty_level_specs` feeds `default_baseline_level_specs`
-(`reform_validation.py:615-622`), which is a *reporting* surface. The design
-must keep it that way: an `OUTSIDE` unit changing a poverty rate must never
-change a weight.
+**Never a release gate: true today, but not a standing principle — and the
+brief's phrasing should be narrowed.** No `us/gates.json` exists at all, and
+the gate vocabulary is a closed frozenset with no poverty member
+(`packages/microcosm-build/src/microcosm/build/country_spec.py:112-145`,
+`ALLOWED_GATE_FUNCTIONS`). But the doctrine document explicitly reserves the
+right:
 
-Note the second-order effect the docstring itself implies: the denominators
-*are* calibrated (person/child counts by state), and outside persons leave the
-poverty denominator while staying in the calibrated population. So the
-published rate becomes "poor persons ÷ in-universe persons", which is the
-correct SPM-consistent quantity and the one Census publishes — but it is not
-the same denominator the calibration pins. That is a correctness *improvement*
-and a comparability *discontinuity*, and it should be stated when the rates
-move, not discovered afterwards.
+```
+docs/us-fact-to-target.md:34-36
+Release gates may *fail* a certification on a held-out poverty regression;
+*fitting* the statistic is categorically different and prohibited.
+```
+
+The prohibition is on **fitting**, not on gating. So the correct standing
+statement is: *poverty is never a calibration target, and is not a gate today;
+gating on a held-out poverty regression remains permitted and would be a
+deliberate future decision.* The design must not foreclose it, and must not
+overstate it either.
+
+**Second-order effect, worth stating before the numbers move.** The
+denominators *are* calibrated (person and child counts by state), and outside
+persons leave the poverty denominator while remaining in the calibrated
+population. The published rate becomes "poor persons ÷ in-universe persons" —
+the SPM-consistent quantity Census publishes, and a correctness *improvement*
+— but it is no longer the denominator the calibration pins. That is a
+comparability discontinuity, and it should be announced, not discovered.
+
+**Publication does not catch it.** The publication gate reads
+`reform_validation.json` but keys only on `out_of_sample_simulated`
+(`packages/microcosm-data/src/microcosm/data/publish_cli.py:141`), never on a
+poverty value. A release whose 104 rates are silently deflated publishes
+cleanly.
 
 ### `check_spm_composition` (PR #948)
 
 PR PolicyEngine/microcosm#948, `spm-composition-preflight`, head `e03e84f37`,
-open. `check_spm_composition` lands in
+base `main`, OPEN and **draft on purpose** — its body ends "Draft on purpose:
+not ready, not to be merged."
+
+`check_spm_composition` lands in
 `packages/microcosm-build/src/microcosm/build/us_runtime/release_gate_preflight.py`
 and reproduces the engine's classification over frame columns with no engine
 and no solve — `adult = (age >= 18) | ((age >= 15) & role)` — grading the
 selected frame when given one, because "a pool unit the selection drops never
-reaches the engine" (`gh pr diff 948`, the `check_spm_composition` docstring).
+reaches the engine". It asserts no poverty number: it checks a *precondition*
+for the 104 rows being computable at all.
 
-Under the universe rule its verdict must become **conditional on
-`INCLUDED`**: a unit outside the measurement universe has no composition
-requirement, because the engine never calls the threshold provider for it. The
-smallest correct change is a universe-status argument that restricts
-`composition.offending` to included units, keeping the unconditional count as a
-reported detail (it already reports several parallel counts in `details`).
+**Under the universe rule it would over-refuse.** `_spm_composition` grades
+every `spm_unit` row with no universe predicate whatsoever — it reads only
+person `age`, the role/head/spouse columns, and the membership column. The
+smallest correct change is a universe-status argument restricting
+`composition.offending` to `INCLUDED` units, keeping the unconditional count as
+a reported detail (it already reports several parallel counts in `details`).
 
-This is a genuine convergence: #948's instrument answers "which units would
-refuse?", and the producer answers "which units should be asked?". Landing the
-producer without updating #948 would leave a gate refusing builds for units
-the engine has agreed not to measure. **These two must be sequenced together
-— see §7, PR 3.**
+**And there is a direct collision worth resolving explicitly.** #948's
+`SPM_COMPOSITION_REMEDY` text declares that re-grouping child-only SPM units
+is *not* a remedy, precisely **because** doing so "changes the poverty
+measurement the 104 state SPM poverty levels exist to" track. The universe
+rule does exactly that: it removes those units from measurement. So the
+universe rule is, by #948's own criterion, the thing #948 rules out — unless
+the distinction is stated. The distinction is real and should be written into
+that remedy text: re-grouping changes *which unit a person is measured in*,
+which is a fabrication; a universe declaration changes *whether the source
+measures them at all*, which is a source fact. These two must land together
+(§7, PR 3).
 
-### The rest
+### Full consumer enumeration
 
-`git grep` for `in_poverty` / `in_deep_poverty` / `person_in_poverty` /
-`spm_unit_is_in_spm_poverty` / `spm_resources` across `packages/` and `tools/`
-returns, outside tests and fixtures, only:
-`us_runtime/reform_validation.py` (above),
-`us/state_spm_poverty_levels.json` (its config),
-`us/country_package.json`, and
-`tools/generate_us_bundle_from_constants.py` (bundle generation). No gate in
-`docs/gate-battery-contract.md`'s battery asserts on a poverty number. The
-consumer surface is genuinely small; the risk is concentrated entirely in
-`_person_rate`.
+`git grep -n -E "in_poverty|in_deep_poverty|person_in_poverty|spm_unit_is_in_spm_poverty|poverty_rate|spm_resources|spm_poverty"` over
+`packages/`, `tools/`, `experiments/` and `docs/`:
 
----
+| Consumer | Class | Effect of the change |
+| --- | --- | --- |
+| `us_runtime/reform_validation.py:47`, `:586-611`, `:920-954`, `:956-1010` | **report** (release path) | The three silent failures above. Must be fixed. |
+| `us/state_spm_poverty_levels.json` | config | 104 rows; unchanged, but its rates move. |
+| `tools/build_us_fiscal_refresh_release.py:260`, `:263-264`, `:7475-7521`, `:11731-11742` | report (invokes the above) | Inherits the fix. |
+| `us_runtime/spm_resources.py:44-134` | report library, **zero production consumers** (tests only) | A second, independent poverty-rate implementation. Needs the same universe treatment *if ever wired in*; today it is dead and should be left alone or deleted, not half-fixed. |
+| `experiments/957-static-aging/benchmark.py:421-422`, `:452-457` | comparison script | Maps the spm_unit variable to person and takes weighted MicroSeries means, including boolean-indexed sub-means that would each need their own universe denominator. |
+| `us_runtime/reform_coverage_smoke.py:123` | **gate**, but scores dollars (`spm_unit_benefits`), never a poverty number | Fail-closed under NaN (`NaN >= min_abs_effect` is False). Safe by accident, but safe. |
+| `packages/microcosm-build/tests/test_reform_validation.py:1203-1247` | test | The only place denominator semantics are pinned numerically (integer 1/0 indicators, no null case). It will go red on the fix — correctly — and is where the null case belongs. |
+| `us/country_package.json`, `tools/generate_us_bundle_from_constants.py` | bundle generation | No behavioural change. |
+
+No gate in `docs/gate-battery-contract.md`'s battery asserts on a poverty
+number.
+
+One further note on nullability's ownership: the release cannot pin it by
+writing a column. `policyengine-us` 2.0.0 "rejects derived SPM outputs
+(including the `in_poverty` alias) from stored datasets and requires observed
+county inputs" (`packages/microcosm-data/pyproject.toml:24-26`). The indicator
+is engine-derived at read time, so its nullability is an engine-side property
+throughout.
 
 ## 7. Plan
 
@@ -956,12 +1241,23 @@ status; and a negative control proving a zero-adult *housing* unit is
 `INCLUDED` (the anti-inference test — this is the one that would have caught
 the tempting wrong design in §2). Depends on nothing.
 
-**PR 2 — outside-housing gate.** ~120 lines + tests. The §5 pre-export
-assertion, plus a `docs/` note recording the `pre_subsidy_rent` /
-`hud_utility_allowance` asymmetry so the next reader does not re-derive it.
-Tests: an invented `OUTSIDE` unit with a positive utility allowance and
-`takes_up == True` must refuse by name; the same unit with a zero allowance
-must pass. Depends on PR 1.
+**PR 2 — group-quarters housing structural policy.** ~250 lines + tests, and
+larger than the brief assumed. Not a pre-export assertion: a structural
+eligibility policy in `acs_transfer.py` in the shape of
+`_pregnancy_structural_policy_identity`, forcing `receives_housing_assistance`
+and `takes_up_housing_assistance_if_eligible` to `False` on the
+`acs_typehugq_2_or_3` mask with its own receipt, plus registration in
+`structural_target_policies` (`acs_transfer.py:313-320`), the stacked-spine
+terminal contract (`stacked_spine.py:10085` onward) and the attested
+`imputation.yaml` entry. Setting `False` — rather than nulling — is forced by
+`catalogs.yaml:1549-1557` (`nullable: false`) and by the no-residual gate
+(`stacked_spine.py:10200-10207`). Tests: an invented ACS group-quarters unit
+must come out `False` on both flags with the count receipted; a housing unit
+must be untouched; the policy must refuse if the mask is empty when group
+quarters are present (so it cannot silently no-op). Depends on PR 1 and on M2.
+**This is a defect on `main` independent of the universe rule** — the QRF is
+drawing a housing-receipt flag for records with no housing unit today — so it
+stands on its own and can be argued separately if the universe work slips.
 
 **PR 3 — `check_spm_composition` becomes universe-aware.** ~60 lines + tests,
 **in microcosm#948 or immediately after it merges**. Restricts the offending
@@ -1012,7 +1308,7 @@ PR 6 is a permanent silent no-op.
 | # | Measurement | For | Cost |
 | --- | --- | --- | --- |
 | M1 | Count native ACS households by `TYPEHUGQ` ∈ {1,2,3}, and the SPM units each resolves to, on the legacy ACS 2024 spine | PR 1 — confirms the producer's partition reproduces the known 5,246 / 1,531,614 split and that nothing lands in a fourth bucket | Reuses `audit_acs_spm_universe.py`'s loader; ~11 min, ~12 GB RSS at the measured full-run cost |
-| M2 | Among ACS `TYPEHUGQ` 2/3 units: count with `takes_up_housing_assistance_if_eligible == True`, and count whose household sits in a positive-utility-allowance county | PR 2 — decides whether §5 is a live defect or a latent one | Frame columns only, no engine; seconds |
+| M2 | Among ACS `TYPEHUGQ` 2/3 units: count with `receives_housing_assistance == True` and with `takes_up_housing_assistance_if_eligible == True`, on a built pool | PR 2 — converts §5 from a mechanism argument into a count, and sizes the defect | Frame columns only, no engine; seconds. No receipt or gate reports this cross-tab today, so the realized number is currently unknown |
 | M3 | Count `INCLUDED` units without a classified adult, on the selected frame | PR 3 — the residual after the universe rule; should be 0 on ACS housing units and 0 on the September 15 national parent | `check_spm_composition`, ~0.05 s per #948 |
 | M4 | The 104 state SPM rates under the fixed `_person_rate`, against the current published values | PR 4 — sizes the discontinuity §6 predicts, before it surprises anyone | One baseline simulation; already the release's cost |
 
@@ -1021,8 +1317,14 @@ M2 is the one that can change the design. Run it first.
 ### What this does not do
 
 It does not drop group quarters from any file (the fiscal population is
-unchanged), does not move a weight, does not add a calibration target, does not
-publish or promote anything, and does not make poverty a release gate.
+unchanged), does not move a weight, does not add a calibration target, and does
+not publish or promote anything.
+
+It also does not make poverty a release gate — but note the precise claim, per
+§6: fitting a poverty statistic is prohibited doctrine
+(`docs/us-fact-to-target.md:34-36`), while *gating* on a held-out poverty
+regression is explicitly reserved as permitted. Nothing here forecloses that
+future choice; nothing here takes it either.
 
 ---
 
@@ -1043,15 +1345,21 @@ engine release, or (c) both?
 *Recommend (c)* — ship (a) immediately, and open the pin bump as a tracked
 dependency so the held-back column cannot quietly become permanent.
 
-**Q-C. The outside-housing gate (§5).** Assert `housing_assistance == 0` on
-`OUTSIDE` units (needs a simulation), or assert the frame-side inputs that can
-make it nonzero are absent (cheap, pre-export)?
-*Recommend the cheap frame-side gate in PR 2, with the simulation-side
-assertion added wherever a release already runs one.* Run M2 first: if it
-returns zero affected units, the gate is a latent guard and can stay cheap; if
-not, the design needs an explicit
-`spm_unit_ordinary_housing_subsidy_reported` path and that is a larger
-conversation.
+**Q-C. Group-quarters housing (§5).** The brief expected group-quarters
+housing inputs to be structurally null. They are not: `pre_subsidy_rent` is
+carved out by a rule scoped to the literal family name `"housing"`, while
+`receives_housing_assistance` and `takes_up_housing_assistance_if_eligible`
+are rule-less QRF targets over all ACS rows, `nullable: false`, that the build
+is *required* to fill. So today's ACS builds are drawing a housing-receipt
+flag for records with no housing unit. Force both flags `False` on the
+group-quarters mask (a structural policy, PR 2), or supply an explicit
+`spm_unit_ordinary_housing_subsidy_reported` path for units that draw True?
+*Recommend forcing `False`, after M2.* It matches the reviewed limitation's
+own reasoning — no observed housing unit — and reuses the pregnancy policy
+pattern already in the repo. If M2 returns a large count, that is a finding
+about the donor transfer worth reporting on its own, not just an input to this
+design. And worth deciding explicitly: **this is a defect on `main` today**,
+so it may deserve its own issue rather than riding the universe lane.
 
 **Q-D. The published-rate discontinuity (§6).** The 104 state SPM rates will
 move when outside persons leave the denominator — correctly, toward the
