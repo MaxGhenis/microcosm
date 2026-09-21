@@ -440,15 +440,31 @@ changes when the *role* column changes. The correct input is `TYPEHUGQ`, which
 is the source's own record-type field, known before any composition is
 computed.
 
-Two named non-goals, both from the graph-native line
-(`microcosm-native-child-source-050c58a60-20260921`,
-`packages/microcosm-build/src/microcosm/build/acs_spm_scope.py:580`): an
-`OUTSIDE` unit's *other* SPM inputs are **not** filled, cast or defaulted —
-"Nullable roles are never filled or cast, including for OUTSIDE units."
-Declaring a unit outside the measurement universe is not permission to
-synthesize its unmeasured attributes. And `OUTSIDE` never changes a unit's
-weight, its membership, or its presence in the file: the fiscal population is
-unchanged, only its SPM measurability is declared.
+Two named non-goals. First, declaring a unit outside the measurement universe
+is **not** permission to synthesize its unmeasured attributes. The graph-native
+line states this as an enforced invariant in both directions — a missing role
+is permitted *only* when the unit is `OUTSIDE`, and is then filled with an
+explicit caller-supplied placeholder rather than a guess:
+
+```
+microcosm-native-child-source-050c58a60-20260921
+packages/microcosm-build/src/microcosm/build/us_runtime/current_survey_spm_projection.py:322-327
+    missing = nullable.isna().to_numpy()
+    _require(
+        np.all(~missing | (person_status == OUTSIDE)), "NULL_ROLE_REQUIRES_OUTSIDE"
+    )
+    columns = {
+        ("person", ROLE_INPUT): nullable.fillna(outside_role_placeholder).astype(bool),
+```
+
+That pairing is the right shape and should be carried over: a null role inside
+the universe is a defect, a null role outside it is expected, and the
+placeholder that resolves it is the caller's declared choice rather than the
+producer's invention.
+
+Second, `OUTSIDE` never changes a unit's weight, its membership, or its
+presence in the file: the fiscal population is unchanged, only its SPM
+measurability is declared.
 
 ### Reuse from the graph-native line, and what not to port
 
@@ -1158,17 +1174,28 @@ cannot arrive by itself.** The mask is initialised all-True over every person
 state. Nothing in the engine change narrows it — "outside units leave the
 denominator" is a *consumer* obligation, and this is the consumer.
 
-**(3) A fully nulled slice publishes `0.0`, a real-looking 0% poverty rate**
-(`reform_validation.py:951-953`), indistinguishable downstream from a genuine
-zero.
+**(3) A fully outside slice publishes `0.0`, a real-looking 0% poverty rate —
+and it does so both before and after the obvious fix.** The two routes are
+different and both need closing. *Today*, every flag in the slice is `False`
+(route 1) while the denominator stays positive, because the mask is all-True;
+the numerator is zero and the function returns `0.0` without ever reaching the
+`denominator == 0` branch. *After* narrowing the mask to observed persons, the
+same slice empties the denominator and reaches
+`if denominator == 0: return 0.0` (`reform_validation.py:951-953`) — and
+returns `0.0` again. A fix that only corrects the denominator moves the bug
+without removing it.
 
 Contrast this with the dollar rows, and the asymmetry is the whole point: a
 `statistic="total"` level goes through `.sum()`, which propagates NaN
-(`reform_validation.py:646-648`), into `_finite`, which turns NaN into `None`
+(`reform_validation.py:649`), into `_finite`, which turns NaN into `None`
 (`reform_validation.py:167-169`), into a writer with `allow_nan=False`
-(`reform_validation.py:1034`). **Every dollar row fails loudly. Only the rate
-rows fail quietly.** This is the single most important consumer fact in the
-design.
+(`reform_validation.py:1034`). So **were a nullable measure ever to reach a
+dollar row, it would surface as an explicit `null`; only the rate path
+converts missingness into a plausible number.** (The dollar rows are not
+themselves at risk here — they measure tax variables such as `income_tax`,
+`cdcc` and `alternative_minimum_tax`, not poverty. The point is the contrast
+in machinery, not a shared exposure.) This is the single most important
+consumer fact in the design.
 
 This is also exactly the pattern the engine doc forbids: "Do not cast these
 indicators to `bool`, negate them with `~`, or use them directly as Boolean
@@ -1187,9 +1214,11 @@ if denominator == 0:
     return None                  # missing rate, not 0.0
 ```
 
-and `None` must then be threaded through the row assembly
-(`reform_validation.py:997-1002`), because `allow_nan=False` would reject a
-bare `NaN` at serialization. The engine doc: "An empty eligible denominator
+and `None` must then be threaded through `_level_total`
+(`reform_validation.py:956-976`) and the row assembly
+(`reform_validation.py:997-1002`) — both are annotated `-> float` today and
+become `-> float | None` — because `allow_nan=False` would reject a bare `NaN`
+at serialization. The engine doc: "An empty eligible denominator
 yields a missing rate; serialize it as JSON `null`."
 
 The `mask_variable` comparison (`is_child`, `> 0`) is left alone — `is_child`
