@@ -5303,10 +5303,10 @@ def test_population_age_requirement_needs_complete_state_age_surface() -> None:
     assert any("population_age_state" in failure for failure in result.failures)
 
 
-def test_macro_realism_bands_cover_issue_40_backstops() -> None:
+def test_macro_realism_bands_exclude_poverty_comparisons() -> None:
     assert "federal_income_tax_to_gdp" in US_FISCAL_MACRO_REALISM_BANDS
     assert "agi_to_gdp" in US_FISCAL_MACRO_REALISM_BANDS
-    assert "spm_below_threshold_rate" in US_FISCAL_MACRO_REALISM_BANDS
+    assert "spm_below_threshold_rate" not in US_FISCAL_MACRO_REALISM_BANDS
 
 
 def test_scf_nonnegative_targets_gate_negative_interest() -> None:

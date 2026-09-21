@@ -3576,8 +3576,9 @@ US_FISCAL_TARGET_COVERAGE_REQUIREMENTS: tuple[TargetCoverageRequirement, ...] = 
     *(spec.coverage_requirement() for spec in US_JCT_TAX_EXPENDITURE_REFORMS),
 )
 
+# Survey poverty remains comparison-only evidence, including at release time.
+# These bands must not turn proximity to a poverty benchmark into a verdict.
 US_FISCAL_MACRO_REALISM_BANDS: dict[str, tuple[float, float]] = {
     "federal_income_tax_to_gdp": (0.07, 0.11),
     "agi_to_gdp": (0.50, 0.70),
-    "spm_below_threshold_rate": (0.06, 0.18),
 }
