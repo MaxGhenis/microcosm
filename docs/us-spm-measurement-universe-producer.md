@@ -81,7 +81,7 @@ and reconciles every unit against Census's own published `SPM_NUMADULTS` /
 `SPM_NUMKIDS` / `SPM_NUMPER` counts (`spm_role_source.py:124-136`). A pinned
 ASEC file that carried a record Census excluded from its SPM universe would
 disagree with those counts and refuse. The derivation then re-runs the same
-reconciliation on the *native* units (`spm_role_source.py:335`), so the
+reconciliation on the *native* units (`spm_role_source.py:345`), so the
 property survives pooling and cloning.
 
 This is consistent with the measured counts: the published national default
@@ -92,9 +92,18 @@ come from the absence of the native role column, not from a universe problem.
 **And the producer could not condition on an ASEC record-type field even if it
 wanted to: Microcosm reads none.** `H_TYPE`, `HRHTYPE`, `H_HHTYPE`, `HUNITS`,
 `H_LIVQRT` and the string "armed forces" have zero occurrences in this
-repository. The only ASEC *household* fields read anywhere are `H_SEQ` and
-`HSUP_WGT` (`asec_pool.py:243`), `state_fips` and `H_TENURE`
-(`asec_pool.py:183`). `TYPEHUGQ` is an ACS PUMS field and every group-quarters
+repository. The ASEC *household* fields read in production source are `H_SEQ`
+and `HSUP_WGT` (`asec_pool.py:243`, `:402-404`), `GESTFIPS`
+(`asec_pool.py:286-292`, remapped to the frame column `state_fips`) and
+`H_TENURE` (`asec_pool.py:298-304`);
+`_attach_household_attributes(frame, ("state_fips", "H_TENURE"))`
+(`asec_pool.py:183`) then promotes those two already-mapped columns from the
+person table onto the household table rather than re-reading the raw ASEC
+household table. Two artifact-gated tests additionally read the household
+aggregates `HSURVAL`/`HSUR_YN`
+(`test_us_survivor_benefits_exclusion.py:140,148`) and `HFINVAL`/`HFIN_YN`
+(`test_us_financial_assistance_exclusion.py:147,156`). None of these is a
+record-type field. `TYPEHUGQ` is an ACS PUMS field and every group-quarters
 mechanism in the repo is ACS-only — do not transplant it onto the ASEC arm.
 The ASEC ruling is therefore necessarily **spine-level**, which is the right
 level given §1's Census finding, but it must be written as a declaration with
@@ -266,7 +275,7 @@ Model it on `spm_role_source.py`, which is the repo's archetype for a
 source-owned, non-modeling producer: pinned sources verified by size and
 SHA-256, reconciliation against published Census counts, a provenance dict
 that states what the evidence is and is not, and `weights_used: False` /
-`ages_changed: False` (`spm_role_source.py:399-422`). Nothing in it fits,
+`ages_changed: False` (`spm_role_source.py:357-394`). Nothing in it fits,
 draws, ages, or weights.
 
 | Property | Value |
@@ -367,7 +376,7 @@ sentinel, not a value a producer emits. A producer that cannot decide must
 ### Refusals
 
 Each is a hard `ValueError`, named, fail-closed, in the `_require` style of
-`spm_role_source.py:80-82`:
+`spm_role_source.py:83-85`:
 
 | Code | Condition |
 | --- | --- |
@@ -386,10 +395,12 @@ moment a future spine, a donor merge, or a clone-index bug puts a GQ person
 into a multi-person unit, and at that point silently picking a majority kind
 would be a fabricated universe decision. Refuse.
 
-`SPM_UNIVERSE_EMPTY_UNIT` is listed because the brief asks for it, and it is
-worth keeping even though `spm_role_source.py:294-297` already asserts exact
-membership coverage. Two independent assertions of the same invariant is the
-right cost here.
+`SPM_UNIVERSE_EMPTY_UNIT` and `SPM_UNIVERSE_ORPHAN_MEMBER` are listed because
+the brief asks for them, and they are worth keeping even though
+`spm_role_source.py:264-268` already asserts exact membership coverage — its
+`set(parent.person_spm_unit_id) == set(spm.spm_unit_id)` is bidirectional, so
+it refuses both directions today. Two independent assertions of the same
+invariant is the right cost here.
 
 `SPM_UNIVERSE_DEGRADED_PARTITION` closes the largest silent-failure mode in
 this area, and it is not hypothetical:
@@ -542,7 +553,7 @@ The lane is single-variable in a deeper way than "a constant is hardcoded".
 boolean column on the **person** table, at the HDF type level:
 
 ```
-packages/microcosm-data/src/microcosm/data/h5_enrichment.py:124-141
+packages/microcosm-data/src/microcosm/data/h5_enrichment.py:120-140
     role = np.asarray(role)
     if role.dtype != np.dtype(bool) or role.ndim != 1:
         raise ValueError("Role must be a one-dimensional Boolean array")
@@ -617,26 +628,39 @@ byte-identical and prove it with the existing tests; add the string and
 `spm_unit` paths as new code with their own exactness proofs. Generalize the
 descriptor list, not the verification.
 
-Two constraints on where the shared pieces live. Object and variable-length
-dtypes are rejected outright (`h5_enrichment.py:100-101`, `:221-223`), so the
-status must be a fixed-width byte string. Size it to the full engine domain,
+Two constraints on where the shared pieces live. The writer has no path for an
+object or variable-length dtype: it grows the record by raw byte arithmetic
+(`compound.set_size(old_size + 1)`, `h5_enrichment.py:138`) and splices rows as
+flat bytes (`extended.view(np.uint8).reshape(-1, old_size + 1)[:, :old_size]`,
+`:161-163`), which a pointer-backed field cannot express, and
+`compare_h5_enrichment` rebuilds the expected compound type by the same size
+arithmetic (`:344-357`). So the status must be a fixed-width byte string. The
+module's two explicit object rejections do **not** cover the appended column —
+`:100-101` guards the *parent* table (called on `parent[_TABLE]` at `:124` and
+`:321`), and `:221-222` guards attribute and non-person-table dataset values
+(`:250`, `:300`, `:380`) — so the generalized descriptor list needs its own
+dtype guard rather than inheriting one. Size it to the full engine domain,
 not to what the producer emits: `"UNRESOLVED"` is 10 bytes, so `S10`, even
 though a producer never writes that value (§2). Sizing to the emitted set
 (`"INCLUDED"`, 8 bytes) would silently truncate any later read-back of a
 defaulted value. And
 the shared constant must live in `microcosm-data` and be imported by
 `microcosm-build`, never the reverse: the data shard deliberately does not
-depend on the build shard (`source_enrichment.py:80-82`), and
-`docs/shared-constants.md:12-13` requires the lowest shared package with a
-parity test.
+depend on the build shard, and a build test checks the resulting parity
+(`source_enrichment.py:80-82`); `docs/shared-constants.md:12-13` requires the
+single canonical definition to live in the lowest package dependency shared by
+all consumers, and `:21-22` requires a unit test whenever a consumer derives a
+second view of it.
 
 **Do not loosen** the single-parent exactness core: the SHA-256 checks before,
-during and after the copy (`h5_enrichment.py:118-119`, `135-136`, `185-186`),
+during and after the copy (`h5_enrichment.py:118-119`, `132-133`, `185-186`),
 `O_CREAT | O_EXCL` destination creation (`h5_enrichment.py:128`, which "also
 refuses aliases/symlinks to the parent"), the unlink-on-any-exception
 (`h5_enrichment.py:190-192`), the schema-5 inheritance assertions
 (`source_enrichment.py:304-320`), and `all_preexisting_variables_exact`
-(`source_enrichment.py:394`). Those are not single-variable; they are
+(`h5_enrichment.py:394`, enforced by the exact-equality comparison of the whole
+preservation report at `source_enrichment.py:365-369`). Those are not
+single-variable; they are
 single-*parent*, and they are the whole value of the lane.
 
 ### Registry, pin and inventory checklist
@@ -651,23 +675,36 @@ exported frame column reaching the release H5.
 | 3 | Enrichment expected counts | `source_enrichment.py:111-118` | column |
 | 4 | Adapter generated-variable audit — the `(names, entity, dtype, period, formula_owned)` tuple list; `is_spm_independent_minor_role` sits at `:214` as the precedent | `packages/microcosm-frame/src/microcosm/frame/adapters/policyengine_us.py:156-233` | column |
 | 5 | Adapter pinned engine-source digests — `_GENERATED_SOURCE_SHA256`, `_GENERATED_SPM_SOURCE_SHA256` / `_GENERATED_SPM_SOURCE_VERSION` (`"1.0.0"`); `_audit_pinned_sources` fails closed on any drift | `policyengine_us.py:150-155`, `:264-294` | column (on any engine bump) |
-| 6 | Release input coverage manifest — a `columns` entry with `status` | `packages/microcosm-build/src/microcosm/build/us/release_input_coverage_manifest.json` (`"columns"` map) | column |
+| 6 | Release input coverage manifest — **generated, and a closed surface**: add the name to `POST_REFERENCE_ECPS_REQUIRED_INPUTS` in *both* copies, then regenerate. Declared columns must equal the eCPS populated layers ∪ that set (`release_input_coverage.py:681`, `:686-695`), and the committed file is asserted against the generator (`tests/test_release_input_coverage.py:1534-1543`), so it cannot be hand-edited | `us_runtime/release_input_coverage.py:141-161` **and** `tools/build_us_release_input_coverage_manifest.py:69-83`, then regenerate `us/release_input_coverage_manifest.json` | column |
 | 7 | Release input coverage checker | `packages/microcosm-build/src/microcosm/build/us_runtime/release_input_coverage.py` | column |
-| 8 | Validation input coverage | `us_runtime/validation_input_coverage.py` | column |
+| 8 | Validation input coverage — a *curated* leaf→provision registry (`:106`, docstring `:23-33`), checked registry → declared `source_stages.json` outputs (`:179`, `:220-253`), never exported-column → registry. `assert_validation_leaf_registry_current` (`:310-380`) rejects any leaf the engine computes with a formula (`:362`) | `us_runtime/validation_input_coverage.py:106`, `:310-380` | only a formula-free input leaf whose absence zeroes a scored validation row — **not** this column while §4 is unresolved |
 | 9 | Spine blindness inventory — `_OTHER_US_RUNTIME_MODULES` / `_SPINE_BLIND_OPERATOR_MODULES`; `_CLASSIFIED_US_RUNTIME_MODULES` must cover every `us_runtime` module or the test fails on both unclassified **and** stale names | `packages/microcosm-build/tests/test_us_spine_blindness.py:150-151`, `:217`, `:316-317`, `:3259`, `:3275` | module |
 | 10 | Engine ABI lock (`{"engine":{"package":"policyengine-us","version":"2.2.1"}}`) | `packages/microcosm-build/src/microcosm/build/us/engine_abi.lock.json:1` | column (on engine bump) |
-| 11 | Country package pin | `packages/microcosm-build/src/microcosm/build/us/country_package.json` | column (on engine bump) |
+| 11 | Country package resource inventory — the closed `{path, kind, schema_id}` file set; it holds **no** engine pin (its only version field is `"schema_version": 1`), so an engine bump moves nothing here. An undeclared or missing packaged file fails `_assert_file_closure` ("country package file closure failed") | `us/country_package.json`, generated from `tools/generate_us_bundle_from_constants.py:138`, `:258-260`; enforced at `packages/microcosm-build/src/microcosm/build/spec_engine/loader.py:209-223` | a new packaged file under `build/us/` — **not** an engine bump |
 | 12 | Engine specifiers — three files, all `policyengine-us>=2.2.1,<3` | `packages/microcosm-build/pyproject.toml:33`, `packages/microcosm-frame/pyproject.toml:18`, `packages/microcosm-data/pyproject.toml:30` | column (on engine bump) |
 | 13 | `uv.lock` re-lock | `uv.lock` | column (on engine bump) |
 | 14 | Spec identities — the seven attested artifacts; a `us_runtime` module that a kernel node keys to moves its `spec_sha256` | `docs/spec-engine.md`, `packages/microcosm-build/src/microcosm/build/us/spec/*.yaml` | module, **if** kernel-attested |
-| 15 | Spec inventory coverage test | `packages/microcosm-build/tests/test_spec_engine_inventory_coverage.py` | module |
+| 15 | Spec inventory coverage test — `EXPECTED_CHECKS` / `EXPECTED_COUNTS` are computed from the compiled bundle, not from a filesystem scan, so they move only when a spec object count or digest moves | `packages/microcosm-build/tests/test_spec_engine_inventory_coverage.py:27-69`, `:105-141` | module, **if** the spec keys it (strictly downstream of 14) |
 | 16 | CI test grouping — `test_us_spm_universe_source.py` → suffix `s…` → the `us-qs` engine group | `tools/ci_test_groups.py:126-141`; verify with `tools/ci_test_groups.py --verify` | module |
 | 17 | Changelog fragment | `changelog.d/` | both |
 | 18 | `CLAUDE.md` if the release flow changes | `CLAUDE.md` | both |
 
-**Two entries it must NOT appear in.** `us/spec/imputation.yaml` (which keys
-QRF modules — e.g. `:6528`, `module: microcosm.build.us_runtime.adult_care`)
-and any calibration target surface. A source declaration is neither.
+**Two entries it must NOT appear in.** `us/spec/imputation.yaml` and any
+calibration target surface. Do not be misled by the fifteen
+`module: microcosm.build.us_runtime.*` keys in `imputation.yaml` (e.g. `:6528`,
+`module: microcosm.build.us_runtime.adult_care`): each is the
+`runtime_resolver` of a `post_clone_source` node's `source_stage_ref`
+(`:6524-6530`, `purpose: legacy_runtime_verification_evidence`), registering a
+declared external source read — not a QRF. `adult_care.py` contains no QRF at
+all. The file keys QRFs by model and family instead (`models:
+regime_gated_qrf` at `:88-89`, `targets:` at `:128-191`). This producer
+declares no new source read: it derives its status from columns already on the
+frame. The precedent is exact — the repo's two existing source-declaration
+modules, `spm_role_source.py` and `education_assistance_source.py`, appear
+nowhere under `build/us/`, in neither `imputation.yaml`, `spec/sources.yaml`
+nor `source_stages.json`. Their only registration is classification in
+`tests/test_us_spine_blindness.py:239` and `:296` (both inside
+`_OTHER_US_RUNTIME_MODULES`, `:217`), which is item 9 above.
 
 **And a third, which is a genuine trap.** `spine_agreement` gates every
 *registered* transferred/imputed/seeded/simulated surface, and it handles
@@ -685,9 +722,17 @@ A new categorical `spm_unit` column looks exactly like something that belongs
 there. It does not. The universe status is *intended* to differ by spine —
 that is its entire content — and registering it as an agreement surface would
 assert that ASEC and ACS should agree about a fact they are defined to
-disagree about. (The TVD would pass today at roughly 0.003, which makes it
-worse, not better: it would pass quietly and then fail the day a spine with
-more group quarters is added.)
+disagree about. (Because every ASEC unit is `INCLUDED`, the TVD reduces
+exactly to the ACS channel's weighted `OUTSIDE` share —
+`_categorical_total_variation_distance`, `spine_agreement.py:862-870`. On the
+legacy ACS 2024 spine 183,206 of 1,531,614 SPM units are group quarters, 12.0%
+unweighted, from the same counts audit as the 5,246 above; the *weighted* share
+is unmeasured here, and group-quarters rows are not weightless, because
+`acs_pums.py:590-615` substitutes the placeholder person's `PWGTP` for the
+`WGTP == 0` household weight. It would pass the 0.25 tolerance today, which
+makes registering it worse, not better: it would pass quietly while sitting
+within a small factor of failing the day a spine with more group quarters is
+added.)
 
 The good news is that the registry is not an open door: it must *exactly*
 cover the chartered surface derived from the declared ACS transfer families,
@@ -699,10 +744,20 @@ accident. Say so in the module docstring anyway, so the reasoning is on the
 record rather than rediscovered.
 
 **Packaging.** Item 6 adds no new *file* under `build/us/` — it edits an
-existing JSON — so the two-place package-data declaration
-(`packages/microcosm-build/pyproject.toml:64-67`, `packages = ["src/microcosm"]`
-plus the `force-include` table) does not move. If the design later grows a new
-JSON sidecar under `build/us/`, it does.
+existing JSON — so the country package's declared file closure does not move.
+The wheel config never moves for a data file either: hatch ships the whole
+package directory (`packages/microcosm-build/pyproject.toml:62`
+`ignore-vcs = true`, `:65` `packages = ["src/microcosm"]`; the `force-include`
+table at `:67` is empty), which is why the twenty-odd JSON resources already
+under `build/us/` need no per-file declaration. What a *new* JSON sidecar under
+`build/us/` would move is the two-place resource declaration:
+`LEGACY_RESOURCE_PATHS` (`tools/generate_us_bundle_from_constants.py:138`) and
+the generated `resources` list in `us/country_package.json`. That closure is
+enforced by `_assert_file_closure`
+(`packages/microcosm-build/src/microcosm/build/spec_engine/loader.py:209-224`),
+which fails `load_bundle` with `undeclared=['<name>']` — and since the bundle
+generator itself bootstraps through `load_bundle`, an undeclared file deadlocks
+regeneration as well as loading.
 
 ---
 
@@ -939,8 +994,17 @@ class housing_assistance(Variable):
 
 On the ASEC donor path both booleans are the same thresholded source amount —
 `SPM_CAPHOUSESUB > 0` (`housing_inputs.py:528-529`, over the SPM-unit-constant
-subsidy at `housing_inputs.py:500-507`). The dollar amount is thresholded away
-and never carried.
+subsidy at `housing_inputs.py:500-507`). The dollar amount never becomes a
+model output column and is never transferred to ACS rows. The raw ASEC column
+itself is not discarded: it is declared in the ASEC source surface
+(`us/spec/sources.yaml:2385-2392`) and survives the clone on ASEC-scope person
+rows as a declared post-clone input of the immigration producer
+(`us/spec/imputation.yaml:9642-9649`,
+`@effective:raw_person:SPM_CAPHOUSESUB`, `producing_stage:
+post_clone_input_surface`, `required_scope: asec_source`;
+`us_late_producer_registry.py:950-977`), which reads it as
+`_float_column(person, "SPM_CAPHOUSESUB") > 0` (`immigration.py:563`). What
+crosses into the housing surface is only the boolean.
 
 ### Second, the ACS native path produces no housing-assistance flag at all
 
@@ -980,8 +1044,17 @@ packages/microcosm-build/src/microcosm/build/us/spec/imputation.yaml:1282-1312
   - name: receives_housing_assistance
 ```
 
-The donor pool is not a degenerate all-False draw — incidence is ~2.0% receipt
-and ~4.8% take-up (`us/ecps_parity_reference.json:130`, `:160`).
+The donor pool is not a degenerate all-False draw. On the ASEC donor path both
+flags carry the same `SPM_CAPHOUSESUB > 0` threshold
+(`housing_inputs.py:528-529`) — they cannot differ, and a build in which they
+do is a terminal failure (`housing_inputs.py:1262-1263`, raised at
+`:1337-1343`) — and the build refuses unless the pool-wide receipt share falls
+inside the enforced plausibility band `[0.005, 0.08]`
+(`_HOUSING_ASSISTANCE_SHARE_BAND`, `housing_inputs.py:174`, checked at
+`:1359-1369` and again on the PUF-tax-detail channel at `:1378-1384`). For
+order of magnitude only, the pinned incumbent enhanced-CPS parity reference — a
+frozen external artifact, not this build's donor — records a 2.0% receipt share
+(`us/ecps_parity_reference.json:130`, scoped by that file's header at `:3`).
 
 ### Fourth, the carve-out that *does* exist is scoped by a literal string
 
@@ -1041,8 +1114,8 @@ recipient null is filled except the exact ACS group-quarters rent rule"
 (`docs/us-multispine-operator-ordering.md:968`, and again at `:984`).
 
 So the build **must** write `True` or `False` on every ACS group-quarters SPM
-unit, and the draw that decides which is a QRF over a donor with ~2–5%
-incidence.
+unit, and the draw that decides which is a QRF over a donor whose receipt share
+the build pins inside [0.5%, 8%].
 
 ### And `_reviewed_limitations` does not cover it
 
@@ -1076,15 +1149,22 @@ Texas TDHCA service area, and four Kansas PHAs)"
 `hud_hap = min(max_subsidy, max(0, hud_gross_rent − hud_ttp))`
 (`hud_hap.py:14-19`).
 
-Two hops I did **not** read and do not need to: `hud_ttp`'s magnitude for a
-zero-income group-quarters minor, and whether
-`is_eligible_for_housing_assistance` gates out a null-`tenure_type` unit (it
-reads `SPMUnitTenureType`,
-`is_eligible_for_housing_assistance.py:5-7`, so plausibly yes — **inferred,
-not read**). Those hops decide the *magnitude* of the leak. They do not decide
-its existence, because the Microcosm-side conclusion is already established
-without them: a True receipt flag on a group-quarters unit is not a structural
-impossibility, it is a modelled draw the build is required to make.
+One hop I did **not** read and do not need to: `hud_ttp`'s magnitude for a
+zero-income group-quarters minor. The eligibility hop I *did* read, and it does
+not gate — `is_eligible_for_housing_assistance` returns
+`receives_housing_assistance | (is_renter & is_income_eligible)`
+(`is_eligible_for_housing_assistance.py:88`; the module-level
+`housing_assistance_eligibility_from_income_limits` repeats it at `:66`), so a
+True receipt flag makes the unit eligible irrespective of tenure. A missing
+tenure would not screen it out in any case: `spm_unit_tenure_type` declares
+`default_value = SPMUnitTenureType.RENTER` (`spm_unit_tenure_type.py:14`), so
+an absent tenure reads as RENTER rather than as a disqualifier.
+`housing_assistance`'s `defined_for` is therefore satisfied by the drawn flag
+alone — which strengthens this section rather than qualifying it. `hud_ttp`
+decides the *magnitude* of the leak. It does not decide its existence, because
+the Microcosm-side conclusion is already established without it: a True receipt
+flag on a group-quarters unit is not a structural impossibility, it is a
+modelled draw the build is required to make.
 
 ### What must be added
 
@@ -1214,11 +1294,15 @@ if denominator == 0:
     return None                  # missing rate, not 0.0
 ```
 
-and `None` must then be threaded through `_level_total`
-(`reform_validation.py:956-976`) and the row assembly
-(`reform_validation.py:997-1002`) — both are annotated `-> float` today and
-become `-> float | None` — because `allow_nan=False` would reject a bare `NaN`
-at serialization. The engine doc: "An empty eligible denominator
+and that `None` must propagate out through `_level_total`
+(`reform_validation.py:956-976`): `_person_rate` (`:920`) and `_level_total`
+(`:956`) are the two `-> float` annotations today, and both become
+`-> float | None`. The row assembly needs no change — it already guards a
+missing total (`None if total is None else _finite(total)`,
+`reform_validation.py:998` and `:1002`, with `_finite` itself already
+`-> float | None` at `:167-169`). What matters is that the missing rate reach
+it as `None` rather than a bare `NaN`, because the writer serializes with
+`allow_nan=False` (`:1034`). The engine doc: "An empty eligible denominator
 yields a missing rate; serialize it as JSON `null`."
 
 The `mask_variable` comparison (`is_child`, `> 0`) is left alone — `is_child`
@@ -1332,7 +1416,7 @@ measures them at all*, which is a source fact. These two must land together
 | `us_runtime/spm_resources.py:44-134` | report library, **zero production consumers** (tests only) | A second, independent poverty-rate implementation. Needs the same universe treatment *if ever wired in*; today it is dead and should be left alone or deleted, not half-fixed. |
 | `experiments/957-static-aging/benchmark.py:421-422`, `:452-457` | comparison script | Maps the spm_unit variable to person and takes weighted MicroSeries means, including boolean-indexed sub-means that would each need their own universe denominator. |
 | `us_runtime/reform_coverage_smoke.py:123` | **gate**, but scores dollars (`spm_unit_benefits`), never a poverty number | Fail-closed under NaN (`NaN >= min_abs_effect` is False). Safe by accident, but safe. |
-| `packages/microcosm-build/tests/test_reform_validation.py:1203-1247` | test | The only place denominator semantics are pinned numerically (integer 1/0 indicators, no null case). It will go red on the fix — correctly — and is where the null case belongs. |
+| `packages/microcosm-build/tests/test_reform_validation.py:1203-1247` | test | The only place denominator semantics are pinned numerically (integer 1/0 indicators, no null case). Its four assertions are *invariant* under the fix — with no NaN present, poor ÷ observed equals poor ÷ all — so PR 4 adds null-bearing cases here rather than repairing a red test. This is where the null case belongs. |
 | `us/country_package.json`, `tools/generate_us_bundle_from_constants.py` | bundle generation | No behavioural change. |
 
 No gate in `docs/gate-battery-contract.md`'s battery asserts on a poverty
@@ -1353,9 +1437,9 @@ named tool already does.
 ### Can start before the engine release
 
 **PR 1 — `us_runtime` producer, no export.** ~400 lines + tests.
-`spm_universe_source.py` with the rule, the seven refusals, and a provenance
+`spm_universe_source.py` with the rule, the eight refusals, and a provenance
 dict in `spm_role_source.py`'s idiom. Attaches the status as a frame column;
-does **not** touch the adapter. Registry entries 1, 9, 15, 16, 17 from §3.
+does **not** touch the adapter. Registry entries 1, 9, 16, 17 from §3.
 Tests on invented fixtures: ACS housing → `INCLUDED`; ACS GQ (`TYPEHUGQ` 2 and
 3 separately) → `OUTSIDE`; ASEC → `INCLUDED`; each refusal with a
 minimal frame that triggers exactly it; a clone inheriting its native row's
@@ -1391,8 +1475,12 @@ refuses. Depends on PR 1 and on #948 landing.
 *before* any engine bump so the bump cannot silently move 104 published rates.
 Tests: an invented indicator array of `{0, 1, NaN}` must produce
 poor ÷ observed, not poor ÷ all; an all-`NaN` slice must serialize as JSON
-`null` through `write_reform_validation` (which will fail today on
-`allow_nan=False` — that is the point of the test). Depends on nothing;
+`null` through `write_reform_validation`. Note what that second test actually
+pins: today an all-`NaN` slice returns `0.0` (every flag false, denominator
+positive) and serializes *cleanly*, so the test fails on the published value —
+`0.0` where `null` belongs — not on an `allow_nan=False` error.
+`allow_nan=False` (`reform_validation.py:1034`) bites only on a bare `NaN`,
+which is exactly why the fix returns `None`. Depends on nothing;
 **land it early**.
 
 **PR 5 — enrichment-lane generalization.** ~300 lines + tests. The §3
@@ -1415,10 +1503,10 @@ before U1 resolves, because the predicate returns `False` for the *wrong*
 reason until then. Depends on U1.
 
 **PR 7 — pin bump + generated-variable re-audit.** Engine specifier in three
-`pyproject.toml` files, `uv.lock`, `engine_abi.lock.json`,
-`country_package.json`, the adapter's `_GENERATED_VARIABLE_GROUPS` tuple and
-both `_GENERATED_*_SHA256` digest maps, and every spec identity those move
-(§3, entries 4–5, 10–14). This is a known, documented procedure, not a
+`pyproject.toml` files, `uv.lock`, `engine_abi.lock.json`, the adapter's
+`_GENERATED_VARIABLE_GROUPS` tuple and both `_GENERATED_*_SHA256` digest maps,
+and every spec identity those move (§3, entries 4–5, 10, 12–14 — *not* 11,
+which carries no engine pin). This is a known, documented procedure, not a
 discovery task. Depends on the engine release.
 
 **PR 8 — capability gate becomes a requirement.** ~30 lines. A release on a
@@ -1429,10 +1517,11 @@ PR 6 is a permanent silent no-op.
 
 | # | Measurement | For | Cost |
 | --- | --- | --- | --- |
-| M1 | Count native ACS households by `TYPEHUGQ` ∈ {1,2,3}, and the SPM units each resolves to, on the legacy ACS 2024 spine | PR 1 — confirms the producer's partition reproduces the known 5,246 / 1,531,614 split and that nothing lands in a fourth bucket | Reuses `audit_acs_spm_universe.py`'s loader; ~11 min, ~12 GB RSS at the measured full-run cost |
+| M1 | Count native ACS households by `TYPEHUGQ` ∈ {1,2,3}, and the SPM units each resolves to, on the legacy ACS 2024 spine | PR 1 — confirms the producer's partition reproduces the measured 1,348,408 housing-unit / 183,206 group-quarters split of the 1,531,614 native ACS SPM units, that the 5,246 zero-classified-adult units (§2) are a strict *subset* of the group-quarters side rather than the bucket itself, and that nothing lands in a fourth bucket | Reuses the loader of `audit_acs_spm_universe.py` — an out-of-repo counts-only scratch tool, not a committed one; measured full-run cost 678 s wall / 12.2 GB peak RSS. The in-repo starting point is `_acs_group_quarters_counts` (`tools/_legacy/build_us_acs_multispine_base.py:757-785`), which already returns household / person / `spm_unit` counts for `TYPEHUGQ` ∈ {2,3} on a built frame and needs only the `TYPEHUGQ == 1` arm |
 | M2 | Among ACS `TYPEHUGQ` 2/3 units: count with `receives_housing_assistance == True` and with `takes_up_housing_assistance_if_eligible == True`, on a built pool | PR 2 — converts §5 from a mechanism argument into a count, and sizes the defect | Frame columns only, no engine; seconds. No receipt or gate reports this cross-tab today, so the realized number is currently unknown |
 | M3 | Count `INCLUDED` units without a classified adult, on the selected frame | PR 3 — the residual after the universe rule; should be 0 on ACS housing units and 0 on the September 15 national parent | `check_spm_composition`, ~0.05 s per #948 |
-| M4 | The 104 state SPM rates under the fixed `_person_rate`, against the current published values | PR 4 — sizes the discontinuity §6 predicts, before it surprises anyone | One baseline simulation; already the release's cost |
+| M4a | Re-run the 104 state SPM rates under the fixed `_person_rate` on today's pin and diff against the current published values | PR 4 — a regression check that the fix moves **nothing** today: `in_poverty` is `value_type = bool` on 2.2.1, so nothing is NaN, `observed` is all-True and `raw == 1` equals `raw > 0`. A non-zero diff would itself be a finding | One baseline simulation; already the release's cost |
+| M4b | The 104 rates recomputed with `OUTSIDE` persons removed from the denominator — before the bump by masking with PR 1's held-back universe column outside `_person_rate`, after it by `_person_rate` itself — against the current published values | PR 7 (with PR 6) — this is where the discontinuity §6 predicts actually appears; sizes it before it surprises anyone | One baseline simulation plus the frame column; already the release's cost |
 
 M2 is the one that can change the design. Run it first.
 
@@ -1486,9 +1575,10 @@ so it may deserve its own issue rather than riding the universe lane.
 **Q-D. The published-rate discontinuity (§6).** The 104 state SPM rates will
 move when outside persons leave the denominator — correctly, toward the
 Census-consistent quantity, but visibly.
-*Recommend landing PR 4 before any pin bump and publishing M4's before/after
-alongside it*, so the move is an announced consequence of a known change
-rather than something noticed later in a dashboard.
+*Recommend landing PR 4 before any pin bump — where it is numerically inert
+(M4a) — and publishing M4b's before/after with the pin bump (PR 7), the point
+at which the rates actually move*, so the move is an announced consequence of a
+known change rather than something noticed later in a dashboard.
 
 **Q-E. Scope of PR 1's ASEC ruling (§1).** This note rules every ASEC record
 `INCLUDED` on the strength of the Census quote plus the zero-adult
