@@ -702,9 +702,12 @@ declares no new source read: it derives its status from columns already on the
 frame. The precedent is exact — the repo's two existing source-declaration
 modules, `spm_role_source.py` and `education_assistance_source.py`, appear
 nowhere under `build/us/`, in neither `imputation.yaml`, `spec/sources.yaml`
-nor `source_stages.json`. Their only registration is classification in
-`tests/test_us_spine_blindness.py:239` and `:296` (both inside
-`_OTHER_US_RUNTIME_MODULES`, `:217`), which is item 9 above.
+nor `source_stages.json`. What they *are* registered in is exactly the two
+entries this producer inherits: the producer source pin, which lists both by
+exact path (`PRODUCER_SOURCE_FILES`, `source_enrichment.py:122-123`, mirrored
+in `tools/build_us_spm_role_enrichment.py:42-43` — item 1 above), and
+classification in `tests/test_us_spine_blindness.py:239` and `:296` (both
+inside `_OTHER_US_RUNTIME_MODULES`, `:217` — item 9).
 
 **And a third, which is a genuine trap.** `spine_agreement` gates every
 *registered* transferred/imputed/seeded/simulated surface, and it handles
@@ -755,9 +758,14 @@ under `build/us/` need no per-file declaration. What a *new* JSON sidecar under
 the generated `resources` list in `us/country_package.json`. That closure is
 enforced by `_assert_file_closure`
 (`packages/microcosm-build/src/microcosm/build/spec_engine/loader.py:209-224`),
-which fails `load_bundle` with `undeclared=['<name>']` — and since the bundle
-generator itself bootstraps through `load_bundle`, an undeclared file deadlocks
-regeneration as well as loading.
+which fails `load_bundle` with `undeclared=['<name>']`. That check also runs at
+the *end* of regeneration rather than the start — `validate_generated_bundle`
+is a one-line `load_bundle(US_PACKAGE_ROOT)`
+(`tools/generate_us_bundle_from_constants.py:425-428`) called at `:453-454`,
+after `write_generated_files` has already written every byte at `:391-393`, and
+it is skippable with `--skip-validation`. So forgetting `LEGACY_RESOURCE_PATHS`
+does not deadlock regeneration: it emits the bytes and then fails the closure
+check. Declare the path and rerun.
 
 ---
 
