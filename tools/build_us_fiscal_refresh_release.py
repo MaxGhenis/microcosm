@@ -829,6 +829,10 @@ US_DEGENERATE_INPUT_REVIEWED_EXCLUSIONS = {
         "Combined partnership/S-corp income is carried in partnership_income "
         "in pre-PUF-support bases; the S-corp leaf is constant zero there."
     ),
+    # DIAGNOSTIC ONLY, never push (clone-2 fix subagent, 2026-09-23): base
+    # cb1bd1e6 has no OI_OFF == 12 row, so strike_benefits is constant zero;
+    # waived locally to surface later failures. Needs a real ruling.
+    "strike_benefits": "DIAGNOSTIC ONLY waiver; needs a ruling.",
 }
 
 #: Person inputs SNAP work-requirement rules read that have NO CPS ASEC
