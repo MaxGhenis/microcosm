@@ -184,6 +184,7 @@ def prepare_release(
     update_latest: bool = True,
     tag_only: bool = False,
     evidence: bool = False,
+    allow_default_without_improvement_gate: bool = False,
 ) -> PreparedRelease:
     """Run every local publisher guard and collect the files to upload.
 
@@ -244,6 +245,30 @@ def prepare_release(
                 "enrichment: a published donor, never the national default "
                 "pointer. Pass update_latest=False (publish CLI: --no-latest, "
                 "with --tag-only to leave main untouched)."
+            )
+        if (
+            not allow_default_without_improvement_gate
+            and _is_us_calibration_release(release_dir)
+            and not _passed_us_improvement_gate(release_dir)
+        ):
+            # docs/us-release-build-rule.md: a US dataset earns default status
+            # only by beating the incumbent on the frozen comparison register
+            # (microcosm#578), a gate the release tool runs on its --exact-k
+            # arm alone. A --base-h5 release carries no such receipt, so the
+            # publisher's default promotion must not stand in for that ruling.
+            raise ValueError(
+                f"release {release_id!r} records no passing microcosm#578 "
+                "improvement gate (build_manifest.json "
+                "gates.exact_k_frozen_register_fit, written only by the "
+                "release tool's --exact-k arm; a --base-h5 release runs no "
+                "improvement gate), so it has not earned latest.json under "
+                "docs/us-release-build-rule.md. Publish it as a non-default "
+                "release with update_latest=False and tag_only=True (publish "
+                "CLI: --no-latest --tag-only, which leaves main and "
+                "latest.json untouched), or pass "
+                "allow_default_without_improvement_gate=True (publish CLI: "
+                "--allow-default-without-improvement-gate) only on the "
+                "owner's explicit promotion ruling."
             )
     if tag_only and update_latest:
         raise ValueError(
@@ -397,6 +422,7 @@ def publish_release(
     tag_only: bool = False,
     notify: bool = True,
     evidence: bool = False,
+    allow_default_without_improvement_gate: bool = False,
 ) -> dict:
     """Publish a release directory and optionally point ``latest.json`` at it.
 
@@ -460,6 +486,17 @@ def publish_release(
             the certified default or feed pe.py certification. Tag and upload
             mechanics are otherwise identical. ``update_latest`` then governs
             the evidence pointer.
+        allow_default_without_improvement_gate: Let a US calibration release
+            with no passing microcosm#578 improvement receipt (build
+            manifest ``gates.exact_k_frozen_register_fit``, matching its
+            ``exact_k_ladder`` block) update ``latest.json``. Every
+            ``--base-h5`` release lacks that receipt, because the release
+            tool runs the gate on its ``--exact-k`` arm only. Off by default:
+            under ``docs/us-release-build-rule.md`` a release earns default
+            status only by passing that gate, so the promotion needs the
+            owner's explicit ruling. Source enrichments, the evidence tier,
+            non-US releases, and publications with ``update_latest=False``
+            are unaffected.
 
     Returns:
         The release's pointer payload (``latest.json`` shape, plus a ``tier``
@@ -482,6 +519,7 @@ def publish_release(
         update_latest=update_latest,
         tag_only=tag_only,
         evidence=evidence,
+        allow_default_without_improvement_gate=allow_default_without_improvement_gate,
     )
     release_id = prepared.release_id
 
@@ -686,6 +724,64 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _read_json_mapping(path: Path) -> Mapping | None:
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    return payload if isinstance(payload, Mapping) else None
+
+
+def _is_us_calibration_release(release_dir: Path) -> bool:
+    """Whether ``release_dir`` is a US release that ran its own calibration.
+
+    That is every US release except a source enrichment, which inherits its
+    parent's calibration evidence under a separate contract. The contract
+    admits only an absent ``release_type``, ``"calibration"`` or
+    ``"source_enrichment"``, and has already run by the time this is asked.
+    """
+
+    if not release_dir.name.startswith("populace-us-"):
+        return False
+    manifest = _read_json_mapping(release_dir / "release_manifest.json")
+    release_type = None if manifest is None else manifest.get("release_type")
+    return release_type in (None, "calibration")
+
+
+def _passed_us_improvement_gate(release_dir: Path) -> bool:
+    """Whether the build recorded a passing microcosm#578 improvement gate.
+
+    The release tool's ``--exact-k`` arm writes the frozen-register fit gate
+    twice into ``build_manifest.json``: as ``gates.exact_k_frozen_register_fit``
+    and as ``exact_k_ladder.frozen_target_register.incumbent_fit``
+    (``tools/build_us_fiscal_refresh_release.py``, ``_build_manifests``). The
+    receipt counts only when both copies agree, it passed, and it lists no
+    failures. A ``--base-h5`` build writes neither, and an unreadable manifest
+    reads as no receipt.
+    """
+
+    manifest = _read_json_mapping(release_dir / "build_manifest.json")
+    if manifest is None:
+        return False
+    gates = manifest.get("gates")
+    receipt = (
+        gates.get("exact_k_frozen_register_fit") if isinstance(gates, Mapping) else None
+    )
+    ladder = manifest.get("exact_k_ladder")
+    register = (
+        ladder.get("frozen_target_register") if isinstance(ladder, Mapping) else None
+    )
+    ladder_fit = (
+        register.get("incumbent_fit") if isinstance(register, Mapping) else None
+    )
+    return (
+        isinstance(receipt, Mapping)
+        and receipt.get("passed") is True
+        and receipt.get("failures") == []
+        and receipt == ladder_fit
+    )
 
 
 def _release_manifest_root_artifacts(release_dir: Path) -> dict[str, str]:

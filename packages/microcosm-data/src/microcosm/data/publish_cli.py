@@ -243,6 +243,20 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--allow-default-without-improvement-gate",
+        action="store_true",
+        help=(
+            "Let a US calibration release with no passing microcosm#578 "
+            "improvement receipt (build_manifest.json "
+            "gates.exact_k_frozen_register_fit; every --base-h5 release lacks "
+            "one) update latest.json. Off by default: under "
+            "docs/us-release-build-rule.md a release earns default status "
+            "only through that gate. Use it only on the owner's explicit "
+            "promotion ruling; otherwise publish such a release with "
+            "--no-latest --tag-only."
+        ),
+    )
+    parser.add_argument(
         "--evidence",
         action="store_true",
         help=(
@@ -306,6 +320,9 @@ def main(argv: list[str] | None = None) -> int:
         update_latest=not args.no_latest,
         tag_only=args.tag_only,
         evidence=args.evidence,
+        allow_default_without_improvement_gate=(
+            args.allow_default_without_improvement_gate
+        ),
     )
     from microcosm.data.source_enrichment import recorded_narrowed_claims
 

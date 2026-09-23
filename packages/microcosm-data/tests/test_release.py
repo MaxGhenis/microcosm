@@ -47,6 +47,15 @@ DATASET_SHA = "cfe0edd307e479920c6a177b316f944bc27839f89e081ede5218a32d6b6b16d8"
 CALIBRATION_SHA = "ac31f2be76a0f8dc4da89b6935aa4b8b1b2e1bd4eb3d03b809333084f25b376e"
 TARGET_SURFACE_SHA = "e" * 64
 REGISTRY_VERSION = "registryabc123"
+#: The microcosm#578 frozen-register improvement receipt the release tool's
+#: --exact-k arm writes twice into build_manifest.json. The default fixture
+#: carries it, so the suite's promotion tests exercise a release that earned
+#: latest.json; the --base-h5 shape (no receipt) is built by stripping it.
+IMPROVEMENT_RECEIPT = {
+    "passed": True,
+    "failures": [],
+    "details": {"candidate_loss": 0.9, "incumbent_loss": 1.0},
+}
 TARGET_COUNT = 20
 
 DEDUCTION_CRITICAL_TARGETS = (
@@ -563,7 +572,15 @@ def release_dir(tmp_path: Path) -> Path:
                         "n_specs": TARGET_COUNT,
                     },
                 },
-                "gates": {"parity_gaps": 0},
+                "exact_k_ladder": {
+                    "frozen_target_register": {
+                        "incumbent_fit": IMPROVEMENT_RECEIPT,
+                    }
+                },
+                "gates": {
+                    "parity_gaps": 0,
+                    "exact_k_frozen_register_fit": IMPROVEMENT_RECEIPT,
+                },
             }
         )
     )
@@ -1939,3 +1956,232 @@ def test_non_enrichment_publisher_refuses_enrichment_only_arguments(
         publish_cli.main([*cli_args, "--preflight-only"])
     assert hub.events == []
     assert hub.uploads == []
+
+
+# --- microcosm#578: latest.json needs the improvement receipt -----------------
+#
+# docs/us-release-build-rule.md: a US release earns default status only by
+# beating the incumbent on the frozen comparison register, a gate the release
+# tool runs on its --exact-k arm alone. A --base-h5 release (route A's new
+# lineage, 2026-09-23) carries no such receipt, and route A's hand-off command
+# is the plain `tools/publish_release.sh <dir> --repo-id ... --artifact-root
+# ...`, which would otherwise promote it.
+
+
+def _set_improvement_receipt(release_dir: Path, variant: str) -> None:
+    """Rewrite the build manifest's #578 receipt into one --base-h5-like shape."""
+
+    path = release_dir / "build_manifest.json"
+    build = json.loads(path.read_text())
+    failed = {
+        "passed": False,
+        "failures": ["candidate loss 1.1 does not beat incumbent loss 1.0"],
+        "details": {"candidate_loss": 1.1, "incumbent_loss": 1.0},
+    }
+    if variant == "absent":
+        del build["exact_k_ladder"]
+        del build["gates"]["exact_k_frozen_register_fit"]
+    elif variant == "gate-without-ladder":
+        del build["exact_k_ladder"]
+    elif variant == "ladder-without-gate":
+        del build["gates"]["exact_k_frozen_register_fit"]
+    elif variant == "failed":
+        build["gates"]["exact_k_frozen_register_fit"] = failed
+        build["exact_k_ladder"]["frozen_target_register"]["incumbent_fit"] = failed
+    elif variant == "passed-with-failures":
+        receipt = {**IMPROVEMENT_RECEIPT, "failures": ["stray failure"]}
+        build["gates"]["exact_k_frozen_register_fit"] = receipt
+        build["exact_k_ladder"]["frozen_target_register"]["incumbent_fit"] = receipt
+    elif variant == "passed-not-boolean":
+        receipt = {**IMPROVEMENT_RECEIPT, "passed": "true"}
+        build["gates"]["exact_k_frozen_register_fit"] = receipt
+        build["exact_k_ladder"]["frozen_target_register"]["incumbent_fit"] = receipt
+    elif variant == "copies-disagree":
+        build["exact_k_ladder"]["frozen_target_register"]["incumbent_fit"] = failed
+    else:
+        raise AssertionError(f"unhandled variant: {variant}")
+    path.write_text(json.dumps(build))
+
+
+def _handoff_argv(release_dir: Path, artifact_root: Path) -> list[str]:
+    """route_a.sh:627-630's hand-off command, minus the wrapper."""
+
+    return [
+        str(release_dir),
+        "--repo-id",
+        "policyengine/populace-us",
+        "--artifact-root",
+        str(artifact_root),
+    ]
+
+
+def _forbid_hub_and_alert(monkeypatch, hub: FakeHub) -> None:
+    def unexpected(*args, **kwargs):
+        pytest.fail("the improvement guard must refuse before Hub activity or alerts")
+
+    monkeypatch.setattr(release_module, "_hf_api", unexpected)
+    monkeypatch.setattr(release_module, "notify_release", unexpected)
+    monkeypatch.setattr(hub, "repo_info", unexpected)
+    monkeypatch.setattr(hub, "hf_hub_download", unexpected)
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "absent",
+        "gate-without-ladder",
+        "ladder-without-gate",
+        "failed",
+        "passed-with-failures",
+        "passed-not-boolean",
+        "copies-disagree",
+    ],
+)
+def test_release_without_improvement_receipt_cannot_update_latest(
+    hub: FakeHub,
+    release_dir: Path,
+    artifact_root: Path,
+    monkeypatch,
+    variant: str,
+) -> None:
+    _set_improvement_receipt(release_dir, variant)
+    _forbid_hub_and_alert(monkeypatch, hub)
+    message = r"no passing microcosm#578 improvement gate.*--no-latest --tag-only"
+    argv = _handoff_argv(release_dir, artifact_root)
+
+    with pytest.raises(ValueError, match=message):
+        release_module.prepare_release(release_dir, artifact_root=artifact_root)
+    with pytest.raises(ValueError, match=message):
+        publish_release(
+            release_dir,
+            "policyengine/populace-us",
+            api=hub,
+            artifact_root=artifact_root,
+        )
+    with pytest.raises(ValueError, match=message):
+        publish_cli.main(argv)
+    with pytest.raises(ValueError, match=message):
+        publish_cli.main([*argv, "--preflight-only"])
+    assert hub.events == []
+    assert hub.uploads == []
+    assert hub.tags == []
+
+
+def test_route_a_handoff_publishes_tag_only_without_touching_main(
+    hub: FakeHub, release_dir: Path, artifact_root: Path, monkeypatch, capsys
+) -> None:
+    """The corrected hand-off (--no-latest --tag-only) passes preflight and
+    publishes only the immutable tag: main, latest.json and the canonical root
+    artifacts stay as they were, and no release alert fires."""
+
+    _set_improvement_receipt(release_dir, "absent")
+    argv = [*_handoff_argv(release_dir, artifact_root), "--no-latest", "--tag-only"]
+    alerts: list = []
+    monkeypatch.setattr(
+        release_module, "notify_release", lambda *a, **kw: alerts.append(a)
+    )
+    monkeypatch.setattr(release_module, "_hf_api", lambda: hub)
+    main_before = hub._refs["main"]
+
+    assert publish_cli.main([*argv, "--preflight-only"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"valid": True, "published": False}
+    assert hub.events == []
+
+    assert publish_cli.main(argv) == 0
+    assert [event for event, _ in hub.events] == [
+        "create_branch",
+        "create_commit",
+        "create_tag",
+        "delete_branch",
+    ]
+    assert hub._refs["main"] == main_before
+    assert hub.tags == [{"tag": RELEASE_ID, "revision": hub.events[1][1]["commit"]}]
+    assert all(
+        receipt["revision"] != "main"
+        for event, receipt in hub.events
+        if event == "create_commit"
+    )
+    assert alerts == []
+
+
+def test_release_without_improvement_receipt_keeps_legacy_no_latest(
+    release_dir: Path, artifact_root: Path
+) -> None:
+    """The guard is about latest.json, the one pointer that makes a default;
+    the legacy non-default publication path is unchanged."""
+
+    _set_improvement_receipt(release_dir, "absent")
+    prepared = release_module.prepare_release(
+        release_dir, artifact_root=artifact_root, update_latest=False
+    )
+    assert prepared.release_id == RELEASE_ID
+
+
+def test_owner_ruling_flag_promotes_release_without_improvement_receipt(
+    hub: FakeHub, release_dir: Path, artifact_root: Path, monkeypatch
+) -> None:
+    _set_improvement_receipt(release_dir, "absent")
+    alerts: list = []
+    monkeypatch.setattr(
+        release_module, "notify_release", lambda *a, **kw: alerts.append(a)
+    )
+    monkeypatch.setattr(release_module, "_hf_api", lambda: hub)
+    argv = [
+        *_handoff_argv(release_dir, artifact_root),
+        "--updated-at",
+        "2026-09-24T00:00:00+00:00",
+        "--allow-default-without-improvement-gate",
+    ]
+
+    assert publish_cli.main([*argv, "--preflight-only"]) == 0
+    assert publish_cli.main(argv) == 0
+    final_event, final_commit = hub.events[-1]
+    assert final_event == "create_commit"
+    assert final_commit["revision"] == "main"
+    assert final_commit["paths"][-1] == LATEST_POINTER_PATH
+    assert alerts == [
+        ("policyengine/populace-us", RELEASE_ID, "2026-09-24T00:00:00+00:00")
+    ]
+
+
+def test_improvement_guard_leaves_the_evidence_tier_alone(
+    hub: FakeHub, evidence_release_dir: Path, artifact_root: Path
+) -> None:
+    _set_improvement_receipt(evidence_release_dir, "absent")
+    publish_release(
+        evidence_release_dir,
+        "policyengine/populace-us",
+        api=hub,
+        artifact_root=artifact_root,
+        evidence=True,
+        notify=False,
+    )
+    final_event, final_commit = hub.events[-1]
+    assert final_event == "create_commit"
+    assert final_commit["paths"][-1] == LATEST_EVIDENCE_POINTER_PATH
+    assert LATEST_POINTER_PATH not in final_commit["paths"]
+
+
+@pytest.mark.parametrize(
+    ("release_id", "release_type", "expected"),
+    [
+        (RELEASE_ID, None, True),
+        (RELEASE_ID, "calibration", True),
+        (RELEASE_ID, "source_enrichment", False),
+        ("populace-uk-2023-dd68c73-4aa4b14-20260619T023711Z", None, False),
+        ("microcosm-uk-2024-25-national", None, False),
+    ],
+)
+def test_improvement_guard_scope_is_us_calibration_releases(
+    tmp_path: Path, release_id: str, release_type: str | None, expected: bool
+) -> None:
+    """Source enrichments inherit their parent's calibration evidence under
+    their own contract; UK releases have their own promotion scorecards."""
+
+    directory = tmp_path / release_id
+    directory.mkdir()
+    manifest: dict = {"schema_version": 1}
+    if release_type is not None:
+        manifest["release_type"] = release_type
+    (directory / "release_manifest.json").write_text(json.dumps(manifest))
+    assert release_module._is_us_calibration_release(directory) is expected

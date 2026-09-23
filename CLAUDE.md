@@ -99,7 +99,12 @@ deliberate human step (`tools/publish_release.sh` →
 see README "Releasing & alerts". Publication also refuses a release whose
 build recorded staging telemetry that never reached its repo
 (`--allow-missing-staging` overrides); a build that declared `--no-staging`
-publishes without the flag. Never publish or promote artifacts as a side
+publishes without the flag. It also refuses to point `latest.json` at a US
+calibration release without a passing microcosm#578 improvement receipt, which
+every `--base-h5` release lacks
+([docs/us-release-build-rule.md](docs/us-release-build-rule.md)). Publish
+those with `--no-latest --tag-only`; `--allow-default-without-improvement-gate`
+is for the owner's explicit promotion ruling only. Never publish or promote artifacts as a side
 effect of another task. A UK rowwise run's **staged** bundle
 (`staged/<run_id>/` in the private repository, written by the build itself)
 is inspection evidence, not a release: it never moves `releases/` or

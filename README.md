@@ -175,6 +175,18 @@ tools/publish_release.sh releases/<id> --repo-id policyengine/populace-us
 publish CLI posts a release alert to Slack — `#populace-us` or `#populace-uk`,
 chosen from the repo id.
 
+A US calibration release updates `latest.json` only if its build manifest
+records a passing microcosm#578 improvement receipt
+(`gates.exact_k_frozen_register_fit`). The release tool writes that receipt on
+its `--exact-k` arm only; see
+[the US release build rule](docs/us-release-build-rule.md). A `--base-h5`
+release has none, so the command above refuses it before any Hub activity, and
+so does `--preflight-only`. Publish such a release as a non-default release
+with `--no-latest --tag-only`, which leaves main and `latest.json` untouched.
+Pass `--allow-default-without-improvement-gate` only when the owner has
+explicitly ruled that the release be promoted. The check does not apply to
+source enrichments or evidence-tier releases.
+
 US exact-k ladder candidates use a tag-only lane. Run
 `tools/build_us_exact_k_ladder_release.py`, then execute the `publish_command`
 recorded in `package_result.json`. That command includes `--create-tag`,

@@ -28,6 +28,19 @@ Publication stays a human step: `tools/publish_release.sh` wraps
 (`microcosm.data.release.publish_release`), and only that pointer makes a
 release the certified default.
 
+**23 September 2026:** the publisher now enforces the improvement rule at that
+pointer. `microcosm.data.release.prepare_release` is shared by
+`--preflight-only` and publication. It refuses to update `latest.json` for a US
+calibration release unless the build manifest's `gates.exact_k_frozen_register_fit`
+passed, listed no failures, and matches the copy in its `exact_k_ladder` block.
+A `--base-h5` release has no such receipt. It publishes as a non-default
+release with `--no-latest --tag-only`, which leaves main and `latest.json`
+untouched. `--allow-default-without-improvement-gate` lifts the refusal, and is
+only for a promotion the owner has explicitly ruled on; the publisher records
+nothing about that ruling. The check does not apply to source
+enrichments, which keep their parent's calibration evidence, or to the evidence
+tier, which never writes `latest.json`.
+
 ## What stands between main and that build
 
 A from-scratch attempt ran on main at `51c314382` on 15 and 16 September 2026
