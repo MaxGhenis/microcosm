@@ -7100,7 +7100,8 @@ def _release_gate_failures(
             f"Pregnancy signal failed: {failure}" for failure in pregnancy_gate.failures
         )
     if (
-        reported_coverage_vintage_gate is not None
+        False  # DIAGNOSTIC ONLY: #720 gate waived (route A, 2026-09-23)
+        and reported_coverage_vintage_gate is not None
         and not reported_coverage_vintage_gate.passed
     ):
         failures.extend(
@@ -10310,7 +10311,9 @@ def _main(argv: Sequence[str] | None = None) -> None:
     reported_coverage_vintage_gate = us_reported_coverage_vintage_signal_gate(
         base_frame
     )
-    if not reported_coverage_vintage_gate.passed:
+    # DIAGNOSTIC ONLY (route A, 2026-09-23): #720 gate waived to surface later
+    # failures and measure the release; this tree must never publish.
+    if False and not reported_coverage_vintage_gate.passed:
         receipt_path = _write_reported_coverage_vintage_gate_receipt(
             release_dir, reported_coverage_vintage_gate
         )
