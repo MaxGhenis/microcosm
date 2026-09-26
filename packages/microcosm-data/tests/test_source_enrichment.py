@@ -1493,9 +1493,12 @@ def test_cli_certify_declares_the_claim_it_was_given(
         )
         == 0
     )
+    # The verdict carries what the declared range was measured against
+    # (microcosm#1034), as validation and the publisher's preflight do.
     assert json.loads(capsys.readouterr().out) == {
         "certified_bundle": str(output),
         "published": False,
+        "claim_measurement": MEASURED_RECORD,
     }
     manifest, report = _certified(output)
     assert manifest["compatible_model_packages"] == [DECLARED_ENTRY]
