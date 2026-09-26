@@ -66,6 +66,10 @@ import numpy as np
 import pandas as pd
 
 from microcosm.build.us_runtime.acs_local_hours import acs_local_hours_signal_gate
+from microcosm.data.contract import (
+    US_LOCAL_AREA_STORED_INPUTS_STAGE,
+    US_STORED_INPUTS_EVIDENCE_KEY,
+)
 
 _TOOLS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _TOOLS_DIR.parent
@@ -1975,10 +1979,13 @@ def do_package(args) -> dict:
                 "artifact_sha256": h5_sha,
                 "checked_at_stage": "package",
             },
-            "stored_inputs": {
+            # microcosm#1034: the publisher requires this gate of every US
+            # local-area release, bound to the built-with engine and to the
+            # microdata sha the manifest below pins.
+            US_STORED_INPUTS_EVIDENCE_KEY: {
                 **stored_inputs_gate,
                 "artifact_sha256": h5_sha,
-                "checked_at_stage": "package",
+                "checked_at_stage": US_LOCAL_AREA_STORED_INPUTS_STAGE,
             },
         },
     }
