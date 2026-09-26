@@ -192,11 +192,12 @@ on the June 2023 release. Promotion reuses the immutable cut tag the inspect pub
 The publisher uploads only the contract files, the release manifest's
 artifacts and any `--extra-file`. The US fiscal-refresh tool therefore binds
 its terminal gate verdicts as manifest artifacts: `input_coverage.json`,
-`input_mass_parity.json`, `qrf_tail_concentration.json` and
-`reform_coverage_smoke.json`. Both manifests also record the per-run QRF tail
-register (`qrf_tail_register`) and the export-mass reference, so a waiver
-ships with the release it waives, and a `gate_evidence` block that says of
-each verdict whether it is bound, skipped by flag or never evaluated.
+`input_mass_parity.json`, `qrf_tail_concentration.json`,
+`reform_coverage_smoke.json` and `stored_inputs.json`. Both manifests also
+record the per-run QRF tail register (`qrf_tail_register`), the export-mass
+reference and the stored-input verdict (`stored_inputs`), so a waiver ships
+with the release it waives, and a `gate_evidence` block that says of each
+verdict whether it is bound, skipped by flag or never evaluated.
 
 A US release may not store a column that looks like a policyengine-us variable
 (lowercase snake_case) unless the engine it is certified against defines that
@@ -214,7 +215,27 @@ records as built-with:
   directory.
 
 A refusal names each column: rename it to its live input, or add a reviewed
-register entry. The published default, its reported-receipt child and the
+register entry.
+
+The publisher cannot run the check without the engine, so it requires each
+lane's verdict as release evidence instead (microcosm#1034), from JSON alone. A
+US national calibration release must bind `stored_inputs.json` (a
+`gate_evidence` status of `bound` and a manifest artifact) and carry the same
+`stored_inputs` block in both manifests, bound to the H5 they pin. The verdict
+must name the built-with engine; a certified release must have refused nothing,
+and an evidence release must carry each refusal line verbatim in
+`known_failures`. A US local-area release must list the package stage's
+`stored_inputs` gate, naming the built-with engine and the microdata sha256 the
+release ships. No release already on the Hub carries this evidence, and none is
+exempt: nothing re-validates a published release, so publishing one again means
+rebuilding or re-packaging it, which runs the check.
+
+Each check grades one engine version, the built-with one. A source-enrichment
+bundle certified with a publisher compatibility range admits versions no check
+measured, later ones and possibly earlier ones; the bundle records the version
+that was measured as `compatibility.claim_measurement`, and the SPM-role
+runbook says how to grade a candidate against another released version before
+declaring a range. The published default, its reported-receipt child and the
 2026-09-23 ACS local-area release built on that child all store two retired
 engine inputs, `would_claim_wic` and `medicare_part_b_premiums` (replaced by
 `takes_up_wic_if_eligible` and `medicare_part_b_premiums_reported`), so each
