@@ -163,6 +163,10 @@ from microcosm.build.us_runtime.puf_qrf_chain import (
     run_primary_puf_qrf_chain,
 )
 from microcosm.build.us_runtime.puf_support import PUF_TAX_DETAIL_DEFAULT_PREDICTORS
+from microcosm.build.us_runtime.weeks_unemployed_census_source import (
+    load_asec_weeks_unemployed_census_sources,
+    verify_asec_weeks_unemployed_census_sources,
+)
 from microcosm.frame import Frame, WeightKind, Weights
 from microcosm.frame.adapters.policyengine_us import PolicyEngineUSEngine
 from microcosm.frame.units import US_SCHEMA
@@ -331,8 +335,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=Path,
         help=(
             "Optional local path to the SHA-pinned official 2023 ASEC CSV ZIP "
-            "used to restore income-year-2022 LKWEEKS. When omitted the "
-            "official Census archive is fetched and verified."
+            "used to restore income-year-2022 LKWEEKS. Read only when income "
+            "year 2022 is pooled, or with --base-h5; a pooled --asec-h5 build "
+            "without 2022 refuses the flag. When omitted and the sidecar is "
+            "needed, the official Census archive is fetched and verified."
         ),
     )
     parser.add_argument(
@@ -478,6 +484,24 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         )
     if args.support_spine_spec is not None and args.asec_h5 is None:
         parser.error("--support-spine-spec requires --asec-h5")
+    if args.asec_h5 is not None and args.asec_2023_weeks_unemployed_source is not None:
+        try:
+            pooled_years = _pooled_income_years(args)
+        except ValueError:
+            # A malformed --asec-h5 year is refused later with its own message.
+            pooled_years = None
+        if (
+            pooled_years is not None
+            and ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR not in pooled_years
+        ):
+            parser.error(
+                "--asec-2023-weeks-unemployed-source restores income-year "
+                f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR} LKWEEKS, but the pooled "
+                f"--asec-h5 income years {list(pooled_years)} exclude "
+                f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR}: every pooled file "
+                "carries LKWEEKS, so the sidecar would be recorded in the run "
+                "config and never read. Drop the flag."
+            )
     if args.stage != "all" and args.checkpoint_dir is None:
         parser.error("a named --stage requires --checkpoint-dir")
     if args.equivalence_boundary_dir is not None and (
@@ -815,6 +839,125 @@ def _pooled_income_years(args: argparse.Namespace) -> tuple[int, ...]:
     return tuple(sorted(set(years)))
 
 
+def _asec_2022_weeks_sidecar_required(args: argparse.Namespace) -> bool:
+    """Whether this build reads the income-2022 LKWEEKS sidecar.
+
+    Only income year 2022's processed H5 lacks ``LKWEEKS``; every other pinned
+    year carries it, and source construction copies it verbatim. A pooled
+    ``--asec-h5`` build therefore needs the sidecar exactly when it pools
+    2022. A ``--base-h5`` build keeps reading it: its source years are unknown
+    until the base loads, and the repair also cross-checks any 2022 values the
+    base already carries.
+    """
+
+    if getattr(args, "asec_h5", None) is None:
+        return True
+    return ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR in _pooled_income_years(args)
+
+
+def _resolve_weeks_sidecar_path(args: argparse.Namespace) -> Path | None:
+    """The sidecar this build reads, fetched if not given, or None if unneeded."""
+
+    if not _asec_2022_weeks_sidecar_required(args):
+        return None
+    return (
+        args.asec_2023_weeks_unemployed_source
+        if args.asec_2023_weeks_unemployed_source is not None
+        else fetch_asec_2023_weeks_unemployed_source()
+    )
+
+
+def _recorded_weeks_sidecar_path(
+    args: argparse.Namespace,
+    source_metadata: Mapping[str, object],
+) -> Path | None:
+    """The sidecar source construction recorded, held to this build's pool."""
+
+    recorded = source_metadata["weeks_unemployed_source_path"]
+    required = _asec_2022_weeks_sidecar_required(args)
+    if required and recorded is None:
+        raise SystemExit(
+            "Source construction recorded no income-"
+            f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR} LKWEEKS sidecar, but this "
+            "build reads it. Start a new checkpoint directory."
+        )
+    if not required and recorded is not None:
+        raise SystemExit(
+            f"Source construction recorded the income-"
+            f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR} LKWEEKS sidecar "
+            f"{recorded}, but the pooled income years "
+            f"{list(_pooled_income_years(args))} exclude "
+            f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR}. Start a new checkpoint "
+            "directory."
+        )
+    return None if recorded is None else Path(str(recorded))
+
+
+def _weeks_unemployed_source_not_required(
+    args: argparse.Namespace,
+) -> dict[str, object]:
+    """The weeks-unemployed source record of a pool without income year 2022.
+
+    Stage metadata and the summary carry this in place of the sidecar's
+    path/digest record, so an absent sidecar reads as a decision, not a gap
+    (the stacked spine records an unsupplied one the same way).
+    """
+
+    return {
+        "lkweeks_source": "pooled_asec_h5",
+        "mode": "not_required",
+        "pooled_income_years": [int(year) for year in _pooled_income_years(args)],
+        "sidecar_income_year": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR,
+    }
+
+
+def _weeks_unemployed_source_record(
+    args: argparse.Namespace,
+    weeks_path: Path | None,
+    weeks_source: pd.DataFrame | None,
+    *,
+    resolve_path: bool = False,
+) -> dict[str, object]:
+    """The weeks-unemployed source record of stage metadata and the summary.
+
+    A pool without income year 2022 records the not-required decision. A
+    build that read the sidecar records its path, digest, rows and audit; the
+    monolithic summary resolves the path, while staged metadata keeps the
+    path source construction already resolved.
+    """
+
+    if weeks_path is None or weeks_source is None:
+        return _weeks_unemployed_source_not_required(args)
+    return {
+        "path": str(Path(weeks_path).resolve()) if resolve_path else str(weeks_path),
+        "sha256": _sha256(weeks_path),
+        "upstream_archive_sha256": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_SHA256,
+        "rows": int(len(weeks_source)),
+        "audit": dict(weeks_source.attrs.get("source_audit", {})),
+    }
+
+
+def _require_no_sidecar_year_rows(frame: Frame) -> None:
+    """Refuse income-2022 rows in a build that skipped the 2022 sidecar."""
+
+    person = frame.table("person")
+    if "source_year" not in person:
+        raise SystemExit(
+            "The pooled ASEC source-construction frame has no source_year; "
+            "cannot confirm it holds no income-"
+            f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR} rows."
+        )
+    years = pd.to_numeric(person["source_year"], errors="coerce")
+    rows = int(years.eq(ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR).sum())
+    if rows:
+        raise SystemExit(
+            f"The pooled --asec-h5 income years exclude "
+            f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR}, but the source-construction "
+            f"frame holds {rows} source_year "
+            f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR} person rows."
+        )
+
+
 def _stage_run_config(args: argparse.Namespace) -> dict[str, object]:
     """Return the canonical inputs and settings locked across stage resumes."""
 
@@ -1062,14 +1205,14 @@ def _run_all(
 
     raw_base, base_source = _load_base_frame_from_args(args)
     _observe_frame_boundary(boundary_observer, "source_construction", raw_base)
-    weeks_unemployed_source_path = (
-        args.asec_2023_weeks_unemployed_source
-        if args.asec_2023_weeks_unemployed_source is not None
-        else fetch_asec_2023_weeks_unemployed_source()
-    )
-    weeks_unemployed_source = load_asec_2023_weeks_unemployed_source(
-        weeks_unemployed_source_path
-    )
+    weeks_unemployed_source_path = _resolve_weeks_sidecar_path(args)
+    weeks_unemployed_source: pd.DataFrame | None = None
+    if weeks_unemployed_source_path is None:
+        _require_no_sidecar_year_rows(raw_base)
+    else:
+        weeks_unemployed_source = load_asec_2023_weeks_unemployed_source(
+            weeks_unemployed_source_path
+        )
     education_assistance_source = load_asec_education_assistance_sources(
         _asec_education_source_paths(args),
         income_years=_pooled_income_years(args),
@@ -1647,13 +1790,12 @@ def _run_all(
         "acs_rent_donor_rows": (
             int(len(acs_rent_donor)) if acs_rent_donor is not None else None
         ),
-        "weeks_unemployed_source": {
-            "path": str(Path(weeks_unemployed_source_path).resolve()),
-            "sha256": _sha256(weeks_unemployed_source_path),
-            "upstream_archive_sha256": (ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_SHA256),
-            "rows": int(len(weeks_unemployed_source)),
-            "audit": dict(weeks_unemployed_source.attrs.get("source_audit", {})),
-        },
+        "weeks_unemployed_source": _weeks_unemployed_source_record(
+            args,
+            weeks_unemployed_source_path,
+            weeks_unemployed_source,
+            resolve_path=True,
+        ),
         "education_assistance_source": {
             "income_years": [int(year) for year in _pooled_income_years(args)],
             "audit": dict(education_assistance_source.attrs.get("source_audit", {})),
@@ -1988,16 +2130,17 @@ def _source_construction_stage(
     args: argparse.Namespace,
 ) -> tuple[Frame, dict[str, object]]:
     frame, base_source = _load_base_frame_from_args(args)
-    weeks_path = (
-        args.asec_2023_weeks_unemployed_source
-        if args.asec_2023_weeks_unemployed_source is not None
-        else fetch_asec_2023_weeks_unemployed_source()
-    )
+    weeks_path = _resolve_weeks_sidecar_path(args)
+    if weeks_path is None:
+        _require_no_sidecar_year_rows(frame)
     return frame, {
         "base_source": base_source,
         "base_rows": _row_counts(frame),
         "base_household_weight_total": float(frame.weights_for("household").total),
-        "weeks_unemployed_source_path": str(Path(weeks_path).resolve()),
+        # None records that the pool has no income-2022 cohort to repair.
+        "weeks_unemployed_source_path": (
+            None if weeks_path is None else str(Path(weeks_path).resolve())
+        ),
     }
 
 
@@ -2021,7 +2164,8 @@ def _ensure_asec_raw_stage_checkpoint(
     raw_frame, raw_source_mappings = _asec_raw_source_mapping_frame(
         args,
         source_frame,
-        weeks_path=Path(str(source_metadata["weeks_unemployed_source_path"])),
+        weeks_path=_recorded_weeks_sidecar_path(args, source_metadata),
+        source_receipt=source_receipt,
     )
     metadata: dict[str, object] = json.loads(
         json.dumps(
@@ -2058,6 +2202,16 @@ def _ensure_asec_raw_stage_checkpoint(
                 return existing_metadata
 
     write_frame_checkpoint(checkpoint_path, raw_frame, metadata=metadata)
+    # Every raw stage the builder writes must load: the multispine pool reads
+    # it through the same loader, and a refusal there would come hours later.
+    try:
+        load_asec_raw_stage_checkpoint(checkpoint_path)
+    except (OSError, TypeError, ValueError) as error:
+        checkpoint_path.unlink(missing_ok=True)
+        raise SystemExit(
+            f"The ASEC raw-stage checkpoint written to {checkpoint_path} fails "
+            f"its own loader, so it was removed: {error}"
+        ) from error
     return metadata
 
 
@@ -2090,15 +2244,93 @@ def _frames_exactly_equal(left: Frame, right: Frame) -> bool:
     )
 
 
+def _asec_census_member_pins(income_years: Sequence[int]) -> list[dict[str, object]]:
+    """The pinned Census person member of each pooled income year, in year order."""
+
+    return [
+        {
+            "income_year": income_year,
+            "locator": ASEC_EDUCATION_ASSISTANCE_ARCHIVES[income_year].zip_url,
+            "member": ASEC_EDUCATION_ASSISTANCE_ARCHIVES[income_year].member,
+            "member_sha256": (
+                ASEC_EDUCATION_ASSISTANCE_ARCHIVES[income_year].member_sha256
+            ),
+            "sha256": ASEC_EDUCATION_ASSISTANCE_ARCHIVES[income_year].zip_sha256,
+        }
+        for income_year in income_years
+    ]
+
+
+def _lkweeks_census_member_mapping(
+    args: argparse.Namespace,
+    person: pd.DataFrame,
+    source_receipt: Mapping[str, object] | None,
+) -> dict[str, object]:
+    """Bind a 2022-free pool's carried LKWEEKS to each year's Census member.
+
+    Source construction carried ``LKWEEKS`` from every pooled H5. The raw
+    stage joins it on ``(source_year, PERIDNUM)`` against the pinned Census
+    person member of the same year and refuses any row that is missing or
+    differs; nothing is filled. The audit names, per year, the H5 bytes the
+    values came from and the rows verified.
+    """
+
+    if not isinstance(source_receipt, Mapping):
+        raise ValueError(
+            "A pool without income year "
+            f"{ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR} binds LKWEEKS to its "
+            "pooled H5 files, so the raw stage needs the pooled_asec receipt."
+        )
+    carried_h5_sha256 = {
+        int(source["year"]): str(source["sha256"])
+        for source in source_receipt.get("sources", ())
+    }
+    income_years = _pooled_income_years(args)
+    if set(carried_h5_sha256) != set(income_years):
+        raise ValueError(
+            f"The pooled_asec receipt names income years {sorted(carried_h5_sha256)}, "
+            f"but the build pools {list(income_years)}."
+        )
+    census_source = load_asec_weeks_unemployed_census_sources(
+        resolve_asec_spm_role_source_paths(
+            _asec_education_source_paths(args),
+            income_years=income_years,
+        ),
+        income_years=income_years,
+    )
+    audit = verify_asec_weeks_unemployed_census_sources(person, census_source)
+    return {
+        "audit": {
+            year: {**entry, "carried_h5_sha256": carried_h5_sha256[int(year)]}
+            for year, entry in audit.items()
+        },
+        "column": "LKWEEKS",
+        "entity": "person",
+        "join_keys": ["source_year", "PERIDNUM"],
+        "operation": "exact_source_join",
+        "source_pins": _asec_census_member_pins(income_years),
+    }
+
+
 def _asec_raw_source_mapping_frame(
     args: argparse.Namespace,
     source_frame: Frame,
     *,
-    weeks_path: Path,
+    weeks_path: Path | None,
+    source_receipt: Mapping[str, object] | None = None,
 ) -> tuple[Frame, dict[str, object]]:
-    """Copy source construction and add only exact measured ASEC joins."""
+    """Copy source construction and add only exact measured ASEC joins.
 
-    weeks_source = load_asec_2023_weeks_unemployed_source(weeks_path)
+    ``weeks_path`` is the income-2022 LKWEEKS sidecar when 2022 is pooled,
+    else None: every pooled year then carries LKWEEKS, and the mapping binds
+    each year's Census member after verifying the carried values against it.
+    """
+
+    weeks_source = (
+        None
+        if weeks_path is None
+        else load_asec_2023_weeks_unemployed_source(weeks_path)
+    )
     education_source = load_asec_education_assistance_sources(
         _asec_education_source_paths(args),
         income_years=_pooled_income_years(args),
@@ -2111,10 +2343,32 @@ def _asec_raw_source_mapping_frame(
         entity: source_frame.table(entity).copy(deep=True)
         for entity in source_frame.entities
     }
-    person = fill_asec_2022_weeks_unemployed_source(
-        tables["person"],
-        weeks_source,
-    )
+    if weeks_source is None:
+        lkweeks_mapping = _lkweeks_census_member_mapping(
+            args, tables["person"], source_receipt
+        )
+        person = tables["person"]
+    else:
+        person = fill_asec_2022_weeks_unemployed_source(
+            tables["person"],
+            weeks_source,
+        )
+        lkweeks_mapping = {
+            "audit": dict(weeks_source.attrs.get("source_audit", {})),
+            "column": "LKWEEKS",
+            "entity": "person",
+            "join_keys": ["source_year", "PERIDNUM"],
+            "operation": "exact_source_join",
+            "source_pins": [
+                {
+                    "income_year": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR,
+                    "locator": ASEC_2023_WEEKS_UNEMPLOYED_ZIP_URL,
+                    "member": ASEC_2023_WEEKS_UNEMPLOYED_MEMBER,
+                    "member_sha256": ASEC_2023_WEEKS_UNEMPLOYED_MEMBER_SHA256,
+                    "sha256": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_SHA256,
+                }
+            ],
+        }
     person = fill_asec_education_assistance_source(person, education_source)
     person = fill_asec_public_assistance_type_source(
         person,
@@ -2139,18 +2393,7 @@ def _asec_raw_source_mapping_frame(
         raw_frame,
         label="producer ASEC raw_source_mapping artifact",
     )
-    education_pins = [
-        {
-            "income_year": income_year,
-            "locator": ASEC_EDUCATION_ASSISTANCE_ARCHIVES[income_year].zip_url,
-            "member": ASEC_EDUCATION_ASSISTANCE_ARCHIVES[income_year].member,
-            "member_sha256": (
-                ASEC_EDUCATION_ASSISTANCE_ARCHIVES[income_year].member_sha256
-            ),
-            "sha256": ASEC_EDUCATION_ASSISTANCE_ARCHIVES[income_year].zip_sha256,
-        }
-        for income_year in _pooled_income_years(args)
-    ]
+    education_pins = _asec_census_member_pins(_pooled_income_years(args))
     return raw_frame, {
         "ED_VAL": {
             "audit": dict(education_source.attrs.get("source_audit", {})),
@@ -2160,22 +2403,7 @@ def _asec_raw_source_mapping_frame(
             "operation": "exact_source_join",
             "source_pins": education_pins,
         },
-        "LKWEEKS": {
-            "audit": dict(weeks_source.attrs.get("source_audit", {})),
-            "column": "LKWEEKS",
-            "entity": "person",
-            "join_keys": ["source_year", "PERIDNUM"],
-            "operation": "exact_source_join",
-            "source_pins": [
-                {
-                    "income_year": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR,
-                    "locator": ASEC_2023_WEEKS_UNEMPLOYED_ZIP_URL,
-                    "member": ASEC_2023_WEEKS_UNEMPLOYED_MEMBER,
-                    "member_sha256": ASEC_2023_WEEKS_UNEMPLOYED_MEMBER_SHA256,
-                    "sha256": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_SHA256,
-                }
-            ],
-        },
+        "LKWEEKS": lkweeks_mapping,
         # PAW_TYP lives in the same pinned survey-year person members as
         # ED_VAL, so the mapping reuses those archive pins (microcosm#591).
         "PAW_TYP": {
@@ -2194,8 +2422,12 @@ def _pre_clone_enrichment_stage(
     raw_base: Frame,
     source_metadata: dict[str, object],
 ) -> tuple[Frame, dict[str, object]]:
-    weeks_path = Path(str(source_metadata["weeks_unemployed_source_path"]))
-    weeks_source = load_asec_2023_weeks_unemployed_source(weeks_path)
+    weeks_path = _recorded_weeks_sidecar_path(args, source_metadata)
+    weeks_source = (
+        None
+        if weeks_path is None
+        else load_asec_2023_weeks_unemployed_source(weeks_path)
+    )
     public_assistance_type_source = load_asec_public_assistance_type_sources(
         _asec_education_source_paths(args),
         income_years=_pooled_income_years(args),
@@ -2340,13 +2572,11 @@ def _pre_clone_enrichment_stage(
             int(len(acs_rent_donor)) if acs_rent_donor is not None else None
         ),
         "signals": signals,
-        "weeks_unemployed_source": {
-            "path": str(weeks_path),
-            "sha256": _sha256(weeks_path),
-            "upstream_archive_sha256": ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_SHA256,
-            "rows": int(len(weeks_source)),
-            "audit": dict(weeks_source.attrs.get("source_audit", {})),
-        },
+        "weeks_unemployed_source": _weeks_unemployed_source_record(
+            args,
+            weeks_path,
+            weeks_source,
+        ),
     }
 
 
@@ -2763,15 +2993,26 @@ def _post_qrf_frame_stage(
         recorded_weeks = stage_metadata["pre_clone_enrichment"][
             "weeks_unemployed_source"
         ]
-        weeks_path = Path(str(source["weeks_unemployed_source_path"]))
-        actual_weeks_sha256 = _sha256(weeks_path)
-        if actual_weeks_sha256 != recorded_weeks["sha256"]:
-            raise SystemExit(
-                "Weeks-unemployed source changed between pre-clone and post-clone "
-                f"stages: expected {recorded_weeks['sha256']}, got "
-                f"{actual_weeks_sha256}. Start a new checkpoint directory."
-            )
-        weeks_source = load_asec_2023_weeks_unemployed_source(weeks_path)
+        weeks_path = _recorded_weeks_sidecar_path(args, source)
+        weeks_source: pd.DataFrame | None = None
+        if weeks_path is None:
+            expected_weeks = _weeks_unemployed_source_not_required(args)
+            if recorded_weeks != expected_weeks:
+                raise SystemExit(
+                    "Pre-clone enrichment recorded weeks-unemployed source "
+                    f"{recorded_weeks!r}, not {expected_weeks!r} for this pool "
+                    "without the income-2022 sidecar. Start a new checkpoint "
+                    "directory."
+                )
+        else:
+            actual_weeks_sha256 = _sha256(weeks_path)
+            if actual_weeks_sha256 != recorded_weeks["sha256"]:
+                raise SystemExit(
+                    "Weeks-unemployed source changed between pre-clone and "
+                    f"post-clone stages: expected {recorded_weeks['sha256']}, got "
+                    f"{actual_weeks_sha256}. Start a new checkpoint directory."
+                )
+            weeks_source = load_asec_2023_weeks_unemployed_source(weeks_path)
         frame = with_us_weeks_unemployed(
             frame,
             seed=args.seed,

@@ -7,6 +7,8 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from microcosm.build import FitWeightRecord
 from microcosm.build.outer_stage_runtime import frame_identity
@@ -192,11 +194,17 @@ def _minimal_us_frame() -> Frame:
     return Frame(tables, US_SCHEMA, weights, strata)
 
 
-def _raw_asec_frame() -> Frame:
+def _raw_asec_frame(
+    years: tuple[int, int, int] = (2022, 2022, 2022),
+    *,
+    lkweeks: tuple[int, int, int] | None = None,
+) -> Frame:
+    """Three pooled ASEC persons; ``lkweeks`` is the column their H5s carry."""
+
     source = _minimal_us_frame()
     tables = {entity: source.table(entity).copy() for entity in source.entities}
     person = tables["person"].drop(columns=["employment_income_before_lsr"])
-    person["source_year"] = np.asarray([2022, 2022, 2022], dtype=np.int64)
+    person["source_year"] = np.asarray(years, dtype=np.int64)
     person["source_household_id"] = np.asarray([101, 101, 202], dtype=np.int64)
     person["source_person_id"] = np.asarray(
         [f"{value:022d}" for value in (1, 2, 3)],
@@ -207,12 +215,14 @@ def _raw_asec_frame() -> Frame:
     person["P_SEQ"] = np.asarray([1, 2, 1], dtype=np.int64)
     person["A_LINENO"] = np.asarray([1, 2, 1], dtype=np.int64)
     person["A_AGE"] = np.asarray([31, 29, 50], dtype=np.int64)
+    if lkweeks is not None:
+        person["LKWEEKS"] = np.asarray(lkweeks, dtype=np.int64)
     tables["person"] = person
     return Frame(
         tables,
         source.schema,
         {entity: source.weights_for(entity) for entity in source.weighted_entities},
-        pd.Series(["asec_2022"] * 3, name="stratum"),
+        pd.Series([f"asec_{year}" for year in years], name="stratum"),
     )
 
 
@@ -230,10 +240,14 @@ def _weeks_source() -> pd.DataFrame:
     return source
 
 
-def _education_source() -> pd.DataFrame:
+def _year_audit(years: tuple[int, ...]) -> dict[int, dict[str, int]]:
+    return {year: {"rows": years.count(year)} for year in sorted(set(years))}
+
+
+def _education_source(years: tuple[int, int, int] = (2022, 2022, 2022)) -> pd.DataFrame:
     source = pd.DataFrame(
         {
-            "source_year": [2022, 2022, 2022],
+            "source_year": list(years),
             "PH_SEQ": [101, 101, 202],
             "P_SEQ": [1, 2, 1],
             "A_LINENO": [1, 2, 1],
@@ -241,14 +255,16 @@ def _education_source() -> pd.DataFrame:
             "ED_VAL": [0.0, 500.0, 1_000.0],
         }
     )
-    source.attrs["source_audit"] = {2022: {"rows": 3}}
+    source.attrs["source_audit"] = _year_audit(years)
     return source
 
 
-def _public_assistance_type_source() -> pd.DataFrame:
+def _public_assistance_type_source(
+    years: tuple[int, int, int] = (2022, 2022, 2022),
+) -> pd.DataFrame:
     source = pd.DataFrame(
         {
-            "source_year": [2022, 2022, 2022],
+            "source_year": list(years),
             "PH_SEQ": [101, 101, 202],
             "P_SEQ": [1, 2, 1],
             "A_LINENO": [1, 2, 1],
@@ -257,22 +273,29 @@ def _public_assistance_type_source() -> pd.DataFrame:
             "PAW_TYP": [0, 1, 2],
         }
     )
-    source.attrs["source_audit"] = {2022: {"rows": 3}}
+    source.attrs["source_audit"] = _year_audit(years)
     return source
 
 
-def _pooled_source_receipt(tmp_path: Path) -> dict[str, object]:
+#: Fixture digests of the bytes each pooled H5 source construction read.
+_RECEIPT_SHA256 = {2022: "a" * 64, 2023: "b" * 64, 2024: "c" * 64, 2025: "e" * 64}
+
+
+def _pooled_source_receipt(
+    tmp_path: Path, years: tuple[int, ...] = (2022,)
+) -> dict[str, object]:
     return {
         "kind": "pooled_asec",
         "target_year": 2022,
         "sources": [
             {
-                "year": 2022,
-                "path": str((tmp_path / "asec_2022.h5").resolve()),
-                "sha256": "a" * 64,
-                "share": 1.0,
+                "year": year,
+                "path": str((tmp_path / f"asec_{year}.h5").resolve()),
+                "sha256": _RECEIPT_SHA256[year],
+                "share": 1.0 / len(years),
                 "max_households": None,
             }
+            for year in years
         ],
         "support_spine_spec": None,
         "metadata": {"weighted_person_population": 400.0},
@@ -292,20 +315,42 @@ def _with_person_column(frame: Frame, column: str, values: np.ndarray) -> Frame:
     )
 
 
-def _raw_stage_args(builder, tmp_path: Path, extra: tuple[str, ...] = ()):
+def _education_source_path(tmp_path: Path, year: int) -> Path:
+    name = "asec_education.zip" if year == 2022 else f"asec_education_{year}.zip"
+    return tmp_path / name
+
+
+def _raw_stage_args(
+    builder,
+    tmp_path: Path,
+    extra: tuple[str, ...] = (),
+    *,
+    years: tuple[int, ...] = (2022,),
+    weeks_flag: bool = True,
+):
+    pooled: list[str] = []
+    for year in years:
+        pooled += ["--asec-h5", f"{year}={tmp_path / f'asec_{year}.h5'}"]
+    for year in years:
+        pooled += [
+            "--asec-education-source",
+            f"{year}={_education_source_path(tmp_path, year)}",
+        ]
+    weeks = (
+        ["--asec-2023-weeks-unemployed-source", str(tmp_path / "asec_weeks.zip")]
+        if weeks_flag
+        else []
+    )
     return builder._parse_args(
         [
             *extra,
-            "--asec-h5",
-            f"2022={tmp_path / 'asec_2022.h5'}",
+            *pooled[: 2 * len(years)],
             "--target-year",
             "2022",
             "--puf-h5",
             str(tmp_path / "puf.h5"),
-            "--asec-2023-weeks-unemployed-source",
-            str(tmp_path / "asec_weeks.zip"),
-            "--asec-education-source",
-            f"2022={tmp_path / 'asec_education.zip'}",
+            *weeks,
+            *pooled[2 * len(years) :],
             "--out",
             str(tmp_path / "out"),
             "--without-block-ladder",
@@ -317,32 +362,94 @@ def _raw_stage_args(builder, tmp_path: Path, extra: tuple[str, ...] = ()):
     )
 
 
+def _weeks_census_source(frame: Frame, *, extra_member_rows: int = 10) -> pd.DataFrame:
+    """Each pooled year's Census member as the frame's H5s carried it."""
+
+    person = frame.table("person")
+    source = pd.DataFrame(
+        {
+            "source_year": person["source_year"].to_numpy(dtype=np.int64),
+            "PERIDNUM": person["PERIDNUM"].to_numpy(),
+            "PH_SEQ": person["source_household_id"].to_numpy(dtype=np.int64),
+            "P_SEQ": person["P_SEQ"].to_numpy(dtype=np.int64),
+            "A_LINENO": person["A_LINENO"].to_numpy(dtype=np.int64),
+            "LKWEEKS": person["LKWEEKS"].to_numpy(dtype=np.int64),
+        }
+    )
+    source.attrs["member_rows"] = {
+        int(year): int(count) + extra_member_rows
+        for year, count in source["source_year"].value_counts().items()
+    }
+    return source
+
+
 def _patch_raw_stage_sources(
     monkeypatch: pytest.MonkeyPatch,
     builder,
     *,
     frame: Frame,
     source_receipt: dict[str, object],
-) -> None:
+    census_source: pd.DataFrame | None = None,
+    forbid_weeks_sidecar: bool = False,
+) -> list[tuple[int, ...]]:
+    """Stub every raw source; return the income years each Census load read."""
+
+    years = tuple(int(year) for year in frame.table("person")["source_year"])
+    census_loads: list[tuple[int, ...]] = []
     monkeypatch.setattr(
         builder,
         "_load_base_frame_from_args",
         lambda _args: (frame, source_receipt),
     )
-    monkeypatch.setattr(
-        builder,
-        "load_asec_2023_weeks_unemployed_source",
-        lambda _path: _weeks_source(),
-    )
+    if forbid_weeks_sidecar:
+        for name in (
+            "fetch_asec_2023_weeks_unemployed_source",
+            "load_asec_2023_weeks_unemployed_source",
+        ):
+            monkeypatch.setattr(
+                builder,
+                name,
+                lambda *_args, **_kwargs: pytest.fail(
+                    "a pool without income year 2022 touched the LKWEEKS sidecar"
+                ),
+            )
+    else:
+        monkeypatch.setattr(
+            builder,
+            "load_asec_2023_weeks_unemployed_source",
+            lambda _path: _weeks_source(),
+        )
     monkeypatch.setattr(
         builder,
         "load_asec_education_assistance_sources",
-        lambda _paths, *, income_years: _education_source(),
+        lambda _paths, *, income_years: _education_source(years),
     )
     monkeypatch.setattr(
         builder,
         "load_asec_public_assistance_type_sources",
-        lambda _paths, *, income_years: _public_assistance_type_source(),
+        lambda _paths, *, income_years: _public_assistance_type_source(years),
+    )
+    monkeypatch.setattr(
+        builder,
+        "resolve_asec_spm_role_source_paths",
+        lambda paths, *, income_years: {
+            year: Path(f"/census/{year}") for year in income_years
+        },
+    )
+
+    def load_census(paths, *, income_years):
+        assert sorted(paths) == sorted(income_years)
+        census_loads.append(tuple(income_years))
+        if census_source is None:
+            pytest.fail("a pool with income year 2022 read the per-year Census join")
+        return census_source
+
+    # raising=False: the pre-change builder has no Census join to patch.
+    monkeypatch.setattr(
+        builder,
+        "load_asec_weeks_unemployed_census_sources",
+        load_census,
+        raising=False,
     )
     monkeypatch.setattr(
         builder,
@@ -350,6 +457,56 @@ def _patch_raw_stage_sources(
         lambda: {"source_sha256": "raw-stage-fixture"},
     )
     monkeypatch.setattr(builder, "_sha256", lambda _path: "f" * 64)
+    return census_loads
+
+
+def _stub_pre_clone_enrichment(
+    monkeypatch: pytest.MonkeyPatch,
+    builder,
+    *,
+    derive=lambda value, **_kwargs: value,
+) -> list[object]:
+    """Stub pre-clone transforms and gates; return each weeks-stage sidecar."""
+
+    weeks_sidecars: list[object] = []
+    monkeypatch.setattr(builder, "derive_us_cps_carried_inputs", derive)
+    identity_transforms = (
+        "with_us_prior_year_income_inputs",
+        "with_us_relationship_inputs",
+        "with_us_spm_independence_role",
+        "with_us_medicare_take_up_input",
+        "with_us_eligibility_inputs",
+        "with_us_pregnancy_inputs",
+        "with_us_wic_claim_input",
+        "with_us_child_support_inputs",
+        "with_us_disability_benefits",
+        "with_us_workers_compensation",
+        "with_us_childcare_inputs",
+        "with_us_energy_subsidy_input",
+        "with_us_retirement_contribution_inputs",
+        "with_us_retirement_distribution_inputs",
+        "with_us_immigration_inputs",
+    )
+    for name in identity_transforms:
+        monkeypatch.setattr(builder, name, lambda value, **_kwargs: value)
+
+    def weeks_unemployed(value, *, seed, time_period, asec_2023_source):
+        weeks_sidecars.append(asec_2023_source)
+        return value
+
+    monkeypatch.setattr(builder, "with_us_weeks_unemployed", weeks_unemployed)
+    passing_gate = SimpleNamespace(passed=True, failures=(), details={})
+    for name in (
+        "us_relationship_inputs_signal_gate",
+        "us_spm_independence_role_signal_gate",
+        "us_medicare_take_up_signal_gate",
+        "us_housing_inputs_signal_gate",
+        "us_eligibility_inputs_signal_gate",
+        "us_pregnancy_signal_gate",
+        "us_wic_claim_signal_gate",
+    ):
+        monkeypatch.setattr(builder, name, lambda _frame: passing_gate)
+    return weeks_sidecars
 
 
 def _support_donor() -> pd.DataFrame:
@@ -983,38 +1140,7 @@ def test_pooled_source_stage_dual_exports_without_changing_legacy_checkpoints(
         add_age(source),
     )
 
-    monkeypatch.setattr(builder, "derive_us_cps_carried_inputs", add_age)
-    identity_transforms = (
-        "with_us_prior_year_income_inputs",
-        "with_us_relationship_inputs",
-        "with_us_spm_independence_role",
-        "with_us_medicare_take_up_input",
-        "with_us_eligibility_inputs",
-        "with_us_pregnancy_inputs",
-        "with_us_wic_claim_input",
-        "with_us_child_support_inputs",
-        "with_us_disability_benefits",
-        "with_us_workers_compensation",
-        "with_us_weeks_unemployed",
-        "with_us_childcare_inputs",
-        "with_us_energy_subsidy_input",
-        "with_us_retirement_contribution_inputs",
-        "with_us_retirement_distribution_inputs",
-        "with_us_immigration_inputs",
-    )
-    for name in identity_transforms:
-        monkeypatch.setattr(builder, name, lambda value, **_kwargs: value)
-    passing_gate = SimpleNamespace(passed=True, failures=(), details={})
-    for name in (
-        "us_relationship_inputs_signal_gate",
-        "us_spm_independence_role_signal_gate",
-        "us_medicare_take_up_signal_gate",
-        "us_housing_inputs_signal_gate",
-        "us_eligibility_inputs_signal_gate",
-        "us_pregnancy_signal_gate",
-        "us_wic_claim_signal_gate",
-    ):
-        monkeypatch.setattr(builder, name, lambda _frame: passing_gate)
+    _stub_pre_clone_enrichment(monkeypatch, builder, derive=add_age)
 
     builder._run_outer_stage(args)
     runtime = builder.StageRuntime(
@@ -1125,6 +1251,505 @@ def test_completed_source_stage_reentry_holds_the_receipt_to_the_asec_pins(
         return
     builder._run_outer_stage(args)
     assert raw_path.read_bytes() == expected_raw
+
+
+# -- The income-2022 LKWEEKS sidecar is read only when 2022 is pooled --------
+#
+# Only income year 2022's processed H5 lacks LKWEEKS. A pool with 2022 keeps
+# today's sidecar records byte for byte; a pool without it reads no sidecar and
+# binds each pooled year's Census member after verifying the carried values.
+
+_PINNED_INCOME_YEARS = (2022, 2023, 2024, 2025)
+_ALL_POOLS = tuple(
+    tuple(year for index, year in enumerate(_PINNED_INCOME_YEARS) if mask >> index & 1)
+    for mask in range(1, 2 ** len(_PINNED_INCOME_YEARS))
+)
+_POOLS_WITH_2022 = tuple(pool for pool in _ALL_POOLS if 2022 in pool)
+_POOLS_WITHOUT_2022 = tuple(pool for pool in _ALL_POOLS if 2022 not in pool)
+
+#: The income-2022 sidecar mapping every pool with 2022 has always recorded,
+#: written out literally so a change to the constants it came from shows here.
+_LEGACY_LKWEEKS_MAPPING = {
+    "audit": {"rows": 3},
+    "column": "LKWEEKS",
+    "entity": "person",
+    "join_keys": ["source_year", "PERIDNUM"],
+    "operation": "exact_source_join",
+    "source_pins": [
+        {
+            "income_year": 2022,
+            "locator": (
+                "https://www2.census.gov/programs-surveys/cps/datasets/2023/"
+                "march/asecpub23csv.zip"
+            ),
+            "member": "pppub23.csv",
+            "member_sha256": (
+                "19b56537e50e7663f954361ef2bb5ce9cef8d9d45f156fe1a69a99b654198ffe"
+            ),
+            "sha256": (
+                "d2e000250782adfbdd7f29c82b66d866591a30f0d330496698ec19f9c784ce11"
+            ),
+        }
+    ],
+}
+
+
+def _frame_years(pool: tuple[int, ...]) -> tuple[int, int, int]:
+    """Spread the fixture's three persons over ``pool`` so every year has one."""
+
+    if len(pool) >= 3:
+        return pool[:3]
+    return tuple(pool[index % len(pool)] for index in (0, 0, 1))
+
+
+def _pool_ids(pools: tuple[tuple[int, ...], ...]) -> list[str]:
+    return ["-".join(str(year) for year in pool) for pool in pools]
+
+
+def test_sidecar_is_required_exactly_when_2022_is_pooled(tmp_path: Path) -> None:
+    builder = _load_support_builder_module()
+    for pool in _ALL_POOLS:
+        args = _raw_stage_args(builder, tmp_path, years=pool, weeks_flag=2022 in pool)
+        assert builder._asec_2022_weeks_sidecar_required(args) is (2022 in pool)
+    # A base H5's years are unknown until it loads, so it keeps the sidecar.
+    base = builder._parse_args(
+        [
+            "--base-h5",
+            str(tmp_path / "base.h5"),
+            "--puf-h5",
+            str(tmp_path / "puf.h5"),
+            "--out",
+            str(tmp_path / "out"),
+            "--without-block-ladder",
+        ]
+    )
+    assert builder._asec_2022_weeks_sidecar_required(base) is True
+    assert builder._asec_2022_weeks_sidecar_required(SimpleNamespace()) is True
+
+
+@given(
+    years=st.lists(st.integers(min_value=1990, max_value=2100), min_size=1, max_size=8)
+)
+def test_sidecar_predicate_and_not_required_record_properties(
+    years: list[int],
+) -> None:
+    builder = _load_support_builder_module()
+    args = SimpleNamespace(asec_h5=[f"{year}=/pool/{year}.h5" for year in years])
+    required = builder._asec_2022_weeks_sidecar_required(args)
+    assert required is (2022 in years)
+    # Order and repetition of --asec-h5 never change the decision or record.
+    reordered = SimpleNamespace(asec_h5=list(reversed(args.asec_h5)) * 2)
+    assert builder._asec_2022_weeks_sidecar_required(reordered) is required
+    record = builder._weeks_unemployed_source_not_required(args)
+    assert record == builder._weeks_unemployed_source_not_required(reordered)
+    assert record == {
+        "lkweeks_source": "pooled_asec_h5",
+        "mode": "not_required",
+        "pooled_income_years": sorted(set(years)),
+        "sidecar_income_year": 2022,
+    }
+    assert json.loads(json.dumps(record)) == record
+
+
+@pytest.mark.parametrize(
+    "pool", _POOLS_WITHOUT_2022, ids=_pool_ids(_POOLS_WITHOUT_2022)
+)
+def test_parse_refuses_the_sidecar_flag_for_a_pool_without_2022(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    pool: tuple[int, ...],
+) -> None:
+    builder = _load_support_builder_module()
+    with pytest.raises(SystemExit) as refusal:
+        _raw_stage_args(builder, tmp_path, years=pool, weeks_flag=True)
+    assert refusal.value.code == 2
+    message = capsys.readouterr().err
+    assert "--asec-2023-weeks-unemployed-source restores income-year 2022" in message
+    assert f"income years {list(pool)} exclude 2022" in message
+
+
+@pytest.mark.parametrize("pool", _POOLS_WITH_2022, ids=_pool_ids(_POOLS_WITH_2022))
+def test_parse_accepts_the_sidecar_flag_when_2022_is_pooled(
+    tmp_path: Path, pool: tuple[int, ...]
+) -> None:
+    builder = _load_support_builder_module()
+    args = _raw_stage_args(builder, tmp_path, years=pool, weeks_flag=True)
+    assert args.asec_2023_weeks_unemployed_source == tmp_path / "asec_weeks.zip"
+
+
+@pytest.mark.parametrize("weeks_flag", [True, False], ids=["flag", "fetched"])
+@pytest.mark.parametrize("pool", _POOLS_WITH_2022, ids=_pool_ids(_POOLS_WITH_2022))
+def test_a_pool_with_2022_records_the_same_sidecar_pins(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    pool: tuple[int, ...],
+    weeks_flag: bool,
+) -> None:
+    """For every pinned pool containing 2022, the sidecar records are unchanged.
+
+    The expected values are literals, not the builder's constants, and this
+    test passes unchanged against the pre-change builder (a677312dd).
+    """
+
+    builder = _load_support_builder_module()
+    args = _raw_stage_args(builder, tmp_path, years=pool, weeks_flag=weeks_flag)
+    fetched = tmp_path / "cache" / "pppub23.csv"
+    fetches: list[bool] = []
+    if not weeks_flag:
+
+        def fetch() -> Path:
+            fetches.append(True)
+            return fetched
+
+        monkeypatch.setattr(builder, "fetch_asec_2023_weeks_unemployed_source", fetch)
+    census_loads = _patch_raw_stage_sources(
+        monkeypatch,
+        builder,
+        frame=_raw_asec_frame(),
+        source_receipt=_pooled_source_receipt(tmp_path, pool),
+    )
+    weeks_sidecars = _stub_pre_clone_enrichment(monkeypatch, builder)
+
+    builder._run_outer_stage(args)
+    args.stage = "pre_clone_enrichment"
+    builder._run_outer_stage(args)
+
+    sidecar = tmp_path / "asec_weeks.zip" if weeks_flag else fetched
+    runtime = builder.StageRuntime(
+        args.checkpoint_dir,
+        builder.OUTER_STAGE_PIPELINE,
+        run_config=builder._stage_run_config(args),
+    )
+    assert runtime.metadata["source_construction"][
+        "weeks_unemployed_source_path"
+    ] == str(sidecar.resolve())
+    assert runtime.metadata["pre_clone_enrichment"]["weeks_unemployed_source"] == {
+        "path": str(sidecar.resolve()),
+        "sha256": "f" * 64,
+        "upstream_archive_sha256": (
+            "d2e000250782adfbdd7f29c82b66d866591a30f0d330496698ec19f9c784ce11"
+        ),
+        "rows": 3,
+        "audit": {"rows": 3},
+    }
+    assert builder._stage_run_config(args)["asec_2023_weeks_unemployed_source"] == (
+        str(sidecar.resolve()) if weeks_flag else None
+    )
+    raw_path = args.checkpoint_dir / builder.ASEC_RAW_STAGE_CHECKPOINT_FILENAME
+    raw, raw_metadata = builder.load_asec_raw_stage_checkpoint(raw_path)
+    assert raw_metadata["schema_version"] == 3
+    assert raw_metadata["raw_source_mappings"]["LKWEEKS"] == _LEGACY_LKWEEKS_MAPPING
+    assert raw.table("person")["LKWEEKS"].tolist() == [7.0, -1.0, 12.0]
+    assert [
+        pin["income_year"]
+        for pin in raw_metadata["raw_source_mappings"]["ED_VAL"]["source_pins"]
+    ] == list(pool)
+    assert len(weeks_sidecars) == 1
+    assert isinstance(weeks_sidecars[0], pd.DataFrame)
+    assert fetches == ([] if weeks_flag else [True])
+    assert census_loads == []
+
+
+@pytest.mark.parametrize(
+    "pool", _POOLS_WITHOUT_2022, ids=_pool_ids(_POOLS_WITHOUT_2022)
+)
+def test_a_pool_without_2022_binds_each_pooled_census_member(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    pool: tuple[int, ...],
+) -> None:
+    builder = _load_support_builder_module()
+    args = _raw_stage_args(builder, tmp_path, years=pool, weeks_flag=False)
+    frame = _raw_asec_frame(_frame_years(pool), lkweeks=(7, 0, 12))
+    census_loads = _patch_raw_stage_sources(
+        monkeypatch,
+        builder,
+        frame=frame,
+        source_receipt=_pooled_source_receipt(tmp_path, pool),
+        census_source=_weeks_census_source(frame),
+        forbid_weeks_sidecar=True,
+    )
+    weeks_sidecars = _stub_pre_clone_enrichment(monkeypatch, builder)
+
+    builder._run_outer_stage(args)
+
+    runtime = builder.StageRuntime(
+        args.checkpoint_dir,
+        builder.OUTER_STAGE_PIPELINE,
+        run_config=builder._stage_run_config(args),
+    )
+    assert (
+        runtime.metadata["source_construction"]["weeks_unemployed_source_path"] is None
+    )
+    assert builder._stage_run_config(args)["asec_2023_weeks_unemployed_source"] is None
+    raw_path = args.checkpoint_dir / builder.ASEC_RAW_STAGE_CHECKPOINT_FILENAME
+    raw, raw_metadata = builder.load_asec_raw_stage_checkpoint(raw_path)
+    mappings = raw_metadata["raw_source_mappings"]
+    assert raw_metadata["schema_version"] == 3
+    lkweeks = mappings["LKWEEKS"]
+    assert lkweeks["operation"] == "exact_source_join"
+    assert lkweeks["join_keys"] == ["source_year", "PERIDNUM"]
+    # The same Census members ED_VAL and PAW_TYP join, one per pooled year.
+    assert lkweeks["source_pins"] == mappings["ED_VAL"]["source_pins"]
+    assert lkweeks["source_pins"] == mappings["PAW_TYP"]["source_pins"]
+    assert [pin["income_year"] for pin in lkweeks["source_pins"]] == list(pool)
+    assert all(pin["member"] != "pppub23.csv" for pin in lkweeks["source_pins"])
+    years = _frame_years(pool)
+    weeks = (7, 0, 12)
+    expected_audit = {}
+    for year in pool:
+        rows = [index for index in range(3) if years[index] == year]
+        values = [weeks[index] for index in rows]
+        expected_audit[str(year)] = {
+            "carried_h5_sha256": _RECEIPT_SHA256[year],
+            "maximum": max(values),
+            "member_rows": len(rows) + 10,
+            "minimum": min(values),
+            "niu_rows": 0,
+            "positive_rows": sum(value > 0 for value in values),
+            "rows": len(rows),
+            "verified_rows": len(rows),
+        }
+    assert lkweeks["audit"] == expected_audit
+    # Carried, never filled: the raw column is the H5's, dtype included.
+    pd.testing.assert_series_equal(
+        raw.table("person")["LKWEEKS"], frame.table("person")["LKWEEKS"]
+    )
+    assert census_loads == [pool]
+
+    # A completed-stage re-entry repairs the raw stage byte for byte, again
+    # without the sidecar.
+    expected_raw = raw_path.read_bytes()
+    raw_path.unlink()
+    builder._run_outer_stage(args)
+    assert raw_path.read_bytes() == expected_raw
+
+    # Pre-clone enrichment passes no sidecar and records the decision.
+    args.stage = "pre_clone_enrichment"
+    builder._run_outer_stage(args)
+    runtime = builder.StageRuntime(
+        args.checkpoint_dir,
+        builder.OUTER_STAGE_PIPELINE,
+        run_config=builder._stage_run_config(args),
+    )
+    assert weeks_sidecars == [None]
+    assert runtime.metadata["pre_clone_enrichment"]["weeks_unemployed_source"] == {
+        "lkweeks_source": "pooled_asec_h5",
+        "mode": "not_required",
+        "pooled_income_years": list(pool),
+        "sidecar_income_year": 2022,
+    }
+
+
+@pytest.mark.parametrize(
+    ("corrupt", "message"),
+    [
+        (
+            lambda census: census.assign(LKWEEKS=[7, 0, 11]),
+            "carried LKWEEKS disagrees with its Census member",
+        ),
+        (
+            lambda census: census.assign(P_SEQ=[1, 3, 1]),
+            "identity mismatch for P_SEQ",
+        ),
+        (lambda census: census.iloc[[0, 2]], "have no row in its Census member"),
+    ],
+    ids=["value", "identity", "uncovered"],
+)
+def test_a_pool_without_2022_refuses_an_unverified_carried_value(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    corrupt,
+    message: str,
+) -> None:
+    builder = _load_support_builder_module()
+    pool = (2023, 2024)
+    args = _raw_stage_args(builder, tmp_path, years=pool, weeks_flag=False)
+    frame = _raw_asec_frame(_frame_years(pool), lkweeks=(7, 0, 12))
+    census = _weeks_census_source(frame)
+    corrupted = corrupt(census)
+    corrupted.attrs = dict(census.attrs)
+    _patch_raw_stage_sources(
+        monkeypatch,
+        builder,
+        frame=frame,
+        source_receipt=_pooled_source_receipt(tmp_path, pool),
+        census_source=corrupted,
+        forbid_weeks_sidecar=True,
+    )
+    with pytest.raises(ValueError, match=message):
+        builder._run_outer_stage(args)
+    assert not (
+        args.checkpoint_dir / builder.ASEC_RAW_STAGE_CHECKPOINT_FILENAME
+    ).exists()
+    assert not (args.checkpoint_dir / "000_source_construction.frame.h5").exists()
+
+
+@pytest.mark.parametrize("execution", ["staged", "all"])
+def test_a_pool_without_2022_refuses_income_2022_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    execution: str,
+) -> None:
+    builder = _load_support_builder_module()
+    pool = (2023, 2024)
+    args = _raw_stage_args(builder, tmp_path, years=pool, weeks_flag=False)
+    frame = _raw_asec_frame((2023, 2023, 2022), lkweeks=(7, 0, 12))
+    _patch_raw_stage_sources(
+        monkeypatch,
+        builder,
+        frame=frame,
+        source_receipt=_pooled_source_receipt(tmp_path, pool),
+        forbid_weeks_sidecar=True,
+    )
+    with pytest.raises(SystemExit, match="holds 1 source_year 2022 person rows"):
+        if execution == "staged":
+            builder._source_construction_stage(args)
+        else:
+            builder._run_all(args)
+
+
+def test_the_recorded_sidecar_must_agree_with_the_pool(tmp_path: Path) -> None:
+    builder = _load_support_builder_module()
+    with_2022 = _raw_stage_args(builder, tmp_path, years=(2022, 2023))
+    without_2022 = _raw_stage_args(
+        builder, tmp_path, years=(2023, 2024), weeks_flag=False
+    )
+    recorded = str(tmp_path / "pppub23.csv")
+
+    assert builder._recorded_weeks_sidecar_path(
+        with_2022, {"weeks_unemployed_source_path": recorded}
+    ) == Path(recorded)
+    assert (
+        builder._recorded_weeks_sidecar_path(
+            without_2022, {"weeks_unemployed_source_path": None}
+        )
+        is None
+    )
+    with pytest.raises(SystemExit, match="recorded no income-2022 LKWEEKS sidecar"):
+        builder._recorded_weeks_sidecar_path(
+            with_2022, {"weeks_unemployed_source_path": None}
+        )
+    with pytest.raises(SystemExit, match=r"exclude 2022\. Start a new checkpoint"):
+        builder._recorded_weeks_sidecar_path(
+            without_2022, {"weeks_unemployed_source_path": recorded}
+        )
+
+
+def test_weeks_post_clone_without_2022_passes_no_sidecar(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    builder = _load_support_builder_module()
+    args = _raw_stage_args(builder, tmp_path, years=(2023, 2024), weeks_flag=False)
+    for name in ("_sha256", "load_asec_2023_weeks_unemployed_source"):
+        monkeypatch.setattr(
+            builder,
+            name,
+            lambda *_args, **_kwargs: pytest.fail("the sidecar was touched"),
+        )
+    sidecars: list[object] = []
+
+    def weeks_unemployed(value, *, seed, time_period, asec_2023_source):
+        sidecars.append(asec_2023_source)
+        return value
+
+    monkeypatch.setattr(builder, "with_us_weeks_unemployed", weeks_unemployed)
+    passing_gate = SimpleNamespace(passed=True, failures=(), details={})
+    for name in (
+        "us_weeks_unemployed_signal_gate",
+        "us_educator_expense_signal_gate",
+        "us_form_4952_election_signal_gate",
+        "us_salt_refund_income_signal_gate",
+        "us_capital_gain_details_signal_gate",
+    ):
+        monkeypatch.setattr(builder, name, lambda _frame: passing_gate)
+    record = builder._weeks_unemployed_source_not_required(args)
+    stage_metadata = {
+        "source_construction": {"weeks_unemployed_source_path": None},
+        "pre_clone_enrichment": {"weeks_unemployed_source": record},
+    }
+
+    builder._post_qrf_frame_stage(
+        "weeks_unemployed_post_clone", args, _minimal_us_frame(), stage_metadata
+    )
+    assert sidecars == [None]
+
+    stage_metadata["pre_clone_enrichment"]["weeks_unemployed_source"] = {
+        **record,
+        "pooled_income_years": [2023, 2024, 2025],
+    }
+    with pytest.raises(SystemExit, match="Pre-clone enrichment recorded"):
+        builder._post_qrf_frame_stage(
+            "weeks_unemployed_post_clone", args, _minimal_us_frame(), stage_metadata
+        )
+
+
+def test_weeks_source_record_keeps_the_sidecar_shape(tmp_path: Path) -> None:
+    builder = _load_support_builder_module()
+    with_2022 = _raw_stage_args(builder, tmp_path, years=(2022, 2023))
+    without_2022 = _raw_stage_args(
+        builder, tmp_path, years=(2023, 2025), weeks_flag=False
+    )
+    (tmp_path / "relative").mkdir()
+    sidecar = tmp_path / "relative" / ".." / "pppub23.csv"
+    sidecar.write_bytes(b"sidecar")
+    source = _weeks_source()
+
+    staged = builder._weeks_unemployed_source_record(with_2022, sidecar, source)
+    monolith = builder._weeks_unemployed_source_record(
+        with_2022, sidecar, source, resolve_path=True
+    )
+    digest = hashlib.sha256(b"sidecar").hexdigest()
+    # The summary is written with sort_keys, but keep the historical order.
+    assert list(staged) == [
+        "path",
+        "sha256",
+        "upstream_archive_sha256",
+        "rows",
+        "audit",
+    ]
+    assert staged == {
+        "path": str(sidecar),
+        "sha256": digest,
+        "upstream_archive_sha256": (
+            "d2e000250782adfbdd7f29c82b66d866591a30f0d330496698ec19f9c784ce11"
+        ),
+        "rows": 3,
+        "audit": {"rows": 3},
+    }
+    assert monolith == {**staged, "path": str(sidecar.resolve())}
+    assert builder._weeks_unemployed_source_record(without_2022, None, None) == {
+        "lkweeks_source": "pooled_asec_h5",
+        "mode": "not_required",
+        "pooled_income_years": [2023, 2025],
+        "sidecar_income_year": 2022,
+    }
+
+
+def test_the_builder_removes_a_raw_stage_its_loader_refuses(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    builder = _load_support_builder_module()
+    args = _raw_stage_args(builder, tmp_path)
+    _patch_raw_stage_sources(
+        monkeypatch,
+        builder,
+        frame=_raw_asec_frame(),
+        source_receipt=_pooled_source_receipt(tmp_path),
+    )
+
+    def refuse(path):
+        assert Path(path).is_file()
+        raise ValueError("fixture refusal")
+
+    monkeypatch.setattr(builder, "load_asec_raw_stage_checkpoint", refuse)
+    with pytest.raises(SystemExit, match="fails its own loader.*fixture refusal"):
+        builder._run_outer_stage(args)
+    assert not (
+        args.checkpoint_dir / builder.ASEC_RAW_STAGE_CHECKPOINT_FILENAME
+    ).exists()
 
 
 def test_source_and_preclone_stages_round_trip_design_weight_kind(

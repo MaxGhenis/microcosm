@@ -55,6 +55,9 @@ Income year 2022 left the default on 27 September 2026, for two reasons:
 
 2022 stays pinned, fetchable and accepted by every registry, so a historical
 income-2022..2024 build remains byte-reproducible. Pass its years explicitly.
+A pool with 2022 also reads the income-2022 `LKWEEKS` sidecar
+(`asecpub23csv.zip`); pass `--asec-2023-weeks-unemployed-source` to build it
+offline. See "Where `LKWEEKS` comes from".
 
 A default-pool base build passes the three processed files with their pins
 and, for offline runs, the three Census archives:
@@ -68,13 +71,50 @@ PYTHONHASHSEED=0 uv run python tools/build_us_puf_support_base.py \
   --asec-education-source 2023=asecpub24csv.zip \
   --asec-education-source 2024=asecpub25csv.zip \
   --asec-education-source 2025=asecpub26csv.zip \
-  --asec-2023-weeks-unemployed-source asecpub23csv.zip \
   …
 ```
 
 `--asec-education-source` years without a mapping are fetched from Census and
-verified against the same pins. The last flag is explained under "What a
-2022-free pool still reads".
+verified against the same pins. This pool reads no `LKWEEKS` sidecar, and the
+builder refuses `--asec-2023-weeks-unemployed-source` for it.
+
+### Where `LKWEEKS` comes from
+
+`LKWEEKS` (weeks looking for work) is missing only from `census_cps_2022.h5`.
+The 2023, 2024 and 2025 files carry it as integers 0-51, and source
+construction copies it verbatim. What the base builder reads, and what the
+raw-stage checkpoint records, depends on whether 2022 is pooled:
+
+| | Pool with 2022 | Pool without 2022 (the default) |
+|---|---|---|
+| Sidecar | `asecpub23csv.zip` (`pppub23.csv`) repairs the 2022 cohort; fetched from Census when `--asec-2023-weeks-unemployed-source` is omitted | none; the flag is refused |
+| Raw-stage `LKWEEKS` pins | one: the income-2022 sidecar | one per pooled year: that year's Census member, the pins `ED_VAL` and `PAW_TYP` bind |
+| Raw-stage `LKWEEKS` audit | the sidecar's own audit | per year: the H5 digest the values came from, frame and verified rows, member persons, positive and not-in-universe rows, minimum and maximum |
+| What the exact `(source_year, PERIDNUM)` join does | fills the 2022 rows | verifies every carried value against the member and fills nothing; a missing or different value refuses the build |
+| `weeks_unemployed_source` in stage metadata and the summary | the sidecar's path, digest, rows and audit | `{"mode": "not_required", "lkweeks_source": "pooled_asec_h5", …}` |
+
+- **The loader holds the mapping to the pool.** `load_asec_raw_stage_checkpoint`
+  refuses a checkpoint whose `LKWEEKS` pins do not match its pooled years. A
+  pool with 2022 must name exactly the sidecar. A pool without 2022 must name
+  every pooled year in order, each pin must equal `ED_VAL`'s, and the audit
+  must match the frame and the `source_receipt` digests. A checkpoint naming
+  the sidecar for a pool without 2022, which the builder wrote before
+  28 September 2026, is refused: it claimed a join that filled no row.
+- **A pool with 2022 pins only the repaired cohort.** Its other years carry
+  `LKWEEKS` from their H5 files. Those files are pinned in `source_receipt`,
+  not as `LKWEEKS` pins, as before.
+- **Only the staged raw stage verifies.** A monolithic build (`--stage all`
+  without `--checkpoint-dir`) writes no raw stage. Its carried `LKWEEKS` is not
+  cross-checked against Census, as the non-2022 rows never were.
+- **`--base-h5` builds still read the sidecar.** Their source years are
+  unknown until the base loads.
+- **The schema version stays 3.** Both shapes are exact person-source joins.
+  Version 4 is already used by the off-main `NOW_*` coverage lineage.
+
+On the real default pool (28 September 2026), the join verified all 421,119
+persons: 144,265, 142,125 and 134,729 rows, with 4,411, 4,556 and 3,987
+positive. The source-construction and pre-clone frames were byte-identical to
+the pre-change builder's. See `experiments/us-asec-lkweeks-sidecar/`.
 
 ### Every pooled year needs four registries
 
@@ -199,13 +239,6 @@ The `source_construction` and `pre_clone_enrichment` stages ran on the real
 2023/2024/2025 files, fully pinned, at commit `e96165359` on 28 September 2026
 (see the experiment README). Things that still name income year 2022 or the old pool:
 
-- **The LKWEEKS sidecar.** The builder loads the income-2022 sidecar
-  `asecpub23csv.zip` in every mode. It fetches the file when
-  `--asec-2023-weeks-unemployed-source` is omitted, and records it as the
-  `LKWEEKS` source pin. For a pool without 2022 the repair fills no rows,
-  because every other file carries `LKWEEKS`. The raw-stage checkpoint
-  validator requires a non-empty `LKWEEKS` pin list, so the sidecar cannot
-  simply be dropped. Pass the local archive when building offline.
 - **The generated spec.** `us/spec/sources.yaml` `asec_raw_stage` still pins
   the income-2022..2024 raw-stage checkpoint (`51e9fafc…`) and its
   `asec_2022/2023/2024` authorities. That checkpoint is the certified lineage

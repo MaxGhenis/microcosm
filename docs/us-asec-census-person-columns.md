@@ -110,7 +110,7 @@ the column.
 | `A_FTPT` | yes | same; `eligibility_inputs.derive_us_eligibility_inputs_from_manifest` (`is_full_time_college_student`) |
 | `NOW_CAID`, `NOW_COV`, `NOW_DIR`, `NOW_MCARE`, `NOW_MRKS`, `NOW_MRKUN`, `NOW_PCHIP`, `NOW_PRIV`, `NOW_PUB` | no | No build reader. Restoring them would only widen the exported person table. A test fails if code starts reading one. |
 | `A_FAMTYP`, `A_FAMREL`, `PECOHAB` | no | Read only as optional cross-checks by the SPM role derivation (`spm_role_source._OPTIONAL_RAW_CHECKS`). That derivation reads this same member itself and derives the role from it, so restoring these columns would make the check compare the member with itself. #38's partner derivation should restore them together with its reader. |
-| `LKWEEKS` | no | Already restored for 2022, the only vintage without it, by `weeks_unemployed.fill_asec_2022_weeks_unemployed_source` from the same pinned `pppub23.csv`. The 2023 and 2024 inputs carry it. On the real run it equals the 8/23 file on all 146,133 rows. |
+| `LKWEEKS` | no | Already restored for 2022, the only vintage without it, by `weeks_unemployed.fill_asec_2022_weeks_unemployed_source` from the same pinned `pppub23.csv`, when 2022 is pooled. The 2023, 2024 and 2025 inputs carry it; for a pool without 2022 the raw stage verifies those values against each year's member (`weeks_unemployed_census_source`). On the real run it equals the 8/23 file on all 146,133 rows. |
 
 `CENSUS_TAX_ID` was never appended: the extractor derives it, and the Census
 files do not carry it.

@@ -27,6 +27,9 @@ from microcosm.build.serialization_dtypes import canonicalize_frame_string_dtype
 from microcosm.build.us_runtime.operator_boundary import (
     assert_operator_free_source_frame,
 )
+from microcosm.build.us_runtime.weeks_unemployed import (
+    ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR,
+)
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
 
 __all__ = [
@@ -60,6 +63,15 @@ ASEC_RAW_STAGE_OPERATOR_STATUS = "operator_untouched"
 # Version 3 added the PAW_TYP restoration that gates TANF enrollment; older
 # artifacts lack the gate column and must fail loudly rather than let
 # PAW_VAL-only conflation back in (microcosm#591).
+#
+# Version 3 has two LKWEEKS shapes, chosen by whether income year 2022 is
+# pooled (_validate_lkweeks_source_provenance). A pool with 2022 binds the one
+# income-2022 sidecar that repairs that cohort. A pool without it binds each
+# pooled year's own Census member, which verifies the column source
+# construction carried from the H5. Both are exact person-source joins, so the
+# version did not move. Version 4 is already used by the off-main NOW_*
+# coverage lineage (ASEC_RAW_STAGE_COVERAGE_SCHEMA_VERSION); a future bump here
+# must pick 5 or reconcile with that lineage.
 ASEC_RAW_STAGE_SCHEMA_VERSION = 3
 ASEC_RAW_STAGE_STAGE = "raw_source_mapping"
 _RAW_STAGE_BINDING_KEYS = frozenset(
@@ -96,6 +108,19 @@ _RAW_SOURCE_PIN_KEYS = frozenset(
         "member",
         "member_sha256",
         "sha256",
+    }
+)
+#: One entry per pooled income year in the audit of a per-year LKWEEKS join.
+_LKWEEKS_CENSUS_AUDIT_KEYS = frozenset(
+    {
+        "carried_h5_sha256",
+        "maximum",
+        "member_rows",
+        "minimum",
+        "niu_rows",
+        "positive_rows",
+        "rows",
+        "verified_rows",
     }
 )
 
@@ -186,6 +211,7 @@ def load_asec_raw_stage_checkpoint(
             f"ASEC raw-stage checkpoint {checkpoint_path} no longer has the "
             "source-construction structural identity it declares."
         )
+    _validate_lkweeks_source_provenance(loaded.frame, metadata, path=checkpoint_path)
     metadata["identity"] = stored_identity.to_payload()
     metadata["source_construction_identity"] = source_construction_identity.to_payload()
     # Canonicalize only after every identity and binding check has passed on
@@ -398,6 +424,122 @@ def _validate_raw_source_mappings(mappings: object, *, path: Path) -> None:
                     f"ASEC raw-stage checkpoint {path} raw_source_mappings"
                     f"[{column!r}].source_pins[{index}] lacks immutable pins."
                 )
+
+
+def _is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _validate_lkweeks_source_provenance(
+    frame: Frame,
+    metadata: Mapping[str, object],
+    *,
+    path: Path,
+) -> None:
+    """Hold the LKWEEKS mapping to the income years the artifact pools.
+
+    Only income year 2022's processed H5 lacks ``LKWEEKS``. A pool with 2022
+    repairs that cohort from the one pinned income-2022 sidecar, so its
+    mapping names exactly that year; the other pooled years carry the column
+    from their H5 (``source_receipt``). A pool without 2022 has nothing to
+    repair: its mapping names every pooled year's Census member, the pins the
+    ``ED_VAL`` mapping already binds, and its audit states per year that every
+    carried value was verified against that member. Naming the sidecar for a
+    pool without 2022 would claim a join that fills no row.
+    """
+
+    receipt_sources = metadata["source_receipt"]["sources"]  # type: ignore[index]
+    receipt_sha256 = {
+        int(source["year"]): str(source["sha256"]) for source in receipt_sources
+    }
+    receipt_years = set(receipt_sha256)
+    mappings = metadata["raw_source_mappings"]
+    lkweeks = mappings["LKWEEKS"]  # type: ignore[index]
+    pin_years = [int(pin["income_year"]) for pin in lkweeks["source_pins"]]
+    label = f"ASEC raw-stage checkpoint {path} raw_source_mappings['LKWEEKS']"
+    if len(set(pin_years)) != len(pin_years):
+        raise ValueError(f"{label} names an income year more than once: {pin_years}.")
+    sidecar_year = ASEC_2023_WEEKS_UNEMPLOYED_SOURCE_YEAR
+    if sidecar_year in receipt_years:
+        if pin_years != [sidecar_year]:
+            raise ValueError(
+                f"{label} must bind only the income-{sidecar_year} sidecar that "
+                f"repairs the pooled {sidecar_year} cohort; it names income "
+                f"year(s) {pin_years}."
+            )
+        return
+
+    pooled = sorted(receipt_years)
+    if pin_years != pooled:
+        raise ValueError(
+            f"{label} names income year(s) {pin_years}, but the artifact pools "
+            f"{pooled} without income year {sidecar_year}: LKWEEKS must bind "
+            "each pooled year's Census member, in year order."
+        )
+    ed_val_pins = {
+        int(pin["income_year"]): dict(pin)
+        for pin in mappings["ED_VAL"]["source_pins"]  # type: ignore[index]
+    }
+    for pin in lkweeks["source_pins"]:
+        year = int(pin["income_year"])
+        if dict(pin) != ed_val_pins.get(year):
+            raise ValueError(
+                f"{label} pin for income year {year} is not the Census member "
+                "pin the ED_VAL mapping binds for that year."
+            )
+
+    person = frame.table("person")
+    years = pd.to_numeric(person["source_year"], errors="coerce").astype("int64")
+    frame_counts = {
+        int(year): int(count) for year, count in years.value_counts().items()
+    }
+    if set(frame_counts) != receipt_years:
+        raise ValueError(
+            f"ASEC raw-stage checkpoint {path} frame holds source_year "
+            f"{sorted(frame_counts)} but its source_receipt pools {pooled}."
+        )
+    weeks = pd.to_numeric(person["LKWEEKS"], errors="coerce").astype("int64")
+    audit = lkweeks["audit"]
+    if set(audit) != {str(year) for year in pooled}:
+        raise ValueError(
+            f"{label} audit must have one entry per pooled income year "
+            f"{[str(year) for year in pooled]}; it has {sorted(audit)}."
+        )
+    for year in pooled:
+        entry = audit[str(year)]
+        if not isinstance(entry, Mapping) or frozenset(entry) != (
+            _LKWEEKS_CENSUS_AUDIT_KEYS
+        ):
+            raise ValueError(f"{label} audit for income year {year} is malformed.")
+        integer_keys = sorted(_LKWEEKS_CENSUS_AUDIT_KEYS - {"carried_h5_sha256"})
+        if not all(_is_int(entry[key]) for key in integer_keys):
+            raise ValueError(
+                f"{label} audit for income year {year} must record integer counts."
+            )
+        values = weeks[years == year]
+        expected = {
+            "carried_h5_sha256": receipt_sha256[year],
+            "maximum": int(values.max()),
+            "minimum": int(values.min()),
+            "niu_rows": int((values == -1).sum()),
+            "positive_rows": int((values > 0).sum()),
+            "rows": frame_counts[year],
+            "verified_rows": frame_counts[year],
+        }
+        observed = {key: entry[key] for key in expected}
+        if observed != expected:
+            differing = sorted(
+                key for key in expected if observed[key] != expected[key]
+            )
+            raise ValueError(
+                f"{label} audit for income year {year} does not describe the "
+                f"frame rows and H5 it covers (differs on {differing})."
+            )
+        if entry["member_rows"] < frame_counts[year]:
+            raise ValueError(
+                f"{label} audit for income year {year} records fewer Census "
+                "member persons than frame rows it verified."
+            )
 
 
 def _validate_raw_stage_source_columns(frame: Frame, *, path: Path) -> None:

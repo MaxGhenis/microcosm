@@ -48,7 +48,8 @@ as `spm_role_source.ASEC_SPM_ROLE_SOURCES`, cached by
 `fetch_asec_education_assistance_source` under
 `~/.cache/microcosm/cps/asec_education/`. The base builder already restores raw
 columns from these CSVs by exact `(source_year, PERIDNUM)` join
-(`_asec_raw_source_mapping_frame`: `LKWEEKS`, `ED_VAL`, `PAW_TYP`), and the
+(`_asec_raw_source_mapping_frame`: `ED_VAL`, `PAW_TYP`, and `LKWEEKS` for
+income year 2022, verified rather than restored for the other years), and the
 education and public-assistance stages consume them as sidecars. The role is
 the same class of repair: a measured Census field the frozen H5 inputs never
 carried, restored by exact Census identity, never predicted.

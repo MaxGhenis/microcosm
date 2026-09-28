@@ -90,8 +90,11 @@ declared SHA-256 values:
 
 The raw artifact is a second producer output, not a relabeling of
 `pre_clone_enrichment`. It contains pooled ASEC unit structure and measured raw
-columns. The only enrichment allowed there is faithful source mapping:
-`LKWEEKS` and `ED_VAL` are restored by exact, pinned Census identity joins.
+columns. The only enrichment allowed there is faithful source mapping by
+exact, pinned Census identity joins: `ED_VAL` and `PAW_TYP` for every pooled
+year, and `LKWEEKS` for income year 2022. A pool without 2022 carries
+`LKWEEKS` from its H5 files, and the join verifies it against each year's
+member.
 No `weeks_unemployed`, `educational_assistance`, carried-income split,
 eligibility, pregnancy, take-up, childcare, retirement, or immigration output
 is present. The producer still emits its historical enriched checkpoint and

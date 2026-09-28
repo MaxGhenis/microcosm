@@ -337,6 +337,11 @@ _OTHER_US_RUNTIME_MODULES = frozenset(
         "us_late_producer_registry.py",
         "validation_input_coverage.py",
         "warm_start_selection.py",
+        # Verify-only exact pinned Census PERIDNUM join of carried LKWEEKS for
+        # pools without income year 2022, through spm_role_source's pinned
+        # reader; no population treatment. Remains subject to the all-runtime
+        # source-identity scan.
+        "weeks_unemployed_census_source.py",
         # The node-graph adapter: declares the post-transfer subgraph and wraps
         # the unchanged stage functions as kernels (charter H3). It registers
         # nothing with the source registry and treats no population itself.

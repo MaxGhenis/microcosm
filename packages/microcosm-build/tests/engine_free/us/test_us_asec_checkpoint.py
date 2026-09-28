@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from microcosm.build.frame_checkpoint import write_frame_checkpoint
 from microcosm.build.outer_stage_runtime import (
@@ -23,6 +26,12 @@ from microcosm.build.us_runtime import (
     load_asec_pre_clone_checkpoint,
     load_asec_raw_stage_checkpoint,
     load_take_up_contract,
+)
+from microcosm.build.us_runtime.asec_checkpoint import (
+    _validate_lkweeks_source_provenance,
+)
+from microcosm.build.us_runtime.education_assistance_source import (
+    ASEC_EDUCATION_ASSISTANCE_ARCHIVES,
 )
 from microcosm.build.us_runtime.spm_role_source import NATIVE_SPM_ROLE
 from microcosm.frame import US_SCHEMA, EntitySchema, Frame, WeightKind, Weights
@@ -156,10 +165,14 @@ def _raw_binding(frame: Frame) -> dict[str, object]:
     }
 
 
-def _raw_us_frame(*, id_offset: int = 0) -> Frame:
+def _raw_us_frame(
+    *,
+    id_offset: int = 0,
+    years: tuple[int, int] = (2022, 2023),
+) -> Frame:
     source = _us_frame(id_offset=id_offset, include_age=False)
     tables = {entity: source.table(entity).copy() for entity in source.entities}
-    tables["person"]["source_year"] = [2022, 2023]
+    tables["person"]["source_year"] = list(years)
     tables["person"]["PERIDNUM"] = [
         "0000000000000000000001",
         "0000000000000000000002",
@@ -544,3 +557,378 @@ def test_rejects_invalid_asec_frame_boundary(
 
     with pytest.raises(ValueError, match=message):
         load_asec_pre_clone_checkpoint(path)
+
+
+# -- LKWEEKS provenance: the sidecar only when 2022 is pooled ----------------
+#
+# Only income year 2022's processed H5 lacks LKWEEKS. A pool with 2022 binds the
+# one income-2022 sidecar; a pool without it binds each pooled year's Census
+# member, the pins ED_VAL binds, with an audit tied to the frame and receipt.
+
+
+def _sidecar_pin() -> dict[str, object]:
+    return {
+        "income_year": 2022,
+        "locator": (
+            "https://www2.census.gov/programs-surveys/cps/datasets/2023/march/"
+            "asecpub23csv.zip"
+        ),
+        "member": "pppub23.csv",
+        "member_sha256": (
+            "19b56537e50e7663f954361ef2bb5ce9cef8d9d45f156fe1a69a99b654198ffe"
+        ),
+        "sha256": "d2e000250782adfbdd7f29c82b66d866591a30f0d330496698ec19f9c784ce11",
+    }
+
+
+def _census_pin(year: int) -> dict[str, object]:
+    archive = ASEC_EDUCATION_ASSISTANCE_ARCHIVES.get(year)
+    if archive is None:
+        digest = hashlib.sha256(f"member-{year}".encode()).hexdigest()
+        return {
+            "income_year": year,
+            "locator": f"https://example.test/asecpub{year + 1}.zip",
+            "member": f"pppub{year + 1}.csv",
+            "member_sha256": digest,
+            "sha256": hashlib.sha256(f"archive-{year}".encode()).hexdigest(),
+        }
+    return {
+        "income_year": year,
+        "locator": archive.zip_url,
+        "member": archive.member,
+        "member_sha256": archive.member_sha256,
+        "sha256": archive.zip_sha256,
+    }
+
+
+def _h5_sha256(year: int) -> str:
+    return hashlib.sha256(f"census_cps_{year}.h5".encode()).hexdigest()
+
+
+def _per_year_provenance(
+    person: pd.DataFrame,
+    *,
+    receipt_years: tuple[int, ...] | None = None,
+) -> dict[str, object]:
+    """The mappings and receipt the builder writes for a pool without 2022."""
+
+    frame_years = sorted({int(year) for year in person["source_year"]})
+    years = frame_years if receipt_years is None else sorted(receipt_years)
+    mappings = {
+        column: {
+            "audit": {"rows": len(person)},
+            "column": column,
+            "entity": "person",
+            "join_keys": ["source_year", "PERIDNUM"],
+            "operation": "exact_source_join",
+            "source_pins": [_census_pin(year) for year in years],
+        }
+        for column in ("ED_VAL", "LKWEEKS", "PAW_TYP")
+    }
+    audit = {}
+    for year in years:
+        values = person.loc[person["source_year"] == year, "LKWEEKS"].astype(int)
+        audit[str(year)] = {
+            "carried_h5_sha256": _h5_sha256(year),
+            "maximum": int(values.max()) if len(values) else 0,
+            "member_rows": int(len(values)) + 4,
+            "minimum": int(values.min()) if len(values) else 0,
+            "niu_rows": int(values.eq(-1).sum()),
+            "positive_rows": int(values.gt(0).sum()),
+            "rows": int(len(values)),
+            "verified_rows": int(len(values)),
+        }
+    mappings["LKWEEKS"]["audit"] = audit
+    return {
+        "raw_source_mappings": mappings,
+        "source_receipt": {
+            "kind": "pooled_asec",
+            "sources": [
+                {
+                    "max_households": None,
+                    "path": f"/raw/asec_{year}.h5",
+                    "sha256": _h5_sha256(year),
+                    "share": 1.0 / len(years),
+                    "year": year,
+                }
+                for year in years
+            ],
+            "target_year": 2024,
+        },
+    }
+
+
+def _per_year_binding(
+    frame: Frame,
+    *,
+    receipt_years: tuple[int, ...] | None = None,
+) -> dict[str, object]:
+    """The full raw-stage binding for a pool without income year 2022."""
+
+    return {
+        **_raw_binding(frame),
+        **_per_year_provenance(frame.table("person"), receipt_years=receipt_years),
+    }
+
+
+class _PersonTable:
+    """The only part of a Frame the provenance rule reads."""
+
+    def __init__(self, years: list[int], weeks: list[int]) -> None:
+        self._person = pd.DataFrame(
+            {
+                "source_year": np.asarray(years, dtype=np.int64),
+                "LKWEEKS": np.asarray(weeks, dtype=np.int64),
+            }
+        )
+
+    def table(self, entity: str) -> pd.DataFrame:
+        assert entity == "person"
+        return self._person
+
+
+_TWO_PERSON_POOLS = (
+    (2023,),
+    (2024,),
+    (2025,),
+    (2023, 2024),
+    (2023, 2025),
+    (2024, 2025),
+)
+
+
+@pytest.mark.parametrize(
+    "pool", _TWO_PERSON_POOLS, ids=["-".join(map(str, p)) for p in _TWO_PERSON_POOLS]
+)
+def test_raw_loader_accepts_a_per_year_lkweeks_join_without_2022(
+    tmp_path: Path, pool: tuple[int, ...]
+) -> None:
+    path = tmp_path / "asec_raw_stage.checkpoint.h5"
+    source = _raw_us_frame(years=(pool[0], pool[-1]))
+    metadata = _per_year_binding(source)
+    _write_checkpoint(path, source, metadata=metadata)
+
+    _frame, loaded_metadata = load_asec_raw_stage_checkpoint(path)
+
+    assert loaded_metadata == metadata
+    lkweeks = loaded_metadata["raw_source_mappings"]["LKWEEKS"]
+    assert [pin["income_year"] for pin in lkweeks["source_pins"]] == list(pool)
+
+
+def test_raw_loader_rejects_the_income_2022_sidecar_for_a_pool_without_2022(
+    tmp_path: Path,
+) -> None:
+    """The pre-change builder's 2022-free receipt claimed a join that filled nothing."""
+
+    path = tmp_path / "asec_raw_stage.checkpoint.h5"
+    source = _raw_us_frame(years=(2023, 2024))
+    metadata = _per_year_binding(source)
+    metadata["raw_source_mappings"]["LKWEEKS"]["source_pins"] = [_sidecar_pin()]
+    _write_checkpoint(path, source, metadata=metadata)
+
+    with pytest.raises(
+        ValueError,
+        match=r"names income year\(s\) \[2022\], but the artifact pools \[2023, 2024\]",
+    ):
+        load_asec_raw_stage_checkpoint(path)
+
+
+def test_raw_loader_keeps_the_sidecar_shape_for_every_pool_with_2022(
+    tmp_path: Path,
+) -> None:
+    for years, receipt in (((2022, 2022), (2022,)), ((2022, 2023), (2022, 2023))):
+        path = tmp_path / f"raw-{'-'.join(map(str, receipt))}.checkpoint.h5"
+        source = _raw_us_frame(years=years)
+        metadata = _raw_binding(source)
+        metadata["raw_source_mappings"]["LKWEEKS"]["source_pins"] = [_sidecar_pin()]
+        metadata["source_receipt"]["sources"] = [
+            {**metadata["source_receipt"]["sources"][0], "year": year}
+            for year in receipt
+        ]
+        _write_checkpoint(path, source, metadata=metadata)
+        _frame, loaded = load_asec_raw_stage_checkpoint(path)
+        assert loaded["raw_source_mappings"]["LKWEEKS"]["source_pins"] == [
+            _sidecar_pin()
+        ]
+
+
+def _mutate(path: tuple, value):
+    def apply(metadata: dict[str, object]) -> None:
+        target = metadata
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+
+    return apply
+
+
+_LKWEEKS = ("raw_source_mappings", "LKWEEKS")
+_AUDIT_2023 = (*_LKWEEKS, "audit", "2023")
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            _mutate((*_LKWEEKS, "source_pins"), [_census_pin(2023)]),
+            r"names income year\(s\) \[2023\], but the artifact pools \[2023, 2024\]",
+        ),
+        (
+            _mutate((*_LKWEEKS, "source_pins"), [_census_pin(2024), _census_pin(2023)]),
+            "in year order",
+        ),
+        (
+            _mutate(
+                (*_LKWEEKS, "source_pins"),
+                [_census_pin(2023), _census_pin(2023), _census_pin(2024)],
+            ),
+            "names an income year more than once",
+        ),
+        (
+            _mutate(
+                (*_LKWEEKS, "source_pins"),
+                [{**_census_pin(2023), "member": "pppub23.csv"}, _census_pin(2024)],
+            ),
+            "pin for income year 2023 is not the Census member pin",
+        ),
+        (
+            _mutate((*_LKWEEKS, "audit"), {"2023": {}}),
+            "audit must have one entry per pooled income year",
+        ),
+        (
+            _mutate((*_AUDIT_2023, "extra"), 1),
+            "audit for income year 2023 is malformed",
+        ),
+        (_mutate((*_AUDIT_2023, "rows"), True), "must record integer counts"),
+        (_mutate((*_AUDIT_2023, "rows"), 1.0), "must record integer counts"),
+        (_mutate((*_AUDIT_2023, "rows"), 2), r"differs on \['rows'\]"),
+        (
+            _mutate((*_AUDIT_2023, "verified_rows"), 0),
+            r"differs on \['verified_rows'\]",
+        ),
+        (
+            _mutate((*_AUDIT_2023, "carried_h5_sha256"), "0" * 64),
+            r"differs on \['carried_h5_sha256'\]",
+        ),
+        (_mutate((*_AUDIT_2023, "maximum"), 52), r"differs on \['maximum'\]"),
+        (
+            _mutate((*_AUDIT_2023, "positive_rows"), 1),
+            r"differs on \['positive_rows'\]",
+        ),
+        (_mutate((*_AUDIT_2023, "member_rows"), 0), "fewer Census member persons"),
+    ],
+    ids=[
+        "missing-year",
+        "out-of-order",
+        "repeated-year",
+        "relabelled-member",
+        "audit-years",
+        "audit-extra-key",
+        "audit-boolean",
+        "audit-float",
+        "audit-rows",
+        "audit-verified",
+        "audit-h5",
+        "audit-maximum",
+        "audit-positive",
+        "audit-member-rows",
+    ],
+)
+def test_raw_loader_rejects_a_mislabelled_per_year_lkweeks_join(
+    tmp_path: Path, mutate, message: str
+) -> None:
+    path = tmp_path / "asec_raw_stage.checkpoint.h5"
+    source = _raw_us_frame(years=(2023, 2024))
+    metadata = _per_year_binding(source)
+    mutate(metadata)
+    _write_checkpoint(path, source, metadata=metadata)
+
+    with pytest.raises(ValueError, match=message):
+        load_asec_raw_stage_checkpoint(path)
+
+
+def test_raw_loader_rejects_per_year_pins_for_a_pool_with_2022(tmp_path: Path) -> None:
+    path = tmp_path / "asec_raw_stage.checkpoint.h5"
+    source = _raw_us_frame(years=(2022, 2023))
+    metadata = _per_year_binding(source)
+    _write_checkpoint(path, source, metadata=metadata)
+
+    with pytest.raises(ValueError, match="must bind only the income-2022 sidecar"):
+        load_asec_raw_stage_checkpoint(path)
+
+
+def test_raw_loader_rejects_frame_years_the_receipt_does_not_pool(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "asec_raw_stage.checkpoint.h5"
+    source = _raw_us_frame(years=(2023, 2024))
+    metadata = _per_year_binding(source, receipt_years=(2023, 2025))
+    _write_checkpoint(path, source, metadata=metadata)
+
+    with pytest.raises(
+        ValueError,
+        match=r"frame holds source_year \[2023, 2024\] but its source_receipt pools",
+    ):
+        load_asec_raw_stage_checkpoint(path)
+
+
+@st.composite
+def _per_year_pools(draw):
+    years = sorted(
+        draw(
+            st.sets(
+                st.integers(min_value=2000, max_value=2100).filter(
+                    lambda year: year != 2022
+                ),
+                min_size=1,
+                max_size=5,
+            )
+        )
+    )
+    rows = []
+    for year in years:
+        count = draw(st.integers(min_value=1, max_value=6))
+        rows += [
+            (year, draw(st.integers(min_value=-1, max_value=52))) for _ in range(count)
+        ]
+    rows = draw(st.permutations(rows))
+    return _PersonTable([year for year, _ in rows], [weeks for _, weeks in rows])
+
+
+@settings(max_examples=200, deadline=None)
+@given(frame=_per_year_pools(), data=st.data())
+def test_per_year_lkweeks_rule_accepts_exactly_the_builder_shape(frame, data) -> None:
+    """For any pool without 2022: the builder's binding passes, and any one
+    corruption of an audit entry, a pin, or the pin order is refused."""
+
+    metadata = _per_year_provenance(frame.table("person"))
+    _validate_lkweeks_source_provenance(frame, metadata, path=Path("fixture"))
+
+    audit = metadata["raw_source_mappings"]["LKWEEKS"]["audit"]
+    year = data.draw(st.sampled_from(sorted(audit)))
+    key = data.draw(st.sampled_from(sorted(audit[year])))
+    if key == "carried_h5_sha256":
+        audit[year][key] = "0" * 64
+    elif key == "member_rows":
+        audit[year][key] = audit[year]["rows"] - 1
+    else:
+        audit[year][key] += data.draw(st.sampled_from([-1, 1]))
+    with pytest.raises(ValueError):
+        _validate_lkweeks_source_provenance(frame, metadata, path=Path("fixture"))
+
+    metadata = _per_year_provenance(frame.table("person"))
+    pins = metadata["raw_source_mappings"]["LKWEEKS"]["source_pins"]
+    corruption = data.draw(st.sampled_from(["sidecar", "field", "drop", "swap"]))
+    if corruption == "swap" and len(pins) < 2:
+        corruption = "field"
+    if corruption == "sidecar":
+        pins.append(_sidecar_pin())
+    elif corruption == "field":
+        index = data.draw(st.integers(min_value=0, max_value=len(pins) - 1))
+        pins[index] = {**pins[index], "member_sha256": "0" * 64}
+    elif corruption == "drop":
+        pins.pop()
+    else:
+        pins[0], pins[1] = pins[1], pins[0]
+    with pytest.raises(ValueError):
+        _validate_lkweeks_source_provenance(frame, metadata, path=Path("fixture"))

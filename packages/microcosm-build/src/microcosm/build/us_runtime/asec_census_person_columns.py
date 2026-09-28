@@ -243,7 +243,10 @@ ASEC_CENSUS_PERSON_COLUMNS_NOT_RESTORED: MappingProxyType[str, str] = MappingPro
             "Already restored for income year 2022, the only vintage lacking it, "
             "by weeks_unemployed.fill_asec_2022_weeks_unemployed_source from the "
             "same pinned pppub23.csv (asecpub23csv.zip d2e00025…) before its only "
-            "reader; census_cps_2023.h5 and census_cps_2024.h5 carry it."
+            "reader, when 2022 is pooled; census_cps_2023.h5, census_cps_2024.h5 "
+            "and census_cps_2025.h5 carry it, and a pool without 2022 has its raw "
+            "stage verify those values against each year's member "
+            "(weeks_unemployed_census_source)."
         ),
     }
 )
