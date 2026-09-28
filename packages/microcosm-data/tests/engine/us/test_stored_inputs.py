@@ -79,6 +79,15 @@ def test_the_1026_premises_hold_for_the_installed_engine():
     assert "puma_geoid" not in variables
     puma = variables["puma"]
     assert (puma.entity.key, bool(puma.formulas)) == ("household", False)
+    # The non-current CD plan columns are registered beside the current plan's
+    # congressional_district_geoid, a household input the engine reads; no
+    # variable carries a plan suffix.
+    district = variables["congressional_district_geoid"]
+    assert (district.entity.key, bool(district.formulas)) == ("household", False)
+    assert "congressional_district_geoid" not in US_STORED_NON_VARIABLE_COLUMNS
+    assert not [
+        name for name in variables if name.startswith("congressional_district_geoid__")
+    ]
     for derived in (
         "filing_status",
         "is_tax_unit_head",

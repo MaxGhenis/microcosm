@@ -11,7 +11,12 @@ def test_the_modeled_stored_tables_are_what_the_writer_stores(builder, tmp_path)
 
     from microcosm.frame.adapters.policyengine_us import PolicyEngineUSEngine
 
+    plans = {
+        column: np.asarray([101, 3601], dtype=np.int64)
+        for column in sorted(_non_current_cd_plan_columns())
+    }
     frame = _frame(
+        {"congressional_district_geoid": np.asarray([101, 3601]), **plans},
         would_claim_wic=[True, False],
         person_source_id=[11, 12],
         person_support_channel=["asec", "asec"],
@@ -26,9 +31,11 @@ def test_the_modeled_stored_tables_are_what_the_writer_stores(builder, tmp_path)
     assert {table: set(columns) for table, columns in written.items()} == {
         table: set(columns) for table, columns in modeled.items()
     }
+    assert set(plans) <= set(written["household"])
 
     failures, details = builder._stored_input_gate_failures(frame, stage="export frame")
     assert details["refused"] == ["would_claim_wic"]
+    assert set(plans) <= set(details["registered_non_variables"])
     assert len(failures) == 1
     assert builder._written_stored_input_verdict_mismatch(path, details) is None
 

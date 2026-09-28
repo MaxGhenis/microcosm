@@ -50,14 +50,6 @@ def test_every_register_entry_is_a_named_producer_column():
     assert len(US_STORED_NON_VARIABLE_COLUMNS) == 30 + 6 + 6 + 6 + 1 + 2 + 3
 
 
-def _non_current_cd_plan_columns() -> set[str]:
-    """The household column of every packaged-registry plan but the current one."""
-
-    plans = set(packaged_us_cd_plan_registry_provenance()["plans"])
-    assert PRIMARY_CD_PLAN in plans
-    return {f"{US_CD_PLAN_COLUMN_PREFIX}{plan}" for plan in plans - {PRIMARY_CD_PLAN}}
-
-
 def test_the_cd_plan_entries_are_the_packaged_registry_plans_but_the_current():
     """microcosm-data spells the non-current plans itself; they must be the
     packaged registry's plans less the one congressional_district_geoid
@@ -242,6 +234,38 @@ def test_the_gate_passes_the_live_name(builder, monkeypatch):
 
     assert failures == []
     assert details["refused"] == []
+
+
+def test_the_gate_passes_the_registered_cd_plan_columns_by_name(builder, monkeypatch):
+    """A block_v1 build with the CD-plan registry attached stores the
+    non-current plans beside congressional_district_geoid. The gate lists them
+    as registered non-variables; a plan the register does not name (here a
+    future 121st) is refused by name, in the household table."""
+
+    engine = _engine(*_STRUCTURAL, "congressional_district_geoid")
+    monkeypatch.setattr(builder, "installed_us_engine", lambda: engine)
+    plans = {
+        column: np.asarray([101, 3601], dtype=np.int64)
+        for column in sorted(_non_current_cd_plan_columns())
+    }
+    current = {"congressional_district_geoid": np.asarray([101, 3601])}
+
+    failures, details = builder._stored_input_gate_failures(
+        _frame({**current, **plans}), stage="export frame"
+    )
+    assert failures == []
+    assert details["refused"] == []
+    assert set(plans) <= set(details["registered_non_variables"])
+    assert "congressional_district_geoid" not in details["registered_non_variables"]
+
+    future = f"{US_CD_PLAN_COLUMN_PREFIX}121st_congress"
+    failures, details = builder._stored_input_gate_failures(
+        _frame({**current, **plans, future: np.asarray([101, 3601])}),
+        stage="export frame",
+    )
+    assert details["refused"] == [future]
+    assert len(failures) == 1
+    assert f"'{future}' (household table)" in failures[0]
 
 
 def test_the_gate_grades_the_materialized_household_weight(builder, monkeypatch):

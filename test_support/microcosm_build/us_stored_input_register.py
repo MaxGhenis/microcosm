@@ -100,8 +100,11 @@ _STRUCTURAL = (
 )
 
 
-def _frame(**person_columns) -> Frame:
-    """Two households, one person each, every US entity populated."""
+def _frame(household_columns=None, **person_columns) -> Frame:
+    """Two households, one person each, every US entity populated.
+
+    ``household_columns`` adds household-table columns beside ``household_id``.
+    """
 
     ids = np.asarray([1, 2], dtype=np.int64)
     person = pd.DataFrame(
@@ -119,7 +122,9 @@ def _frame(**person_columns) -> Frame:
     return Frame(
         {
             "person": person,
-            "household": pd.DataFrame({"household_id": ids}),
+            "household": pd.DataFrame(
+                {"household_id": ids, **(household_columns or {})}
+            ),
             "tax_unit": pd.DataFrame({"tax_unit_id": ids * 10}),
             "spm_unit": pd.DataFrame({"spm_unit_id": ids * 100}),
             "family": pd.DataFrame({"family_id": ids * 1_000}),
@@ -141,6 +146,14 @@ def _frame(**person_columns) -> Frame:
 _ACS_NATIVE_AMOUNTS = frozenset(
     column for column in _ACS_NATIVE_INPUT_CONTRACTS if column.startswith("acs_")
 )
+
+
+def _non_current_cd_plan_columns() -> set[str]:
+    """The household column of every packaged-registry plan but the current one."""
+
+    plans = set(packaged_us_cd_plan_registry_provenance()["plans"])
+    assert PRIMARY_CD_PLAN in plans
+    return {f"{US_CD_PLAN_COLUMN_PREFIX}{plan}" for plan in plans - {PRIMARY_CD_PLAN}}
 
 
 # ---------------------------------------------------------------------------
