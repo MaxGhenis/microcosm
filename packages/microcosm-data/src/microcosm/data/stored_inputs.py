@@ -238,6 +238,21 @@ _TAX_UNIT_CONSTRUCTION = (
     "derives {engine} with formulas, which the release writer refuses to "
     "store."
 )
+_CD_PLAN = (
+    "The household's congressional district (state FIPS * 100 + district) "
+    "under the {congress} Congress plan, looked up from its drawn 2020 census "
+    "block in the pinned block -> CD-plan registry (microcosm.build."
+    "us_runtime.cd_plan_registry), written by microcosm.build.us_runtime."
+    "block_location.plan_column (US_CD_PLAN_COLUMN_PREFIX) on a block_v1 "
+    "build. The engine reads only congressional_district_geoid, which carries "
+    "the current (119th Congress) plan; this column records the same block "
+    "under another map, for reweighting or analysis. It is not a model input."
+)
+#: The block -> CD-plan registry's plans other than the current one, whose
+#: districts a ``block_v1`` build stores beside ``congressional_district_geoid``.
+#: ``test_us_stored_input_register.py`` binds them to the packaged registry
+#: provenance.
+_US_NON_CURRENT_CD_PLANS = ("117th_congress", "118th_congress", "120th_congress")
 #: The six US entity tables, in ``microcosm.frame.units.US_SCHEMA`` order.
 #: microcosm-data depends on no other Microcosm shard, so the names are spelled
 #: here; ``test_us_stored_input_register.py`` (microcosm-build) binds every
@@ -265,11 +280,17 @@ _US_ENTITIES = ("person", "household", "tax_unit", "spm_unit", "family", "marita
 #: - the ACS local-area release ``populace-us-2024-buildo-acs-local-
 #:   767312d60-20260923T074941Z`` (the ``*_spine`` tags as well).
 #:
-#: One pair postdates those files: ``parent_1_id`` and ``parent_2_id``
-#: (microcosm#884). No examined file stores them yet, so they rest on their
-#: live producer, ``eligibility_inputs.US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS``,
-#: which ``test_us_stored_input_register.py`` binds, and leave the register
-#: once the pinned engine defines them.
+#: Two groups postdate those files, so no examined file stores them yet and
+#: each rests on its live producer, which ``test_us_stored_input_register.py``
+#: binds:
+#:
+#: - ``parent_1_id`` and ``parent_2_id`` (microcosm#884), produced by
+#:   ``eligibility_inputs.US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS``. They leave
+#:   the register once the pinned engine defines them.
+#: - ``congressional_district_geoid__<plan>`` for each non-current plan of the
+#:   block -> CD-plan registry (microcosm#696, #1041), produced by
+#:   ``block_location.plan_column`` when a ``block_v1`` build attaches
+#:   ``cd_plan_registry``'s plans to its ladder.
 #:
 #: Two model-named non-variable columns that the published default, its
 #: receipt child and the ACS local-area release store are deliberately absent,
@@ -427,6 +448,12 @@ US_STORED_NON_VARIABLE_COLUMNS: Mapping[str, str] = MappingProxyType(
                 ("parent_1_id", "PEPAR1"),
                 ("parent_2_id", "PEPAR2"),
             )
+        },
+        **{
+            f"congressional_district_geoid__{plan}": _CD_PLAN.format(
+                congress=plan.split("_", 1)[0]
+            )
+            for plan in _US_NON_CURRENT_CD_PLANS
         },
     }
 )

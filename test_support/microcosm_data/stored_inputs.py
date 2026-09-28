@@ -154,10 +154,21 @@ def _column_strategies(st):
 
 
 #: Register entries that postdate the files examined for #1026 and rest on a
-#: live producer instead: the parent ids (microcosm#884), bound to
-#: eligibility_inputs.US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS by
-#: test_us_stored_input_register.py (microcosm-data cannot import the build).
-_PRODUCER_BOUND_ENTRIES = frozenset({"parent_1_id", "parent_2_id"})
+#: live producer instead, each bound by test_us_stored_input_register.py
+#: (microcosm-data cannot import the build): the parent ids (microcosm#884),
+#: to eligibility_inputs.US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS; and the
+#: non-current congressional-district plan columns (microcosm#696, #1041), to
+#: block_location.US_CD_PLAN_COLUMN_PREFIX and the packaged CD-plan registry
+#: provenance.
+_PRODUCER_BOUND_ENTRIES = frozenset(
+    {
+        "parent_1_id",
+        "parent_2_id",
+        "congressional_district_geoid__117th_congress",
+        "congressional_district_geoid__118th_congress",
+        "congressional_district_geoid__120th_congress",
+    }
+)
 
 
 #: The role columns policyengine-core's ``build_from_dataset`` reads to build

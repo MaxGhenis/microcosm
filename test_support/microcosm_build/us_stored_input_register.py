@@ -27,6 +27,11 @@ from microcosm.build.outer_stage_runtime import _POOLED_SOURCE_PROVENANCE_COLUMN
 from microcosm.build.us_runtime import acs_pums, acs_transfer
 from microcosm.build.us_runtime import puf_capital_gains_tail as puf_tail
 from microcosm.build.us_runtime.base_pool import spine_column
+from microcosm.build.us_runtime.block_location import US_CD_PLAN_COLUMN_PREFIX
+from microcosm.build.us_runtime.cd_plan_registry import (
+    PRIMARY_CD_PLAN,
+    packaged_us_cd_plan_registry_provenance,
+)
 from microcosm.build.us_runtime.eligibility_inputs import (
     US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS,
 )
@@ -39,6 +44,7 @@ from microcosm.build.us_runtime.support_provenance import (
 )
 from microcosm.data.stored_inputs import (
     _US_ENTITIES,
+    _US_NON_CURRENT_CD_PLANS,
     US_STORED_NON_VARIABLE_COLUMNS,
     CertifiedEngine,
     h5_stored_tables,

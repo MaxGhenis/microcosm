@@ -60,6 +60,11 @@ import pandas as pd
 
 from microcosm.build.gates import GateResult
 from microcosm.build.stochastic_assignment import stable_identity_uniforms
+from microcosm.build.us_runtime import cd_plan_registry as _cd_plan_registry
+from microcosm.build.us_runtime.cd_plan_registry import (
+    US_CD_PLAN_REGISTRY_PROVENANCE_RESOURCE,
+    load_pinned_us_cd_plan_registry,
+)
 from microcosm.build.us_runtime.congressional_district_geography import (
     CONGRESSIONAL_DISTRICT_GEOID_COLUMN,
 )
@@ -129,6 +134,10 @@ POPULACE_LOCATION_SEED_ATTR = "populace_location_seed"
 POPULACE_LOCATION_CLONES_ATTR = "populace_location_clones"
 POPULACE_BLOCK_LADDER_SHA256_ATTR = "populace_block_ladder_sha256"
 POPULACE_BLOCK_LADDER_VINTAGES_ATTR = "populace_block_ladder_vintages"
+#: H5 root attribute of a ``block_v1`` artifact whose ladder had the pinned
+#: block -> CD-plan registry attached (:func:`attach_pinned_cd_plan_registry`):
+#: the registry file's SHA-256. Absent when no registry was attached.
+POPULACE_CD_PLAN_REGISTRY_SHA256_ATTR = "populace_cd_plan_registry_sha256"
 #: Packaged official CPS ASEC identified-county lists (Census technical
 #: documentation, Appendix F, List 4), keyed by ASEC survey year.
 CPS_ASEC_IDENTIFIED_COUNTIES_RESOURCE = "cps_asec_identified_counties.csv"
@@ -348,6 +357,111 @@ def plan_column(plan: str, ladder: UsLocationLadder) -> str:
     if plan == ladder.primary_congressional_district_plan:
         return CONGRESSIONAL_DISTRICT_GEOID_COLUMN
     return f"{US_CD_PLAN_COLUMN_PREFIX}{plan}"
+
+
+def pinned_cd_plan_registry_sha256() -> str:
+    """The registry digest this package pins (its provenance ``output_sha256``).
+
+    Read through the ``cd_plan_registry`` module at call time, as
+    :func:`~microcosm.build.us_runtime.cd_plan_registry.load_pinned_us_cd_plan_registry`
+    reads it, so a build can pin its configured identity before reading the
+    file and the pin cannot drift from the loader's.
+    """
+
+    return str(
+        _cd_plan_registry.packaged_us_cd_plan_registry_provenance()["output_sha256"]
+    )
+
+
+def verify_pinned_cd_plan_registry_file(path: str | Path) -> str:
+    """Hash the registry file at ``path``; refuse it unless it is the pinned one.
+
+    Cheap relative to a build (one streamed hash), so a build can refuse a
+    wrong file before its first stage instead of at the location stage.
+    Returns the digest.
+    """
+
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotFoundError(f"US CD plan registry artifact not found: {source}")
+    digest = file_sha256(source)
+    expected = pinned_cd_plan_registry_sha256()
+    if digest != expected:
+        raise ValueError(
+            f"US CD plan registry {source} has SHA-256 {digest}, expected the "
+            f"pinned {expected} (microcosm.build.us_runtime/"
+            f"{US_CD_PLAN_REGISTRY_PROVENANCE_RESOURCE} output_sha256)."
+        )
+    return digest
+
+
+def stale_cd_plan_columns(
+    columns: Collection[str], ladder: UsLocationLadder
+) -> list[str]:
+    """CD-plan household columns in ``columns`` that a draw on ``ladder`` never writes.
+
+    A pooled line re-derives exactly :func:`location_geography_columns` for
+    every row, so a plan column carried in from a donor base that ``ladder``
+    does not attach would keep the donor rows' values and be null on every
+    other row. Pooling lines refuse such inputs; this names them, sorted.
+    """
+
+    written = set(location_geography_columns(ladder))
+    return sorted(
+        str(column)
+        for column in columns
+        if str(column).startswith(US_CD_PLAN_COLUMN_PREFIX)
+        and str(column) not in written
+    )
+
+
+def attach_pinned_cd_plan_registry(
+    ladder: UsLocationLadder, path: str | Path
+) -> tuple[UsLocationLadder, dict[str, Any]]:
+    """Attach every plan of the pinned block -> CD-plan registry at ``path``.
+
+    The registry is loaded with
+    :func:`~microcosm.build.us_runtime.cd_plan_registry.load_pinned_us_cd_plan_registry`,
+    which refuses any file whose SHA-256 is not the packaged provenance's
+    ``output_sha256``, and its plans go through
+    :func:`attach_congressional_district_plans`: a plan the ladder already
+    carries (its primary, 119th-Congress plan) must agree block for block,
+    every other plan is added. Blocks are not redrawn; attaching only adds
+    lookups. Returns the ladder and the ``cd_plan_registry`` record of the
+    ``household_location`` manifest (:func:`us_block_location_manifest`).
+    """
+
+    registry = load_pinned_us_cd_plan_registry(path)
+    attached = attach_congressional_district_plans(
+        ladder,
+        block_geoid=registry.block_geoid,
+        plans=registry.plans,
+        plan_sources=registry.plan_sources,
+    )
+    primary = attached.primary_congressional_district_plan
+    record: dict[str, Any] = {
+        "sha256": registry.sha256,
+        "pinned_by": (
+            f"microcosm.build.us_runtime/{US_CD_PLAN_REGISTRY_PROVENANCE_RESOURCE}"
+            " output_sha256"
+        ),
+        "blocks": int(len(registry)),
+        "plans": list(registry.plan_ids),
+        "columns": {plan: plan_column(plan, attached) for plan in registry.plan_ids},
+        "known_deviations": {
+            plan: sorted(spec["known_deviations"])
+            for plan, spec in sorted(registry.plan_sources.items())
+            if spec.get("known_deviations")
+        },
+    }
+    if primary in registry.plans:
+        # attach_congressional_district_plans raised on any disagreement.
+        record["primary_plan_check"] = {
+            "plan": primary,
+            "ladder_blocks": int(len(attached)),
+            "blocks_disagreeing": 0,
+        }
+    return attached, record
 
 
 def location_geography_columns(ladder: UsLocationLadder) -> tuple[str, ...]:
@@ -1300,8 +1414,16 @@ def us_block_location_manifest(
     seed: int,
     clones: int,
     candidate_set_rule: Mapping[str, Any] | None = None,
+    cd_plan_registry: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """The build-manifest record of a ``block_v1`` location step."""
+    """The build-manifest record of a ``block_v1`` location step.
+
+    ``cd_plan_registry`` is the record :func:`attach_pinned_cd_plan_registry`
+    returned when the ladder's plans came from the pinned registry; it is
+    recorded under ``cd_plan_registry`` and the key is absent otherwise. The
+    plans' own sources (vintage, source files, known deviations) are under
+    ``block_ladder.congressional_district_plans`` either way.
+    """
 
     kinds = table[LOCATION_SOURCE_GEOGRAPHY_COLUMN].astype(str).to_numpy()
     first_clone = table[LOCATION_CLONE_INDEX_COLUMN].to_numpy() == 0
@@ -1339,6 +1461,8 @@ def us_block_location_manifest(
         "candidate_set_rule": dict(candidate_set_rule or {}),
         "geography_columns": list(location_geography_columns(ladder)),
     }
+    if cd_plan_registry is not None:
+        record["cd_plan_registry"] = dict(cd_plan_registry)
     if LOCATION_WEIGHT_COLUMN in table.columns:
         record["location_weight_total"] = float(table[LOCATION_WEIGHT_COLUMN].sum())
     return record
@@ -1574,6 +1698,7 @@ __all__ = [
     "CPS_ASEC_IDENTIFIED_COUNTIES_RESOURCE",
     "POPULACE_BLOCK_LADDER_SHA256_ATTR",
     "POPULACE_BLOCK_LADDER_VINTAGES_ATTR",
+    "POPULACE_CD_PLAN_REGISTRY_SHA256_ATTR",
     "POPULACE_LOCATION_CLONES_ATTR",
     "POPULACE_LOCATION_RULE_ATTR",
     "POPULACE_LOCATION_SEED_ATTR",
@@ -1601,6 +1726,10 @@ __all__ = [
     "UsLocationLadder",
     "assign_us_block_location",
     "attach_congressional_district_plans",
+    "attach_pinned_cd_plan_registry",
+    "pinned_cd_plan_registry_sha256",
+    "stale_cd_plan_columns",
+    "verify_pinned_cd_plan_registry_file",
     "canonical_json_sha256",
     "cbsa_vintage_agreement",
     "clone_frame_for_location",

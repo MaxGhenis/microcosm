@@ -12,8 +12,8 @@ def test_every_register_entry_is_a_named_producer_column():
     """The register is exactly the four support provenance columns and the
     base-spine tag of every US entity, the pooled-source provenance columns,
     microunit's two tax-unit construction columns, the PUF capital-gains tail
-    provenance columns, the ACS-native acs_ amounts and acs_pums's puma_geoid
-    alias."""
+    provenance columns, the ACS-native acs_ amounts, acs_pums's puma_geoid
+    alias, the eligibility parent ids and the non-current CD plan columns."""
 
     support = {
         column(entity)
@@ -44,9 +44,35 @@ def test_every_register_entry_is_a_named_producer_column():
         | _ACS_NATIVE_AMOUNTS
         | {"puma_geoid"}
         | set(US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS)
+        | _non_current_cd_plan_columns()
     )
     assert len(_ACS_NATIVE_AMOUNTS) == 6
-    assert len(US_STORED_NON_VARIABLE_COLUMNS) == 30 + 6 + 6 + 6 + 1 + 2
+    assert len(US_STORED_NON_VARIABLE_COLUMNS) == 30 + 6 + 6 + 6 + 1 + 2 + 3
+
+
+def _non_current_cd_plan_columns() -> set[str]:
+    """The household column of every packaged-registry plan but the current one."""
+
+    plans = set(packaged_us_cd_plan_registry_provenance()["plans"])
+    assert PRIMARY_CD_PLAN in plans
+    return {f"{US_CD_PLAN_COLUMN_PREFIX}{plan}" for plan in plans - {PRIMARY_CD_PLAN}}
+
+
+def test_the_cd_plan_entries_are_the_packaged_registry_plans_but_the_current():
+    """microcosm-data spells the non-current plans itself; they must be the
+    packaged registry's plans less the one congressional_district_geoid
+    carries, so a registry that gains a plan fails here until the plan's
+    column is registered."""
+
+    assert set(_US_NON_CURRENT_CD_PLANS) == (
+        set(packaged_us_cd_plan_registry_provenance()["plans"]) - {PRIMARY_CD_PLAN}
+    )
+    assert len(_US_NON_CURRENT_CD_PLANS) == len(set(_US_NON_CURRENT_CD_PLANS)) == 3
+    for column in _non_current_cd_plan_columns():
+        congress = column.removeprefix(US_CD_PLAN_COLUMN_PREFIX).split("_")[0]
+        reason = US_STORED_NON_VARIABLE_COLUMNS[column]
+        assert f"under the {congress} Congress plan" in reason
+        assert "congressional_district_geoid, which carries" in reason
 
 
 def test_every_register_reason_names_where_its_column_comes_from():
@@ -78,6 +104,10 @@ def test_every_register_reason_names_where_its_column_comes_from():
         **{
             column: "US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS"
             for column in US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS
+        },
+        **{
+            column: "microcosm.build.us_runtime.block_location.plan_column"
+            for column in _non_current_cd_plan_columns()
         },
     }
     for column, owner in expected_owner.items():
