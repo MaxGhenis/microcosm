@@ -1,0 +1,616 @@
+# Microcosm US and UK roadmap, 2026-09 to 2027-08, as a plangraph plan.
+#
+# Sources, read 2026-09-24 and brought up to date 2026-09-29: the weekly scoreboard #1013,
+# epic #956, the 09-24 #microcosm meeting thread, and the issues and PRs each item names.
+# The scoreboard's probabilities are not plan data and nothing here uses them.
+#
+# Month grain. Index 0 is 2026-09. A successor starts the month after its predecessor's
+# last month, so two steps that both land in October read here as October, then November.
+# Work finished in September stays in the plan as a September item, so what followed it
+# still names it as the cause of its start.
+#
+# Starts. `earliest` is the month a source declared or committed (a #1013 commitment due
+# 10-01 counts as September), else 2026-09: the work could start now and only its
+# predecessors hold it. So every start names what bound it, and W104 flags an item that
+# starts well after a month someone declared.
+#
+# What is sourced and what is assumed. plangraph carries a basis (D derived, A assumed,
+# M measured) on demands and costs but not on durations or dates, so each item's comment
+# says which of its start, duration and deadline a source states. Anything a comment does
+# not attribute is assumed. Every demand is basis A: an assumed share of one person's whole
+# time, where capacity 1 is one full-time person. Work outside microcosm is not in the plan,
+# so the overloads the harness reports are a floor.
+#
+# Deadlines. plangraph has no deadline field, so a date an item must meet (a register
+# expiry, the County Files MVP window, the waiver lapse) is in its comment and nothing
+# checks it.
+#
+# Uncosted. plangraph requires a loaded cost on every seat; each carries 0 with basis A,
+# which means this plan models no cost, not that anyone is free. There are no revenue
+# streams or funding lines, so the report's money rows print zero.
+#
+# Owners. Where nobody is named yet (County Files #922, whose owner decision d150 was parked
+# on 09-25; #940; the UK consumer switch; the waiver follow-up), the item sits with Max, who
+# owes the naming, and its comment says so.
+#
+# The Route A flip. d098 (ruled 09-25) publishes Route A tag-only and leaves the flip to a
+# later call with two branches: flip once #1013's proposed condition holds, or wait for
+# #578's exact-k gate as docs/us-release-build-rule.md is written. plangraph scenarios can
+# drop items but cannot rewire an edge, so the plan carries one flip item per branch and
+# each scenario drops the other.
+#
+# Needs plangraph main from 2026-09-28 (TheAxiomFoundation/plangraph #1), which has seat
+# `unlevelled` and scenario `dropItems`. Run: bun <plangraph>/src/cli.ts check docs/roadmap.yaml
+name: Microcosm US and UK roadmap
+calendar:
+  startYear: 2026
+  startMonth: 9
+  horizonMonths: 12
+  fundingYearStartMonth: 0
+# Booking priority when leveling. release: the certified defaults and what gates them.
+# commitment: external dates. platform: CI, dashboard, data follow-ups. graph: the
+# graph-native line, whose full-source compute waits on funding (d112, parked 09-23).
+circles: [release, commitment, platform, graph]
+escalation: {rate: 0, basis: A}
+
+seats:
+  # Max leads; leveling never waits for room on him, and his overload is reported instead.
+  - {id: max, title: Max, loadedAnnual: 0, costBasis: A, hireMonths: [0], capacityFte: 1, fallback: null, unlevelled: true}
+  - {id: maria, title: María, loadedAnnual: 0, costBasis: A, hireMonths: [0], capacityFte: 1, fallback: null}
+  - {id: vahid, title: Vahid, loadedAnnual: 0, costBasis: A, hireMonths: [0], capacityFte: 1, fallback: null}
+  - {id: anthony, title: Anthony, loadedAnnual: 0, costBasis: A, hireMonths: [0], capacityFte: 1, fallback: null}
+  - {id: ziming, title: Ziming, loadedAnnual: 0, costBasis: A, hireMonths: [0], capacityFte: 1, fallback: null}
+  - {id: david, title: David, loadedAnnual: 0, costBasis: A, hireMonths: [0], capacityFte: 1, fallback: null}
+  - {id: pavel, title: Pavel, loadedAnnual: 0, costBasis: A, hireMonths: [0], capacityFte: 1, fallback: null}
+
+items:
+  # ── Decisions from the 09-24 meeting (#1013) ───────────────────────────────────────
+  # Ruled 09-25: d098 publishes Route A tag-only with latest.json unchanged, the flip a
+  # separate later call; d178 builds the candidate from scratch on one main commit after
+  # the d179 change; d179 enforces the ty2020 W-2 tips exclusion at every vintage (#1029).
+  - id: route-a-rulings
+    lane: us-release
+    label: "Rule d098, d178 and d179 (Route A publish shape, provenance, tips row)"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: max, fte: 0.05, basis: A}]
+
+  # Due 09-25 (#1013). d150 (the #922 owner) was parked on 09-25 and #940 has no assignee on
+  # 09-29, so both are still open; October is assumed. #450 needed no owner: Max fixed it.
+  - id: owners-named
+    lane: us-release
+    label: "Name owners for County Files (#922, d150) and the state top tail (#940)"
+    circle: release
+    owner: max
+    earliest: 1
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: []
+    demands: [{seat: max, fte: 0.02, basis: A}]
+
+  # Answered and closed 09-24; #966 then merged.
+  - id: uk-823-answers
+    lane: uk
+    label: "Answer María's five #823 questions on promoting the UK national line"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: max, fte: 0.03, basis: A}]
+
+  # ── US Route A: the first certified release, then the flip (#956 acceleration A; d122) ──
+  # Merged 09-24 to 09-26: PR-1 #1016, PR-2 #1018, PR-3 #1017, PR-4 #1025, PR-5 #1024,
+  # and #992.
+  - id: route-a-remediation
+    lane: us-release
+    label: "Route A remediation merged through its gates (the five fix PRs and #992)"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: max, fte: 0.3, basis: A}]
+
+  # Declared: #1013 commits publication by 10-01. On 09-29 the base stage is moving to
+  # Modal because the Mac lacks the memory, and the release stage then runs on the Mac,
+  # about 14 h by estimate. One month holds it with a second pass. Published tag-only
+  # beside populace-us-2024-spm-20260915 (d098).
+  - id: route-a-certified-release
+    lane: us-release
+    label: "First certified Route A release, published tag-only (dense, national and state targets, d177 waiver bound)"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: route-a-remediation}, {id: route-a-rulings}]
+    demands: [{seat: max, fte: 0.2, basis: A}]
+
+  # Done: #1015 (merged 09-24) pins the publish-now, flip-later flow on the release-id tag.
+  - id: fix-450
+    lane: us-release
+    label: "Fix #450: publish non-default, then flip, without the 409"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: max, fte: 0.05, basis: A}]
+
+  # Flip branch 1: #1013's proposed condition (terminal gates and both preflights green,
+  # d177 bound in the manifest, a smoke comparison with no regressions beyond the waiver
+  # columns). Declared: #1013's route-a-default item resolves 10-01. Includes policyengine.py
+  # certifying the new default, days of work in past switches.
+  - id: route-a-flip-direct
+    lane: us-release
+    label: "Route A becomes the US default (latest.json flips; policyengine.py certifies it), direct flip"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: route-a-certified-release}, {id: fix-450}]
+    demands: [{seat: max, fte: 0.05, basis: A}]
+
+  # Flip branch 2: default status is earned through #578's gate on the exact-k arm
+  # (docs/us-release-build-rule.md).
+  - id: route-a-flip-after-578
+    lane: us-release
+    label: "Route A becomes the US default after the #578 exact-k gate passes"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: route-a-certified-release}, {id: fix-450}, {id: exact-k-gate-578}]
+    demands: [{seat: max, fte: 0.05, basis: A}]
+
+  # chronicle#278, the fix, merged 09-28 and closed chronicle#277; #961, the microcosm
+  # re-pin, is still a draft on 09-29. Duration A.
+  - id: chronicle-277
+    lane: us-release
+    label: "Chronicle consumer artifact: merge chronicle#278 and re-pin microcosm (#961)"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 2
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: max, fte: 0.05, basis: A}]
+
+  # #956 decision 1 ties it to chronicle#277. The release tool's exact-k arm also takes a
+  # multi-spine pool manifest (tools/build_us_fiscal_refresh_release.py), hence acs-multispine.
+  # Duration A. Anthony's #898 and #933 sit here.
+  - id: exact-k-gate-578
+    lane: us-release
+    label: "#578 improvement gate: an exact-k release beats the incumbent on the frozen register"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: chronicle-277}, {id: acs-multispine}]
+    demands: [{seat: max, fte: 0.1, basis: A}, {seat: anthony, fte: 0.1, basis: A}]
+
+  # Deadline: the six-column waiver lapses 2026-12-31 or at the next certified build,
+  # whichever is first (d177). Owner to be named; Max until then. Duration A.
+  - id: qrf-waiver-replacement
+    lane: us-release
+    label: "Replace the d177 QRF tail waiver before it lapses (#481 and follow-ups)"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 2
+    standing: false
+    underway: false
+    predecessors: [{id: route-a-certified-release}]
+    demands: [{seat: max, fte: 0.05, basis: A}]
+
+  # ── US SPM scope and the local-area file ────────────────────────────────────────────
+  # #956 decision 3: policyengine-us#9462 lands in the release that moves DEFAULT_DATASET to
+  # the first default declaring SPM scope. d096, the export ruling, was parked on 09-26, so
+  # October is assumed. Duration A.
+  - id: us-spm-scope
+    lane: us-release
+    label: "US SPM scope declared: rule d096, export the #977 producer, land policyengine-us#9462 with a scope-declaring default"
+    circle: release
+    owner: max
+    earliest: 1
+    duration: 2
+    standing: false
+    underway: false
+    predecessors: []
+    demands: [{seat: max, fte: 0.15, basis: A}]
+
+  # #765: the 09-23 tag-only ACS local file has real hours; policyengine.py still pins the
+  # July file, and the new one waits on the SPM contract work (09-24 meeting). David checks
+  # it for the ABAWD analysis. Duration A.
+  - id: acs-local-spm
+    lane: us-local
+    label: "ACS local-area file meets the policyengine-us 2.x SPM contract and policyengine.py repins it (#765, #925)"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: us-spm-scope}]
+    demands: [{seat: max, fte: 0.1, basis: A}, {seat: david, fte: 0.05, basis: A}]
+
+  # ── UK: the 2024-25 national default (María; Vahid reviews) ─────────────────────────
+  # Deadline: on origin/main at 09-29 two SLC plan-2 entries (#868) expire 2026-10-03 and
+  # one UC housing entry (#882) 10-15. #1006 renewed savings interest to 10-22 and retired
+  # the target-fit deferral. Expiry is checked at build time, so a cut certified after
+  # 10-03 fails without this. Duration A.
+  - id: uk-register-october
+    lane: uk
+    label: "Renew or fix the UK register entries that expire in October (first on 10-03)"
+    circle: release
+    owner: maria
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: []
+    demands: [{seat: maria, fte: 0.05, basis: A}]
+
+  # #1013 and the 09-24 meeting: measure it by tenure before promotion (Nikhil's 08-19 flag).
+  - id: uk-mortgage-tenure
+    lane: uk
+    label: "Measure UK mortgage debt by tenure and answer the 08-19 flag"
+    circle: release
+    owner: maria
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: []
+    demands: [{seat: maria, fte: 0.1, basis: A}]
+
+  # Merged 09-25 through its licensed-build gates; #1012 (SPI-first order) merged 09-28.
+  - id: uk-1006-income-anchors
+    lane: uk
+    label: "#1006: UK income anchors at the calibration year, through its licensed-build gates"
+    circle: release
+    owner: maria
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: maria, fte: 0.3, basis: A}, {seat: vahid, fte: 0.1, basis: A}]
+
+  # #966 merged 09-24. Next a canonical cut is built, certified, inspected and promoted
+  # with --promote-line national, and a one-line PR makes it the UK default variant. No
+  # promotion is recorded as of 09-29. A national build takes minutes (#967); review sets
+  # the pace. Duration A.
+  - id: uk-2024-25-default
+    lane: uk
+    label: "UK 2024-25 national line promoted (canonical cut certified) and made the UK default"
+    circle: release
+    owner: maria
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: uk-823-answers}, {id: uk-mortgage-tenure}, {id: uk-register-october}]
+    demands: [{seat: maria, fte: 0.25, basis: A}, {seat: vahid, fte: 0.1, basis: A}]
+
+  # policyengine.py certifies the June 2023 UK release; #966 defers the consumer switch
+  # (#665 workstream I, tracking issue not filed). Owner to be named; Max until then.
+  - id: uk-consumer-switch
+    lane: uk
+    label: "policyengine.py and policyengine-uk move to the 2024-25 line (#665 workstream I)"
+    circle: release
+    owner: max
+    earliest: 0
+    duration: 2
+    standing: false
+    underway: false
+    predecessors: [{id: uk-2024-25-default}]
+    demands: [{seat: max, fte: 0.05, basis: A}, {seat: vahid, fte: 0.1, basis: A}]
+
+  # Deadline: on origin/main at 09-29, 40 entries expire 11-25 and 11-26 and 18 more on 12-08.
+  - id: uk-register-november
+    lane: uk
+    label: "Renew or repair the UK register entries that expire from 11-25 (#623, #757, #867, #869, #882)"
+    circle: release
+    owner: maria
+    earliest: 1
+    duration: 2
+    standing: false
+    underway: false
+    predecessors: []
+    demands: [{seat: maria, fte: 0.15, basis: A}]
+
+  # Start: the land-value-tax constituency project plans same-vintage constituency and
+  # local-authority weights for October (María, Anthony), assuming a kickoff near 10-01.
+  # #823 proposals 3-4 set the local line's pointer; #898 is the exact-count workflow. Size
+  # is open (55k vs 110k against constituency ESS). Duration A.
+  - id: uk-local-area-weights
+    lane: uk
+    label: "UK constituency and local-authority weights on the 2024-25 line, and the local line published"
+    circle: commitment
+    owner: maria
+    earliest: 1
+    duration: 2
+    standing: false
+    underway: false
+    predecessors: [{id: uk-823-answers}]
+    demands: [{seat: maria, fte: 0.2, basis: A}, {seat: anthony, fte: 0.15, basis: A}]
+
+  # #901 (one UK full-build graph with all-geography calibration) merged 09-29; #932
+  # (identity-keyed atomic areas) is open. #956 defers the UK geography reordering to after
+  # the 28 October Autumn Budget. Duration A.
+  - id: uk-graph
+    lane: uk
+    label: "UK full-build graph (#901) and identity-keyed atomic-area geography (#932)"
+    circle: graph
+    owner: maria
+    earliest: 0
+    duration: 3
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: maria, fte: 0.15, basis: A}]
+
+  # ── County Files (#922), an external commitment ─────────────────────────────────────
+  # Deadline (#922): MVP target 6-10 weeks from a mid-September effective date, so late
+  # October to late November. With d150 parked the owner comes in October at the earliest,
+  # and a two-month build then ends in December, after the target. Owner to be named; Max
+  # until then. Duration A: inputs (#745, the county target surface, the 2023-county
+  # crosswalk), county-grain calibration, the 2026 and 2027 files, the derived-measures
+  # sidecar and schema docs.
+  - id: county-files-mvp
+    lane: county-files
+    label: "County Files MVP (#922) for 3,144 counties, 2026 and 2027"
+    circle: commitment
+    owner: max
+    earliest: 0
+    duration: 2
+    standing: false
+    underway: false
+    predecessors: [{id: owners-named}]
+    demands: [{seat: max, fte: 0.35, basis: A}]
+
+  # ── Graph-native line, kept apart from ACS multi-spine (09-24 meeting) ──────────────
+  # #1013 commitment for 10-01.
+  - id: graph-decoupling-plan
+    lane: graph
+    label: "Written plan separating the US graph switch from the ACS multi-spine work, with a date"
+    circle: graph
+    owner: max
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: max, fte: 0.1, basis: A}]
+
+  # #1011 merges main into the native line; it is still a draft on 09-29. Duration A.
+  - id: graph-1011-integration
+    lane: graph
+    label: "#1011 green: main merged into the graph-native line, lane PRs folded in"
+    circle: graph
+    owner: max
+    earliest: 0
+    duration: 2
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: max, fte: 0.3, basis: A}]
+
+  # The native graph today needs both ACS and ASEC sources, so a switch decoupled from ACS
+  # needs an ASEC-only profile that does not exist yet; the decoupling plan decides. #956
+  # (decided 09-27): the certified build reads no artifact built by policyengine-us-data
+  # code. Duration A.
+  - id: graph-native-candidate
+    lane: graph
+    label: "Graph-native candidate (input profile closed, release entry #996, small calibrated candidate and scorecard)"
+    circle: graph
+    owner: max
+    earliest: 0
+    duration: 2
+    standing: false
+    underway: false
+    predecessors: [{id: graph-1011-integration}, {id: graph-decoupling-plan}]
+    demands: [{seat: max, fte: 0.3, basis: A}]
+
+  # d112: full-source graph compute (a ~1 TiB machine) waits on funding. No source gives a
+  # date; December is a placeholder.
+  - id: graph-compute-funded
+    lane: graph
+    label: "Full-source graph compute funded and provisioned (d112)"
+    circle: graph
+    owner: max
+    earliest: 3
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: []
+    demands: [{seat: max, fte: 0.02, basis: A}]
+
+  # Declared 2026-10: #956's 09-18 step list (serial sum 3-5 weeks) put this run in early
+  # October, before d112. Duration from #956 steps 6-7: 3-6 days with fixes, plus about a
+  # day for certification; those figures assume the superseded #893 tree.
+  - id: graph-full-source-run
+    lane: graph
+    label: "Full-source native run, preflight and certification (#956 steps 6-7)"
+    circle: graph
+    owner: max
+    earliest: 1
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: graph-native-candidate}, {id: graph-compute-funded}]
+    demands: [{seat: max, fte: 0.2, basis: A}]
+
+  # #956 steps 8-10. Declared 2026-10: #956's 09-18 estimate put the median publish near
+  # 10-18. Acceleration A: the graph's launch criterion is reproducing the certified Route A
+  # release's receipts. Whether it must also pass #578 is open.
+  - id: graph-switch-default
+    lane: graph
+    label: "Graph-built US release becomes the default (#956 steps 8-10)"
+    circle: graph
+    owner: max
+    earliest: 1
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: graph-full-source-run}, {id: route-a-certified-release}]
+    demands: [{seat: max, fte: 0.2, basis: A}]
+
+  # ── ACS as a second US spine (#578), a separate question from the graph switch ──────
+  # The last stacked pool failed its by-origin battery (#856). No source gives a
+  # duration; the last attempt ran about five weeks and reached a 25% pool. Duration A;
+  # the November start waits for the decoupling plan and the October load.
+  - id: acs-multispine
+    lane: us-multispine
+    label: "ACS as a second US spine: a full-scale stacked ASEC and ACS pool that passes its battery (#578)"
+    circle: platform
+    owner: max
+    earliest: 2
+    duration: 3
+    standing: false
+    underway: false
+    predecessors: [{id: graph-decoupling-plan}]
+    demands: [{seat: max, fte: 0.2, basis: A}]
+
+  # ── US top-income tail ──────────────────────────────────────────────────────────────
+  # #958: nothing above $5M AGI. #1033 stopped the PUF imputation predicting income from
+  # itself (#982, merged 09-26); #960 (SOI size-of-AGI targets) is open and #964 (high-AGI
+  # PUF donors) a draft. #940 (state tail) has no owner. Open: ship Route A with a disclosed
+  # tail gap, or wait (09-24 triage); no edge until that is ruled. Duration A.
+  - id: us-top-tail
+    lane: us-release
+    label: "US top-income tail (#958 via #960 and #964; #940 to be owned)"
+    circle: platform
+    owner: max
+    earliest: 0
+    duration: 3
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: max, fte: 0.1, basis: A}]
+
+  # ── CI and tests (Anthony owns the restructure; 09-24 meeting) ──────────────────────
+  # Merged 09-27; it closed #997 and superseded Ziming's #1009, which closed 09-24.
+  - id: ci-998
+    lane: infra
+    label: "#998: CI test execution refactored, wheel CI reduced to artifact inspection"
+    circle: platform
+    owner: anthony
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: anthony, fte: 0.2, basis: A}, {seat: ziming, fte: 0.05, basis: A}]
+
+  # #1013 commitment for 10-01. Pavel and Ziming found duplicate tests (09-24 meeting).
+  - id: test-suite-proposal
+    lane: infra
+    label: "From-scratch test-suite proposal with baseline and target runner counts"
+    circle: platform
+    owner: anthony
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: []
+    demands: [{seat: anthony, fte: 0.1, basis: A}, {seat: ziming, fte: 0.05, basis: A}, {seat: pavel, fte: 0.03, basis: A}]
+
+  # No source gives a size; the proposal sets what done means. #1048 (short-lived
+  # processes for country-engine tests) merged 09-29. Duration A.
+  - id: test-suite-restructure
+    lane: infra
+    label: "Test suite rebuilt from the proposal to cut runner use"
+    circle: platform
+    owner: anthony
+    earliest: 0
+    duration: 3
+    standing: false
+    underway: false
+    predecessors: [{id: test-suite-proposal}, {id: ci-998}]
+    demands: [{seat: anthony, fte: 0.3, basis: A}, {seat: ziming, fte: 0.1, basis: A}, {seat: pavel, fte: 0.05, basis: A}]
+
+  # ── Calibration dashboard ───────────────────────────────────────────────────────────
+  # Merged 09-28.
+  - id: diagnostics-1007
+    lane: dashboard
+    label: "#1007: one calibration diagnostics schema and publication path"
+    circle: platform
+    owner: anthony
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: true
+    predecessors: []
+    demands: [{seat: anthony, fte: 0.1, basis: A}]
+
+  # #1013 commitment; the gate evidence is bound into the release manifests (#1017).
+  - id: dashboard-route-a
+    lane: dashboard
+    label: "Calibration dashboard shows the Route A release with its gate evidence and the QRF waiver"
+    circle: platform
+    owner: anthony
+    earliest: 0
+    duration: 1
+    standing: false
+    underway: false
+    predecessors: [{id: route-a-certified-release}, {id: diagnostics-1007}]
+    demands: [{seat: anthony, fte: 0.05, basis: A}]
+
+# Not modeled: the UK Autumn Budget (28 October), which runs on policyengine-uk-data and
+# loads the UK team in October; the UK graph switch after the US one; annual data-vintage
+# rolls (the 2025 ASEC pin, #1044, merged 09-29); County Files options and post-MVP
+# updates; formal verification of tests; the employer-firm frame.
+streams: []
+funding: []
+nonLabor: []
+
+scenarios:
+  - id: proposed
+    name: "Flip as proposed"
+    gist: "Route A published tag-only (d098), then flipped once #1013's proposed condition holds. Capacity is reported, not enforced."
+    level: false
+    dropItems: [route-a-flip-after-578]
+  - id: rule-as-written
+    name: "Build rule as written"
+    gist: "The flip waits for #578's exact-k gate (docs/us-release-build-rule.md), which needs the Chronicle re-pin and a full-scale ACS multi-spine pool."
+    level: false
+    dropItems: [route-a-flip-direct]
+  - id: leveled
+    name: "Flip as proposed, capacity-leveled"
+    gist: "Movable work slides until its people have room. Max absorbs rather than slips, so his overload stays on the page."
+    level: true
+    dropItems: [route-a-flip-after-578]
+  - id: slower
+    name: "Half again as long"
+    gist: "Every planned duration times 1.5, rounded, because nearly every duration here is assumed."
+    level: false
+    durationScale: 1.5
+    dropItems: [route-a-flip-after-578]
+  - id: no-graph-funding
+    name: "No graph compute in the horizon"
+    gist: "d112's funding never arrives, so the full-source graph run and the graph switch do not happen."
+    level: false
+    dropItems: [route-a-flip-after-578, graph-compute-funded]
