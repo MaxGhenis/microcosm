@@ -121,6 +121,7 @@ from microcosm.build.us_runtime.workers_compensation import (
 __all__ = [
     "US_ASEC_REPORTED_RECEIPT_REQUIRED_INPUTS",
     "US_CGD_ROUTE_REQUIRED_INPUTS",
+    "US_PUBLIC_PENSION_REQUIRED_INPUTS",
     "US_RELEASE_INPUT_COVERAGE_RESOURCE",
     "POST_REFERENCE_ECPS_REQUIRED_INPUTS",
     "REFERENCE_ECPS_LAYER_RENAMES",
@@ -181,6 +182,11 @@ POST_REFERENCE_ECPS_REQUIRED_INPUTS = frozenset(
         "receives_wic",
         "receives_snap",
         "receives_tanf",
+        # PolicyEngine/microcosm#1068: the public pension leaves the base build
+        # derives from the ASEC pension source codes (cps_carried). The frozen
+        # reference wrote every pension dollar to the private leaves.
+        "taxable_public_pension_income",
+        "tax_exempt_public_pension_income",
         # The engine's one declared dataset source input
         # (policyengine_us.spm.DATASET_SOURCE_INPUTS): without it a 15-to-17-
         # year-old heading an SPM unit is unclassified and the whole
@@ -285,6 +291,21 @@ US_ASEC_REPORTED_RECEIPT_REQUIRED_INPUTS = (
     "receives_wic",
     "receives_snap",
     "receives_tanf",
+)
+
+#: PolicyEngine/microcosm#1068: the two public pension leaves the base build
+#: derives from the ASEC pension source codes (``cps_carried``: ``PEN_SC1``/
+#: ``PEN_SC2`` 3-7 with ``PEN_VAL1``/``PEN_VAL2``). PolicyEngine-US state rules
+#: read them (AZ, ID, MI, MN, MO and NE in 2.2.1; AL, KS, LA, MA and NY from
+#: policyengine-us#9512), while the frozen reference eCPS wrote every pension
+#: dollar to the private leaves. Hard requirements with NO reviewed exclusion,
+#: so a release that drops or zeroes them, putting every government pension back
+#: on the private leaves, fails the coverage gate. Every published default
+#: predates the split, so the gate is red on them by design until a national
+#: build persists the leaves.
+US_PUBLIC_PENSION_REQUIRED_INPUTS = (
+    "taxable_public_pension_income",
+    "tax_exempt_public_pension_income",
 )
 
 
@@ -869,6 +890,20 @@ def assert_release_input_coverage_manifest_current(
             failures.append(
                 f"{receipt_input}: ASEC reported-receipt input must be a "
                 "required manifest column (#978)."
+            )
+
+    for pension_input in US_PUBLIC_PENSION_REQUIRED_INPUTS:
+        if pension_input in reviewed:
+            failures.append(
+                f"{pension_input}: public pension input is a reviewed exclusion, "
+                "but #1068 requires both public pension leaves be hard "
+                "requirements with no exclusion so a release cannot put every "
+                "government pension back on the private leaves."
+            )
+        elif pension_input not in required:
+            failures.append(
+                f"{pension_input}: public pension input must be a required "
+                "manifest column (#1068)."
             )
 
     for column in RESTORED_REFERENCE_ECPS_REQUIRED_INPUTS:

@@ -8989,9 +8989,9 @@ _canonical_full_transfer_keys = set(
     _surface_target_keys(_freeze_target_families(pool_transfer_target_families()))
 )
 if (
-    len(_canonical_surface_keys) != 134
-    or len(set(_canonical_surface_keys)) != 134
-    or len(_canonical_early_transfer_keys) != 48
+    len(_canonical_surface_keys) != 136
+    or len(set(_canonical_surface_keys)) != 136
+    or len(_canonical_early_transfer_keys) != 50
     or len(_canonical_late_transfer_keys) != 70
     or len(_canonical_late_puf_producer_keys) != 43
     or len(_canonical_late_source_producer_keys) != 29
@@ -9002,7 +9002,7 @@ if (
     or _canonical_early_transfer_keys & _canonical_late_transfer_keys
     or _canonical_early_transfer_keys | _canonical_late_transfer_keys
     != _canonical_full_transfer_keys
-    or len(_canonical_full_transfer_keys) != 118
+    or len(_canonical_full_transfer_keys) != 120
     or set(_plan_target_keys(_CANONICAL_STACKED_GAP_FILL_PLAN_ANCHOR))
     != _canonical_early_transfer_keys
     or not _canonical_full_transfer_keys.issubset(_canonical_surface_keys)
@@ -9022,9 +9022,9 @@ if (
     )
 ):
     raise RuntimeError(
-        "Canonical stacked authority must partition the exact 118-target "
-        "transfer surface into 48 early gap-fill and 70 post-PUF targets "
-        "inside an exact 134-target terminal surface and metric registry; "
+        "Canonical stacked authority must partition the exact 120-target "
+        "transfer surface into 50 early gap-fill and 70 post-PUF targets "
+        "inside an exact 136-target terminal surface and metric registry; "
         "the late surface must be exactly covered by 43 PUF-clone and 29 "
         "ASEC-source producer targets with their declared two-target overlap."
     )
@@ -13416,7 +13416,7 @@ class OriginBatterySpec:
     """Test-seam grouping for per-column battery metrics.
 
     Production never accepts these specs from a caller: it consumes the
-    immutable 134-column canonical registry. The explicit test-authority seam
+    immutable 136-column canonical registry. The explicit test-authority seam
     groups its digested registry into specs so the comparison engine can reuse
     the same loop. ``clone_index`` scopes a fixture comparison to one clone
     role: 0 compares native rows and 1 compares a PUF arm.
@@ -13470,7 +13470,7 @@ def by_origin_battery(
     *,
     tail_manifest: Mapping[str, object] | None = None,
 ) -> GateResult:
-    """Run the canonical 134-target plus joint by-origin battery."""
+    """Run the canonical 136-target plus joint by-origin battery."""
 
     return _by_origin_battery_evaluate(
         frame,

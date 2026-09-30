@@ -522,6 +522,16 @@ metric_registry:
   clone_index: 0
   metric: monetary_sign_separated
 - entity: person
+  family: source_operator_cps_carried
+  column: tax_exempt_public_pension_income
+  clone_index: 0
+  metric: monetary_sign_separated
+- entity: person
+  family: source_operator_cps_carried
+  column: taxable_public_pension_income
+  clone_index: 0
+  metric: monetary_sign_separated
+- entity: person
   family: source_operator_disability_benefits
   column: disability_benefits
   clone_index: 0

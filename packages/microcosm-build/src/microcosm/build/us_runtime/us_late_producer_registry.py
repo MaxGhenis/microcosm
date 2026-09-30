@@ -1269,6 +1269,16 @@ def _transfer_input_inventory(group: TransferProducerGroup) -> SourceInputInvent
                     value_kind="finite_numeric",
                 ),
                 _column(
+                    "person",
+                    "taxable_public_pension_income",
+                    value_kind="finite_numeric",
+                ),
+                _column(
+                    "person",
+                    "tax_exempt_public_pension_income",
+                    value_kind="finite_numeric",
+                ),
+                _column(
                     "person", "taxable_ira_distributions", value_kind="finite_numeric"
                 ),
             ),

@@ -182,6 +182,7 @@ def _pregnancy_structural_policy_identity(*, enabled: bool) -> dict[str, object]
     ).hexdigest()
     return payload
 
+
 _IMMIGRATION_STATUS_TARGETS = (
     "ssn_card_type",
     "immigration_status_str",
@@ -240,6 +241,8 @@ _DONOR_COMBINED_COMPONENTS: Mapping[str, tuple[str, ...]] = {
     _RETIREMENT_FEATURE: (
         "taxable_private_pension_income",
         "tax_exempt_private_pension_income",
+        "taxable_public_pension_income",
+        "tax_exempt_public_pension_income",
         "taxable_ira_distributions",
     ),
     _INVESTMENT_FEATURE: (
@@ -249,6 +252,18 @@ _DONOR_COMBINED_COMPONENTS: Mapping[str, tuple[str, ...]] = {
         "non_qualified_dividend_income",
         "rental_income",
         "estate_income",
+    ),
+}
+
+#: Donor components a donor built before the public/private pension split
+#: (PolicyEngine/microcosm#1068) lacks. Such a donor carried every pension
+#: dollar on the private leaves, so the public pair is exactly zero there and
+#: the retirement analog is the sum of the components it has; a donor built
+#: after the split must carry both public leaves (the release coverage gate
+#: requires them). Any other missing component still drops the analog.
+_PRE_PENSION_SPLIT_ABSENT_COMPONENTS: Mapping[str, frozenset[str]] = {
+    _RETIREMENT_FEATURE: frozenset(
+        {"taxable_public_pension_income", "tax_exempt_public_pension_income"}
     ),
 }
 
@@ -876,9 +891,10 @@ def acs_transfer_donor_requirements(
     ):
         if source in person.columns:
             required[donor.schema.person_entity].add(source)
-    for components in _DONOR_COMBINED_COMPONENTS.values():
-        if all(component in person.columns for component in components):
-            required[donor.schema.person_entity].update(components)
+    for feature, components in _DONOR_COMBINED_COMPONENTS.items():
+        present = _present_donor_components(person.columns, components, feature)
+        if present is not None:
+            required[donor.schema.person_entity].update(present)
 
     housing = bool(_HOUSING_TRANSFER_TARGETS.intersection(target_names))
     head_source = next(
@@ -1138,8 +1154,8 @@ def _prepare_pregnancy_structural_plan(
             "through 44."
         )
 
-    source_codes, group_count, key_column, representatives = (
-        _pregnancy_source_groups(table)
+    source_codes, group_count, key_column, representatives = _pregnancy_source_groups(
+        table
     )
     eligible_min = np.ones(group_count, dtype=np.int8)
     eligible_max = np.zeros(group_count, dtype=np.int8)
@@ -1449,9 +1465,7 @@ def transfer_acs_inputs(
                 person,
                 pregnancy_plan,
             )
-            pregnancy_entity, pregnancy_family, pregnancy_targets = (
-                pregnancy_request
-            )
+            pregnancy_entity, pregnancy_family, pregnancy_targets = pregnancy_request
             if pregnancy_targets != (_PREGNANCY_TARGET,):  # pragma: no cover
                 raise AssertionError(
                     "Pregnancy structural target was not isolated before receipt."
@@ -2694,6 +2708,28 @@ def _person_column(frame: Frame, column: str) -> pd.Series | None:
     return pd.Series(_as_float_array(series), index=person.index, name=column)
 
 
+def _present_donor_components(
+    columns: pd.Index,
+    components: Sequence[str],
+    feature: str,
+) -> tuple[str, ...] | None:
+    """The components a donor's analog sums, or ``None`` when it cannot form.
+
+    All components when the donor carries all of them; the rest when it lacks
+    exactly the public pension pair of a pre-split donor
+    (:data:`_PRE_PENSION_SPLIT_ABSENT_COMPONENTS`); otherwise ``None``.
+    """
+
+    missing = frozenset(
+        component for component in components if component not in columns
+    )
+    if not missing:
+        return tuple(components)
+    if missing == _PRE_PENSION_SPLIT_ABSENT_COMPONENTS.get(feature, frozenset()):
+        return tuple(component for component in components if component not in missing)
+    return None
+
+
 def _complete_component_sum(
     frame: Frame,
     components: Sequence[str],
@@ -2701,8 +2737,10 @@ def _complete_component_sum(
     feature: str,
 ) -> pd.Series | None:
     person = frame.table(frame.schema.person_entity)
-    if any(component not in person.columns for component in components):
+    present = _present_donor_components(person.columns, components, feature)
+    if present is None:
         return None
+    components = present
     columns = person.loc[:, list(components)]
     _validate_optional_numeric_frame(
         columns,

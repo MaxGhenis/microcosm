@@ -348,19 +348,19 @@ EXPECTED_LEGACY_RELEASE_REGEX = EXPECTED_RELEASE_REGEX.replace(
 EXPECTED_HASHES = {
     "acs_group_predictors": "a927bb7ecf3e84f54c93583ab79318654514ac546aefafba67da5285615fbd60",
     "acs_person_predictors": "878c788a6f037d7aca12b3586ea034eff04f3034ffa11935a736493042551f25",
-    "authority": "9d4a9672a0f03039b1fe874b9fe21ed575be0d29f14afc396d03cdf5c809bdd2",
-    "early_families": "4aa9f736fd76e83955477ad1667e58f48f264783f05bdc7f0102cd32d61323bd",
-    "full_checkpoint": "3db095ce2d1ef89028d3862f0edc827d704f099c5b3323f9b115642a3c27e007",
-    "gap_fill_schedule": "1c31f9868f7884347cc19cf1ff65da43f950b9114941a715bab168246db414a7",
-    "graph_nodes": "40cd51ffdfe2e9d9d08d48c08e8ded9de1e4b134783bab05c4abc6ad5c72ca1e",
+    "authority": "82fe68e61fa8804287701057b8c7083a7aafc466b736ed99324604c23e99e7e1",
+    "early_families": "4d88cec9900f9c7c8fbc4545c27f04562c03c91a4dc4cadfce6e8c546bfd14d2",
+    "full_checkpoint": "6d462ca4560b2ed4aea5165e3119f21d63e5d86950ac3a5fa82dc0840655cd23",
+    "gap_fill_schedule": "ed3219c5bfdb1b846c4a688610c6b8a5f5b7454afd457956c40252490093ed0f",
+    "graph_nodes": "699cf4bf0b7a8653dbd7b3b2dea895a16962662d2f5b78a3daa1544a8e970802",
     "geography_assignment": "44e7f5f6cd7ceeef85d532c3d46306d03de4f4ee811376e6d29920742746b65c",
     "late_families": "d91f9ff0eb52f43e7b6eed3d5c58c37abe1620c3a11021da15dae9c10e16d382",
-    "late_resource_semantics": "cc34ba11288d01145fc2dc1a669df3f7c4ef2019d73afb02dd8eeee852b16d20",
-    "late_schedule": "e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f",
+    "late_resource_semantics": "6b072f981efe0a6e697824bd9ad00677c28b83a894cc288a17d53312dfbaf003",
+    "late_schedule": "a000124f70cfcd68f5246386a4feff53367ca88d44a97680e0a4d218d00654e3",
     "ownership": "5f64f0aac49e2313177564f71876bffc8c81b3ded4df701e70930e60e9c98356",
     "primary_tuples": "fdf23da429f8c501e198a2f5b719763d523a41565c2153fdf17b0344f21bcd7c",
-    "seed_map": "3cf10a524310ea0ada18ddc65cfa585d1d0652d23e7d7a180c050ac686224e28",
-    "seed_protocol": "91989ed5e366e19598f86335b2e66723dcb2b6481a78d0dbeb83183a1aa09bd4",
+    "seed_map": "7c61f368e37c0ea1f4c8061d249d4a8531e90ebf37212ced42ef2320ad8da52a",
+    "seed_protocol": "dd90f34861aa78710f0f3b915c8cc282685781936d394bf99e48f04417e5874b",
     "source_manifest": "f4f8bfeb79268a4043a843b47cec1d1c0e58e9f5dd6bc23417ada95446dd7b8e",
     "take_up": "9522ce40f7dea569312dd7a7beb474e5a5afadd2f1e10cb5876534c3ef623d35",
     "tail": "ac92829c88a1a4fb6460d61190918d5d99c6c377fc8dd8f62f02b332d09bf59c",
@@ -724,7 +724,7 @@ def build_inventory_coverage(
         "early_gap_fill_plan_exact",
         clauses={
             "early family count differs": len(early) == 13,
-            "early target count differs": early_targets == 48,
+            "early target count differs": early_targets == 50,
             "early family content digest differs": sha256_json(early)
             == EXPECTED_HASHES["early_families"],
             "compiled gap-fill plan differs": _json_equal(
@@ -741,7 +741,7 @@ def build_inventory_coverage(
         },
         expected={
             "families": 13,
-            "targets": 48,
+            "targets": 50,
             "sha256": EXPECTED_HASHES["early_families"],
         },
     )

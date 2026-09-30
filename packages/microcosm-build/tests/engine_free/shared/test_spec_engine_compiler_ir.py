@@ -22,7 +22,7 @@ from microcosm.build.spec_engine.model import (
 )
 from microcosm.build.spec_engine.resolver import F0_CONTRACT_ONLY_KERNEL_IDS
 
-US_SCHEDULE_SHA256 = "e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f"
+US_SCHEDULE_SHA256 = "a000124f70cfcd68f5246386a4feff53367ca88d44a97680e0a4d218d00654e3"
 
 
 @pytest.fixture(scope="module")
@@ -140,7 +140,7 @@ def test_us_node_slices_are_transitive_and_content_attested(
 def test_ir_retains_all_typed_resolution_products(compiled_us: CompiledSpecIR) -> None:
     inventory = compiled_us.typed_inventory
     assert len(inventory["entities"]) == 8
-    assert len(inventory["columns"]) == 176
+    assert len(inventory["columns"]) == 178
     assert len(inventory["artifacts"]) == 84
     assert len(inventory["scopes"]) == 7
     assert len(inventory["references"]) == 334

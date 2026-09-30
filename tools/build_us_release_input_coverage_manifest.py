@@ -94,6 +94,21 @@ POST_REFERENCE_ECPS_REQUIRED_INPUTS = (
     "receives_wic",
     "receives_snap",
     "receives_tanf",
+    # PolicyEngine/microcosm#1068: the public pension leaves the base build
+    # derives from the ASEC pension source codes.
+    "taxable_public_pension_income",
+    "tax_exempt_public_pension_income",
+)
+
+# Shared tail of the two #1068 public pension notes.
+_PUBLIC_PENSION_NOTE_TAIL = (
+    "PolicyEngine-US state rules read it (AZ, ID, MI, MN, MO and NE in 2.2.1; "
+    "AL, KS, LA, MA and NY from PolicyEngine/policyengine-us#9512), while the "
+    "reference eCPS and every published default put every pension dollar on "
+    "the private leaves. Required with NO reviewed exclusion per "
+    "PolicyEngine/microcosm#1068, so a release that drops or zeroes it fails "
+    "the coverage gate. Every published default predates the split, the "
+    "intended red gate until a national build persists it."
 )
 
 # Shared tail of the three #978 reported-receipt notes: why each is a hard
@@ -185,6 +200,19 @@ POST_REFERENCE_COLUMN_NOTES = {
         "unit), carried by cps_carried.derive_us_cps_carried_inputs; a "
         "formula-less monthly boolean spm_unit input in PolicyEngine-US "
         "2.2.1. " + _RECEIPT_INPUT_NOTE_TAIL
+    ),
+    "taxable_public_pension_income": (
+        "Taxable government pension income: ASEC pension sources coded 3-7 "
+        "(federal, state, local, US military, US Railroad Retirement) in "
+        "PEN_SC1/PEN_SC2, their PEN_VAL1/PEN_VAL2 amounts at the 59.0% taxable "
+        "fraction, carried by cps_carried.derive_us_cps_carried_inputs; PUF "
+        "clones split the imputed E01700 total by their CPS public share. "
+        + _PUBLIC_PENSION_NOTE_TAIL
+    ),
+    "tax_exempt_public_pension_income": (
+        "Tax-exempt government pension income: the same ASEC public pension "
+        "sources at the 41.0% tax-exempt fraction, carried by "
+        "cps_carried.derive_us_cps_carried_inputs. " + _PUBLIC_PENSION_NOTE_TAIL
     ),
     "receives_tanf": (
         "ASEC reported TANF receipt (any member with PAW_VAL > 0 and PAW_TYP "
@@ -1624,7 +1652,10 @@ def build_manifest() -> dict:
             "(PolicyEngine/microcosm#462), the three ASEC reported-receipt "
             "inputs receives_wic, receives_snap, receives_tanf that the ACS "
             "local-area transfer requires in its donor "
-            "(PolicyEngine/microcosm#978 option 1), and the engine's declared "
+            "(PolicyEngine/microcosm#978 option 1), the two public pension "
+            "leaves taxable_public_pension_income and "
+            "tax_exempt_public_pension_income derived from the ASEC pension "
+            "source codes (PolicyEngine/microcosm#1068), and the engine's declared "
             "dataset source input is_spm_independent_minor_role (the "
             "spm_independence_role base-builder stage; "
             "PolicyEngine/microcosm#893). "

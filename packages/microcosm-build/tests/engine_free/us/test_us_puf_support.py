@@ -855,7 +855,13 @@ def test_cps_carried_derivations_create_leaf_inputs_not_aggregates() -> None:
     )
     assert person["social_security_retirement"].tolist() == [1_000.0, 0.0, 0.0]
     assert person["social_security_disability"].tolist() == [0.0, 900.0, 800.0]
-    assert person["taxable_private_pension_income"].tolist() == [649.0, 0.0, 0.0]
+    # The company pension plus the annuity is private, the state pension public.
+    np.testing.assert_allclose(
+        person["taxable_private_pension_income"].to_numpy(), [413.0, 0.0, 0.0]
+    )
+    np.testing.assert_allclose(
+        person["taxable_public_pension_income"].to_numpy(), [236.0, 0.0, 0.0]
+    )
     assert person["taxable_ira_distributions"].tolist() == [500.0, 0.0, 0.0]
     assert person["rental_income"].tolist() == [20.0, 0.0, 0.0]
     assert person["farm_operations_income"].tolist() == [5.0, 0.0, 0.0]

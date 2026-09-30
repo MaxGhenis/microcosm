@@ -334,6 +334,13 @@ PUF_TAX_DETAIL_SOCIAL_SECURITY_COMPONENT_OUTPUTS = (
     "social_security_survivors",
 )
 
+#: The PUF reports one taxable pension total (E01700), imputed onto
+#: ``taxable_private_pension_income``; finalization splits it between these
+#: two leaves by the clone's copied CPS public/private shares
+#: (:func:`_reconcile_puf_pension_components`).
+PUF_TAX_DETAIL_PENSION_TOTAL_OUTPUT = "taxable_private_pension_income"
+PUF_TAX_DETAIL_PUBLIC_PENSION_COMPONENT = "taxable_public_pension_income"
+
 PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS: tuple[str, ...] = (
     "domestic_production_ald",
     "unrecaptured_section_1250_gain",
@@ -2046,6 +2053,14 @@ def finalize_us_puf_tax_detail_predictions(
         tax_unit_ids=tax_unit_ids,
         requested_components=person_outputs,
     )
+    public_pension_totals = _reconcile_puf_pension_components(
+        predictions,
+        tables["person"],
+        person_clone_index=person_clone_index,
+        tax_unit_ids=tax_unit_ids,
+        tax_unit_weights=_tax_unit_household_weights(frame, tax_unit_ids),
+        requested_outputs=person_outputs,
+    )
     for column in tax_unit_outputs:
         _ensure_float_output_column(
             tables["tax_unit"],
@@ -2122,6 +2137,19 @@ def finalize_us_puf_tax_detail_predictions(
                     column, ()
                 ),
             )
+    if public_pension_totals is not None:
+        _ensure_float_output_column(
+            tables["person"],
+            PUF_TAX_DETAIL_PUBLIC_PENSION_COMPONENT,
+            preserve_nulls=preserve_nulls,
+        )
+        _write_person_tax_unit_totals(
+            tables["person"],
+            mask=person_puf_mask,
+            column=PUF_TAX_DETAIL_PUBLIC_PENSION_COMPONENT,
+            totals=pd.Series(public_pension_totals, index=tax_unit_ids),
+            nonnegative=True,
+        )
     for column in person_outputs:
         if column in _PUF_TAX_DETAIL_SPARSE_PERSON_OUTPUTS:
             _sparsify_tax_unit_person_output_to_donor_positive_rate(
@@ -4232,6 +4260,71 @@ def _reconcile_puf_social_security_components(
     )
     for index, component in enumerate(components):
         predictions[component] = shares[:, index] * total
+
+
+def _reconcile_puf_pension_components(
+    predictions: pd.DataFrame,
+    person: pd.DataFrame,
+    *,
+    person_clone_index: str,
+    tax_unit_ids: np.ndarray,
+    tax_unit_weights: np.ndarray,
+    requested_outputs: Sequence[str],
+) -> np.ndarray | None:
+    """Split each clone unit's PUF taxable pension into public and private.
+
+    The PUF observes one taxable pension total (E01700), which the chain
+    imputes onto ``taxable_private_pension_income``.  Every clone row also
+    carries its native twin's CPS-carried public and private taxable pensions,
+    copied at cloning; without this split a clone would add the twin's public
+    pension on top of a PUF total that already contains it.  Each clone tax
+    unit's total is divided by its copied CPS public share of taxable pension;
+    a unit whose twin reports no pension takes the clone arm's weighted public
+    share among units that do.  Public plus private always equals the imputed
+    total.  Returns the public totals per tax unit (``None`` when the chain did
+    not impute pensions or the frame carries no public leaf), and rewrites the
+    private prediction in place.
+    """
+
+    private = PUF_TAX_DETAIL_PENSION_TOTAL_OUTPUT
+    public = PUF_TAX_DETAIL_PUBLIC_PENSION_COMPONENT
+    if private not in requested_outputs or public not in person.columns:
+        return None
+    if private not in predictions:
+        raise ValueError(f"PUF pension predictions are missing column {private!r}.")
+    clone = person[person_clone_index] == PUF_TAX_DETAIL_CLONE_INDEX
+    basis = (
+        person.loc[clone, ["person_tax_unit_id", private, public]]
+        .set_index("person_tax_unit_id")
+        .apply(pd.to_numeric, errors="coerce")
+        .fillna(0.0)
+        .clip(lower=0.0)
+        .groupby(level=0, sort=False)
+        .sum()
+        .reindex(tax_unit_ids)
+        .fillna(0.0)
+    )
+    public_basis = basis[public].to_numpy(dtype=np.float64)
+    basis_total = public_basis + basis[private].to_numpy(dtype=np.float64)
+    has_basis = basis_total > 0.0
+    weights = np.asarray(tax_unit_weights, dtype=np.float64)
+    weighted_total = float((weights[has_basis] * basis_total[has_basis]).sum())
+    fallback_share = (
+        float((weights[has_basis] * public_basis[has_basis]).sum()) / weighted_total
+        if weighted_total > 0.0
+        else 0.0
+    )
+    share = np.full(len(tax_unit_ids), fallback_share, dtype=np.float64)
+    share[has_basis] = public_basis[has_basis] / basis_total[has_basis]
+    total = (
+        pd.to_numeric(predictions[private], errors="coerce")
+        .fillna(0.0)
+        .clip(lower=0.0)
+        .to_numpy(dtype=np.float64)
+    )
+    public_total = share * total
+    predictions[private] = total - public_total
+    return public_total
 
 
 def _person_source_values(

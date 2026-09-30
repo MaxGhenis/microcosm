@@ -352,9 +352,9 @@ POOL_ENGINE_INPUT_PROJECTION_CONTRACT = PoolEngineInputProjectionContract(
 
 POOL_SSI_INPUT_PROVISION_COUNTS: tuple[tuple[str, int], ...] = (
     ("assembled_native_person_input", 1),
-    ("declared_absent_engine_input", 18),
+    ("declared_absent_engine_input", 16),
     ("declared_deferred_null_input", 3),
-    ("materialized_pool_input_surface", 31),
+    ("materialized_pool_input_surface", 33),
     ("seed_stage_program_contract", 1),
 )
 """How each SSI input leaf is provisioned, by count.
@@ -367,11 +367,11 @@ is asserted.
 
 POOL_PROJECTION_INPUT_PROVISION_COUNTS: tuple[tuple[str, int], ...] = (
     ("assembled_native_engine_input", 5),
-    ("declared_absent_engine_input", 763),
+    ("declared_absent_engine_input", 761),
     ("declared_deferred_null_input", 3),
     ("derived_schedule_d_input", 1),
     ("frame_structural_engine_input", 10),
-    ("materialized_pool_input_surface", 122),
+    ("materialized_pool_input_surface", 124),
     ("preserved_stacked_engine_input", 4),
     ("seed_stage_program_contract", 17),
     ("unprovisioned_source_input", 1),
@@ -383,7 +383,7 @@ tool re-derives every engine-pinned quantity this module carries.
 """
 
 POOL_REMAINING_STAGE_INPUT_MANIFEST_SHA256 = (
-    "0a84565a659a6404cb17715dda36f094a87431c713c7a37bf65a936b16937325"
+    "9c664dcd6b2f9ad9c63c3421a8fe17bdb0334733214f58eb4daf7e0754c73555"
 )
 """Pinned content digest of all 1,059 post-transfer consumer/input rows."""
 

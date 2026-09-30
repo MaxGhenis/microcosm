@@ -972,7 +972,7 @@ def test_legacy_entrypoint_publication_matches_origin_main_golden(
         # and the pool engine contracts it binds were re-derived for 2.2.1.
         # pool_h5 and agreement above are unchanged, so only the identity
         # surface moved, not the pool content.
-        "manifest": "e4692aa45f05826eb0097a7ae76dcbc712c13886a4d23a9c6a62b53752e323f1",
+        "manifest": "8f450102fa59cbe2449a23df111aba1f17ff5c96da181d0a763784671ad94bbd",
     }
 
 

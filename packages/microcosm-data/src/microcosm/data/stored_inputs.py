@@ -330,8 +330,9 @@ US_STORED_NON_VARIABLE_COLUMNS: Mapping[str, str] = MappingProxyType(
         "acs_retirement_income": _ACS_NATIVE_COMBINED.format(
             detail="the person's ACS RETP retirement income, times ADJINC",
             components=(
-                "taxable_private_pension_income, "
-                "tax_exempt_private_pension_income and taxable_ira_distributions"
+                "taxable_private_pension_income, tax_exempt_private_pension_income, "
+                "taxable_public_pension_income, tax_exempt_public_pension_income "
+                "and taxable_ira_distributions"
             ),
         ),
         "acs_interest_dividend_rental_income": _ACS_NATIVE_COMBINED.format(

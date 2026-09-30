@@ -144,6 +144,11 @@ def _raw_asec_predictor_frame(*, with_tax_unit_roles: bool = False) -> Frame:
                 "RESNSS1": [1, 2, 0],
                 "RESNSS2": [0, 0, 0],
                 "PNSN_VAL": [1_000.0, 0.0, 0.0],
+                # A $600 company pension and a $400 state government pension.
+                "PEN_SC1": [1, 0, 0],
+                "PEN_VAL1": [600.0, 0.0, 0.0],
+                "PEN_SC2": [4, 0, 0],
+                "PEN_VAL2": [400.0, 0.0, 0.0],
                 "ANN_VAL": [100.0, 0.0, 0.0],
                 "DST_SC1": [4, 3, 0],
                 "DST_VAL1": [500.0, 200.0, 0.0],

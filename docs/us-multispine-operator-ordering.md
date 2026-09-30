@@ -755,6 +755,8 @@ T(E) = F(p.age) + F(p.is_female) + p.@weight + E.@weight
         | F(p.acs_social_security_income)] ?R
      + [(F(p.taxable_private_pension_income)
          + F(p.tax_exempt_private_pension_income)
+         + F(p.taxable_public_pension_income)
+         + F(p.tax_exempt_public_pension_income)
          + F(p.taxable_ira_distributions))
         | F(p.acs_retirement_income)] ?R
      + [(F(p.taxable_interest_income) + F(p.tax_exempt_interest_income)
@@ -942,7 +944,7 @@ Registry schema version 17 and execution-receipt contract version 4 bind the
 canonical input declarations, outputs, edges, waves, exact kind-specific
 virtual-resource bindings, content-hashed execution-row schema, and immutable
 transition authority version 2. The schedule SHA-256 is
-`e59c019d3d454eac99ac0ac209b6c5b6faaf9bdfcaeee18c36a25be19bf7da2f`;
+`a000124f70cfcd68f5246386a4feff53367ca88d44a97680e0a4d218d00654e3`;
 the full payload SHA-256 is
 `7be038d34f228d66c12b53558fc5f30c93f1b376f1058c5e4fd7e7563a88d67f`.
 Reversing registry iteration produces those same bytes.
@@ -965,7 +967,7 @@ and valid. Neither receipt authorizes an upstream null.
 
 | Boundary | Hard requirement | Stacked 1% supplier | Can an upstream insufficient-support/unmodeled state starve it? |
 |---|---|---|---|
-| Early gap-fill handoff | Donors observe every declared target; every recipient null is filled except the exact ACS group-quarters rent rule. Nonstructural `unmodeled_rows` and residual nulls are forbidden. | The pre-clone ASEC source operators supply 48 early targets to the two ASEC-to-ACS directions. | No accepted starvation remains. A nonstructural residual fails before cloning; literal `insufficient_support` is not an early-transfer outcome. |
+| Early gap-fill handoff | Donors observe every declared target; every recipient null is filled except the exact ACS group-quarters rent rule. Nonstructural `unmodeled_rows` and residual nulls are forbidden. | The pre-clone ASEC source operators supply 50 early targets to the two ASEC-to-ACS directions. | No accepted starvation remains. A nonstructural residual fails before cloning; literal `insufficient_support` is not an early-transfer outcome. |
 | Clone attachment | Input rows are all clone 0; the seeded whole-household selection, lineage, pair weights, fraction, and seed agree exactly. | The completed gap-filled stack and the attachment sampler. | A permitted structural rent null is copied with its authority. Any other early residual has already failed. |
 | PUF raw predictor sources | Every filing-status, count, and income component is observed in its declared source universe. Raw WAGP/SEMP authority is present and agrees with mapped leaves; a cross-grain source collision is rejected. A null on any eligible member fails before coercion. | Structure supplies status/count; ACS-native or ASEC-carried earnings supply earnings; early transfer supplies interest, dividends, and gains. | No. ACS under-15 WAGP/SEMP blanks are an exact source-universe state, not transfer starvation; all other source nulls fail. |
 | PUF tax-unit features | Every clone-1 recipient has a finite feature vector. Post-aggregation NaN, `+inf`, and `-inf` are counted by named predictor and rejected before fitting; none is coerced or snapped to zero. | Universe-aware person sums plus tax-unit structural inputs. | No. Eligible member values must be complete; the only special case is an all-child unit whose numeric-zero predictor is explicitly owned and counted by the named universe-zero rule. |
@@ -981,7 +983,7 @@ and valid. Neither receipt authorizes an upstream null.
 | Take-up seed | Every administratively seeded variable completes; transfer-owned take-up cannot use a default; only explicitly non-transfer-owned inputs may use receipted engine defaults. | Seed kernels, the complete transfer surface, and declared defaults. | Transfer-owned residuals fail. A declared default is a separate modeled state, not an insufficient-support receipt. |
 | SSI simulation projection | Every nullable engine input has a declared default on the disposable projection; the engine returns exactly one SSI value per person. | The persistent derived/seeded pool plus separately receipted ephemeral defaults. | A projection default can enable simulation but cannot cure the persistent pool; terminal evaluation returns to the original inputs plus SSI. |
 | Simulated checkpoint pair and resume | The persistent input-only frame and temporary evaluation frame must share exact assembly provenance; SSI exists only on the evaluation half. The live QBI receipt must authenticate the persistent frame at emission, durable write/load, and resume. | Derived/seeded persistent inputs plus the separately materialized SSI evaluation output. | No. A forged QBI receipt, altered persistent value, invalid SSI binding, or mismatched pair invalidates the simulated checkpoint and falls back only to an independently valid earlier stage. |
-| Terminal completeness | All 134 registered targets exist; every positive-weight value is metric-valid; a null needs exact source/role authority, and post-PUF targets forbid absence authority. | The 48 early targets, 70 late targets, derived leaves, take-up inputs, and SSI output. | No. Only the canonical group-quarters rent rule reaches this gate as null; base WAGP/SEMP leaves are outside the 134-target terminal surface. |
+| Terminal completeness | All 136 registered targets exist; every positive-weight value is metric-valid; a null needs exact source/role authority, and post-PUF targets forbid absence authority. | The 50 early targets, 70 late targets, derived leaves, take-up inputs, and SSI output. | No. Only the canonical group-quarters rent rule reaches this gate as null; base WAGP/SEMP leaves are outside the 136-target terminal surface. |
 | By-origin battery | All 134 clone-0 comparison surfaces are complete and valid before support is measured. | The terminal simulation frame, comparing ASEC and ACS native origins. | No. `insufficient_support` is assigned only after null and validity checks, so it cannot hide an upstream missing value. |
 | Manifest construction and canonical publication closure | Legacy and stacked builders reauthenticate QBI live output, canonical stacked authority, terminal-gate receipts, H5/diagnostics run IDs, and artifact digests before readiness can be asserted. | The validated persistent pool, immutable stage receipts, terminal gate snapshot, and atomically staged publication files. | No. Construction rejects forged or wrong-route receipts; publication begins with a non-ready tombstone, and only one fully authenticated run can replace it with a ready manifest. |
 
@@ -1142,7 +1144,7 @@ source ingestion and faithful schema harmonization
     -> derive
     -> seed take-up and other stochastic inputs
     -> simulate
-    -> completeness gate plus 134-target by-origin battery
+    -> completeness gate plus 136-target by-origin battery
     -> emit input-only pool, receipts, and terminal Logbook row
 ```
 

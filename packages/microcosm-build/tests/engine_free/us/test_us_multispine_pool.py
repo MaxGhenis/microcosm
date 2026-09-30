@@ -603,7 +603,7 @@ def test_pool_transfer_plan_extends_legacy_except_receipted_asset_deferrals() ->
     assert "has_marketplace_health_coverage" not in owners
 
     target_names = sorted(owners)
-    assert len(target_names) == 118
+    assert len(target_names) == 120
     assert (
         hashlib.sha256(("\n".join(target_names) + "\n").encode()).hexdigest()
         == "c792f12f0ef34f8a2ca9f16e68f5b306391eed56f120cda247bf778a95118c15"
@@ -625,7 +625,7 @@ def test_pool_transfer_plan_partitions_at_the_declared_producer_boundary() -> No
     puf_producers = keys(pool_post_puf_puf_producer_target_families())
     source_producers = keys(pool_post_puf_source_producer_target_families())
 
-    assert len(early) == 48
+    assert len(early) == 50
     assert len(late) == 70
     assert early.isdisjoint(late)
     assert early | late == full
@@ -661,7 +661,7 @@ def test_pool_input_surface_normalizes_all_four_source_registries() -> None:
     surface = pool_input_surface()
     by_name = {entry.variable: entry for entry in surface}
 
-    assert len(surface) == len(by_name) == 142
+    assert len(surface) == len(by_name) == 144
     assert [entry.variable for entry in surface] == sorted(by_name)
     assert Counter(
         provenance for entry in surface for provenance in entry.provenance
@@ -974,10 +974,10 @@ def test_remaining_stage_manifest_provisions_every_ssi_leaf_by_seed() -> None:
     assert Counter(entry.provision for entry in leaves) == Counter(
         {
             "assembled_native_person_input": 1,
-            "materialized_pool_input_surface": 31,
+            "materialized_pool_input_surface": 33,
             "seed_stage_program_contract": 1,
             "declared_deferred_null_input": 3,
-            "declared_absent_engine_input": 18,
+            "declared_absent_engine_input": 16,
         }
     )
     transferred_complete = sum(
@@ -1027,14 +1027,14 @@ def test_remaining_stage_manifest_enumerates_every_simulation_projection_input()
     }
     assert Counter(entry.provision for entry in projection) == Counter(
         {
-            "materialized_pool_input_surface": 122,
+            "materialized_pool_input_surface": 124,
             "seed_stage_program_contract": 17,
             "declared_deferred_null_input": 3,
             "assembled_native_engine_input": 5,
             "frame_structural_engine_input": 10,
             "preserved_stacked_engine_input": 4,
             "derived_schedule_d_input": 1,
-            "declared_absent_engine_input": 763,
+            "declared_absent_engine_input": 761,
             "unprovisioned_source_input": 1,
         }
     )
@@ -1126,7 +1126,7 @@ def test_every_pool_transfer_target_is_an_installed_engine_input_leaf() -> None:
         for columns in families.values()
         for target in columns
     }
-    assert len(targets) == 118
+    assert len(targets) == 120
     acs_transfer_module.assert_acs_transfer_targets_are_input_leaves(
         targets,
         require_known=True,
@@ -1151,7 +1151,7 @@ def test_every_pool_transfer_family_accepts_its_produced_physical_dtype(
         )
     )
 
-    assert len(targets) == 118
+    assert len(targets) == 120
     assert len(predictors) == 32
     assert len(primary_predictor_sets) == 65
     primary_targets = tuple(

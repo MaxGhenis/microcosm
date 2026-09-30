@@ -73,6 +73,8 @@ def _frame(person: pd.DataFrame) -> Frame:
         person_marital_unit_id=ids + 500,
         A_AGE=np.full(count, 70),
         A_SEX=np.tile([1, 2], count)[:count],
+        OI_VAL=np.zeros(count),
+        OI_OFF=np.zeros(count),
     )
     tables = {
         "person": person,

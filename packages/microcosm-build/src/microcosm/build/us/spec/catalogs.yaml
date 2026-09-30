@@ -1360,6 +1360,17 @@ columns:
     domain: model_required_numeric
     public_stability: internal
     unit_waiver: policyengine_us_unit_unavailable
+- key: person.tax_exempt_public_pension_income
+  contract:
+    entity: person
+    dtype: float64
+    unit: unit_not_declared_by_engine_metadata
+    definition_period: year
+    vintage: vintage:target_2024
+    nullable: false
+    domain: source_operator_cps_carried
+    public_stability: internal
+    unit_waiver: policyengine_us_unit_unavailable
 - key: person.taxable_401k_distributions
   contract:
     entity: person
@@ -1413,6 +1424,17 @@ columns:
     vintage: vintage:target_2024
     nullable: false
     domain: puf_tax_itemization
+    public_stability: internal
+    unit_waiver: policyengine_us_unit_unavailable
+- key: person.taxable_public_pension_income
+  contract:
+    entity: person
+    dtype: float64
+    unit: unit_not_declared_by_engine_metadata
+    definition_period: year
+    vintage: vintage:target_2024
+    nullable: false
+    domain: source_operator_cps_carried
     public_stability: internal
     unit_waiver: policyengine_us_unit_unavailable
 - key: person.taxable_sep_distributions

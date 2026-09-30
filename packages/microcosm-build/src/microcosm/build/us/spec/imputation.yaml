@@ -362,6 +362,8 @@ transfer_execution:
     __acs_transfer_retirement_income:
     - taxable_private_pension_income
     - tax_exempt_private_pension_income
+    - taxable_public_pension_income
+    - tax_exempt_public_pension_income
     - taxable_ira_distributions
     __acs_transfer_social_security_income:
     - social_security_retirement
@@ -1031,6 +1033,28 @@ families:
   execution_contract: acs_transfer_early
   targets:
   - name: strike_benefits
+    entity: person
+    value_kind: amount
+    dtype: float
+    period: year
+    requires_concepts: []
+    producer_binding:
+      operator: derive_us_cps_carried_inputs
+      order_index: 0
+      execution_scope: cps_source
+      stage: prepare_multispine_source_inputs_for_clone
+  - name: tax_exempt_public_pension_income
+    entity: person
+    value_kind: amount
+    dtype: float
+    period: year
+    requires_concepts: []
+    producer_binding:
+      operator: derive_us_cps_carried_inputs
+      order_index: 0
+      execution_scope: cps_source
+      stage: prepare_multispine_source_inputs_for_clone
+  - name: taxable_public_pension_income
     entity: person
     value_kind: amount
     dtype: float
@@ -15031,10 +15055,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -15999,10 +16029,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -16957,10 +16993,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -17976,10 +18018,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -19013,10 +19061,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -20041,10 +20095,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -21069,10 +21129,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -22067,10 +22133,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -23035,10 +23107,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -23993,10 +24071,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -25001,10 +25085,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -25969,10 +26059,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -26927,10 +27023,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -27905,10 +28007,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -28903,10 +29011,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -29861,10 +29975,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -30819,10 +30939,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -31759,10 +31885,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'
@@ -32726,10 +32858,16 @@ producer_graph:
       - - column: tax_exempt_private_pension_income
           entity: person
           value_kind: finite_numeric
+        - column: tax_exempt_public_pension_income
+          entity: person
+          value_kind: finite_numeric
         - column: taxable_ira_distributions
           entity: person
           value_kind: finite_numeric
         - column: taxable_private_pension_income
+          entity: person
+          value_kind: finite_numeric
+        - column: taxable_public_pension_income
           entity: person
           value_kind: finite_numeric
       column: '@effective:optional_retirement_income'

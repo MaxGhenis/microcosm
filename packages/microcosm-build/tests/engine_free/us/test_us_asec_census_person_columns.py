@@ -19,6 +19,7 @@ from microcosm.build.us_runtime.asec_census_person_columns import (
     ASEC_CENSUS_PERSON_COLUMNS,
     ASEC_CENSUS_PERSON_COLUMNS_NOT_RESTORED,
     ASEC_CENSUS_PERSON_IDENTITY_COLUMNS,
+    ASEC_PENSION_SOURCE_COLUMN_NAMES,
     AsecCensusPersonColumnsError,
     restore_asec_census_person_columns,
 )
@@ -365,9 +366,14 @@ def test_default_pins_are_the_shared_census_person_pins(sources):
 def test_the_review_places_every_offline_fix_column_exactly_once():
     restored = set(ASEC_CENSUS_PERSON_COLUMN_NAMES)
     not_restored = set(ASEC_CENSUS_PERSON_COLUMNS_NOT_RESTORED)
+    pension_sources = set(ASEC_PENSION_SOURCE_COLUMN_NAMES)
     assert len(restored) == len(ASEC_CENSUS_PERSON_COLUMN_NAMES)
     assert restored.isdisjoint(not_restored)
-    assert restored | not_restored == _RECEIPT_720_ADDED
+    # The pension-source columns joined the review with the public/private
+    # pension split (#1068); they are not from the offline fix.
+    assert pension_sources <= restored
+    assert pension_sources.isdisjoint(_RECEIPT_720_ADDED)
+    assert (restored - pension_sources) | not_restored == _RECEIPT_720_ADDED
     assert not restored & set(ASEC_CENSUS_PERSON_IDENTITY_COLUMNS)
 
 
