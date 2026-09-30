@@ -67,6 +67,7 @@ from microcosm.build.us_runtime.geography_ladder import (
     UsBlockLadder,
     load_us_block_ladder,
 )
+from microcosm.build.us_runtime.support_provenance import location_clone_index_column
 from microcosm.frame import Frame, Weights
 
 #: The rule id every build records when it locates households this way; also
@@ -1164,7 +1165,7 @@ def clone_frame_for_location(
     tables: dict[str, pd.DataFrame] = {}
     for entity in frame.entities:
         original = frame.table(entity)
-        clone_column = f"{entity}_location_clone_index"
+        clone_column = location_clone_index_column(entity)
         if clone_column in original.columns:
             raise ValueError(f"{entity} is already location-cloned ({clone_column}).")
         repeated = original.loc[original.index.repeat(clones)].reset_index(drop=True)

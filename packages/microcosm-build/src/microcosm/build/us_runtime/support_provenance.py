@@ -19,6 +19,8 @@ __all__ = [
     "SPINE_ASSEMBLY_MANIFEST_KEY",
     "has_assembled_support_metadata",
     "has_support_role_metadata",
+    "location_clone_index_column",
+    "location_clone_index_series",
     "puf_tax_detail_clone_mask",
     "require_assembled_support_provenance",
     "spine_assembly_manifest",
@@ -435,6 +437,45 @@ def support_source_id_column(entity: str) -> str:
     return f"{entity}_source_id"
 
 
+def location_clone_index_column(entity: str) -> str:
+    """Return the entity-prefixed location-clone index column.
+
+    ``block_location.clone_frame_for_location`` writes it on every entity
+    table when it repeats each unit ``K > 1`` times. It carries the source
+    ID, support channel and support clone index unchanged, so a location
+    clone is identified by ``(source ID, support clone index, location clone
+    index)``.
+    """
+
+    _require_entity_name(entity)
+    return f"{entity}_location_clone_index"
+
+
+def location_clone_index_series(
+    table: pd.DataFrame,
+    *,
+    entity: str,
+) -> pd.Series:
+    """Return each row's validated location-clone index, aligned to ``table``.
+
+    A table that was never location-cloned (``K = 1``) has no column, and
+    every row is its unit's only location copy: index 0. So a copy key built
+    from this series reduces to today's ``(source ID, support clone index)``
+    key when ``K = 1``.
+    """
+
+    column = location_clone_index_column(entity)
+    if column not in table:
+        return pd.Series(
+            np.zeros(len(table), dtype=np.int64), index=table.index, name=column
+        )
+    return pd.Series(
+        _validated_clone_indices(table, column, owner="location clone metadata"),
+        index=table.index,
+        name=column,
+    )
+
+
 def without_support_role_metadata(
     table: pd.DataFrame,
     *,
@@ -580,9 +621,14 @@ def support_copy_rank_series(
     Channel-only fixtures predate clone indices and cannot express a tail copy;
     they rank their two historical roles ASEC 0 and PUF 1.
 
-    A source unit may carry at most one row per rank. Source-unit operators
-    refuse a repeated ``(source ID, rank)`` pair as a genuinely duplicated
-    support copy instead of choosing between its rows.
+    A source unit may carry at most one row per rank and location clone.
+    Location cloning (``block_location.clone_frame_for_location``) repeats
+    each support copy ``K`` times without touching its clone index, so ranks
+    keep their historical domain and a copy is identified by ``(source ID,
+    rank, location clone index)`` (:func:`location_clone_index_series`; 0
+    when the table was never location-cloned). Source-unit operators refuse
+    a repeated triple as a genuinely duplicated support copy instead of
+    choosing between its rows.
 
     An assembled table missing its channel or clone index is refused first
     (:func:`require_assembled_support_provenance`): its channel names a
