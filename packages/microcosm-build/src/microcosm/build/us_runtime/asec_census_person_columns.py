@@ -57,10 +57,20 @@ Column                  Build reader
 ``A_FTPT``              same; ``eligibility_inputs``
                         ``derive_us_eligibility_inputs_from_manifest``
                         (``is_full_time_college_student``)
+``PEN_SC1``             ``cps_carried._pension_public_private_amounts`` ->
+                        the public/private pension split (every H5 vintage
+                        carries it, so the join verifies it against the member)
+``PEN_SC2``             same
+``PEN_VAL1``            same (no H5 vintage carries it: the amount of the
+                        first pension source, ``PNSN_VAL = PEN_VAL1 +
+                        PEN_VAL2``)
+``PEN_VAL2``            same (the amount of the second pension source)
 ======================  ======================================================
 
 The other thirteen columns the 2026-08-23 offline fix appended are not
-restored; :data:`ASEC_CENSUS_PERSON_COLUMNS_NOT_RESTORED` records why.
+restored; :data:`ASEC_CENSUS_PERSON_COLUMNS_NOT_RESTORED` records why. The four
+pension-source columns are not from that fix: they were added with the
+public/private pension split (:data:`ASEC_PENSION_SOURCE_COLUMN_NAMES`).
 """
 
 from __future__ import annotations
@@ -84,6 +94,7 @@ __all__ = [
     "ASEC_CENSUS_PERSON_COLUMNS_NOT_RESTORED",
     "ASEC_CENSUS_PERSON_COLUMN_NAMES",
     "ASEC_CENSUS_PERSON_IDENTITY_COLUMNS",
+    "ASEC_PENSION_SOURCE_COLUMN_NAMES",
     "AsecCensusPersonColumn",
     "AsecCensusPersonColumnsError",
     "restore_asec_census_person_columns",
@@ -113,6 +124,16 @@ _HEALTH_COVERAGE_READER = (
 _MICROUNIT_OPTIONAL_READER = (
     "microcosm.frame.units._is_microunit_optional_column (passes it to microunit)"
 )
+_PENSION_SPLIT_READER = (
+    "microcosm.build.us_runtime.cps_carried._pension_public_private_amounts -> "
+    "taxable/tax_exempt public and private pension income"
+)
+#: ASEC pension source codes (``PEN_SC1``/``PEN_SC2``, Census cpsmar24.pdf;
+#: every code observed in the three pinned person members pppub23/24/25,
+#: 2026-09-28): 0 niu, 1 company pension, 2 union pension, 3 federal government
+#: pension, 4 state government pension, 5 local government pension, 6 US
+#: military pension, 7 US Railroad Retirement, 8 other.
+_PENSION_SOURCE_CODES = frozenset(range(9))
 
 #: The reviewed restoration set, in the order columns are appended. Domains are
 #: the Census codes observed in the pinned person members pppub23/24/25
@@ -205,9 +226,22 @@ ASEC_CENSUS_PERSON_COLUMNS: tuple[AsecCensusPersonColumn, ...] = (
             "(is_full_time_college_student <- A_HSCOL == 2 & A_FTPT == 1)",
         ),
     ),
+    AsecCensusPersonColumn("PEN_SC1", _PENSION_SOURCE_CODES, (_PENSION_SPLIT_READER,)),
+    AsecCensusPersonColumn("PEN_SC2", _PENSION_SOURCE_CODES, (_PENSION_SPLIT_READER,)),
+    AsecCensusPersonColumn("PEN_VAL1", None, (_PENSION_SPLIT_READER,)),
+    AsecCensusPersonColumn("PEN_VAL2", None, (_PENSION_SPLIT_READER,)),
 )
 ASEC_CENSUS_PERSON_COLUMN_NAMES: tuple[str, ...] = tuple(
     column.name for column in ASEC_CENSUS_PERSON_COLUMNS
+)
+
+#: The reviewed columns added for the public/private pension split rather than
+#: by the #720 offline-fix review.
+ASEC_PENSION_SOURCE_COLUMN_NAMES: tuple[str, ...] = (
+    "PEN_SC1",
+    "PEN_SC2",
+    "PEN_VAL1",
+    "PEN_VAL2",
 )
 
 _UNREAD = (

@@ -115,6 +115,22 @@ the column.
 `CENSUS_TAX_ID` was never appended: the extractor derives it, and the Census
 files do not carry it.
 
+### Pension source columns (added 2026-09-28)
+
+The public/private pension split added four more reviewed columns, none of
+them from the offline fix. `cps_carried._pension_public_private_amounts`
+reads all four to divide `PNSN_VAL` between PolicyEngine-US's public and
+private pension leaves; see [the pension split](us-cps-public-private-pensions.md).
+
+| column | Census codes | H5 vintages that carry it | restoration |
+|---|---|---|---|
+| `PEN_SC1`, `PEN_SC2` | 0 niu, 1 company, 2 union, 3 federal, 4 state, 5 local, 6 US military, 7 US Railroad Retirement, 8 other | 2022, 2023, 2024 | verified equal to the member, never overwritten |
+| `PEN_VAL1`, `PEN_VAL2` | dollar amounts, `PNSN_VAL = PEN_VAL1 + PEN_VAL2` | none | appended from the member |
+
+Every H5 already carries the source codes, so the restoration checks them
+against the member row for row: the codes and the restored amounts are then
+guaranteed to come from the same Census record.
+
 ## Real-data evidence (2026-09-23, commit `39b8e7b63`)
 
 The real-data run used route A's exact base inputs and flags

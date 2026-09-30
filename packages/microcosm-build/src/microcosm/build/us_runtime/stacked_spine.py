@@ -2720,6 +2720,16 @@ _EXPLICIT_ORIGIN_BATTERY_METRIC_DECLARATIONS: Mapping[
             ),
             (
                 "person",
+                "source_operator_cps_carried",
+                "tax_exempt_public_pension_income",
+            ),
+            (
+                "person",
+                "source_operator_cps_carried",
+                "taxable_public_pension_income",
+            ),
+            (
+                "person",
                 "source_operator_disability_benefits",
                 "disability_benefits",
             ),

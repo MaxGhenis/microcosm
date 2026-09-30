@@ -43,6 +43,24 @@ __all__ = [
 TAXABLE_INTEREST_FRACTION = 0.680
 QUALIFIED_DIVIDEND_FRACTION = 0.448
 TAXABLE_PENSION_FRACTION = 0.590
+#: ASEC ``PEN_SC1``/``PEN_SC2`` pension source codes (Census cpsmar24.pdf) whose
+#: amounts are government pensions, carried to the public pension leaves: 3
+#: federal government, 4 state government, 5 local government, 6 US military, 7
+#: US Railroad Retirement.  Military pensions stay public rather than moving to
+#: PolicyEngine-US ``military_retirement_pay``, which no federal gross income
+#: source reads (``taxable_pension_income`` adds only the two taxable pension
+#: leaves), so moving them would drop them from AGI.
+PENSION_SOURCE_PUBLIC_CODES = frozenset({3, 4, 5, 6, 7})
+#: Codes carried to the private pension leaves: 1 company, 2 union, 8 other.
+#: ``ANN_VAL`` (annuities) is private too.
+PENSION_SOURCE_PRIVATE_CODES = frozenset({1, 2, 8})
+PENSION_SOURCE_COLUMNS = ("PEN_SC1", "PEN_SC2", "PEN_VAL1", "PEN_VAL2")
+PENSION_LEAVES = (
+    "taxable_public_pension_income",
+    "tax_exempt_public_pension_income",
+    "taxable_private_pension_income",
+    "tax_exempt_private_pension_income",
+)
 LONG_TERM_CAPITAL_GAIN_FRACTION = 0.880
 CPS_REPORTED_SNAP_RAW_COLUMN = "SPM_SNAPSUB"
 CPS_REPORTED_TANF_AMOUNT_RAW_COLUMN = "PAW_VAL"
@@ -100,6 +118,8 @@ CPS_CARRIED_PERSON_INPUTS = frozenset(
         "social_security_disability",
         "social_security_survivors",
         "social_security_dependents",
+        "taxable_public_pension_income",
+        "tax_exempt_public_pension_income",
         "taxable_private_pension_income",
         "tax_exempt_private_pension_income",
         "taxable_ira_distributions",
@@ -208,17 +228,7 @@ def derive_us_cps_carried_inputs(
     )
 
     _fill_social_security_leaves(person)
-    pensions = _source(person, "PNSN_VAL") + _source(person, "ANN_VAL")
-    _fill_missing(
-        person,
-        "taxable_private_pension_income",
-        pensions * TAXABLE_PENSION_FRACTION,
-    )
-    _fill_missing(
-        person,
-        "tax_exempt_private_pension_income",
-        pensions * (1 - TAXABLE_PENSION_FRACTION),
-    )
+    _fill_pension_leaves(person)
     _fill_missing(person, "taxable_ira_distributions", _ira_distributions(person))
 
     person = derive_us_alimony_from_asec(person)
@@ -431,6 +441,113 @@ def _fill_social_security_leaves(person: pd.DataFrame) -> None:
             0.0,
         ),
     )
+
+
+def _fill_pension_leaves(person: pd.DataFrame) -> None:
+    """Carry ``PNSN_VAL + ANN_VAL`` onto the public and private pension leaves.
+
+    The four leaves are all derived or all preserved: a frame carrying only
+    some of them (say the private pair from before the public/private split)
+    would otherwise keep the whole total in the private pair and add the
+    public share on top, so it is refused.
+    """
+
+    present = [leaf for leaf in PENSION_LEAVES if leaf in person.columns]
+    if present and len(present) != len(PENSION_LEAVES):
+        missing = [leaf for leaf in PENSION_LEAVES if leaf not in person.columns]
+        raise ValueError(
+            f"CPS-carried pension leaves are partially present: {present} exist "
+            f"but {missing} do not; derive all four together or none."
+        )
+    if present:
+        return
+    public, private = _pension_public_private_amounts(person)
+    for amount, taxable, tax_exempt in (
+        (public, "taxable_public_pension_income", "tax_exempt_public_pension_income"),
+        (
+            private,
+            "taxable_private_pension_income",
+            "tax_exempt_private_pension_income",
+        ),
+    ):
+        _fill_missing(person, taxable, amount * TAXABLE_PENSION_FRACTION)
+        _fill_missing(person, tax_exempt, amount * (1 - TAXABLE_PENSION_FRACTION))
+
+
+def _pension_public_private_amounts(
+    person: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Split each person's pension and annuity dollars into public and private.
+
+    ``PNSN_VAL`` is the sum of the two reported pension sources, ``PEN_VAL1``
+    (source code ``PEN_SC1``) and ``PEN_VAL2`` (``PEN_SC2``); each source is
+    public or private by :data:`PENSION_SOURCE_PUBLIC_CODES` and
+    :data:`PENSION_SOURCE_PRIVATE_CODES`.  An amount whose code is 0 takes the
+    class of the person's other, coded source: two 2023-ASEC persons (income
+    year 2022) report ``PEN_VAL2`` with ``PEN_SC2 = 0`` and a state
+    government first source.  ``ANN_VAL`` (annuities) is private.  Public plus
+    private always equals ``PNSN_VAL + ANN_VAL``.
+
+    The pinned ASEC H5 inputs carry ``PEN_SC1``, ``PEN_SC2`` and ``PNSN_VAL``
+    but not ``PEN_VAL1``/``PEN_VAL2``; the base restores the amounts from the
+    pinned Census person member by exact ``PERIDNUM`` join
+    (:mod:`.asec_census_person_columns`).  A frame with positive ``PNSN_VAL``
+    and no source columns is refused rather than read as all private.
+    """
+
+    pensions = _source(person, "PNSN_VAL")
+    annuities = _source(person, "ANN_VAL")
+    if (pensions < 0).any():
+        raise ValueError("CPS PNSN_VAL must be nonnegative.")
+    if not (pensions > 0).any():
+        return np.zeros(len(person), dtype=np.float64), pensions + annuities
+    missing = [column for column in PENSION_SOURCE_COLUMNS if column not in person]
+    if missing:
+        raise ValueError(
+            f"CPS pension split needs {list(PENSION_SOURCE_COLUMNS)} for rows with "
+            f"positive PNSN_VAL; the frame lacks {missing}. Build the ASEC base "
+            "with its pinned Census person sources (--asec-education-source) so "
+            "asec_census_person_columns restores them."
+        )
+    codes = (_integer_source(person, "PEN_SC1"), _integer_source(person, "PEN_SC2"))
+    amounts = (_source(person, "PEN_VAL1"), _source(person, "PEN_VAL2"))
+    valid_codes = sorted(
+        {0} | PENSION_SOURCE_PUBLIC_CODES | PENSION_SOURCE_PRIVATE_CODES
+    )
+    for suffix, code, amount in zip(("1", "2"), codes, amounts, strict=True):
+        if not np.isin(code, valid_codes).all():
+            raise ValueError(f"CPS PEN_SC{suffix} must be one of {valid_codes}.")
+        if (amount < 0).any():
+            raise ValueError(f"CPS PEN_VAL{suffix} must be nonnegative.")
+    if not np.allclose(amounts[0] + amounts[1], pensions, rtol=0.0, atol=1e-6):
+        rows = np.flatnonzero(
+            ~np.isclose(amounts[0] + amounts[1], pensions, rtol=0.0, atol=1e-6)
+        )
+        raise ValueError(
+            "CPS PNSN_VAL must equal PEN_VAL1 + PEN_VAL2; it differs at row(s) "
+            f"{rows[:5].tolist()}."
+        )
+    public_source = tuple(
+        np.isin(code, list(PENSION_SOURCE_PUBLIC_CODES)) for code in codes
+    )
+    coded = tuple(code != 0 for code in codes)
+    uncoded_both = (amounts[0] + amounts[1] > 0) & ~coded[0] & ~coded[1]
+    if uncoded_both.any():
+        raise ValueError(
+            "CPS pension amounts need a source code: PEN_SC1 and PEN_SC2 are both "
+            f"0 at row(s) {np.flatnonzero(uncoded_both)[:5].tolist()}."
+        )
+    is_public = (
+        np.where(coded[0], public_source[0], public_source[1]),
+        np.where(coded[1], public_source[1], public_source[0]),
+    )
+    public = np.where(is_public[0], amounts[0], 0.0) + np.where(
+        is_public[1], amounts[1], 0.0
+    )
+    private = np.where(is_public[0], 0.0, amounts[0]) + np.where(
+        is_public[1], 0.0, amounts[1]
+    )
+    return public, private + annuities
 
 
 def _fill_health_coverage_inputs(person: pd.DataFrame) -> None:
