@@ -495,3 +495,32 @@ and environment, per-stage receipts, artifact/comparison/gate results,
 checkpoint/resume evidence, peak RSS/wall time, leaks/waivers, and the
 constants/F2 retention plan. Include owner-only f010/f100/full commands and
 expected identities. The lane itself neither pushes nor publishes.
+
+## Baseline moved (owner addendum, 2026-08-22 — read before dispatch)
+
+María's merges reset the UK ground truth this charter builds on:
+- microcosm#733 (MERGED): UK build retargeted to FRS 2024-25 (survey/base
+  2024, calibration year 2025); parity bar re-frozen on
+  enhanced_frs_2024_25.h5 @ v1.56.14; uk/frs_release.json is the single
+  release object; 21 frs_table pins moved; HMRC published surface
+  re-MAPPED (period_mapping latest_published_tax_year), not uprated;
+  gate baselines re-measured (174 input-mass totals + 47 QRF tail
+  grids) — #686 arms them. Staging runs of the certified 2023 line need
+  the pre-#723 checkout.
+- microcosm#735 (MERGED): the UK target surface compiles from Ledger
+  facts at the 2024-25 line — 189 contract declarations, 388 active
+  references at period 2025, compile-parity gates against production
+  truth AND the incumbent registry; dwp.uc.households =
+  calendar_year_average of monthly admin facts; CGT single-homed onto
+  references; deferred adjudications centralized in microcosm#736.
+- chronicle#188 (MERGED): monthly UC element caseloads (childcare,
+  housing, LCWRA, carer) + Apr–Dec 2025 family-type/children histories;
+  198 publisher facts, untransformed.
+
+Consequences for this charter: authority inventory and stochastic audit
+row references predate #733's re-pins — re-verify file/line cites
+against post-#733 main before acting on them; every target-surface
+statement herein is superseded by #735's contract; the UC caseload and
+council-tax diagnosis lanes (policyengine-uk-data#452/#448) should
+diagnose against the new admin-fact instruments, not the pre-#735
+surface.
