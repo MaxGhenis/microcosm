@@ -2490,7 +2490,7 @@ def _district_ess(weight_summary) -> dict[str, float] | None:
     for district, ess in by_district.items():
         if isinstance(ess, bool) or not isinstance(ess, (int, float)):
             return None
-        if not np.isfinite(ess) or ess < 0:
+        if ess < 0:
             return None
         values[str(district)] = float(ess)
     return values
