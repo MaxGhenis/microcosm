@@ -114,6 +114,19 @@ CENSUS_PEP_AGE_GROUPS = (
     "85_plus",
 )
 
+#: The pinned feed's IRS SOI congressional-district record set, and a
+#: hypothetical next release. The CD guards key on the family, so both must
+#: behave identically without a code change.
+SOI_CD_2022_RECORD_SET = "irs_soi.ty2023.congressional_district_2022.all_returns"
+SOI_CD_2024_RECORD_SET = "irs_soi.ty2024.congressional_district_2024.all_returns"
+SOI_CD_RECORD_SETS = pytest.mark.parametrize(
+    "cd_record_set",
+    [
+        pytest.param(SOI_CD_2022_RECORD_SET, id="pinned-cd-2022"),
+        pytest.param(SOI_CD_2024_RECORD_SET, id="hypothetical-cd-2024"),
+    ],
+)
+
 
 def test_packaged_us_fiscal_resources_are_value_free() -> None:
     resource = files("microcosm.build.us").joinpath("fiscal_target_references.json")
@@ -185,97 +198,105 @@ def test_us_fiscal_reference_selectors_are_unique_on_synthetic_fact_surface() ->
     compile_us_fiscal_target_registry(facts, allow_unaged_dollar_targets=True)
 
 
-def test_soi_congressional_district_targets_are_always_compiled() -> None:
+@SOI_CD_RECORD_SETS
+def test_soi_congressional_district_targets_are_always_compiled(
+    cd_record_set: str,
+) -> None:
+    def cd_fact(*args, **kwargs) -> dict[str, object]:
+        return _soi_congressional_district_fact(
+            *args, record_set_id=cd_record_set, **kwargs
+        )
+
     facts = [
         *packaged_reference_facts(),
-        _soi_congressional_district_fact(
+        cd_fact(
             "return_count",
             100_000,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "return_count",
             215_360,
             groupby_value_id="hi_02",
             geography_id="5001700US1502",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "tax_filer_individual_count",
             597_980,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "adjusted_gross_income",
             10_000_000_000,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "taxable_interest_amount",
             135_822_000,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "premium_tax_credit_amount",
             90_000_000,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "qualified_business_income_deduction_amount",
             2_000_000_000,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "qualified_business_income_deduction_returns",
             12_345,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "interest_paid_deduction_returns",
             23_456,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "charitable_returns",
             34_567,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "eitc_three_or_more_children_amount",
             45_678_901,
             groupby_value_id="hi_01",
             geography_id="5001700US1501",
             dimensions={"eitc_child_count": "3plus"},
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "adjusted_gross_income",
             12_915_824_000,
             groupby_value_id="hi_02",
             geography_id="5001700US1502",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "return_count",
             315_360,
             groupby_value_id="hi_total",
             geography_level="state",
             geography_id="0400000US15",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "adjusted_gross_income",
             22_915_824_000,
             groupby_value_id="hi_total",
             geography_level="state",
             geography_id="0400000US15",
         ),
-        _soi_congressional_district_fact(
+        cd_fact(
             "premium_tax_credit_amount",
             180_000_000,
             groupby_value_id="hi_total",
@@ -295,9 +316,10 @@ def test_soi_congressional_district_targets_are_always_compiled() -> None:
         for spec in registry.specs
         if spec.metadata.get("ledger_geography_level") == "congressional_district"
     ]
+    # The CD PTC amount never calibrates, whatever the CD file's vintage.
     assert not any(
         source_id.endswith("premium_tax_credit_amount")
-        and ".congressional_district_2022." in source_id
+        and source_id.startswith(f"{cd_record_set}.")
         for source_id in source_ids
     )
     assert any("hi_total.return_count" in source_id for source_id in source_ids)
@@ -3264,14 +3286,17 @@ def test_stale_soi_taxable_interest_family_rebases_to_pub1304_national_control()
     assert us_bin.metadata["requires_total_soi_uprating"] == "true"
 
 
-def test_stale_soi_taxable_interest_never_uses_congressional_district_controls() -> (
-    None
-):
+@SOI_CD_RECORD_SETS
+def test_stale_soi_taxable_interest_never_uses_congressional_district_controls(
+    cd_record_set: str,
+) -> None:
     # The microcosm#489 defect pin: the SOI congressional-district US
     # aggregate is a processing-window subset (and its ty2023 feed stamp is
     # a vintage error — IRS's latest CD publication is TAX YEAR 2022;
     # 22incd.csv US A00300 = $123.791B = 92.7% of the Table 1.4 TY2022
     # actual). CD aggregates must never serve as interest rebase controls.
+    # A later CD release (congressional_district_2024, stamped ty2024) would
+    # otherwise out-date the ty2023 Table 4.3 control and win outright.
     ht2_facts = [
         _soi_taxable_interest_fact(
             2022,
@@ -3293,13 +3318,10 @@ def test_stale_soi_taxable_interest_never_uses_congressional_district_controls()
         ),
     ]
     cd_fact = _soi_taxable_interest_fact(
-        2023,
-        source_record_id=(
-            "irs_soi.ty2023.congressional_district_2022.all_returns.us."
-            "taxable_interest_amount"
-        ),
+        int(cd_record_set.split(".")[1].removeprefix("ty")),
+        source_record_id=f"{cd_record_set}.us.taxable_interest_amount",
         value=92_900_000_000,
-        layout_record_set_id=("irs_soi.ty2023.congressional_district_2022.all_returns"),
+        layout_record_set_id=cd_record_set,
     )
 
     registry = compile_us_fiscal_target_registry(
@@ -3352,6 +3374,171 @@ def test_stale_soi_taxable_interest_never_uses_congressional_district_controls()
         "irs_soi.ty2023.table_4_3.all_returns_excluding_dependents.all."
         "taxable_interest_amount"
     )
+
+
+@pytest.mark.parametrize(
+    ("record_set_id", "is_cd"),
+    [
+        (SOI_CD_2022_RECORD_SET, True),
+        (SOI_CD_2024_RECORD_SET, True),
+        ("irs_soi.ty2025.congressional_district_2024.all_returns", True),
+        ("irs_soi.congressional_district_2024.all_returns", True),
+        ("irs_soi.2024.congressional_district_2024.itemized_all_returns", True),
+        ("irs_soi.ty2023.table_1_4", False),
+        ("irs_soi.ty2022.historic_table_2.state_broad", False),
+        ("irs_soi.ty2023.table_4_3.all_returns_excluding_dependents", False),
+        ("census_acs.acs1_2024.congressional_district_2024", False),
+        ("irs_soi.ty2023", False),
+        ("", False),
+    ],
+)
+def test_soi_congressional_district_record_set_is_matched_by_family(
+    record_set_id: str, is_cd: bool
+) -> None:
+    """Any IRS SOI congressional-district file, at any data vintage and with
+    or without a period token, is a CD record set; no other family or source
+    is. The PTC-amount conflict follows the same match."""
+    fact = {"layout": {"record_set_id": record_set_id}}
+    assert fiscal_targets._is_soi_congressional_district_record_set(fact) is is_cd
+    assert (
+        fiscal_targets._is_soi_cd_premium_tax_credit_amount_conflict(
+            fact, measure_id="premium_tax_credit_amount"
+        )
+        is is_cd
+    )
+    assert not fiscal_targets._is_soi_cd_premium_tax_credit_amount_conflict(
+        fact, measure_id="premium_tax_credit_returns"
+    )
+
+
+def test_soi_congressional_district_guards_are_vintage_free() -> None:
+    """Invariants over generated record-set ids (period token: none, ty/cy/fy,
+    bare year, month; CD data vintage 1990-2099; any trailing segments):
+
+    - a CD file is a CD record set, never keys a taxable-interest control
+      (#489) and conflicts on the PTC amount, while its Table 1.4 twin keys
+      a control and does not conflict;
+    - no other SOI family and no other source is a CD record set;
+    - differential against the pinned-vintage literal the family match
+      replaced: wherever ``.congressional_district_2022.`` matched, the
+      family matches, and the two agree on every non-CD id;
+    - differential against the release tool's vintage-free spec prefix: the
+      period-free id starts with ``irs_soi.congressional_district_`` exactly
+      when the family match holds.
+    """
+    pytest.importorskip("hypothesis")
+    from hypothesis import given, settings
+    from hypothesis import strategies as st
+
+    tool_prefix = _load_repo_tool(
+        "build_us_acs_local_release"
+    ).CONGRESSIONAL_DISTRICT_RECORD_SET_SPEC_PREFIX
+    years = st.integers(1990, 2099)
+    period_tokens = st.one_of(
+        st.none(),
+        st.builds("{}{}".format, st.sampled_from(["ty", "cy", "fy", ""]), years),
+        st.builds("month{}_{:02d}".format, years, st.integers(1, 12)),
+        st.builds("{}_{}".format, years, st.integers(1, 12)),
+    )
+    trailing = st.lists(
+        st.sampled_from(
+            [
+                "all_returns",
+                "itemized_all_returns",
+                "all_returns_excluding_dependents",
+                "us",
+                "hi_01",
+                "state_broad",
+            ]
+        ),
+        max_size=3,
+    )
+    other_families = st.sampled_from(
+        [
+            "table_1_2",
+            "table_1_4",
+            "table_2_1",
+            "table_2_5",
+            "table_4_3",
+            "historic_table_2",
+            "state_2022",
+            "w2_statistics_2020",
+            "ira_roth_contributions_2022",
+            "form_w2_401k_elective_deferrals",
+        ]
+    )
+    other_sources = st.sampled_from(
+        ["census_acs", "cbo", "bea_nipa", "ssa_supplement", "irs"]
+    )
+
+    def record_set(source: str, token: str | None, family: str, rest) -> str:
+        return ".".join([source, *([token] if token else []), family, *rest])
+
+    def is_cd(record_set_id: str) -> bool:
+        return fiscal_targets._is_soi_congressional_district_record_set(
+            {"layout": {"record_set_id": record_set_id}}
+        )
+
+    def pinned_literal(record_set_id: str) -> bool:
+        return ".congressional_district_2022." in record_set_id
+
+    def interest_control_key(record_set_id: str):
+        return fiscal_targets._soi_taxable_interest_control_key_from_fact(
+            _soi_taxable_interest_fact(
+                2024,
+                source_record_id=f"{record_set_id}.us.taxable_interest_amount",
+                value=1.0,
+                layout_record_set_id=record_set_id,
+            )
+        )
+
+    def ptc_conflict(record_set_id: str) -> bool:
+        return fiscal_targets._is_soi_cd_premium_tax_credit_amount_conflict(
+            {"layout": {"record_set_id": record_set_id}},
+            measure_id="premium_tax_credit_amount",
+        )
+
+    @settings(max_examples=500, deadline=None)
+    @given(
+        token=period_tokens,
+        vintage=years,
+        rest=trailing,
+        other_family=other_families,
+        other_source=other_sources,
+    )
+    def check(token, vintage, rest, other_family, other_source) -> None:
+        cd_family = f"congressional_district_{vintage}"
+        cd = record_set("irs_soi", token, cd_family, rest)
+        assert fiscal_targets._soi_record_set_family(cd) == "congressional_district"
+        assert is_cd(cd)
+        assert ptc_conflict(cd)
+        all_returns_cd = record_set("irs_soi", token, cd_family, ["all_returns"])
+        assert interest_control_key(all_returns_cd) is None
+        twin = record_set("irs_soi", token, "table_1_4", ["all_returns"])
+        assert interest_control_key(twin) == (
+            "taxable_interest_amount",
+            "all",
+            "all_returns",
+        )
+        assert not ptc_conflict(twin)
+
+        other = record_set("irs_soi", token, other_family, rest)
+        assert fiscal_targets._soi_record_set_family(other) == other_family
+        assert not is_cd(other)
+        assert not is_cd(record_set(other_source, token, cd_family, rest))
+
+        for record_set_id in (cd, other):
+            assert not pinned_literal(record_set_id) or is_cd(record_set_id)
+        assert pinned_literal(other) is is_cd(other)
+        if vintage == 2022 and rest:
+            assert pinned_literal(cd)
+
+        for record_set_id in (cd, other):
+            assert fiscal_targets._normalized_record_set_id(
+                record_set_id
+            ).startswith(tool_prefix) is is_cd(record_set_id)
+
+    check()
 
 
 def test_stale_soi_taxable_interest_prefers_exact_universe_control_over_bridge() -> (
@@ -6400,23 +6587,21 @@ def _soi_congressional_district_fact(
     geography_level: str = "congressional_district",
     geography_id: str = "5001700US0101",
     dimensions: dict[str, object] | None = None,
+    record_set_id: str = SOI_CD_2022_RECORD_SET,
 ) -> dict[str, object]:
     fact_dimensions = {"income_range": "all", "filing_status": "all"}
     if dimensions:
         fact_dimensions.update(dimensions)
     return _dynamic_ledger_fact(
-        source_record_id=(
-            "irs_soi.ty2023.congressional_district_2022.all_returns."
-            f"{groupby_value_id}.{measure_id}"
-        ),
+        source_record_id=f"{record_set_id}.{groupby_value_id}.{measure_id}",
         source_name="irs_soi",
         measure_id=measure_id,
         value=value,
-        period_value=2023,
+        period_value=int(record_set_id.split(".")[1].removeprefix("ty")),
         geography_level=geography_level,
         geography_id=geography_id,
         dimensions=fact_dimensions,
-        layout_record_set_id="irs_soi.ty2023.congressional_district_2022.all_returns",
+        layout_record_set_id=record_set_id,
         groupby_dimension="irs_soi.congressional_district",
         groupby_value_id=groupby_value_id,
     )
