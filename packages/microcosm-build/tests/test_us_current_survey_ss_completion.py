@@ -1,13 +1,18 @@
 """Real invented source custody and pure SS report completion contracts."""
 
+import io
 import sys
+import zipfile
 
 import numpy as np
 import pandas as pd
 import pytest
 from ss_report_source_fixture import ss_report_source_arguments
 
+from microcosm.build.frame_checkpoint import load_frame_checkpoint
 from microcosm.build.us_runtime import current_survey_ss_completion as values
+
+PREDICTORS = list(values.FEATURES[:3])
 
 
 @pytest.fixture(scope="module")
@@ -80,6 +85,120 @@ def test_genuine_full_basis_includes_omitted_resolved_design_donors(qualified_so
     selected_again = values.observed.qualify_current_social_security(preparation)
     pd.testing.assert_frame_equal(full.selected.person, selected_again.person)
     assert values.source._frame_identity(preparation._checked()[2].frame) == before
+
+
+def asec_source_literals(arguments):
+    """Current ASEC age and money literals the fixture wrote, keyed by person id.
+
+    The parent checkpoint and the raw 2024 member are both fixture outputs. The
+    member was deliberately written in a different row order, so it is joined
+    on PERIDNUM only and must agree with the checkpoint before either is used.
+    """
+    people = load_frame_checkpoint(arguments["source_dir"] / "asec/parent.h5")
+    people = people.frame.person
+    current = people.loc[people.source_year.eq(2024)].set_index("person_id")
+    assert current.index.is_unique
+    member = pd.read_csv(
+        arguments["source_dir"] / "asec/pppub25.csv", dtype=str, keep_default_na=False
+    ).set_index("PERIDNUM")
+    assert member.index.is_unique and set(member.index) == set(current.PERIDNUM)
+    assert member.index.tolist() != current.PERIDNUM.tolist()
+    literals = pd.DataFrame(
+        {
+            values.FEATURES[0]: current.A_AGE.to_numpy(dtype="float64"),
+            values.FEATURES[1]: current.WSAL_VAL.to_numpy(dtype="float64"),
+            values.FEATURES[2]: current.SEMP_VAL.to_numpy(dtype="float64"),
+        },
+        index=current.index,
+    )
+    raw = member.loc[current.PERIDNUM.to_numpy(), ["A_AGE", "WSAL_VAL", "SEMP_VAL"]]
+    np.testing.assert_array_equal(
+        literals.to_numpy(), raw.apply(pd.to_numeric).to_numpy(dtype="float64")
+    )
+    return literals
+
+
+def acs_source_literals(arguments):
+    """ACS person literals from the fixture's raw PUMS member, keyed by identity."""
+    with zipfile.ZipFile(arguments["source_dir"] / "acs/csv_pus.zip") as archive:
+        names = archive.namelist()
+        assert names == ["psam_pusa.csv"]
+        raw = pd.read_csv(
+            io.BytesIO(archive.read(names[0])), dtype=str, keep_default_na=False
+        )
+    # The fixture's ADJINC is the identity factor, so raw WAGP and SEMP are
+    # already the current-money literals; no adjustment is re-implemented here.
+    assert raw.ADJINC.eq("1000000").all()
+    literals = pd.DataFrame(
+        {
+            values.FEATURES[0]: pd.to_numeric(raw.AGEP).to_numpy(dtype="float64"),
+            values.FEATURES[1]: pd.to_numeric(raw.WAGP).to_numpy(dtype="float64"),
+            values.FEATURES[2]: pd.to_numeric(raw.SEMP).to_numpy(dtype="float64"),
+        },
+        index=pd.MultiIndex.from_arrays(
+            [raw.SERIALNO.to_numpy(), pd.to_numeric(raw.SPORDER).to_numpy("int64")],
+            names=["SERIALNO", "SPORDER"],
+        ),
+    )
+    assert literals.index.is_unique
+    return literals
+
+
+def expected_recipient_literals(preparation, q, arguments):
+    """Per-recipient fixture literals joined on identity keys, never on position.
+
+    ASEC recipients join through ``native_person_id`` to the parent person id.
+    ACS recipients join through the preparation frame's structural household
+    link to the raw SERIALNO, plus SPORDER. Values come only from fixture files.
+    """
+    asec = asec_source_literals(arguments)
+    acs = acs_source_literals(arguments)
+    frame = preparation._checked()[2].frame
+    person = frame.person.set_index("person_id")
+    serial = frame.table("household").set_index("household_id").SERIALNO
+    rows = {}
+    for pid in q.recipient_features.index:
+        original = q.originals.loc[pid]
+        if original.source == "asec":
+            rows[pid] = asec.loc[int(original.native_person_id)]
+        else:
+            household = int(person.loc[pid, "person_household_id"])
+            rows[pid] = acs.loc[
+                (serial.loc[household], int(person.loc[pid, "SPORDER"]))
+            ]
+    expected = pd.DataFrame.from_dict(rows, orient="index", columns=PREDICTORS)
+    expected.index = q.recipient_features.index.copy()
+    return expected
+
+
+def test_donor_predictor_values_equal_native_source_literals_by_person_id(
+    qualified_source,
+):
+    _, q, arguments, _ = qualified_source
+    literals = asec_source_literals(arguments)
+    assert set(q.donor_columns.index) == set(literals.index) == set(range(105, 113))
+    pd.testing.assert_frame_equal(
+        q.donor_columns.loc[literals.index, PREDICTORS], literals, check_exact=True
+    )
+
+
+def test_recipient_predictor_values_equal_fixture_literals_by_identity(
+    qualified_source,
+):
+    preparation, q, arguments, _ = qualified_source
+    expected = expected_recipient_literals(preparation, q, arguments)
+    recipient = q.originals.loc[q.recipient_features.index]
+    asec = recipient.source.eq("asec").to_numpy()
+    assert asec.sum() == 1 and (~asec).sum() > 1
+    # Every ACS literal age is distinct, and the ASEC recipient's employment
+    # income differs from every ACS row, so any row misjoin changes a value.
+    assert expected.loc[~asec, values.FEATURES[0]].is_unique
+    assert not (
+        expected.loc[~asec, values.FEATURES[1]] == expected.loc[asec].iloc[0, 1]
+    ).any()
+    pd.testing.assert_frame_equal(
+        q.recipient_features[PREDICTORS], expected, check_exact=True
+    )
 
 
 @pytest.mark.parametrize("change", ["feature", "money", "reason", "allocation"])
