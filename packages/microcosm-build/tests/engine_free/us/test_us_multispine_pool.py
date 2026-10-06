@@ -606,7 +606,7 @@ def test_pool_transfer_plan_extends_legacy_except_receipted_asset_deferrals() ->
     assert len(target_names) == 120
     assert (
         hashlib.sha256(("\n".join(target_names) + "\n").encode()).hexdigest()
-        == "c792f12f0ef34f8a2ca9f16e68f5b306391eed56f120cda247bf778a95118c15"
+        == "6388ee910b803310d67bdf1196a46966dfb10bb3cfa602de2cd3a4553ad82870"
     )
 
 
@@ -667,7 +667,7 @@ def test_pool_input_surface_normalizes_all_four_source_registries() -> None:
         provenance for entry in surface for provenance in entry.provenance
     ) == Counter(
         {
-            "pool_transfer_target_families": 118,
+            "pool_transfer_target_families": 120,
             "POOL_DEFERRED_TRANSFER_INPUTS": 3,
             "PRIMARY_QRF_TARGET_ORDER": 65,
             "load_take_up_contract": 17,
@@ -997,8 +997,10 @@ def test_remaining_stage_manifest_provisions_every_ssi_leaf_by_seed() -> None:
     # earned-income exclusion reads meets_ssi_disability_criteria instead of the
     # generic is_disabled flag, so is_disabled - a materialized pool input -
     # left the SSI closure. is_disabled remains an engine input elsewhere.
-    assert (transferred_complete, deferred, transferred_absent) == (32, 3, 19)
-    assert (seeded_complete, deferred, seeded_absent) == (33, 3, 18)
+    # 34/35 since microcosm#1068: the two public pension leaves, SSI unearned
+    # income, moved from declared-absent to materialized CPS-carried inputs.
+    assert (transferred_complete, deferred, transferred_absent) == (34, 3, 17)
+    assert (seeded_complete, deferred, seeded_absent) == (35, 3, 16)
     assert all(
         entry.fallback is not None
         for entry in leaves
@@ -1168,7 +1170,7 @@ def test_every_pool_transfer_family_accepts_its_produced_physical_dtype(
     assert len(primary_predictor_sets[0][1]) == 8
     assert len(primary_predictor_sets[-1][1]) == 72
     assert len(POOL_DEFERRED_TRANSFER_INPUTS) == 3
-    assert len(targets) + len(POOL_DEFERRED_TRANSFER_INPUTS) == 121
+    assert len(targets) + len(POOL_DEFERRED_TRANSFER_INPUTS) == 123
     assert set(POOL_SOURCE_OPERATOR_ORDER) <= set(calls)
     assert all(calls[name] > 0 for name in POOL_SOURCE_OPERATOR_ORDER)
     assert calls["with_us_prior_year_income_inputs"] == 2

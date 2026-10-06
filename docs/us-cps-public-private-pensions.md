@@ -96,9 +96,17 @@ ACS `RETP` is a predictor, not a decomposed total. The ASEC donor's analog,
 `__acs_transfer_retirement_income`, now sums all four pension leaves plus
 `taxable_ira_distributions` (`acs_transfer._DONOR_COMBINED_COMPONENTS`, mirrored
 in the late-transfer registry and the stored-input register). Without that, the
-donor analog would drop government pensions that `RETP` includes. The public
-leaves reach ACS rows as transfer targets in the automatic
-`source_operator_cps_carried` family.
+donor analog would drop government pensions that `RETP` includes: the 2023 ACS
+Subject Definitions count company, union, federal, state and local government
+and U.S. military pensions as retirement income. The public leaves reach ACS
+rows as transfer targets in the automatic `source_operator_cps_carried` family.
+
+A donor built before this change carries neither public leaf. Its private
+leaves hold every pension dollar, so the public pair is exactly zero there, and
+the analog sums the components the donor has
+(`acs_transfer._PRE_PENSION_SPLIT_ABSENT_COMPONENTS`) instead of disappearing.
+The ACS local lane stages from such published donors. Any other missing
+component still drops the analog, as before.
 
 ## Release contract
 

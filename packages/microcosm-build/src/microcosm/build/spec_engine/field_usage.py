@@ -26,9 +26,9 @@ from .resolver import (
 )
 from .schemas import load_schema_registry
 
-EXPECTED_AUTHORED_FIELD_COUNT = 32_404
+EXPECTED_AUTHORED_FIELD_COUNT = 32_568
 EXPECTED_RESOLVED_BINDING_FIELD_COUNT = 9_780
-EXPECTED_CONFIGURATION_FIELD_COUNT = 42_184
+EXPECTED_CONFIGURATION_FIELD_COUNT = 42_348
 
 
 class FieldUsageError(AssertionError):
@@ -341,8 +341,8 @@ def _path_inventory(rows: Sequence[tuple[str, object]]) -> tuple[int, str]:
 # wildcard broadening a source diff rather than an automatically accepted field.
 _PINS: dict[str, tuple[int, str]] = {
     "battery": (
-        797,
-        "55c2c0cd2d652216ed35f2d2667f52fe00229eb4336507bef9758397a1e24a17",
+        807,
+        "f35844c0d404d5fc7905d8b7ecbee1d273c0bb46a7ed656d86f1b7cb0760fb33",
     ),
     "bundle_country": (
         1,
@@ -365,8 +365,8 @@ _PINS: dict[str, tuple[int, str]] = {
         "9bad55b4945af1c4213c510942e7b9d22d104bf75b0d9804e4a183e1656c8393",
     ),
     "catalog_columns": (
-        1_673,
-        "a983c0d68e980a31bd1ad41e7ef3c0cb3db9a7ee4d73454ae46f81eb6d1bb427",
+        1_693,
+        "672877a5b4ae8257d3c82ef751b96006de605401df2f5e06bb290e7d62c92c70",
     ),
     "catalog_metadata_waivers": (
         5,
@@ -401,8 +401,8 @@ _PINS: dict[str, tuple[int, str]] = {
         "bdf40812604e7cd35d68093fe14b7cd1371cb8ab8658fd6002b254610b062781",
     ),
     "imputation_family_execution": (
-        1_769,
-        "cd395f41c1cc425c734dc344607de043f3506b4ec2e727a29130fc4304f351e3",
+        1_787,
+        "994693d71ab099ed59a166b521194a27c8833914f5b36e45c4d6298250c4741c",
     ),
     "imputation_gap_fill_schedule": (
         5,
@@ -421,12 +421,12 @@ _PINS: dict[str, tuple[int, str]] = {
         "e1dd7dc5123ab0f39d08ea4939d98dd09a6fdb8e7449a7ca3125fb1ddbd5b4e9",
     ),
     "imputation_producer_graph": (
-        24_488,
-        "6382a3ed07016414c31462b8bedb24590d92b792405a89c927d85fa1bd2a8347",
+        24_602,
+        "ae4955c559c7cf6a997bc8a23aec21c52edd3bc6d0012c301e8f0506063cabe5",
     ),
     "imputation_transfer_execution": (
-        97,
-        "cabaaa3d96c534f5ec37f51811c3f549d0ed20791e2892c868888c0da6d7d80e",
+        99,
+        "e9990e7405845c778ef14250b8548e4b4d4825037b8676d8d2158256330d6175",
     ),
     "imputation_waiver_records": (
         70,
