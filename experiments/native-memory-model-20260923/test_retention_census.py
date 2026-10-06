@@ -26,6 +26,21 @@ profiles. Five hooks record *structure*, never values:
    observations and both reconstructions are live together;
 5. in the financial runner just after its 19-node ``run_graph`` returns.
 
+At each of the three runner points (2, 4, 5) two attributions are recorded
+(see ``census.py``). The first-owner partition charges a shared buffer to the
+first local in a fixed order; it sums to the live set but says nothing about
+what releasing one local would free. The exclusive attribution splits the
+replay pools (``expected``, ``current``, ``observed``, ...) into one atom per
+node and each geography reconstruction into one atom per stage, walks every
+atom separately, and charges to a group only the bytes no atom outside the
+group reaches. Savings for proposed code changes (C2, C3, C5) are read from
+the exclusive attribution. The harness also records, by object identity,
+which replay-pool entries *are* reconstruction stage populations, and
+asserts the aliasing it found (``graph_atomic_survey_financial.py:2228-2232``
+copies every ``base_expected`` geography stage into ``expected``;
+``graph_atomic_survey_population.py:266-272`` builds the prefix's
+``expected`` from its reconstruction's stages).
+
 Buffers are deduplicated by physical identity (NumPy root buffer address and
 size, Arrow buffer address and size, Python object identity for ``str``/object
 cells and ``bytes``). Every DataFrame buffer is also classified by the entity
@@ -37,12 +52,13 @@ dtype mixes and object multiplicities are meant to transfer to real scale.
 
 from __future__ import annotations
 
+import dataclasses
 import gc
 import hashlib
+import importlib.util
 import json
 import os
 import sys
-import types
 from collections import defaultdict
 from pathlib import Path
 from types import SimpleNamespace
@@ -61,287 +77,26 @@ OUT = Path(
     )
 )
 
-try:  # Arrow is optional in this workspace; graph strings use Python storage.
-    import pyarrow as pa
-except ImportError:  # pragma: no cover
-    pa = None
+
+def _load_census_module():
+    # The suite runs with --import-mode=importlib, which does not put this
+    # directory on sys.path; load the sibling module under a unique name.
+    spec = importlib.util.spec_from_file_location(
+        "native_memory_census", Path(__file__).with_name("census.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
-# --------------------------------------------------------------------------
-# Physical buffer identities
-# --------------------------------------------------------------------------
-
-
-def _ndarray_buffers(array):
-    root = array
-    while isinstance(root.base, np.ndarray):
-        root = root.base
-    if root.dtype == object:
-        # Pointer array plus every distinct referent.
-        yield ("np", root.__array_interface__["data"][0], root.nbytes), root.nbytes
-        for cell in root.ravel():
-            if cell is None or cell is pd.NA or isinstance(cell, bool):
-                continue
-            if isinstance(cell, float) and cell != cell:
-                continue
-            yield ("obj", id(cell)), sys.getsizeof(cell)
-        return
-    base = root.base
-    if isinstance(base, (bytes, bytearray, memoryview)):
-        size = len(base) if not isinstance(base, memoryview) else base.nbytes
-        yield ("pybuf", id(base)), size
-        return
-    yield ("np", root.__array_interface__["data"][0], root.nbytes), root.nbytes
-
-
-def _array_buffers(values):
-    if isinstance(values, np.ndarray):
-        yield from _ndarray_buffers(values)
-        return
-    if isinstance(values, pd.Index):
-        if isinstance(values, pd.RangeIndex):
-            return
-        yield from _array_buffers(values.array)
-        return
-    if isinstance(values, pd.Series):
-        yield from _array_buffers(values.array)
-        return
-    if hasattr(values, "_data") and hasattr(values, "_mask"):  # masked
-        yield from _ndarray_buffers(values._data)
-        yield from _ndarray_buffers(values._mask)
-        return
-    if pa is not None and hasattr(values, "_pa_array"):
-        chunked = values._pa_array
-        for chunk in chunked.chunks:
-            for buffer in chunk.buffers():
-                if buffer is not None:
-                    yield ("arrow", buffer.address, buffer.size), buffer.size
-        return
-    if hasattr(values, "_ndarray"):  # NumpyExtensionArray, StringArray, dt
-        yield from _ndarray_buffers(values._ndarray)
-        return
-    if hasattr(values, "codes") and hasattr(values, "categories"):
-        yield from _ndarray_buffers(np.asarray(values.codes))
-        yield from _array_buffers(values.categories)
-        return
-    yield from _ndarray_buffers(np.asarray(values))
-
-
-def _dtype_token(series):
-    dtype = series.dtype
-    if isinstance(dtype, pd.StringDtype):
-        return f"string[{dtype.storage}]"
-    return str(dtype)
-
-
-def _frame_tables(frame):
-    for entity in frame.entities:
-        yield "entity", entity, frame.table(entity)
-    for name in frame.links:
-        yield "link", name, frame.link(name)
-
-
-# --------------------------------------------------------------------------
-# Census over arbitrary object graphs
-# --------------------------------------------------------------------------
-
-_SKIP = (
-    types.ModuleType,
-    type,
-    types.FunctionType,
-    types.BuiltinFunctionType,
-    types.MethodType,
-    types.CodeType,
-    types.FrameType,
-    str,
-    int,
-    float,
-    complex,
-    bool,
-    type(None),
-    np.dtype,
-)
-
-
-class Census:
-    """Unique physical buffers reachable from named roots, first owner wins."""
-
-    def __init__(self, grains):
-        self.grains = grains  # {(entity, rows): grain}
-        self.seen = set()
-        self.visited = set()
-        self.rows = []  # one row per (root, table class)
-
-    def _table(self, root, kind, name, table, owner_frame_id):
-        rows = len(table)
-        grain = self.grains.get((name, rows), "other")
-        bytes_by_dtype = defaultdict(int)
-        for column in table.columns:
-            series = table[column]
-            token = _dtype_token(series)
-            for key, size in _array_buffers(series.array):
-                if key in self.seen:
-                    continue
-                self.seen.add(key)
-                bytes_by_dtype[token] += size
-        for key, size in _array_buffers(table.index):
-            if key not in self.seen:
-                self.seen.add(key)
-                bytes_by_dtype["index"] += size
-        total = sum(bytes_by_dtype.values())
-        self.rows.append(
-            {
-                "root": root,
-                "kind": kind,
-                "table": name,
-                "rows": rows,
-                "columns": len(table.columns),
-                "grain": grain,
-                "new_bytes": total,
-                "new_bytes_by_dtype": dict(bytes_by_dtype),
-                "frame": owner_frame_id,
-            }
-        )
-
-    def _leaf_bytes(self, root, label, key, size):
-        if key in self.seen:
-            return
-        self.seen.add(key)
-        self.rows.append(
-            {
-                "root": root,
-                "kind": label,
-                "table": None,
-                "rows": None,
-                "columns": None,
-                "grain": "unscaled",
-                "new_bytes": size,
-                "new_bytes_by_dtype": {label: size},
-                "frame": None,
-            }
-        )
-
-    def walk(self, root, obj, limit=3_000_000):
-        stack = [obj]
-        steps = 0
-        while stack:
-            item = stack.pop()
-            steps += 1
-            if steps > limit:
-                raise RuntimeError(f"census walk exceeded {limit} objects at {root}")
-            if isinstance(item, _SKIP):
-                continue
-            ident = id(item)
-            if ident in self.visited:
-                continue
-            self.visited.add(ident)
-            if isinstance(item, (bytes, bytearray)):
-                self._leaf_bytes(root, "bytes", ("obj", ident), sys.getsizeof(item))
-                continue
-            if isinstance(item, memoryview):
-                continue
-            if type(item).__name__ == "Frame" and hasattr(item, "_tables"):
-                for kind, name, table in _frame_tables(item):
-                    self.visited.add(id(table))
-                    self._table(root, kind, name, table, ident)
-                weights = [item.weights_for(e).values for e in item.weighted_entities]
-                for values in weights:
-                    for key, size in _array_buffers(np.asarray(values)):
-                        if key not in self.seen:
-                            self.seen.add(key)
-                            self.rows.append(
-                                {
-                                    "root": root,
-                                    "kind": "weights",
-                                    "table": None,
-                                    "rows": len(values),
-                                    "columns": 1,
-                                    "grain": "weights",
-                                    "new_bytes": size,
-                                    "new_bytes_by_dtype": {"float64": size},
-                                    "frame": ident,
-                                }
-                            )
-                strata = item.strata
-                if strata is not None:
-                    stack.append(strata)
-                stack.append(item._metadata)
-                stack.append(item._mass_log)
-                continue
-            if isinstance(item, pd.DataFrame):
-                self._table(root, "dataframe", None, item, None)
-                continue
-            if isinstance(item, (pd.Series, pd.Index)):
-                total = 0
-                for key, size in _array_buffers(item):
-                    if key not in self.seen:
-                        self.seen.add(key)
-                        total += size
-                if total:
-                    self.rows.append(
-                        {
-                            "root": root,
-                            "kind": "series",
-                            "table": None,
-                            "rows": len(item),
-                            "columns": 1,
-                            "grain": "series",
-                            "new_bytes": total,
-                            "new_bytes_by_dtype": {_dtype_token(item): total},
-                            "frame": None,
-                        }
-                    )
-                continue
-            if isinstance(item, np.ndarray):
-                total = 0
-                for key, size in _ndarray_buffers(item):
-                    if key not in self.seen:
-                        self.seen.add(key)
-                        total += size
-                if total:
-                    self.rows.append(
-                        {
-                            "root": root,
-                            "kind": "ndarray",
-                            "table": None,
-                            "rows": int(item.shape[0]) if item.ndim else 1,
-                            "columns": 1,
-                            "grain": "ndarray",
-                            "new_bytes": total,
-                            "new_bytes_by_dtype": {str(item.dtype): total},
-                            "frame": None,
-                        }
-                    )
-                continue
-            if isinstance(item, (dict, types.MappingProxyType)):
-                stack.extend(item.keys())
-                stack.extend(item.values())
-                continue
-            if isinstance(item, (list, tuple, set, frozenset)):
-                stack.extend(item)
-                continue
-            if isinstance(item, types.CellType):
-                try:
-                    stack.append(item.cell_contents)
-                except ValueError:
-                    pass
-                continue
-            state = getattr(item, "__dict__", None)
-            if isinstance(state, dict):
-                stack.extend(state.values())
-            for klass in type(item).__mro__:
-                for slot in getattr(klass, "__slots__", ()) or ():
-                    if isinstance(slot, str) and hasattr(item, slot):
-                        try:
-                            stack.append(getattr(item, slot))
-                        except Exception:  # noqa: BLE001 - descriptor quirks
-                            pass
-
-    def summary(self):
-        by_root = defaultdict(lambda: defaultdict(int))
-        for row in self.rows:
-            by_root[row["root"]][row["grain"]] += row["new_bytes"]
-        return {root: dict(grains) for root, grains in by_root.items()}
+_census = _load_census_module()
+Census = _census.Census
+exclusive_rows = _census.exclusive_rows
+_SKIP = _census._SKIP
+_array_buffers = _census._array_buffers
+_dtype_token = _census._dtype_token
+_frame_tables = _census._frame_tables
 
 
 # --------------------------------------------------------------------------
@@ -433,19 +188,171 @@ _PREFIX_ORDER = (
 )
 
 
-def _census_locals(record, key, local, grains, order):
+# Replay pools split into one atom per entry for the exclusive attribution.
+_FINANCIAL_SPLIT = frozenset(
+    {
+        "base_expected",
+        "expected",
+        "current",
+        "observed",
+        "witnessed",
+        "retained",
+        "tax_populations",
+    }
+)
+_PREFIX_SPLIT = frozenset({"expected", "observed"})
+# Geography reconstructions split into one atom per stage, the terminal copy
+# (``population``, a separate ``_copy_population`` of the last stage) and the
+# remaining small fields.
+_RECONSTRUCTIONS = frozenset({"geography", "fresh"})
+
+C3 = "C3: stream the geography expectations (runner-local)"
+C3R = "C3R: C3, and drop geography stages from the replay pool (contract change)"
+POOL = "replay pool, every node (expected and current)"
+C5 = "C5: manifest-attached frames"
+C2A = "C2a: detached copies of the six unreturned observations"
+C2B_ONLY = "C2b as first written: release the expected pool only"
+C2B = "C2b: release the expected pool and the first reconstruction's stages"
+C2C = "C2c: build only the three fresh populations the final checks compare"
+C2 = "C2: C2a, C2b and C2c together"
+
+
+def _atoms(local, order, split, module_state, unreached):
+    """(name, owning local, object) covering everything the census walks."""
+    atoms = []
+    for name in order:
+        if name not in local:
+            continue
+        value = local[name]
+        if name in split and isinstance(value, dict):
+            for key, item in value.items():
+                atoms.append((f"{name}[{key}]", name, item))
+        elif name in _RECONSTRUCTIONS and hasattr(value, "stages"):
+            for stage in value.stages:
+                atoms.append((f"{name}.stages[{stage.node.id}]", name, stage))
+            atoms.append((f"{name}.population", name, value.population))
+            rest = [
+                getattr(value, field.name)
+                for field in dataclasses.fields(value)
+                if field.name not in ("stages", "population")
+            ]
+            atoms.append((f"{name}.rest", name, rest))
+        else:
+            atoms.append((name, name, value))
+    other = [v for k, v in local.items() if k not in order]
+    atoms.append(("other_locals", "other_locals", other))
+    atoms.append(("module_state", "module_state", module_state))
+    atoms.append(("gc_unreached", "gc_unreached", unreached))
+    return atoms
+
+
+def _root_groups(atoms):
+    groups = defaultdict(set)
+    for name, owner, _ in atoms:
+        groups[f"root:{owner}"].add(name)
+    return dict(groups)
+
+
+def _financial_groups(local, atoms):
+    names = {name for name, _, _ in atoms}
+    groups = _root_groups(atoms)
+    geography = local["geography"]
+    stage_ids = [stage.node.id for stage in geography.stages]
+    stage_populations = [stage.population for stage in geography.stages]
+    c3 = set(groups["root:geography"]) | {
+        f"base_expected[{s}]" for s in stage_ids if f"base_expected[{s}]" in names
+    }
+    pool_stages = {f"expected[{s}]" for s in stage_ids if f"expected[{s}]" in names}
+    pool_stages |= {
+        f"current[{version}]"
+        for version, population in local.get("current", {}).items()
+        if any(population is stage for stage in stage_populations)
+    }
+    pool = {n for n in names if n.startswith(("expected[", "current["))}
+    groups[C3] = c3
+    groups[C3R] = c3 | pool_stages
+    groups[POOL] = pool
+    groups[C5] = set(groups["root:manifest"])
+    return groups
+
+
+def _prefix_groups(local, atoms):
+    groups = _root_groups(atoms)
+    result = local["result"]
+    returned = (
+        result.observed_population,
+        result.expanded_population,
+        result.geography_population,
+    )
+    c2a = {
+        f"observed[{node}]"
+        for node, population in local["observed"].items()
+        if not any(population is kept for kept in returned)
+    }
+    geography, fresh = local["geography"], local["fresh"]
+    c2b = set(groups["root:expected"]) | {
+        f"geography.stages[{stage.node.id}]" for stage in geography.stages
+    }
+    c2b.add("geography.population")
+    compared = (fresh.observed_population, fresh.expanded_population)
+    c2c = {
+        f"fresh.stages[{stage.node.id}]"
+        for stage in fresh.stages
+        if not any(stage.population is kept for kept in compared)
+    }
+    groups[C2A] = c2a
+    groups[C2B_ONLY] = set(groups["root:expected"])
+    groups[C2B] = c2b
+    groups[C2C] = c2c
+    groups[C2] = c2a | c2b | c2c
+    return groups
+
+
+def _aliases(local):
+    """Which pool entries are, by identity, reconstruction stage populations."""
+    geography = local.get("geography")
+    if geography is None or not hasattr(geography, "stages"):
+        return {}
+    stages = {stage.node.id: stage.population for stage in geography.stages}
+    aliases = {"geography_stage_ids": list(stages)}
+    for pool in ("base_expected", "expected"):
+        if isinstance(local.get(pool), dict):
+            aliases[f"{pool}_is_geography_stage"] = [
+                node for node, stage in stages.items() if local[pool].get(node) is stage
+            ]
+    if isinstance(local.get("current"), dict):
+        aliases["current_is_geography_stage"] = sorted(
+            version
+            for version, population in local["current"].items()
+            if any(population is stage for stage in stages.values())
+        )
+    return aliases
+
+
+def _census_point(record, key, local, grains, order, split, groups_for):
     gc.collect()
     census = Census(grains)
     for name in order:
         if name in local:
             census.walk(name, local[name])
     census.walk("other_locals", [v for k, v in local.items() if k not in order])
-    census.walk("module_state", _module_state())
-    census.walk("gc_unreached", _gc_frames(census))
+    module_state = _module_state()
+    census.walk("module_state", module_state)
+    unreached = _gc_frames(census)
+    census.walk("gc_unreached", unreached)
+    atoms = _atoms(local, order, split, module_state, unreached)
+    groups = groups_for(local, atoms)
+    exclusive = exclusive_rows(
+        [(name, value) for name, _, value in atoms], groups, grains
+    )
     record[key] = {
         "locals": sorted(local),
         "summary": census.summary(),
         "rows": census.rows,
+        "atoms": [[name, owner] for name, owner, _ in atoms],
+        "groups": {group: sorted(members) for group, members in groups.items()},
+        "exclusive": exclusive,
+        "aliases": _aliases(local),
     }
 
 
@@ -506,8 +413,14 @@ def _run(root, patch, retention):
                 prefix.manifest.population(runner.survey.CREATE_NODE),
                 prefix.clone_population.frame,
             )
-            _census_locals(
-                holder.record, "post_graph_census", local, grains, _LOCAL_ORDER
+            _census_point(
+                holder.record,
+                "post_graph_census",
+                local,
+                grains,
+                _LOCAL_ORDER,
+                _FINANCIAL_SPLIT,
+                _financial_groups,
             )
             del local, prefix
         return manifest
@@ -527,8 +440,14 @@ def _run(root, patch, retention):
                 local["expected"][runner.survey.CREATE_NODE].frame,
                 local["observed"][terminal].frame,
             )
-            _census_locals(
-                holder.record, "prefix_peak_census", local, grains, _PREFIX_ORDER
+            _census_point(
+                holder.record,
+                "prefix_peak_census",
+                local,
+                grains,
+                _PREFIX_ORDER,
+                _PREFIX_SPLIT,
+                _prefix_groups,
             )
             del local
         return result
@@ -547,22 +466,16 @@ def _run(root, patch, retention):
                 prefix.clone_population.frame,
             )
             holder.record["fixture_counts"] = counts
-            gc.collect()
-            census = Census(grains)
-            for name in _LOCAL_ORDER:
-                if name in local:
-                    census.walk(name, local[name])
-            census.walk(
-                "other_locals",
-                [v for k, v in local.items() if k not in _LOCAL_ORDER],
+            _census_point(
+                holder.record,
+                "states_census",
+                local,
+                grains,
+                _LOCAL_ORDER,
+                _FINANCIAL_SPLIT,
+                _financial_groups,
             )
-            census.walk("module_state", _module_state())
-            census.walk("gc_unreached", _gc_frames(census))
-            holder.record["states_census"] = {
-                "summary": census.summary(),
-                "rows": census.rows,
-            }
-            del local, prefix, census
+            del local, prefix
         return original_states(*args, **kwargs)
 
     patch.setattr(runner, "run_graph", run_graph)
@@ -634,3 +547,25 @@ def test_retention_census(tmp_path, retention):
     assert record["snapshots"], "observer recorded nothing"
     assert "prefix_peak_census" in record, "prefix fresh reconstruction not reached"
     assert "post_graph_census" in record, "financial run_graph return not reached"
+    # The replay pool holds every geography stage population, by identity, after
+    # the replay (graph_atomic_survey_financial.py:2228-2232); so does the
+    # prefix's expected pool (graph_atomic_survey_population.py:266-272). A
+    # first-owner share charged to ``geography`` is therefore not what releasing
+    # the reconstruction frees; the exclusive attribution below is.
+    states = record["states_census"]["aliases"]
+    assert states["expected_is_geography_stage"] == states["geography_stage_ids"]
+    assert states["base_expected_is_geography_stage"] == states["geography_stage_ids"]
+    prefix = record["prefix_peak_census"]["aliases"]
+    assert prefix["expected_is_geography_stage"] == prefix["geography_stage_ids"]
+    for key in ("prefix_peak_census", "post_graph_census", "states_census"):
+        point = record[key]
+        first_owner = defaultdict(int)
+        for row in point["rows"]:
+            first_owner[row["root"]] += row["new_bytes"]
+        total = sum(first_owner.values())
+        for group, rows in point["exclusive"].items():
+            freed = sum(row["new_bytes"] for row in rows)
+            assert freed <= total, (key, group)
+            if group.startswith("root:"):
+                # Bytes only one local reaches are charged to it in any order.
+                assert freed <= first_owner[group[len("root:") :]], (key, group)
