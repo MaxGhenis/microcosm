@@ -229,7 +229,7 @@
     },
     {
      "kind": "map_columns",
-     "scope": "raw-to-column E2 mappings and FRS claimant-role derivation (is_benunit_head OR is_parent OR no dependent children within the benefit unit) to is_uc_claimant; benunit.TOTCAPB4 -> frs_benunit_capital with blank, nonnumeric, or negative raw values -> named -1 unavailable sentinel (mapped-row count reported in stage evidence)"
+     "scope": "raw-to-column E2 mappings and FRS claimant-role derivation (is_benunit_head OR is_parent OR no dependent children within the benefit unit) to is_uc_claimant; FRS adult-table membership (one or two adult records per benefit unit, else refuse) to is_claimant_or_partner, refused unless it equals is_uc_claimant; benunit.TOTCAPB4 -> frs_benunit_capital with blank, nonnumeric, or negative raw values -> named -1 unavailable sentinel (mapped-row count reported in stage evidence)"
     },
     {
      "kind": "map_coded_amounts",
@@ -252,6 +252,7 @@
     "is_household_head",
     "is_benunit_head",
     "is_parent",
+    "is_claimant_or_partner",
     "is_uc_claimant",
     "employment_income",
     "self_employment_income",

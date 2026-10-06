@@ -12,6 +12,8 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from microcosm.build.country_spec import country_stage_plan, load_country_spec
 from microcosm.build.logbook import load_spool_rows
@@ -38,6 +40,7 @@ from microcosm.build.uk_runtime.frs_spine import (
     WEEKS_IN_YEAR,
     UKFRSSpineStageTransform,
     build_uk_frs_spine_frame,
+    frs_claimant_or_partner,
     scottish_water_and_sewerage_weekly,
     uk_frs_spine_seed_frame,
 )
@@ -48,6 +51,7 @@ from microcosm.build.uk_runtime.national_frame import (
     uk_time_period,
     validate_uk_national_frame,
 )
+from microcosm.build.uk_runtime.uc_relationships import frs_uc_claimant_mask
 from microcosm.frame import Frame, WeightKind, engine_tables
 
 # The driver lives in the package now; ``tools/build_uk_frs_spine.py`` is a
@@ -1124,7 +1128,177 @@ def test_uc_claimant_input_uses_frs_membership_not_age_or_marriage(
         expected[2003] = False
     assert person["is_uc_claimant"].to_dict() == expected
     assert person["is_uc_claimant"].dtype == bool
+    assert person["is_claimant_or_partner"].to_dict() == expected
+    assert person["is_claimant_or_partner"].dtype == bool
     assert not frame.table("benunit").set_index("benunit_id").loc[201, "is_married"]
+
+
+def test_claimant_or_partner_is_adult_table_membership_not_uperson(
+    tmp_path: Path,
+) -> None:
+    tables = _fixture_tables()
+    # A dependent child can be UPERSON 2 under a single head: UPERSON alone
+    # would make a 17-year-old the lone parent's partner.
+    tables["child"][0].update({"UPERSON": 2, "AGE": 17})
+    frame = build_uk_frs_spine_frame(tmp_path, stage=_write_fixture(tmp_path, tables))
+    person = frame.table("person").set_index("person_id")
+    assert person["is_claimant_or_partner"].to_dict() == {
+        1001: True,
+        1002: False,
+        2001: True,
+    }
+    assert person.loc[1002, "is_benunit_head"] == False  # noqa: E712
+
+
+@pytest.mark.parametrize("defect", ["no_adult", "third_adult"])
+def test_benefit_unit_without_one_or_two_adult_records_is_refused(
+    tmp_path: Path, defect: str
+) -> None:
+    tables = _fixture_tables()
+    if defect == "no_adult":
+        # A second benefit unit in household 1 holding only a child record.
+        tables["child"].append(
+            {**tables["child"][0], "BENUNIT": 2, "PERSON": 3, "UPERSON": 0}
+        )
+        tables["benunit"].append(
+            {**tables["benunit"][1], "BENUNIT": 2, "DEPCHLDB": 1}
+        )
+    else:
+        for person in (3, 4):
+            tables["adult"].append(
+                {**tables["adult"][1], "PERSON": person, "UPERSON": 2, "HRPID": 0}
+            )
+    stage = _write_fixture(tmp_path, tables)
+    with pytest.raises(ValueError, match="one or two adult-table records"):
+        build_uk_frs_spine_frame(tmp_path, stage=stage)
+
+
+def test_claimant_roles_must_agree_with_the_dependant_count(tmp_path: Path) -> None:
+    tables = _fixture_tables()
+    # DEPCHLDB 0 beside a child record: the dependant-count rule would make
+    # the child a claimant while the adult table does not.
+    tables["benunit"][1]["DEPCHLDB"] = 0
+    stage = _write_fixture(tmp_path, tables)
+    with pytest.raises(ValueError, match="must be the same roles"):
+        build_uk_frs_spine_frame(tmp_path, stage=stage)
+
+
+@st.composite
+def _frs_benefit_units(draw):
+    """FRS-shaped records: units of one or two adult records plus children.
+
+    Adult-table records are aged 16-80 with UPERSON 1 (head) and 2 (partner);
+    child-table records are aged 0-19 and may carry any UPERSON from 2, as raw
+    FRS 2020-21 to 2024-25 do. Rows arrive in a random order.
+    """
+    rows = []
+    for household in range(1, draw(st.integers(1, 5)) + 1):
+        person = 0
+        for benunit in range(1, draw(st.integers(1, 3)) + 1):
+            n_adults = draw(st.integers(1, 2))
+            n_children = draw(st.integers(0, 4))
+            for index in range(n_adults + n_children):
+                person += 1
+                adult = index < n_adults
+                rows.append(
+                    {
+                        "person_id": household * 1000 + person,
+                        "benunit_id": household * 100 + benunit,
+                        "adult": adult,
+                        "age": draw(st.integers(16, 80) if adult else st.integers(0, 19)),
+                        "uperson": index + 1 if adult else draw(st.integers(2, 9)),
+                    }
+                )
+    frame = pd.DataFrame(rows)
+    order = draw(st.permutations(range(len(frame))))
+    return frame.iloc[list(order)].reset_index(drop=True)
+
+
+def _roles(frame: pd.DataFrame) -> np.ndarray:
+    return frs_claimant_or_partner(
+        frame["person_id"], frame["benunit_id"], frame.loc[frame["adult"], "person_id"]
+    )
+
+
+@settings(max_examples=300, deadline=None)
+@given(_frs_benefit_units())
+def test_claimant_or_partner_properties(frame: pd.DataFrame) -> None:
+    role = _roles(frame)
+    assert role.dtype == bool
+    assert (role == frame["adult"].to_numpy()).all()
+    per_unit = pd.Series(role).groupby(frame["benunit_id"].to_numpy()).sum()
+    assert per_unit.between(1, 2).all()
+    age = frame["age"].to_numpy()
+    # Children never; everyone aged 20 or more, since FRS dependants are 19 at
+    # most; and the head (UPERSON 1 is always an adult record) always.
+    assert not (role & ~frame["adult"].to_numpy()).any()
+    assert role[age >= 20].all()
+    assert role[(frame["uperson"] == 1).to_numpy() & frame["adult"].to_numpy()].all()
+
+
+@settings(max_examples=200, deadline=None)
+@given(_frs_benefit_units(), st.randoms(use_true_random=False))
+def test_claimant_or_partner_ignores_record_order(frame: pd.DataFrame, rng) -> None:
+    order = list(range(len(frame)))
+    rng.shuffle(order)
+    shuffled = frame.iloc[order].reset_index(drop=True)
+    by_person = dict(zip(frame["person_id"], _roles(frame), strict=True))
+    assert [by_person[p] for p in shuffled["person_id"]] == _roles(shuffled).tolist()
+
+
+@settings(max_examples=300, deadline=None)
+@given(_frs_benefit_units())
+def test_claimant_or_partner_agrees_with_the_dependant_count_rule(
+    frame: pd.DataFrame,
+) -> None:
+    # Differential: where the benefit unit's dependant count is its number of
+    # child records (true of every unit in raw FRS 2024-25), the UC rule
+    # (head OR adult with dependants OR any member of a childless unit) and
+    # adult-table membership name the same people.
+    adult = frame["adult"].to_numpy()
+    benunit_ids = np.sort(frame["benunit_id"].unique())
+    children = pd.Series(~adult).groupby(frame["benunit_id"].to_numpy()).sum()
+    person = pd.DataFrame(
+        {
+            "person_benunit_id": frame["benunit_id"],
+            "is_benunit_head": adult & (frame["uperson"] == 1).to_numpy(),
+            "is_parent": adult
+            & frame["benunit_id"].map(children).gt(0).to_numpy(),
+        }
+    )
+    benunit = pd.DataFrame(
+        {
+            "benunit_id": benunit_ids,
+            "dependent_children": children.reindex(benunit_ids).to_numpy(),
+        }
+    )
+    assert (frs_uc_claimant_mask(person, benunit) == _roles(frame)).all()
+
+
+@settings(max_examples=200, deadline=None)
+@given(_frs_benefit_units(), st.data())
+def test_claimant_or_partner_refuses_a_unit_with_no_or_a_third_adult(
+    frame: pd.DataFrame, data
+) -> None:
+    benunit = data.draw(st.sampled_from(sorted(frame["benunit_id"].unique())))
+    members = (frame["benunit_id"] == benunit).to_numpy()
+    if data.draw(st.booleans()):
+        frame = frame.assign(adult=frame["adult"] & ~members)
+    else:
+        n_extra = 3 - int(frame.loc[members, "adult"].sum())
+        start = int(frame["person_id"].max()) + 1
+        extra = pd.DataFrame(
+            {
+                "person_id": range(start, start + n_extra),
+                "benunit_id": benunit,
+                "adult": True,
+                "age": 40,
+                "uperson": 2,
+            }
+        )
+        frame = pd.concat([frame, extra], ignore_index=True)
+    with pytest.raises(ValueError, match="one or two adult-table records"):
+        _roles(frame)
 
 
 def test_benefit_code_splits_are_ported(tmp_path: Path) -> None:

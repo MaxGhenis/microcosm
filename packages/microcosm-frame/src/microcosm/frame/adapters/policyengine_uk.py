@@ -181,23 +181,45 @@ def _is_engine_computed(variable: Any) -> bool:
     return bool(getattr(variable, "formulas", None))
 
 
+#: Supplied benefit-unit roles, each with the first policyengine-uk release
+#: that defines it, and whether a release without it must refuse the frame.
+#: ``is_claimant_or_partner`` (policyengine-uk 2.107.0) is read across the
+#: model's programmes, and from that release ``is_uc_claimant`` derives from
+#: it. An earlier release has no such variable and nothing that reads one, so
+#: the column it ignores changes no result there.
+_SUPPLIED_ROLES: tuple[tuple[str, str, bool], ...] = (
+    ("is_uc_claimant", "2.98.0", True),
+    ("is_claimant_or_partner", "2.107.0", False),
+)
+
+
 def validate_uc_claimant_input(simulation: Any, person: Any, period: int | str) -> None:
-    """Require supplied UC roles to survive the model's dataset loader.
+    """Require supplied claimant roles to survive the model's dataset loader.
 
     The UK loader ignores unknown columns. FRS roles must therefore remain
     explicit inputs; recalculating the model's relationship fallback can give
     a different answer for young partners or older nonqualifying dependants.
     Frames without recorded claimant roles retain ordinary calculator behavior.
+    Checks ``is_uc_claimant`` and, where the installed model defines it,
+    ``is_claimant_or_partner``.
     """
-    name = "is_uc_claimant"
-    if name not in person:
-        return
+    for name, floor, required in _SUPPLIED_ROLES:
+        if name not in person:
+            continue
+        if not required and name not in simulation.tax_benefit_system.variables:
+            continue
+        _validate_supplied_role(simulation, person, period, name, floor)
+
+
+def _validate_supplied_role(
+    simulation: Any, person: Any, period: int | str, name: str, floor: str
+) -> None:
     try:
         installed = metadata.version("policyengine-uk")
     except metadata.PackageNotFoundError:
         installed = "unavailable"
     guidance = (
-        f"Supplied {name} requires policyengine-uk>=2.98.0 with explicit "
+        f"Supplied {name} requires policyengine-uk>={floor} with explicit "
         f"person/Boolean/year input support (installed {installed})."
     )
     definition = simulation.tax_benefit_system.variables.get(name)

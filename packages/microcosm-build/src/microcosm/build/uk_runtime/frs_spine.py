@@ -28,6 +28,7 @@ __all__ = [
     "UKFRSSpineStageTransform",
     "artifact_by_table",
     "build_uk_frs_spine_frame",
+    "frs_claimant_or_partner",
     "map_codes",
     "normalize_ids",
     "number",
@@ -183,6 +184,7 @@ OUTPUT_COLUMNS = (
     "is_household_head",
     "is_benunit_head",
     "is_parent",
+    "is_claimant_or_partner",
     "is_uc_claimant",
     "employment_income",
     "self_employment_income",
@@ -491,7 +493,22 @@ def _assemble_frame(frs: Mapping[str, pd.DataFrame]) -> Frame:
     # Preserve the FRS claimant/partner roles as a country-model input. Age
     # does not promote a dependent child to a partner, and legal marriage
     # alone does not establish that a partner lives in this benefit unit.
+    pe_person["is_claimant_or_partner"] = frs_claimant_or_partner(
+        pe_person["person_id"], pe_person["person_benunit_id"], list(adult_ids)
+    )
     pe_person["is_uc_claimant"] = frs_uc_claimant_mask(pe_person, pe_benunit)
+    # policyengine-uk 2.107.0 reads one claimant-or-partner role across its
+    # programmes and derives is_uc_claimant from it, so the two supplied roles
+    # must be the same people.
+    disagree = int(
+        (pe_person["is_claimant_or_partner"] != pe_person["is_uc_claimant"]).sum()
+    )
+    if disagree:
+        raise ValueError(
+            "FRS adult-table membership and the dependant-count claimant rule "
+            f"disagree for {disagree} person(s): is_claimant_or_partner and "
+            "is_uc_claimant must be the same roles."
+        )
 
     _add_household_columns(pe_household, household, frs)
 
@@ -916,6 +933,34 @@ def frs_care_hours(person: pd.DataFrame) -> pd.Series:
     if unknown:
         raise ValueError(f"FRS hourtot carries unknown band code(s) {unknown}.")
     return codes.astype(int).map(FRS_CARE_HOURS_BY_BAND).astype("float64")
+
+
+def frs_claimant_or_partner(
+    person_ids: Any, person_benunit_ids: Any, adult_person_ids: Any
+) -> np.ndarray:
+    """Each FRS benefit unit's single adult or couple, in person-row order.
+
+    An FRS benefit unit is one adult or a couple plus any dependent children.
+    The adult table holds the head (UPERSON 1) and any partner (UPERSON 2);
+    the child table holds the dependent children. Any other adult in the
+    household, such as a grown-up son or daughter, forms and heads their own
+    benefit unit. Adult-table membership is therefore policyengine-uk's
+    ``is_claimant_or_partner``, which the model otherwise infers from ages.
+    UPERSON alone is not enough: a dependent child can be UPERSON 2 under a
+    single head. Mirrors policyengine-uk-data's
+    ``derive_is_claimant_or_partner_from_frs_microdata``
+    (PolicyEngine/policyengine-uk-data#524).
+    """
+
+    in_adult_table = np.isin(np.asarray(person_ids), np.asarray(adult_person_ids))
+    counts = pd.Series(in_adult_table).groupby(np.asarray(person_benunit_ids)).sum()
+    bad = int((~counts.between(1, 2)).sum())
+    if bad:
+        raise ValueError(
+            "Every FRS benefit unit needs one or two adult-table records; "
+            f"{bad} benefit unit(s) do not."
+        )
+    return in_adult_table
 
 
 def _number(frame: pd.DataFrame, column: str) -> pd.Series:
