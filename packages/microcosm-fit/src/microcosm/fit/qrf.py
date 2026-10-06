@@ -50,13 +50,21 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import random
+import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
+from math import ceil
+from numbers import Integral, Real
 
+import joblib
 import numpy as np
 import pandas as pd
 from quantile_forest import RandomForestQuantileRegressor
+from quantile_forest import _quantile_forest as _quantile_forest_backend
+from quantile_forest._quantile_forest_fast import calc_weighted_quantile
+from quantile_forest._utils import group_indices_by_value
 from sklearn.ensemble import HistGradientBoostingClassifier
 
 from microcosm.fit.model import (
@@ -351,6 +359,310 @@ class _Forest:
         return out
 
 
+@dataclass(frozen=True)
+class _SparseTreeLeaves:
+    """Compact training-index membership for every node in one tree.
+
+    ``offsets[node]:offsets[node + 1]`` selects the sorted-target indices held
+    by that node. Internal nodes simply have equal adjacent offsets. Unlike
+    ``quantile_forest``'s padded ``(trees, max_nodes, max_leaf_size)`` tensor,
+    this representation stores each retained bootstrap membership exactly
+    once, so its size is linear in the number of fitted rows and trees even
+    when one tree contains both many nodes and one exceptionally large leaf.
+    """
+
+    offsets: np.ndarray
+    indices: np.ndarray
+
+
+class _MemoryBoundedRandomForestQuantileRegressor(RandomForestQuantileRegressor):
+    """``quantile_forest``-equivalent estimator with compact leaf storage.
+
+    Tree fitting is delegated directly to the same sklearn ``ForestRegressor``
+    path used by :class:`RandomForestQuantileRegressor`. Only the dependency's
+    post-fit dense ``y_train_leaves`` construction is replaced. Per-tree leaf
+    memberships are stored as CSR-style offsets plus target-sort indices, and
+    prediction calls the dependency's own compiled weighted-quantile primitive
+    after aggregating those memberships. Thus tree seeds, splits, bounded-leaf
+    subsampling, and quantile arithmetic stay identical while the pathological
+    ``trees * max_nodes * largest_leaf`` allocation disappears.
+
+    Microcosm fits one target per instance and uses the default in-bag,
+    weighted, aggregate-leaves-first prediction mode. The implementation keeps
+    that deliberately narrow surface; unsupported dependency modes fail closed
+    rather than silently changing their semantics.
+    """
+
+    def fit(self, X, y, sample_weight=None, sparse_pickle=False):  # noqa: N803
+        """Fit identical sklearn trees, then build compact leaf membership."""
+        del sparse_pickle  # Compact membership is already pickle-friendly.
+        self._validate_params()
+
+        if self.monotonic_cst is not None:
+            raise NotImplementedError(
+                "The memory-bounded forest does not support monotonicity "
+                "constraints because Microcosm never configures them."
+            )
+
+        # This is the exact tree-growth call made at the start of
+        # BaseForestQuantileRegressor.fit. Calling past that class bypasses only
+        # its padded y_train_leaves tensor construction.
+        super(_quantile_forest_backend.BaseForestQuantileRegressor, self).fit(
+            X, y, sample_weight=sample_weight
+        )
+
+        validation_params = {
+            "X": X,
+            "y": y,
+            "multi_output": True,
+            "accept_sparse": "csc",
+            "dtype": _quantile_forest_backend.DTYPE,
+            (
+                "force_all_finite"
+                if _quantile_forest_backend.sklearn_version
+                < _quantile_forest_backend.parse_version("1.6.dev0")
+                else "ensure_all_finite"
+            ): True,
+        }
+        if _quantile_forest_backend.validate_data is None:
+            x_valid, y_valid = self._validate_data(**validation_params)
+        else:
+            x_valid, y_valid = _quantile_forest_backend.validate_data(
+                self, **validation_params
+            )
+        if y_valid.ndim == 1:
+            y_valid = np.expand_dims(y_valid, axis=1)
+        if y_valid.shape[1] != 1:
+            raise ValueError(
+                "Microcosm's memory-bounded quantile forest fits exactly one "
+                f"target per model, got {y_valid.shape[1]}."
+            )
+
+        sorter = np.argsort(y_valid, axis=0)
+        y_sorted = y_valid[sorter[:, 0], 0]
+        inverse_sorter = np.argsort(sorter, axis=0)[:, 0]
+
+        self.sample_weight_ = sample_weight
+        sorted_weight = (
+            None if sample_weight is None else np.asarray(sample_weight)[sorter[:, 0]]
+        )
+        self._sparse_tree_leaves = self._build_sparse_tree_leaves(
+            x_valid,
+            inverse_sorter=inverse_sorter,
+            sorted_weight=sorted_weight,
+        )
+        self._y_train_sorted = np.asarray(y_sorted, dtype=np.float64)
+
+        # Preserve the dependency's fitted-estimator metadata used by sklearn
+        # and by callers which introspect a fitted quantile forest.
+        self.sorter_ = sorter
+        self.n_train_samples_ = len(y_sorted)
+        self.X_train_hash_ = joblib.hash(x_valid)
+        self.unsampled_indices_ = None
+        return self
+
+    def _build_sparse_tree_leaves(
+        self,
+        x,
+        *,
+        inverse_sorter: np.ndarray,
+        sorted_weight: np.ndarray | None,
+    ) -> tuple[_SparseTreeLeaves, ...]:
+        """Build exact dependency memberships without cross-leaf padding."""
+        n_samples = x.shape[0]
+        if isinstance(self.max_samples_leaf, (Integral, np.integer)):
+            max_samples_leaf = int(self.max_samples_leaf)
+            leaf_subsample = True
+        elif isinstance(self.max_samples_leaf, Real):
+            max_samples_leaf = int(ceil(self.max_samples_leaf * n_samples))
+            leaf_subsample = True
+        elif self.max_samples_leaf is None:
+            max_samples_leaf = None
+            leaf_subsample = False
+        else:
+            raise ValueError(
+                "`max_samples_leaf` must be of integer, float, or None type, "
+                f"got {type(self.max_samples_leaf)}."
+            )
+
+        x_apply = self._validate_X_predict(x)
+        if self.bootstrap:
+            bootstrap_args = (n_samples, self.max_samples)
+            if _quantile_forest_backend.sklearn_version >= (
+                _quantile_forest_backend.parse_version("1.9.0")
+            ):
+                bootstrap_args += (self.sample_weight_,)
+            n_samples_bootstrap = _quantile_forest_backend._get_n_samples_bootstrap(
+                *bootstrap_args
+            )
+
+        trees: list[_SparseTreeLeaves] = []
+        for estimator in self.estimators_:
+            if self.bootstrap:
+                sample_args = (
+                    estimator.random_state,
+                    n_samples,
+                    n_samples_bootstrap,
+                )
+                if _quantile_forest_backend.sklearn_version >= (
+                    _quantile_forest_backend.parse_version("1.9.0")
+                ):
+                    sample_args += (self.sample_weight_,)
+                bootstrap_indices = _quantile_forest_backend._generate_sample_indices(
+                    *sample_args
+                )
+            else:
+                bootstrap_indices = np.arange(n_samples, dtype=np.int64)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                leaves = estimator.apply(x_apply, check_input=False)
+            bootstrap_leaves = np.asarray(leaves[bootstrap_indices], dtype=np.int64)
+            leaf_nodes, leaf_positions = group_indices_by_value(bootstrap_leaves)
+
+            if leaf_subsample:
+                random.seed(estimator.random_state)
+
+            selected_by_leaf: list[np.ndarray] = []
+            counts = np.zeros(estimator.tree_.node_count, dtype=np.int64)
+            for node, positions in zip(leaf_nodes, leaf_positions, strict=True):
+                positions = np.asarray(positions, dtype=np.int64)
+                if sorted_weight is not None:
+                    # Match quantile_forest 1.4.2's filtering order/indexing.
+                    positions = positions[sorted_weight[positions - 1] > 0]
+                if leaf_subsample and len(positions) > max_samples_leaf:
+                    random.shuffle(positions)
+                    positions = positions[:max_samples_leaf]
+                if len(positions) == 0:
+                    positions = np.array([0], dtype=np.int64)
+                selected = inverse_sorter[bootstrap_indices[positions]]
+                selected_by_leaf.append(np.asarray(selected, dtype=np.int64))
+                counts[int(node)] = len(selected)
+
+            offsets = np.empty(estimator.tree_.node_count + 1, dtype=np.int64)
+            offsets[0] = 0
+            np.cumsum(counts, out=offsets[1:])
+            indices = np.empty(int(offsets[-1]), dtype=np.int64)
+            cursor = 0
+            for selected in selected_by_leaf:
+                stop = cursor + len(selected)
+                indices[cursor:stop] = selected
+                cursor = stop
+            trees.append(_SparseTreeLeaves(offsets=offsets, indices=indices))
+        return tuple(trees)
+
+    def predict(
+        self,
+        X,  # noqa: N803
+        quantiles=None,
+        interpolation="linear",
+        weighted_quantile=True,
+        weighted_leaves=False,
+        aggregate_leaves_first=True,
+        oob_score=False,
+        indices=None,
+        duplicates=None,
+    ):
+        """Predict with exact dependency semantics over compact membership."""
+        _quantile_forest_backend.check_is_fitted(self)
+        if (
+            not weighted_quantile
+            or weighted_leaves
+            or not aggregate_leaves_first
+            or oob_score
+            or indices is not None
+            or duplicates is not None
+        ):
+            raise NotImplementedError(
+                "The memory-bounded forest supports Microcosm's in-bag, "
+                "weighted, aggregate-leaves-first prediction mode only."
+            )
+        x_valid = self._validate_X_predict(X)
+        if quantiles is None:
+            quantiles = (
+                ["mean"] if self.default_quantiles is None else self.default_quantiles
+            )
+        if not isinstance(quantiles, list):
+            quantiles = [quantiles]
+        if quantiles == ["mean"]:
+            raise NotImplementedError(
+                "Mean prediction is not used by Microcosm's quantile draw path."
+            )
+        for quantile in quantiles:
+            if not isinstance(quantile, (float, int)) or not 0 <= quantile <= 1:
+                raise ValueError(
+                    f"Quantiles must be in the range [0, 1], got {quantile}."
+                )
+        if interpolation not in {"linear", "lower", "higher", "midpoint", "nearest"}:
+            raise ValueError(f"Invalid interpolation method {interpolation!r}.")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            x_leaves = self.apply(x_valid)
+        if self.max_samples_leaf == 1:
+            return self._predict_single_sample_leaves(
+                x_leaves, quantiles, interpolation=interpolation
+            )
+
+        predictions = np.empty((len(x_valid), len(quantiles)), dtype=np.float64)
+        cache: dict[tuple[int, ...], np.ndarray] = {}
+        # One transient O(n_train) vector replaces the dependency's persistent
+        # O(trees * max_nodes * largest_leaf) tensor. Keeping the zero entries
+        # is load-bearing for exact endpoint behavior in its compiled routine:
+        # q=0 initializes its floor at y_train[0], even when that row has zero
+        # membership in the queried leaves.
+        weights = np.zeros(len(self._y_train_sorted), dtype=np.float64)
+        for row, row_leaves in enumerate(x_leaves):
+            key = tuple(int(leaf) for leaf in row_leaves)
+            prediction = cache.get(key)
+            if prediction is None:
+                for tree, leaf in zip(
+                    self._sparse_tree_leaves, row_leaves, strict=True
+                ):
+                    start = tree.offsets[int(leaf)]
+                    stop = tree.offsets[int(leaf) + 1]
+                    np.add.at(weights, tree.indices[start:stop], 1.0)
+                prediction = np.asarray(
+                    calc_weighted_quantile(
+                        self._y_train_sorted,
+                        weights,
+                        quantiles,
+                        interpolation.encode(),
+                        True,
+                    ),
+                    dtype=np.float64,
+                )
+                cache[key] = prediction
+                weights.fill(0.0)
+            predictions[row] = prediction
+        if len(quantiles) == 1:
+            return predictions[:, 0]
+        return predictions
+
+    def _predict_single_sample_leaves(
+        self,
+        x_leaves: np.ndarray,
+        quantiles: list[float],
+        *,
+        interpolation: str,
+    ) -> np.ndarray:
+        """Use NumPy's exact dependency fast path for one sample per leaf."""
+        leaf_values = np.empty((len(x_leaves), self.n_estimators), dtype=np.float64)
+        for tree_number, tree in enumerate(self._sparse_tree_leaves):
+            starts = tree.offsets[x_leaves[:, tree_number]]
+            target_indices = tree.indices[starts]
+            leaf_values[:, tree_number] = self._y_train_sorted[target_indices]
+        predicted = np.quantile(
+            leaf_values,
+            quantiles,
+            method=interpolation,
+            axis=1,
+        ).T
+        if len(quantiles) == 1:
+            return predicted[:, 0]
+        return predicted
+
+
 #: Fine symmetric quantile grid used to read per-row draws. The interior is an
 #: evenly spaced grid over ``(0, 1)``; points adjacent to 0 and 1 are prepended
 #: and appended so the *observed* conditional extremes are drawable. The maximum
@@ -501,7 +813,7 @@ def _fit_forest(
             f"max_samples_leaf at {_DISCRETE_Y_LEAF_BOUND} for this forest.",
             flush=True,
         )
-    model = RandomForestQuantileRegressor(
+    model = _MemoryBoundedRandomForestQuantileRegressor(
         n_estimators=n_estimators,
         max_samples_leaf=effective_max_samples_leaf,
         random_state=seed,

@@ -2561,6 +2561,29 @@ def _complete_component_sum(
     return pd.Series(values, index=person.index, name=feature)
 
 
+def _complete_numeric_component_sum(
+    frame: Frame,
+    components: Sequence[str],
+    *,
+    feature: str,
+) -> pd.Series | None:
+    """Sum a complete survey-native numeric surface without changing it."""
+
+    person = frame.table(frame.schema.person_entity)
+    if any(component not in person.columns for component in components):
+        return None
+    encoded = np.column_stack(
+        [
+            _numeric_source(
+                person[component],
+                context=f"donor analog {feature!r} component {component!r}",
+            )
+            for component in components
+        ]
+    )
+    return pd.Series(encoded.sum(axis=1), index=person.index, name=feature)
+
+
 def _person_head_feature(frame: Frame) -> pd.Series | None:
     person = frame.table(frame.schema.person_entity)
     direct = _person_column(frame, "is_household_head")

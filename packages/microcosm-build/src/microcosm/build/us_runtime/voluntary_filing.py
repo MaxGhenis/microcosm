@@ -385,7 +385,11 @@ def load_sipp_2023_voluntary_filing_donor(
         delimiter="|",
         usecols=list(SIPP_VOLUNTARY_FILING_SOURCE_COLUMNS),
         chunksize=int(chunksize),
-        low_memory=False,
+        # Every retained numeric column is converted and checked explicitly
+        # below. Letting the CSV parser infer per chunk avoids its whole-file
+        # type-reconciliation buffer for the 3.73 GB pinned source without
+        # weakening the post-filter validation or changing donor semantics.
+        low_memory=True,
     )
     for chunk in reader:
         month = _numeric(chunk["MONTHCODE"])

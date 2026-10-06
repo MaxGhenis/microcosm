@@ -16,7 +16,13 @@ import pandas as pd
 import pytest
 
 from microcosm.fit import QRFChainState, Regime, RegimeGatedQRF, fit
-from microcosm.fit.qrf import _DISCRETE_Y_LEAF_BOUND, _fit_n_jobs, detect_regime
+from microcosm.fit.qrf import (
+    _DISCRETE_Y_LEAF_BOUND,
+    _fit_n_jobs,
+    _Forest,
+    _MemoryBoundedRandomForestQuantileRegressor,
+    detect_regime,
+)
 
 # ----------------------------------------------------------------------------
 # Regime detection: structural, unweighted support classification
@@ -614,6 +620,123 @@ def test_near_discrete_bound_draws_are_seed_deterministic(make_person_frame) -> 
     np.testing.assert_array_equal(
         first["target"].to_numpy(), second["target"].to_numpy()
     )
+
+
+@pytest.mark.parametrize("n_jobs", [1, 2])
+@pytest.mark.parametrize("max_samples_leaf", [None, 1, 1.0, 4, 4096])
+def test_memory_bounded_forest_is_bit_identical_to_quantile_forest(
+    n_jobs,
+    max_samples_leaf,
+    monkeypatch,
+) -> None:
+    """Compact leaf storage preserves trees and quantiles bit for bit.
+
+    ``None`` exercises full leaf retention, integer ``1`` exercises the
+    dependency's NumPy fast path, float ``1.0`` pins its odd combination of a
+    full-size fit cap and that same single-slot predict path, ``4`` forces its
+    seeded bounded-leaf subsampling, and ``4096`` pins the production
+    near-discrete bound. Both serial and parallel sklearn ``apply`` paths must
+    read the same fitted forest exactly.
+    """
+    from quantile_forest import RandomForestQuantileRegressor
+
+    rng = np.random.default_rng(20260820)
+    x = rng.normal(size=(180, 4))
+    # A shallow forest deliberately leaves many samples together, ensuring the
+    # full-retention and forced-bound paths exercise multi-sample leaves.
+    y = 2.0 * x[:, 0] - 0.75 * x[:, 1] + rng.normal(scale=0.4, size=len(x))
+    if max_samples_leaf == 4096:
+        # Match the production guard's target class: a small atomic support
+        # produces large pure leaves even though the configured bound exceeds
+        # this focused fixture's row count.
+        atoms = np.array([0.2, 0.4, 0.6, 0.8, 1.0, 1.2])
+        y = atoms[rng.choice(len(atoms), size=len(x))]
+    probe = rng.normal(size=(53, 4))
+    settings = {
+        "n_estimators": 13,
+        "max_depth": 2,
+        "max_samples_leaf": max_samples_leaf,
+        "random_state": 914,
+        "n_jobs": n_jobs,
+    }
+    reference = RandomForestQuantileRegressor(**settings).fit(x, y)
+    compact = _MemoryBoundedRandomForestQuantileRegressor(**settings).fit(x, y)
+
+    memberships = compact._sparse_tree_leaves
+    assert sum(tree.indices.size for tree in memberships) <= len(x) * len(
+        compact.estimators_
+    )
+    assert sum(tree.offsets.size for tree in memberships) == sum(
+        tree.tree_.node_count + 1 for tree in compact.estimators_
+    )
+    assert all(tree.offsets[-1] == tree.indices.size for tree in memberships)
+
+    assert [tree.random_state for tree in compact.estimators_] == [
+        tree.random_state for tree in reference.estimators_
+    ]
+    for actual_tree, expected_tree in zip(
+        compact.estimators_, reference.estimators_, strict=True
+    ):
+        np.testing.assert_array_equal(
+            actual_tree.tree_.children_left, expected_tree.tree_.children_left
+        )
+        np.testing.assert_array_equal(
+            actual_tree.tree_.children_right, expected_tree.tree_.children_right
+        )
+        np.testing.assert_array_equal(
+            actual_tree.tree_.feature, expected_tree.tree_.feature
+        )
+        np.testing.assert_array_equal(
+            actual_tree.tree_.threshold, expected_tree.tree_.threshold
+        )
+        np.testing.assert_array_equal(
+            actual_tree.tree_.value, expected_tree.tree_.value
+        )
+
+    quantiles = [0.0, 0.01, 0.17, 0.5, 0.83, 0.99, 1.0]
+    np.testing.assert_array_equal(
+        np.ascontiguousarray(compact.predict(probe, quantiles=quantiles)).view(
+            np.uint64
+        ),
+        np.ascontiguousarray(reference.predict(probe, quantiles=quantiles)).view(
+            np.uint64
+        ),
+    )
+
+    columns = tuple(f"x_{column}" for column in range(x.shape[1]))
+    probe_frame = pd.DataFrame(probe, columns=columns)
+    draw_quantiles = rng.random(len(probe))
+    expected_forest = _Forest(model=reference, columns=columns)
+    compact_forest = _Forest(model=compact, columns=columns)
+    monkeypatch.setenv("POPULACE_FIT_PREDICT_WORKERS", "1")
+    expected_draw = expected_forest.draw(probe_frame, draw_quantiles)
+    np.testing.assert_array_equal(
+        np.ascontiguousarray(compact_forest.draw(probe_frame, draw_quantiles)).view(
+            np.uint64
+        ),
+        np.ascontiguousarray(expected_draw).view(np.uint64),
+    )
+    monkeypatch.setenv("POPULACE_FIT_PREDICT_WORKERS", "2")
+    np.testing.assert_array_equal(
+        np.ascontiguousarray(compact_forest.draw(probe_frame, draw_quantiles)).view(
+            np.uint64
+        ),
+        np.ascontiguousarray(expected_draw).view(np.uint64),
+    )
+
+
+def test_memory_bounded_forest_fails_closed_on_monotonic_constraints() -> None:
+    """Unsupported clipping cannot silently return unconstrained quantiles."""
+    x = np.arange(20, dtype=np.float64).reshape(-1, 1)
+    y = x[:, 0] ** 2
+    model = _MemoryBoundedRandomForestQuantileRegressor(
+        n_estimators=3,
+        max_samples_leaf=1,
+        monotonic_cst=[1],
+        random_state=0,
+    )
+    with pytest.raises(NotImplementedError, match="monotonicity constraints"):
+        model.fit(x, y)
 
 
 # ----------------------------------------------------------------------------

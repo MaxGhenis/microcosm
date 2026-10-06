@@ -318,13 +318,24 @@ def test_exact_source_columns_predictors_outputs_and_manifest_stage() -> None:
 
 def test_loader_uses_reported_answers_drops_dependents_and_pairs_spouses(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
     path = _write_source(tmp_path, _synthetic_source_rows())
+    real_read_csv = pd.read_csv
+    chunk_low_memory_modes: list[bool | None] = []
+
+    def monitored_read_csv(*args, **kwargs):
+        if kwargs.get("chunksize") is not None:
+            chunk_low_memory_modes.append(kwargs.get("low_memory"))
+        return real_read_csv(*args, **kwargs)
+
+    monkeypatch.setattr(pd, "read_csv", monitored_read_csv)
 
     donor = load_sipp_2023_voluntary_filing_donor(
         path, expected_size_bytes=None
     ).set_index("source_tax_unit_key")
 
+    assert chunk_low_memory_modes == [True]
     assert len(donor) == 2
     married_key = next(key for key in donor.index if str(key).startswith("1:"))
     singleton_key = next(key for key in donor.index if str(key).startswith("2:"))
