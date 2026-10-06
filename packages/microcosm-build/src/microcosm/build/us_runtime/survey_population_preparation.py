@@ -492,8 +492,16 @@ def read_survey_population_request(source_dir):
         return fraction, seed
     except SurveyPopulationPreparationError:
         raise
-    except Exception:
-        raise SurveyPopulationPreparationError("REQUEST_REFUSED") from None
+    except Exception as _diag:
+        raise SurveyPopulationPreparationError(
+            "REQUEST_REFUSED"
+            + ": "
+            + type(_diag).__module__
+            + "."
+            + type(_diag).__name__
+            + ": "
+            + str(_diag)[:400]
+        ) from _diag
 
 
 def _file_limits():
@@ -2080,8 +2088,18 @@ def prepare_authenticated_survey_population(
         return result
     except SurveyPopulationPreparationError:
         raise
-    except Exception:
-        raise SurveyPopulationPreparationError("PREPARATION_ISSUANCE_REFUSED") from None
+    except Exception as error:
+        # DIAGNOSTIC TREE ONLY, never committed: the shipped catch-all discards
+        # the cause with ``from None``, so a refusal at scale cannot be named
+        # from the artifact. This copy carries the cause into the message.
+        raise SurveyPopulationPreparationError(
+            "PREPARATION_ISSUANCE_REFUSED: "
+            + type(error).__module__
+            + "."
+            + type(error).__name__
+            + ": "
+            + str(error)[:400]
+        ) from error
 
 
 _BYTES = _code_bytes()
