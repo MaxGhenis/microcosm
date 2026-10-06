@@ -60,6 +60,11 @@ MUTATIONS = {
         '"FRS adult.tab carries adults with EMPSTATI code(s) "',
         'f"FRS adult.tab carries {int(unknown.sum())} adults with EMPSTATI code(s) "',
     ),
+    "code list uncapped": (
+        EMPLOYMENT,
+        "if len(labels) > MAX_LISTED_UNKNOWN_CODES:",
+        "if False:",
+    ),
     "children get a non-CHILD status": (
         EMPLOYMENT,
         "np.where(adult, adult_status, CHILD_EMPLOYMENT_STATUS)",

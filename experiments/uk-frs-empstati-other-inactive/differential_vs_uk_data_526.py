@@ -12,8 +12,8 @@ imports are never executed), then checks the two implementations agree:
    read through microcosm's sha-pinned reader), element by element.
 
 Only aggregates are printed: per-status counts of people, with cells covering
-fewer than 10 survey households suppressed, and the mismatch count, with 1-9
-suppressed. Usage (UK engine environment)::
+fewer than 10 survey households suppressed, and whether any person mismatches
+(never how many). Usage (UK engine environment)::
 
     uv run --no-sync python \
         experiments/uk-frs-empstati-other-inactive/differential_vs_uk_data_526.py \
@@ -173,7 +173,9 @@ def main() -> None:
         person["person_id"].isin(adult["person_id"]).to_numpy(),
     )
     mismatches = int((ours != theirs).sum())
-    shown = mismatches if mismatches == 0 or mismatches >= 10 else "1-9 (suppressed)"
+    # A mismatch count would describe people, not households: print only
+    # whether there are any.
+    shown = 0 if mismatches == 0 else "nonzero (suppressed)"
     print(f"licensed FRS 2024-25 people: {len(person)}; mismatches: {shown}")
     print(
         "employment_status people (unweighted; cells under 10 households suppressed):",

@@ -11,6 +11,7 @@ from hypothesis import strategies as st
 from microcosm.build.uk_runtime.frs_employment import (
     CHILD_EMPLOYMENT_STATUS,
     FRS_EMPSTATI_EMPLOYMENT_STATUS,
+    MAX_LISTED_UNKNOWN_CODES,
     derive_employment_status_from_frs,
     derive_frs_employment,
 )
@@ -160,7 +161,9 @@ def test_adult_record_with_unknown_or_blank_code_fails_the_stage(code) -> None:
 
 
 def _digits_outside_code_list(message: str) -> list[str]:
-    return re.findall(r"\d", re.sub(r"\[.*?\]", "", message))
+    # Exactly one bracketed span, the code list, may carry digits.
+    assert message.count("[") == message.count("]") == 1
+    return re.findall(r"\d", re.sub(r"\[[^\]]*\]", "", message))
 
 
 def test_unknown_code_message_names_codes_and_prints_no_count() -> None:
@@ -174,8 +177,20 @@ def test_unknown_code_message_names_codes_and_prints_no_count() -> None:
 
     with pytest.raises(ValueError) as many:
         derive_employment_status_from_frs([13] * 25, [True] * 25)
-    assert "['13']" in str(many.value)
-    assert _digits_outside_code_list(str(many.value)) == []
+    assert str(many.value) == (
+        "FRS adult.tab carries adults with EMPSTATI code(s) ['13'] outside "
+        "FRS_EMPSTATI_EMPLOYMENT_STATUS; map them from the release's data "
+        "dictionary."
+    )
+
+
+def test_unknown_code_message_lists_at_most_ten_codes() -> None:
+    codes = [*range(100, 125), np.nan]
+    with pytest.raises(ValueError) as error:
+        derive_employment_status_from_frs(codes, [True] * len(codes))
+    listed = [str(code) for code in range(100, 110)]
+    assert f"{[*listed, 'and other codes', 'blank or non-numeric']}" in str(error.value)
+    assert MAX_LISTED_UNKNOWN_CODES == 10
 
 
 def test_mismatched_lengths_fail() -> None:
@@ -211,7 +226,11 @@ def test_unknown_code_message_never_prints_a_count(bad_codes, rows) -> None:
     rows = [*rows, *((True, code) for code in bad_codes)]
     with pytest.raises(ValueError) as error:
         _derive(rows)
-    assert _digits_outside_code_list(str(error.value)) == []
+    message = str(error.value)
+    assert _digits_outside_code_list(message) == []
+    listed = re.search(r"\[(.*)\]", message).group(1).split(", ")
+    numeric = [label for label in listed if label[1].isdigit() or label[1] == "-"]
+    assert len(numeric) <= MAX_LISTED_UNKNOWN_CODES
 
 
 @given(people)

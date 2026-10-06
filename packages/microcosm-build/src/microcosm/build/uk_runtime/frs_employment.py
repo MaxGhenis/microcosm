@@ -44,6 +44,9 @@ FRS_EMPSTATI_EMPLOYMENT_STATUS = MappingProxyType(
     }
 )
 CHILD_EMPLOYMENT_STATUS = "CHILD"
+# The refusal lists at most this many unknown codes, so a non-categorical
+# column fed in by mistake cannot print its values.
+MAX_LISTED_UNKNOWN_CODES = 10
 EMPLOYMENT_SECTOR_MAP = {
     0: "NOT_EMPLOYED",
     1: "PRIVATE",
@@ -152,6 +155,8 @@ def derive_employment_status_from_frs(empstati, is_adult_record) -> np.ndarray:
     if unknown.any():
         bad = codes[unknown]
         labels = [_code_label(code) for code in sorted(bad.dropna().unique())]
+        if len(labels) > MAX_LISTED_UNKNOWN_CODES:
+            labels = [*labels[:MAX_LISTED_UNKNOWN_CODES], "and other codes"]
         if bad.isna().any():
             labels.append("blank or non-numeric")
         # Build logs are not licensed outputs, and adults are not survey
