@@ -529,13 +529,31 @@ def test_current_predictor_source_fit_attachment_and_required_replay(
         puf_mask = support.puf_tax_detail_clone_mask(
             actual.frame.table("tax_unit"), entity="tax_unit"
         )
+        # Financial completion supplies the shared rank/participation inputs.
+        # Source sex is qualified separately by native PUF preparation; this
+        # financial-only population must not claim complete PUF demographics.
+        financial_predictors = (
+            "puf_predictor_income_rank_share",
+            "puf_predictor_has_earnings",
+        )
         features, _ = support._strict_recipient_predictor_surface(
             actual.frame,
             puf_mask,
-            support.PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
+            financial_predictors,
             person_outputs=(),
         )
-        assert features.shape[1] == 8 and np.isfinite(features.to_numpy()).all()
+        assert tuple(features.columns) == financial_predictors
+        assert np.isfinite(features.loc[puf_mask].to_numpy()).all()
+        # Income ranks describe only the designated recipient distribution.
+        # Original-arm rows remain outside that distribution and keep no rank.
+        assert features.loc[~puf_mask, "puf_predictor_income_rank_share"].isna().all()
+        with pytest.raises(ValueError, match="puf_predictor_head_is_female"):
+            support._strict_recipient_predictor_surface(
+                actual.frame,
+                puf_mask,
+                support.PUF_TAX_DETAIL_DEFAULT_PREDICTORS,
+                person_outputs=(),
+            )
         changed = _copy_population(actual)
         changed.frame.person.loc[changed.frame.person.index[0], values.OUTPUTS[2]] += (
             1.0

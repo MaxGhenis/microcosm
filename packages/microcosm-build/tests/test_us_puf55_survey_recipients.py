@@ -30,6 +30,10 @@ def _frames():
     """Plain invented Frames for private arithmetic, never source/run issuers."""
     person, units, report = _values()
     person["age"] = 55
+    person["is_female"] = pd.array(
+        [True, False, False, True, False, True, False, False, True, False],
+        dtype="boolean",
+    )
     person["prior_wages_not_a_predictor"] = 99_999_999.0
     person["unrelated_social_security_cell"] = np.resize([-0.0, np.nan], len(person))
     for i, name in enumerate(values.financial.values.OUTPUTS):
@@ -114,9 +118,23 @@ def test_disjoint_routes_cover_all_clone_one_and_preserve_both_arms():
     assert [len(p.targets) for p in values.PROFILES] == [55, 55]
     np.testing.assert_array_equal(nine[values.ss.TOTAL], [100, 500, 400, 0])
     assert np.isnan(units.loc[1050, values.ss.TOTAL])
-    # Money deliberately includes dependent earnings; SS deliberately does not.
-    assert nine.loc[1010, "puf_predictor_employment_income"] == 1 + 2
-    assert nine.loc[1020, "puf_predictor_employment_income"] == 3 + 4 + 5
+    # Rank inputs include dependent earnings; no income level enters the fit.
+    mask = receiving.table("tax_unit")[
+        values.provenance.support_clone_index_column("tax_unit")
+    ].eq(1)
+    components, _ = values._current_money_surface(receiving, mask.to_numpy())
+    components.index = receiving.table("tax_unit").tax_unit_id
+    assert components.loc[1010, "employment_income"] == 1 + 2
+    assert components.loc[1020, "employment_income"] == 3 + 4 + 5
+    assert not {
+        "puf_predictor_" + name
+        for name in values.support.PUF_TAX_DETAIL_INCOME_RANK_COMPONENTS
+    } & set(nine)
+    assert nine.loc[1010, "puf_predictor_head_is_female"] == 1
+    assert nine.loc[1020, "puf_predictor_head_is_female"] == 0
+    assert nine.loc[1010, "puf_predictor_spouse_age"] == 0
+    assert nine.loc[1020, "puf_predictor_spouse_age"] == 55
+    assert nine.puf_predictor_dependent_count.tolist() == [1, 1, 1, 0]
     assert nine.loc[1030, "puf_2015_filing_status_code"] == 2
     assert nine.loc[1030, "puf_2015_capped_return_size"] == 3
     for arm in (0, 1):
@@ -126,6 +144,76 @@ def test_disjoint_routes_cover_all_clone_one_and_preserve_both_arms():
     for entity, table in before.items():
         pd.testing.assert_frame_equal(receiving.table(entity), table, check_exact=True)
     pd.testing.assert_frame_equal(report, source_report, check_exact=True)
+
+
+@pytest.mark.parametrize("arm", (0, 1))
+def test_shared_rank_uses_selected_arm_weights_and_ties_before_ss_routes(arm):
+    native, receiving, report = _frames()
+    people = receiving.person
+    selected = people[values.provenance.support_clone_index_column("person")].eq(arm)
+    for columns in values.INCOME_COMPONENT_COLUMNS.values():
+        for column in columns:
+            people.loc[selected, column] = 0.0
+            people.loc[~selected, column] = 1e12
+    # Only dependents earn in units 10 and 50; the shared participation flag
+    # and rank aggregate every member even though the SS route excludes them.
+    ids = np.array([2, 3, 6, 8, 10]) + 1000 * arm
+    people.loc[people.person_id.isin(ids), "employment_income_before_lsr"] = [
+        10,
+        30,
+        20,
+        0,
+        30,
+    ]
+    weights = np.ones(10)
+    weights[5 * arm : 5 * (arm + 1)] = [1, 2, 3, 4, 5]
+    receiving = receiving.with_weights(
+        "household", Weights(weights / 2, WeightKind.IMPORTANCE), mass="conserve"
+    )
+    measured, _ = values.ss._measure(native.person, native.table("tax_unit"), report)
+    _, units, matrices, evidence = values._project(
+        native, receiving, report, measured, arm=arm
+    )
+    projected = pd.concat(
+        [values.model_input.decode_recipient_matrix(p).features for _, p in matrices]
+    ).sort_index()
+    np.testing.assert_allclose(
+        projected.puf_predictor_income_rank_share,
+        [0.7, 7 / 30, 17 / 30, 13 / 15, 7 / 30],
+    )
+    np.testing.assert_array_equal(projected.puf_predictor_has_earnings, [1, 1, 1, 0, 1])
+    opposite = np.array([10, 20, 30, 40, 50]) + 1000 * (1 - arm)
+    assert units.loc[opposite, "puf_predictor_income_rank_share"].isna().all()
+    assert evidence["recipient_arm"] == arm
+    assert evidence["income_levels_are_predictors"] is False
+
+
+@pytest.mark.parametrize("column", ("age", "is_female", "tax_unit_role_input"))
+def test_missing_native_demographics_never_receive_default_values(column):
+    native, receiving, report = _frames()
+    for frame in (native, receiving):
+        person = frame.person
+        person[column] = person[column].astype(
+            "Float64"
+            if column == "age"
+            else "boolean"
+            if column == "is_female"
+            else "string"
+        )
+        person.loc[person.person_id.isin([1, 1001]), column] = pd.NA
+    with pytest.raises(ValueError):
+        _project(native, receiving, report)
+
+
+def test_demographics_use_qualified_source_sex_and_reject_changed_inherited_age():
+    native, receiving, report = _frames()
+    expected = _project(native, receiving, report)
+    receiving.person["is_female"] = ~receiving.person.is_female
+    actual = _project(native, receiving, report)
+    assert actual[2] == expected[2]
+    receiving.person.loc[receiving.person.person_id.eq(1001), "age"] += 1
+    with pytest.raises(ValueError, match="DEMOGRAPHIC_AGE_INHERITANCE"):
+        _project(native, receiving, report)
 
 
 @pytest.mark.parametrize("known", (False, True))
@@ -152,9 +240,11 @@ def test_source_and_receiving_order_are_joined_by_identity():
     native, receiving, report = _frames()
     expected = _project(native, receiving, report)
     for frame in (native, receiving):
-        for entity in frame.entities:
-            table = frame.table(entity)
-            table.iloc[:] = table.iloc[::-1].to_numpy()
+        # Frame requires sorted group IDs to resolve design weights. Vary the
+        # permitted person order and report order while retaining that invariant.
+        table = frame.person
+        table.iloc[:] = table.iloc[::-1].to_numpy()
+        frame.revalidate()
     observed = _project(native, receiving, report.iloc[::-1])
     for got, want in zip(observed[:2], expected[:2], strict=True):
         pd.testing.assert_frame_equal(
@@ -469,6 +559,85 @@ def test_every_source_projection_return_is_checked_against_original_literals(
     finally:
         sys.setprofile(previous)
     assert fired == [True]
+
+
+@pytest.mark.parametrize("boundary", ("source", "wrapper"))
+def test_qualified_sex_return_must_match_its_source_evidence(
+    recipient_financial_run, boundary
+):
+    fired = []
+    target = (
+        values.financial.values.qualify_current_survey_puf_sex
+        if boundary == "source"
+        else values._qualified_sex
+    ).__code__
+
+    def profile(frame, event, arg):
+        if event == "return" and frame.f_code is target and arg is not None:
+            fired.append(True)
+            arg[0].iloc[0] = not bool(arg[0].iloc[0])
+            # The previous mutable evidence allowed both initial and final
+            # projections to be changed consistently while sources stayed exact.
+            # Immutable evidence keeps the original source-derived digest.
+            if type(arg[1]) is dict:
+                arg[1]["person_projection_sha256"] = values.financial.codec.sha(
+                    arg[0].to_frame().reset_index().to_json(orient="table").encode()
+                )
+
+    previous = sys.getprofile()
+    sys.setprofile(profile)
+    try:
+        reason = (
+            "DEMOGRAPHIC_SOURCE_PROJECTION"
+            if boundary == "source"
+            else "FINAL_PROJECTION"
+        )
+        with pytest.raises(
+            ValueError, match="^PUF55_SURVEY_RECIPIENTS_" + reason + "$"
+        ):
+            values.qualify_puf55_survey_recipients(recipient_financial_run.run)
+    finally:
+        sys.setprofile(previous)
+    assert fired == [True] * (1 if boundary == "source" else 2)
+
+
+def test_final_sex_qualification_cannot_mutate_receiving_population(
+    recipient_financial_run,
+):
+    run = recipient_financial_run.run
+    people = run.financial_population.frame.person
+    column = "is_female"
+    original = people[column].copy(deep=True)
+    selected = people[
+        people[values.provenance.support_channel_column("person")].eq("acs")
+        & people[column].notna()
+    ]
+    assert not selected.empty
+    person_index = selected.index[0]
+    calls = []
+
+    def profile(frame, event, arg):
+        if (
+            event == "return"
+            and frame.f_code
+            is values.financial.values.qualify_current_survey_puf_sex.__code__
+        ):
+            calls.append(True)
+            if len(calls) == 2:
+                # PUF demographics use separately qualified source sex, so
+                # changing this carried receiving alias leaves every projected
+                # matrix unchanged. The complete financial seal must catch it.
+                people.loc[person_index, column] = not bool(original.loc[person_index])
+
+    previous = sys.getprofile()
+    sys.setprofile(profile)
+    try:
+        with pytest.raises(ValueError, match="FINANCIAL_.*POPULATION_CHANGED"):
+            values.qualify_puf55_survey_recipients(run)
+    finally:
+        sys.setprofile(previous)
+        people[column] = original
+    assert calls == [True, True]
 
 
 @pytest.mark.parametrize(

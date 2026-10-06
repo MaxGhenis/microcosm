@@ -286,7 +286,7 @@ def enriched(tmp_path_factory, request):
             return_values=True,
         )
         print("INVENTED financial closed; PUF source start", flush=True)
-        definition, paths, _ = _original_sources(
+        definition, paths, _, processed_pin = _original_sources(
             root / "original-puf", full_finalization_support=True
         )
         print("INVENTED PUF cold start", flush=True)
@@ -294,6 +294,7 @@ def enriched(tmp_path_factory, request):
             financial,
             donor_sources=paths,
             fixture_definition=definition,
+            fixture_processed_pin=processed_pin,
             seed=578,
             n_estimators=2,
             zero_atol=0,

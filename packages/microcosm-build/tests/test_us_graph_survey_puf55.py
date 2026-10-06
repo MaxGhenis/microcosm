@@ -1,7 +1,7 @@
 """Actual invented originals, one extension, two routes and required replay.
 
 The existing financial fixture is an actual issued postclone nineteen-node run. Original
-PUF CSV construction is reused without running its CREATE fixture beforehand.
+PUF source construction is reused without running its CREATE fixture beforehand.
 """
 
 import sys
@@ -27,7 +27,7 @@ from microcosm.graph.store import StoreCorrupt
 def composed(recipient_financial_run, tmp_path_factory):  # noqa: F811
     upstream = recipient_financial_run
     root = tmp_path_factory.mktemp("survey_puf55_composition")
-    definition, paths, _ = _original_sources(
+    definition, paths, _, processed_pin = _original_sources(
         root / "original_puf", full_finalization_support=True
     )
     boundaries, finalizations, contexts = [], [], []
@@ -74,6 +74,7 @@ def composed(recipient_financial_run, tmp_path_factory):  # noqa: F811
             upstream.run,
             donor_sources=paths,
             fixture_definition=definition,
+            fixture_processed_pin=processed_pin,
             seed=578,
             n_estimators=2,
             zero_atol=0,
@@ -82,6 +83,7 @@ def composed(recipient_financial_run, tmp_path_factory):  # noqa: F811
             upstream.run,
             donor_sources=paths,
             fixture_definition=definition,
+            fixture_processed_pin=processed_pin,
             seed=578,
             n_estimators=2,
             zero_atol=0,
@@ -121,6 +123,7 @@ def composed(recipient_financial_run, tmp_path_factory):  # noqa: F811
         warm=warm,
         boundary=boundaries[0],
         definition=definition,
+        processed_pin=processed_pin,
         paths=paths,
         contexts={context.node.id: context for context in contexts},
     )
@@ -378,7 +381,13 @@ def test_actual_two_route_extension_and_required_replay(composed):
         assert "employment_income_last_year" not in matrix.features
     assert all(cold.manifest.node(n).hit for n in run.compiled.order)
     assert all(record.hit for record in warm.manifest.nodes.values())
-    assert len(cold.compiled.graph.sources) == 4
+    assert {source.name for source in cold.compiled.graph.sources} == set(
+        run.sources
+    ) | {
+        composed.definition.main.source_name,
+        composed.definition.demographic.source_name,
+        composed.processed_pin.source_name,
+    }
     assert cold.store.root == run.store.root and cold.store is not run.store
     assert cold.kernels is not run.kernels
     assert cold.store.codecs is not run.store.codecs
@@ -409,6 +418,36 @@ def test_actual_two_route_extension_and_required_replay(composed):
     ]
     graph.physical.replay.same_replayed_population(cold.population, warm.population)
     assert graph.codec.decode_json(cold.receipt)["release_eligible"] is False
+
+
+def test_attachment_reconstructs_processed_demographics_on_original_recids(composed):
+    boundary, values = composed.boundary, _values(composed)
+    _, donors, _ = boundary.canonical_donor(values)
+    arrays, receipt = graph.canonical.envelope.decode_canonical_puf59(
+        values["canonical_donor"].payload
+    )
+    pin = graph.canonical.demographics.pin_document(composed.processed_pin)
+    assert receipt["demographic_source"]["processed_source_pin"] == pin
+    assert receipt["demographic_source"]["excluded_synthetic_tax_units"] == 1
+    for donor in donors:
+        np.testing.assert_array_equal(donor.index.to_numpy(), arrays["RECID"])
+        for name in graph.attach.full.support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES:
+            np.testing.assert_array_equal(donor["puf_predictor_" + name], arrays[name])
+
+
+def test_attachment_reconstruction_refuses_changed_processed_source(composed):
+    boundary, values = composed.boundary, _values(composed)
+    path = composed.paths[composed.processed_pin.source_name]
+    original = path.read_bytes()
+    try:
+        path.write_bytes(original[:-1] + bytes([original[-1] ^ 1]))
+        with pytest.raises(
+            ValueError, match="PUF_PROCESSED_DEMOGRAPHICS_SOURCE_SHA256"
+        ):
+            boundary.canonical_donor(values)
+    finally:
+        path.write_bytes(original)
+    boundary.pure()
 
 
 def test_direct_whole_cohort_oracle_all_outputs_and_nonowned_storage(composed):
@@ -594,6 +633,7 @@ def test_public_financial_dataclass_copy_cannot_issue_extension(composed):
             run,
             composed.paths,
             fixture_definition=composed.definition,
+            fixture_processed_pin=composed.processed_pin,
             seed=578,
             n_estimators=2,
             zero_atol=0,
@@ -609,6 +649,7 @@ def test_first_result_metadata_seal_binds_immutable_numerical_evidence(
         composed.upstream.run,
         composed.paths,
         fixture_definition=composed.definition,
+        fixture_processed_pin=composed.processed_pin,
         seed=578,
         n_estimators=2,
         zero_atol=0,
@@ -825,6 +866,7 @@ def test_first_numerical_return_cannot_change_selected_candidate(composed, mutat
         composed.upstream.run,
         composed.paths,
         fixture_definition=composed.definition,
+        fixture_processed_pin=composed.processed_pin,
         seed=578,
         n_estimators=2,
         zero_atol=0,

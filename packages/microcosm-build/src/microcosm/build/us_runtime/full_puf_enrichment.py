@@ -33,11 +33,24 @@ TAX_UNIT_OUTPUTS = tuple(support.PUF_TAX_DETAIL_DEFAULT_TAX_UNIT_OUTPUTS)
 TARGETS = (*PERSON_OUTPUTS, *TAX_UNIT_OUTPUTS)
 PREDICTORS = tuple(support.PUF_TAX_DETAIL_DEFAULT_PREDICTORS)
 PHASE = "us_full_canonical_puf_enrichment"
-PUF59_PREDICTORS = (
+PUF2015_STRUCTURE_PREDICTORS = (
     "puf_2015_filing_status_code",
     "puf_2015_capped_return_size",
-    *PREDICTORS[2:],
 )
+CONDITIONAL_PREDICTORS = tuple(
+    name
+    for name in PREDICTORS
+    if support._predictor_source_column(name)
+    not in ("filing_status_code", "tax_unit_person_count")
+)
+DEMOGRAPHIC_PREDICTORS = tuple(
+    name
+    for name in PREDICTORS
+    if support._predictor_source_column(name)
+    in support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES
+)
+DEMOGRAPHIC_PERSON_COLUMNS = ("age", "is_female", support._TAX_UNIT_ROLE_COLUMN)
+PUF59_PREDICTORS = (*PUF2015_STRUCTURE_PREDICTORS, *CONDITIONAL_PREDICTORS)
 SURVEY_SS_TOTAL_PREDICTOR = "puf_conditioning_social_security_total"
 SURVEY_SS_COMPONENTS = tuple(support.PUF_TAX_DETAIL_SOCIAL_SECURITY_COMPONENT_OUTPUTS)
 PUF55_SURVEY_SS_PREDICTORS = (*PUF59_PREDICTORS, SURVEY_SS_TOTAL_PREDICTOR)
@@ -79,11 +92,11 @@ class PufOutputProfile(Enum):
     @property
     def source_predictors(self):
         # Independently measured source leaves, never derived here from generic
-        # filing status or actual recipient membership. The six monetary
-        # predictors retain their original ordered canonical arithmetic aliases.
+        # filing status or actual recipient membership. The shared demographic,
+        # rank and participation block is derived from separately qualified inputs.
         if self is PUF55_SURVEY_SS:
-            return (*self.predictors[:2], SURVEY_SS_TOTAL_PREDICTOR)
-        return () if self is FULL65 else self.predictors[:2]
+            return (*PUF2015_STRUCTURE_PREDICTORS, SURVEY_SS_TOTAL_PREDICTOR)
+        return () if self is FULL65 else PUF2015_STRUCTURE_PREDICTORS
 
     @property
     def donor_auxiliary_columns(self):
@@ -191,6 +204,22 @@ def _profile_source_values(table, *, profile):
     return measured
 
 
+def _shared_predictor_domains(table):
+    for name in DEMOGRAPHIC_PREDICTORS:
+        values = table[name].to_numpy(dtype=np.float64)
+        source = support._predictor_source_column(name)
+        valid = values >= 0
+        if source == "head_is_female":
+            valid &= np.isin(values, (0, 1))
+        elif source == "dependent_count":
+            valid &= values == np.floor(values)
+        _require(bool(valid.all()), "PUF_DEMOGRAPHIC_DOMAIN:" + source)
+    rank = table["puf_predictor_income_rank_share"].to_numpy(dtype=np.float64)
+    _require(bool(((rank >= 0) & (rank <= 1)).all()), "PUF_INCOME_RANK_DOMAIN")
+    earnings = table["puf_predictor_has_earnings"].to_numpy(dtype=np.float64)
+    _require(bool(np.isin(earnings, (0, 1)).all()), "PUF_HAS_EARNINGS_DOMAIN")
+
+
 def _ids(values, label):
     series = pd.Series(values, copy=False)
     _require(series.dtype == np.dtype("int64"), f"PUF_ID_DTYPE:{label}")
@@ -268,10 +297,18 @@ def canonical_full_puf_donor(
         *person_targets_at_tax_unit,
         *profile.tax_unit_outputs,
         *profile.source_predictors,
+        *(support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES if return_only else ()),
     )
+    person_source_columns = (*pcols, *DEMOGRAPHIC_PERSON_COLUMNS)
     tables = [(tax_unit, ("tax_unit_id", *tcols), "tax_unit")]
     if not return_only:
-        tables.append((person, ("person_id", "person_tax_unit_id", *pcols), "person"))
+        tables.append(
+            (
+                person,
+                ("person_id", "person_tax_unit_id", *person_source_columns),
+                "person",
+            )
+        )
     for table, required, label in tables:
         _require(
             isinstance(table, pd.DataFrame)
@@ -297,7 +334,7 @@ def canonical_full_puf_donor(
             len(set(pids)) == len(pids) and set(links) == set(tids),
             "PUF_DONOR_MEMBERSHIP",
         )
-        _known(person, person_known, pcols, "person")
+        _known(person, person_known, person_source_columns, "person")
     _known(tax_unit, tax_unit_known, tcols, "tax_unit")
     # Validate EVERY source cell before groupby can skip a missing member.
     if not return_only:
@@ -356,44 +393,54 @@ def canonical_full_puf_donor(
             ),
             f"PUF_YEAR_DOMAIN:{column}",
         )
-    # PUF59 matches the survey's total Schedule C measurement. The QBI owner
-    # partitions that total between ordinary and SSTB destinations, so neither
-    # component alone represents the predictor. FULL65 keeps its historical
-    # ordinary-component alias for compatibility with accepted prior evidence.
-    schedule_c = donor.self_employment_income_before_lsr.to_numpy()
-    if profile is not FULL65:
-        schedule_c = (
-            schedule_c + donor.sstb_self_employment_income_before_lsr.to_numpy()
+    # Use the same fail-closed role reduction as the shared #982 predictor
+    # block. Return-only donors must carry already qualified demographic facts;
+    # neither incidence capacity nor filing status can invent a person's age/sex.
+    if return_only:
+        demographics = tax_unit.loc[:, list(support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES)]
+    else:
+        age = _numeric(person.age, label="person.age")
+        female = _numeric(person.is_female, label="person.is_female", boolean=True)
+        demographics = support._tax_unit_demographics(
+            tids,
+            links,
+            age=age,
+            is_female=female,
+            role=person[support._TAX_UNIT_ROLE_COLUMN].to_numpy(),
+            preserve_nulls=True,
         )
-    # These are canonical arithmetic aliases, after complete cell validation.
-    feature_values = (
-        status,
-        count.astype(np.float64),
-        donor.employment_income_before_lsr.to_numpy(),
-        schedule_c,
-        donor.taxable_interest_income.to_numpy(),
-        donor.qualified_dividend_income.to_numpy()
-        + donor.non_qualified_dividend_income.to_numpy(),
-        donor.short_term_capital_gains.to_numpy(),
-        donor.long_term_capital_gains_before_response.to_numpy(),
-    )
-    # PUF59 first two features are already source-measured. Never label generic
-    # status/membership arithmetic as the PUF2015 disclosure measurement.
-    if profile.source_predictors:
-        measured = _profile_source_values(tax_unit, profile=profile)
-        feature_values = (
-            *measured[:2],
-            *feature_values[2:],
-            *measured[2:],
-        )
-    for name, values in zip(profile.predictors, feature_values, strict=True):
-        donor[name] = _numeric(values, label=name)
+    for source in support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES:
+        donor[source] = _numeric(demographics[source], label=source)
+    donor["filing_status_code"] = status
+    donor["tax_unit_person_count"] = count.astype(np.float64)
     donor["weight"] = _numeric(tax_unit.weight, label="weight")
     weights = donor.weight.to_numpy()
     _require(
         bool((weights >= 0).all()) and np.isfinite(weights.sum()) and weights.sum() > 0,
         "PUF_DONOR_WEIGHT_DOMAIN",
     )
+    # Native QBI construction partitions Schedule C between ordinary and SSTB
+    # destinations. Reconstruct that income concept before shared #982 rank and
+    # participation derivation; the legacy leaf alias alone is only ordinary.
+    # This intermediate is excluded from the returned model surface.
+    donor["self_employment_income"] = _numeric(
+        donor.self_employment_income_before_lsr
+        + donor.sstb_self_employment_income_before_lsr,
+        label="self_employment_income",
+    )
+    # All component cells have been validated above. Shared aliases derive the
+    # weighted within-donor income rank and the earnings participation flag;
+    # no survey or donor income level enters the model as a predictor.
+    support._add_predictor_aliases(donor, PREDICTORS)
+    for name, values in zip(
+        profile.source_predictors,
+        _profile_source_values(tax_unit, profile=profile),
+        strict=True,
+    ):
+        donor[name] = values
+    for name in profile.predictors:
+        _numeric(donor[name], label=name)
+    _shared_predictor_domains(donor)
     for column in profile.donor_auxiliary_columns:
         donor[column] = count.astype(np.float64)
     return donor.loc[
@@ -438,10 +485,11 @@ def _recipient_matrix(frame, *, predictor_known, profile=FULL65):
         table = person if plan.entity == "person" else tax_unit
         rows = person_mask if plan.entity == "person" else mask
         for column in plan.columns:
-            if column in table:
+            if column in table and column != support._TAX_UNIT_ROLE_COLUMN:
                 _numeric(
                     table.loc[rows, column],
                     label=f"recipient.{plan.entity}.{column}",
+                    boolean=column == "is_female",
                     nullable=True,
                 )
     features, universe = support._strict_recipient_predictor_surface(
@@ -451,6 +499,7 @@ def _recipient_matrix(frame, *, predictor_known, profile=FULL65):
     selected.index = selected_index
     selected = selected.astype("float64")
     _profile_source_values(selected, profile=profile)
+    _shared_predictor_domains(selected)
     return (
         model_input.encode_recipient_matrix(
             selected, entity="tax_unit", entity_ids=ids
@@ -491,6 +540,7 @@ def _validated_model_donor(donor, *, profile):
     for column in donor:
         _numeric(donor[column], label=f"donor.{column}")
     _profile_source_values(donor, profile=profile)
+    _shared_predictor_domains(donor)
     model_counts = donor[profile.predictors[1]].to_numpy()
     counts = (
         donor[profile.donor_auxiliary_columns[0]].to_numpy()

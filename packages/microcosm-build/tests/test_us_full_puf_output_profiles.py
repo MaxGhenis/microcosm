@@ -78,7 +78,7 @@ def _puf59_columns():
     # Invented upstream leaves, not a source measurement implementation or receipt.
     tax_unit[full.PUF59.predictors[0]] = [1.0, 2.0, 3.0, 4.0]
     tax_unit[full.PUF59.predictors[1]] = [3.0, 5.0, 2.0, 4.0]
-    for name in full.PUF59.predictors[:2]:
+    for name in full.PUF2015_STRUCTURE_PREDICTORS:
         tax_unit_known[name] = True
     return (
         person,
@@ -110,6 +110,8 @@ def _puf59_return_only_columns():
             else reduced[name]
         )
     returns["puf_person_incidence_capacity"] = 1.0
+    for name in full.DEMOGRAPHIC_PREDICTORS:
+        returns[support._predictor_source_column(name)] = reduced[name]
     known = pd.DataFrame(
         True,
         index=returns.index,
@@ -119,7 +121,8 @@ def _puf59_return_only_columns():
             "puf_person_incidence_capacity",
             *full.PUF59.person_outputs,
             *full.PUF59.tax_unit_outputs,
-            *full.PUF59.predictors[:2],
+            *full.PUF2015_STRUCTURE_PREDICTORS,
+            *support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES,
         ),
     )
     return returns, known
@@ -468,7 +471,7 @@ def test_closed_profiles_keep_observed_mortgage_and_original_conditioning_order(
     assert full.PUF59.predictors == (
         "puf_2015_filing_status_code",
         "puf_2015_capped_return_size",
-        *full.PREDICTORS[2:],
+        *full.CONDITIONAL_PREDICTORS,
     )
 
 
@@ -518,8 +521,20 @@ def test_puf59_canonical_donor_accepts_truly_absent_scf_columns_and_keeps_observ
         person.home_mortgage_interest.groupby(person.person_tax_unit_id).sum(),
     )
     assert donor.weight.tolist() == [1.0, 0.0, 2.0, 3.0]
+    components = {
+        name: support._donor_rank_component_values(donor, name)
+        for name in support.PUF_TAX_DETAIL_INCOME_RANK_COMPONENTS
+    }
+    components["self_employment_income"] = (
+        components["self_employment_income"]
+        + donor.sstb_self_employment_income_before_lsr.to_numpy()
+    )
     np.testing.assert_array_equal(
-        donor[full.PUF59.predictors[3]], [1000.0, 75.0, -300.0, 1000.0]
+        components["self_employment_income"], [1000.0, 75.0, -300.0, 1000.0]
+    )
+    np.testing.assert_array_equal(
+        donor["puf_predictor_income_rank_share"],
+        support._weighted_top_rank_share(sum(components.values()), donor.weight),
     )
     np.testing.assert_array_equal(
         donor.self_employment_income_before_lsr, [0.0, 75.0, 0.0, 1000.0]
@@ -574,12 +589,41 @@ def test_puf59_return_only_donor_uses_explicit_leaves_without_inventing_persons(
     pd.testing.assert_frame_equal(actual, expected)
     assert bool((returns.sstb_self_employment_income_before_lsr != 0).any())
     np.testing.assert_array_equal(
-        actual[full.PUF59.predictors[3]],
-        returns.self_employment_income_before_lsr
-        + returns.sstb_self_employment_income_before_lsr,
+        actual["puf_predictor_has_earnings"],
+        support._earnings_indicator(
+            [
+                returns.employment_income_before_lsr,
+                returns.self_employment_income_before_lsr
+                + returns.sstb_self_employment_income_before_lsr,
+            ]
+        ),
     )
     pd.testing.assert_frame_equal(returns, before[0])
     pd.testing.assert_frame_equal(known, before[1])
+
+
+@pytest.mark.parametrize("column", support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES)
+def test_return_only_donor_requires_qualified_demographic_leaves(column):
+    returns, known = _puf59_return_only_columns()
+    with pytest.raises(ValueError, match="PUF_DONOR_COLUMNS:tax_unit"):
+        full.canonical_full_puf_donor(
+            None,
+            returns.drop(columns=column),
+            person_known=None,
+            tax_unit_known=known,
+            person_targets_at_tax_unit=full.PUF59.person_outputs,
+            profile=full.PUF59,
+        )
+    known.loc[0, column] = False
+    with pytest.raises(ValueError, match="PUF_UNKNOWN:tax_unit." + column):
+        full.canonical_full_puf_donor(
+            None,
+            returns,
+            person_known=None,
+            tax_unit_known=known,
+            person_targets_at_tax_unit=full.PUF59.person_outputs,
+            profile=full.PUF59,
+        )
 
 
 @pytest.mark.parametrize(
@@ -699,7 +743,7 @@ def test_puf59_requires_new_leaves_and_never_falls_back_to_generic_measurements(
     assert tuple(decoded.features) == full.PUF59.predictors
     tax_unit = frame.table("tax_unit")
     mask = support.puf_tax_detail_clone_mask(tax_unit, entity="tax_unit")
-    for name in full.PUF59.predictors[:2]:
+    for name in full.PUF2015_STRUCTURE_PREDICTORS:
         np.testing.assert_array_equal(decoded.features[name], tax_unit.loc[mask, name])
     pd.testing.assert_series_equal(tax_unit.filing_status_input, before)
     name = full.PUF59.predictors[predictor_index]
@@ -818,6 +862,8 @@ def test_default_full65_return_only_retains_legacy_person_count_contract():
         tax_unit_known=tax_unit_known,
     )
     returns["tax_unit_person_count"] = 2.0
+    for name in full.DEMOGRAPHIC_PREDICTORS:
+        returns[support._predictor_source_column(name)] = expected[name]
     for name in full.FULL65.person_outputs:
         returns[name] = expected[name]
     known = pd.DataFrame(
@@ -829,6 +875,7 @@ def test_default_full65_return_only_retains_legacy_person_count_contract():
             "tax_unit_person_count",
             *full.FULL65.person_outputs,
             *full.FULL65.tax_unit_outputs,
+            *support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES,
         ),
     )
     assert "puf_person_incidence_capacity" not in returns
@@ -843,11 +890,19 @@ def test_default_full65_return_only_retains_legacy_person_count_contract():
         )
         pd.testing.assert_frame_equal(actual, expected)
         assert actual.loc[0, "business_is_sstb"] == 2.0
-        # FULL65 compatibility is explicit: its historical alias excludes the
-        # nonzero SSTB component rather than silently changing old evidence.
+        # Every profile now uses the same #982 rank definition, including the
+        # SSTB component of self-employment income, without an income-level input.
         assert bool((returns.sstb_self_employment_income_before_lsr != 0).any())
         np.testing.assert_array_equal(
-            actual[full.FULL65.predictors[3]], returns.self_employment_income_before_lsr
+            actual["puf_predictor_income_rank_share"],
+            support._weighted_top_rank_share(
+                sum(
+                    support._donor_rank_component_values(returns, name)
+                    for name in support.PUF_TAX_DETAIL_INCOME_RANK_COMPONENTS
+                )
+                + returns.sstb_self_employment_income_before_lsr,
+                returns.weight,
+            ),
         )
     returns["puf_person_incidence_capacity"] = 1.0
     actual = full.canonical_full_puf_donor(

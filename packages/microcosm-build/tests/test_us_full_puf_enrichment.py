@@ -42,6 +42,9 @@ def _donor_columns():
         {
             "person_id": np.arange(101, 109, dtype=np.int64),
             "person_tax_unit_id": links,
+            "age": [14.0, 45.0] * 4,
+            "is_female": [False, True] * 4,
+            "tax_unit_role_input": ["DEPENDENT", "HEAD"] * 4,
         }
     )
     for index, target in enumerate(full.PERSON_OUTPUTS):
@@ -64,7 +67,11 @@ def _donor_columns():
             if target in support._PUF_TAX_DETAIL_DISCRETE_TAX_UNIT_OUTPUTS
             else [1.0, 2.0, 3.0, 4.0]
         )
-    pk = pd.DataFrame(True, index=person.index, columns=full.PERSON_OUTPUTS)
+    pk = pd.DataFrame(
+        True,
+        index=person.index,
+        columns=(*full.PERSON_OUTPUTS, *full.DEMOGRAPHIC_PERSON_COLUMNS),
+    )
     tk = pd.DataFrame(
         True,
         index=tax_unit.index,
@@ -85,6 +92,10 @@ def _recipient():
     for entity in US_SCHEMA.group_entities:
         person[US_SCHEMA.membership_column(entity)] = links
     person["age"] = [14.0, 45.0] * 4
+    person["is_female"] = [False, True] * 4
+    # Production spines carry these roles from unit assignment. The invented
+    # two-person units each contain one dependent and one head, as #982 requires.
+    person["tax_unit_role_input"] = ["DEPENDENT", "HEAD"] * 4
     for name, amount in (
         ("employment_income_before_lsr", 100.0),
         ("self_employment_income_before_lsr", 20.0),
@@ -172,6 +183,80 @@ def test_complete_canonical_reduction_retains_zero_weights_signed_values_and_mor
     pd.testing.assert_frame_equal(p, before)
 
 
+def test_canonical_predictors_use_roles_weighted_rank_and_earnings_participation():
+    person, tax_unit, pk, tk = _donor_columns()
+    for name in (
+        "employment_income_before_lsr",
+        "self_employment_income_before_lsr",
+        "sstb_self_employment_income_before_lsr",
+        "taxable_interest_income",
+        "qualified_dividend_income",
+        "non_qualified_dividend_income",
+        "short_term_capital_gains",
+        "long_term_capital_gains_before_response",
+    ):
+        person[name] = 0.0
+    person["employment_income_before_lsr"] = [
+        1000.0,
+        0.0,
+        200.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+    ]
+    person["sstb_self_employment_income_before_lsr"] = [0.0] * 6 + [-50.0, -50.0]
+    person.loc[0, "tax_unit_role_input"] = "SPOUSE"
+    person.loc[0, "age"] = 30.0
+    donor = full.canonical_full_puf_donor(
+        person, tax_unit, person_known=pk, tax_unit_known=tk
+    )
+    assert donor.puf_predictor_head_age.tolist() == [45.0] * 4
+    assert donor.puf_predictor_spouse_age.tolist() == [30.0, 0.0, 0.0, 0.0]
+    assert donor.puf_predictor_head_is_female.tolist() == [1.0] * 4
+    assert donor.puf_predictor_dependent_count.tolist() == [0.0, 1.0, 1.0, 1.0]
+    # Midpoints within donor weights [1, 0, 2, 3]; zero-weight rows remain.
+    np.testing.assert_allclose(
+        donor.puf_predictor_income_rank_share, [1 / 12, 1 / 6, 1 / 3, 3 / 4]
+    )
+    assert donor.puf_predictor_has_earnings.tolist() == [1.0, 1.0, 0.0, 1.0]
+    assert not {
+        "puf_predictor_" + name
+        for name in support.PUF_TAX_DETAIL_INCOME_RANK_COMPONENTS
+    } & set(full.PREDICTORS)
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "error"),
+    (
+        ("tax_unit_role_input", None, "PUF_UNKNOWN:head_age"),
+        ("tax_unit_role_input", "OTHER", "unrecognized tax-unit role"),
+        ("age", None, "PUF_UNKNOWN:person.age"),
+        ("is_female", None, "PUF_UNKNOWN:person.is_female"),
+        ("is_female", 1, "PUF_PHYSICAL_TYPE:person.is_female"),
+    ),
+)
+def test_canonical_donor_demographics_fail_closed(column, value, error):
+    person, tax_unit, pk, tk = _donor_columns()
+    person[column] = person[column].astype(object)
+    person.loc[1, column] = value
+    with pytest.raises(ValueError, match=error):
+        full.canonical_full_puf_donor(
+            person, tax_unit, person_known=pk, tax_unit_known=tk
+        )
+
+
+@pytest.mark.parametrize("column", full.DEMOGRAPHIC_PERSON_COLUMNS)
+def test_canonical_donor_demographic_knownness_is_required(column):
+    person, tax_unit, pk, tk = _donor_columns()
+    pk.loc[0, column] = False
+    with pytest.raises(ValueError, match="PUF_UNKNOWN:person." + column):
+        full.canonical_full_puf_donor(
+            person, tax_unit, person_known=pk, tax_unit_known=tk
+        )
+
+
 @pytest.mark.parametrize(
     "value",
     [None, np.nan, np.inf, "0", True, 1 + 2j, pd.Timestamp("2024-01-01"), 2**53 + 1],
@@ -223,8 +308,12 @@ def test_full_recipient_surface_keeps_zero_weight_rows_and_rejects_unknowns():
     assert len(matrix.features) == 4 and tuple(matrix.features) == full.PREDICTORS
     assert matrix.entity_ids.tolist() == known.index.tolist()
     assert inputs.recipient_universe["structurally_absent_person_rows"] == 2
-    assert matrix.features[full.PREDICTORS[2]].eq(100.0).all()
-    assert matrix.features[full.PREDICTORS[3]].eq(20.0).all()
+    assert matrix.features["puf_predictor_head_age"].eq(45.0).all()
+    assert matrix.features["puf_predictor_spouse_age"].eq(0.0).all()
+    assert matrix.features["puf_predictor_head_is_female"].eq(1.0).all()
+    assert matrix.features["puf_predictor_dependent_count"].eq(1.0).all()
+    assert matrix.features["puf_predictor_income_rank_share"].eq(0.5).all()
+    assert matrix.features["puf_predictor_has_earnings"].eq(1.0).all()
     assert (frame.weights_for("household").values == 0).sum() == 2
     assert (
         inputs.recipient_universe["person_output_allocation"][
@@ -251,7 +340,10 @@ def test_return_only_donor_does_not_invent_persons():
         "tax_unit_person_count",
         *full.PERSON_OUTPUTS,
         *full.TAX_UNIT_OUTPUTS,
+        *support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES,
     )
+    for name in full.DEMOGRAPHIC_PREDICTORS:
+        returns[support._predictor_source_column(name)] = expected[name]
     returns["tax_unit_person_count"] = expected[full.PREDICTORS[1]]
     for name in full.PERSON_OUTPUTS:
         returns[name] = expected[name]

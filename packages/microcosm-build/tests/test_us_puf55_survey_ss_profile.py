@@ -116,6 +116,17 @@ def test_return_only_profile_has_no_synthetic_persons_or_ss_output_carriers():
     known = known.drop(columns=list(SS))
     returns[SS_TOTAL] = [0.0, 100.0, 1200.0, 24000.0]
     known[SS_TOTAL] = True
+    known = known.loc[
+        :,
+        [
+            *(
+                name
+                for name in known
+                if name not in support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES
+            ),
+            *support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES,
+        ],
+    ]
     result = full.canonical_full_puf_donor(
         None,
         returns,

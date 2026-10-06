@@ -9,20 +9,33 @@ from collections.abc import Mapping
 
 import numpy as np
 
-from .puf59_canonical import PREFIX_NAMES, VERSION, prefix_values_digest
+from .puf59_canonical import (
+    DEMOGRAPHIC_VERSION,
+    PREFIX_NAMES,
+    VERSION,
+    prefix_values_digest,
+    validated_demographic_projection,
+)
+from .puf_support import PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES
 from .puf_target2024_growth import INCIDENCE_FIELDS, OUTPUTS, RECIPE_SHA256, _digest
 
 MAGIC = b"MCPUF59\x02"
+DEMOGRAPHIC_MAGIC = b"MCPUF59\x03"
 MAX_HEADER = 128 * 1024
 MAX_BODY = 128 * 1024 * 1024
 PREFIX = PREFIX_NAMES
 NAMES = (*PREFIX, *OUTPUTS)
+DEMOGRAPHIC_NAMES = (*PREFIX, *PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES, *OUTPUTS)
 INTEGERS = set(PREFIX) - {"weight"} | set(INCIDENCE_FIELDS)
 
 
 def _require(value, code):
     if not value:
         raise ValueError(code)
+
+
+def _names(receipt):
+    return DEMOGRAPHIC_NAMES if receipt.get("schema") == DEMOGRAPHIC_VERSION else NAMES
 
 
 def _receipt(receipt, expected_growth_scheme):
@@ -33,15 +46,21 @@ def _receipt(receipt, expected_growth_scheme):
     _require(isinstance(receipt, Mapping), "PUF59_ARTIFACT_RECEIPT_TYPE")
     r = dict(receipt)
     _require(
-        r.get("schema") == VERSION
+        r.get("schema") in (VERSION, DEMOGRAPHIC_VERSION)
         and type(r.get("input_money_year")) is int
         and r["input_money_year"] == 2015
         and type(r.get("output_money_year")) is int
         and r["output_money_year"] == 2024
         and type(r.get("rows")) is int
-        and 0 < r["rows"] <= MAX_BODY // (len(NAMES) * 8)
+        and 0 < r["rows"] <= MAX_BODY // (len(_names(r)) * 8)
         and r.get("release_eligible") is False,
         "PUF59_ARTIFACT_RECEIPT_CONTRACT",
+    )
+    _require(
+        isinstance(r.get("demographic_source"), Mapping)
+        if r["schema"] == DEMOGRAPHIC_VERSION
+        else "demographic_source" not in r,
+        "PUF59_ARTIFACT_DEMOGRAPHIC_VERSION",
     )
     gr = r.get("growth")
     _require(
@@ -63,15 +82,15 @@ def _receipt(receipt, expected_growth_scheme):
     return r
 
 
-def _validate(arrays, n):
+def _validate(arrays, n, *, names=NAMES):
     _require(
-        type(n) is int and 0 < n <= MAX_BODY // (len(NAMES) * 8), "PUF59_ARTIFACT_ROWS"
+        type(n) is int and 0 < n <= MAX_BODY // (len(names) * 8), "PUF59_ARTIFACT_ROWS"
     )
     _require(
-        isinstance(arrays, Mapping) and set(arrays) == set(NAMES),
+        isinstance(arrays, Mapping) and set(arrays) == set(names),
         "PUF59_ARTIFACT_COLUMNS",
     )
-    for name in NAMES:
+    for name in names:
         a = np.asarray(arrays[name])
         kind = "iu" if name in INTEGERS else "fiu"
         _require(
@@ -119,28 +138,44 @@ def _bindings(arrays, receipt):
         _digest(arrays) == receipt["growth"].get("output_values_sha256"),
         "PUF59_ARTIFACT_GROWTH_BINDING",
     )
+    if receipt["schema"] == DEMOGRAPHIC_VERSION:
+        validated_demographic_projection(
+            arrays["RECID"],
+            {name: arrays[name] for name in PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES},
+            json.dumps(
+                receipt["demographic_source"],
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode(),
+        )
 
 
 def _encode(arrays, receipt, expected_growth_scheme):
+    r = _receipt(receipt, expected_growth_scheme)
+    names = _names(r)
     _require(
-        isinstance(arrays, Mapping) and set(arrays) == set(NAMES),
+        isinstance(arrays, Mapping) and set(arrays) == set(names),
         "PUF59_ARTIFACT_COLUMNS",
     )
     n = len(arrays["RECID"])
-    _validate(arrays, n)
-    r = _receipt(receipt, expected_growth_scheme)
+    _validate(arrays, n, names=names)
     _bindings(arrays, r)
     _require(r["rows"] == n, "PUF59_ARTIFACT_RECEIPT_ROWS")
     blocks = [
         np.asarray(arrays[name], dtype="<i8" if name in INTEGERS else "<f8").tobytes()
-        for name in NAMES
+        for name in names
     ]
     body = b"".join(blocks)
     header = {
-        "schema": "microcosm.us.puf59_canonical_artifact/2",
+        "schema": (
+            "microcosm.us.puf59_canonical_artifact/3"
+            if r["schema"] == DEMOGRAPHIC_VERSION
+            else "microcosm.us.puf59_canonical_artifact/2"
+        ),
         "rows": n,
-        "names": list(NAMES),
-        "dtypes": ["<i8" if name in INTEGERS else "<f8" for name in NAMES],
+        "names": list(names),
+        "dtypes": ["<i8" if name in INTEGERS else "<f8" for name in names],
         "body_sha256": hashlib.sha256(body).hexdigest(),
         "receipt": r,
     }
@@ -148,7 +183,8 @@ def _encode(arrays, receipt, expected_growth_scheme):
         header, sort_keys=True, separators=(",", ":"), allow_nan=False
     ).encode()
     _require(len(h) <= MAX_HEADER and len(body) <= MAX_BODY, "PUF59_ARTIFACT_SIZE")
-    return MAGIC + struct.pack("<I", len(h)) + h + body
+    magic = DEMOGRAPHIC_MAGIC if r["schema"] == DEMOGRAPHIC_VERSION else MAGIC
+    return magic + struct.pack("<I", len(h)) + h + body
 
 
 def encode_canonical_puf59(result, *, expected_growth_scheme="family_observed"):
@@ -169,7 +205,8 @@ def decode_canonical_puf59(payload, *, expected_growth_scheme="family_observed")
         and len(MAGIC) + 4 < len(payload) <= len(MAGIC) + 4 + MAX_HEADER + MAX_BODY,
         "PUF59_ARTIFACT_SIZE",
     )
-    _require(payload[: len(MAGIC)] == MAGIC, "PUF59_ARTIFACT_MAGIC")
+    magic = payload[: len(MAGIC)]
+    _require(magic in (MAGIC, DEMOGRAPHIC_MAGIC), "PUF59_ARTIFACT_MAGIC")
     length = struct.unpack("<I", payload[len(MAGIC) : len(MAGIC) + 4])[0]
     _require(
         0 < length <= MAX_HEADER and len(payload) > len(MAGIC) + 4 + length,
@@ -203,27 +240,36 @@ def decode_canonical_puf59(payload, *, expected_growth_scheme="family_observed")
         == payload[start : start + length],
         "PUF59_ARTIFACT_HEADER_CANONICAL",
     )
+    _require(isinstance(h["receipt"], Mapping), "PUF59_ARTIFACT_RECEIPT_TYPE")
+    names = DEMOGRAPHIC_NAMES if magic == DEMOGRAPHIC_MAGIC else NAMES
     _require(
-        h["schema"] == "microcosm.us.puf59_canonical_artifact/2"
-        and h["names"] == list(NAMES)
-        and h["dtypes"] == ["<i8" if name in INTEGERS else "<f8" for name in NAMES],
+        h["schema"]
+        == (
+            "microcosm.us.puf59_canonical_artifact/3"
+            if magic == DEMOGRAPHIC_MAGIC
+            else "microcosm.us.puf59_canonical_artifact/2"
+        )
+        and h["receipt"].get("schema")
+        == (DEMOGRAPHIC_VERSION if magic == DEMOGRAPHIC_MAGIC else VERSION)
+        and h["names"] == list(names)
+        and h["dtypes"] == ["<i8" if name in INTEGERS else "<f8" for name in names],
         "PUF59_ARTIFACT_SCHEMA",
     )
     n = h["rows"]
     _require(
-        type(n) is int and 0 < n <= MAX_BODY // (len(NAMES) * 8), "PUF59_ARTIFACT_ROWS"
+        type(n) is int and 0 < n <= MAX_BODY // (len(names) * 8), "PUF59_ARTIFACT_ROWS"
     )
     body = memoryview(payload)[start + length :]
     _require(
-        len(body) == n * 8 * len(NAMES)
+        len(body) == n * 8 * len(names)
         and hashlib.sha256(body).hexdigest() == h["body_sha256"],
         "PUF59_ARTIFACT_BODY_IDENTITY",
     )
     arrays = {
         name: np.frombuffer(body, dtype=h["dtypes"][i], count=n, offset=i * n * 8)
-        for i, name in enumerate(NAMES)
+        for i, name in enumerate(names)
     }
-    _validate(arrays, n)
+    _validate(arrays, n, names=names)
     receipt = _receipt(h["receipt"], expected_growth_scheme)
     _bindings(arrays, receipt)
     _require(receipt["rows"] == n, "PUF59_ARTIFACT_RECEIPT_ROWS")

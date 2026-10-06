@@ -2,7 +2,8 @@
 
 Preparation only: no donor, fit, attachment or Population admission. Retained
 modeled return roles are not observed filers or a current-money reconstruction.
-The six existing money features retain their all-member aggregation contract.
+The six income inputs retain their all-member aggregation contract, entering
+the shared PUF predictor block only through rank and earnings participation.
 Source SS reports/components/masks are detached projections on both clone arms;
 the receiving Frame and its canonical benefit cells are never modified.
 """
@@ -30,15 +31,14 @@ source, full, support = ss.source, ss.full, ss.full.support
 PROTOCOL = "microcosm.us.puf55-survey-recipients.v1"
 ORIGINAL_ARM_PROTOCOL = "microcosm.us.puf55-survey-original-recipients.v1"
 PROFILES = (full.PUF55_SURVEY_SS, full.PUF55_SURVEY_SS_NO_TOTAL)
-MONEY_PREDICTORS = full.PUF59.predictors[2:]
-MONEY_COLUMNS = (
-    ("employment_income_before_lsr",),
-    ("self_employment_income_before_lsr",),
-    ("taxable_interest_income",),
-    ("non_qualified_dividend_income", "qualified_dividend_income"),
-    ("short_term_capital_gains",),
-    ("long_term_capital_gains_before_response",),
-)
+INCOME_COMPONENT_COLUMNS = {
+    "employment_income": ("employment_income_before_lsr",),
+    "self_employment_income": ("self_employment_income_before_lsr",),
+    "taxable_interest_income": ("taxable_interest_income",),
+    "dividend_income": ("non_qualified_dividend_income", "qualified_dividend_income"),
+    "short_term_capital_gains": ("short_term_capital_gains",),
+    "long_term_capital_gains": ("long_term_capital_gains_before_response",),
+}
 _STATUS = {
     "SINGLE": 1,
     "JOINT": 2,
@@ -323,34 +323,34 @@ def _current_money_surface(frame, recipient_mask):
     """
     person, units = frame.person, frame.table("tax_unit")
     plans = {}
-    for predictor, columns in zip(MONEY_PREDICTORS, MONEY_COLUMNS, strict=True):
+    components = support.PUF_TAX_DETAIL_INCOME_RANK_COMPONENTS
+    for component in components:
         plan = support._strict_predictor_source_plan(
-            predictor, tax_unit=units, person=person
+            component, tax_unit=units, person=person
         )
         _require(
-            plan.entity == "person" and plan.columns == columns,
+            plan.entity == "person"
+            and plan.columns == INCOME_COMPONENT_COLUMNS[component],
             "CURRENT_MONEY_SOURCE_PLAN",
         )
-        plans[predictor] = plan
+        plans[component] = plan
     support._require_complete_recipient_predictor_sources(
-        frame, recipient_mask, MONEY_PREDICTORS, source_plans=plans
+        frame, recipient_mask, components, source_plans=plans
     )
     features = support._tax_unit_feature_frame(
-        frame, MONEY_PREDICTORS, preserve_nulls=True, source_plans=plans
+        frame, components, preserve_nulls=True, source_plans=plans
     )
-    support._require_complete_recipient_predictors(
-        features, recipient_mask, MONEY_PREDICTORS
-    )
+    support._require_complete_recipient_predictors(features, recipient_mask, components)
     evidence = {
         "input_boundary": "current_financial_person_leaves_after_upstream_qualification",
         "aggregation": "sum_all_modeled_tax_unit_members",
-        "predictor_source_mapping": {
-            predictor: {"entity": plan.entity, "columns": list(plan.columns)}
-            for predictor, plan in plans.items()
+        "income_component_source_mapping": {
+            component: {"entity": plan.entity, "columns": list(plan.columns)}
+            for component, plan in plans.items()
         },
         "recipient_tax_unit_rows": int(recipient_mask.sum()),
-        "recipient_feature_values_sha256": support._predictor_feature_values_sha256(
-            features.loc[recipient_mask, list(MONEY_PREDICTORS)],
+        "recipient_income_component_values_sha256": support._predictor_feature_values_sha256(
+            features.loc[recipient_mask, list(components)],
             units.loc[recipient_mask, "tax_unit_id"],
         ),
         "raw_acs_universe_requalified_here": False,
@@ -360,7 +360,22 @@ def _current_money_surface(frame, recipient_mask):
     return features, evidence
 
 
-def _project(source_frame, frame, report, measured, *, arm=1):
+def _qualified_sex(preparation):
+    sex, evidence = financial.values.qualify_current_survey_puf_sex(preparation)
+    _require(
+        type(evidence) is bytes
+        and financial.codec.sha(
+            sex.to_frame().reset_index().to_json(orient="table").encode()
+        )
+        == financial.codec.decode_json(evidence)["person_projection_sha256"],
+        "DEMOGRAPHIC_SOURCE_PROJECTION",
+    )
+    # Keep the original immutable evidence through the public owner's final
+    # check; mutable descriptive metadata cannot seal a mutable projection.
+    return sex, evidence
+
+
+def _project(source_frame, frame, report, measured, *, arm=1, source_sex=None):
     """Pure projection after live ownership checks; never an authority issuer."""
     recipient_protocol(arm)
     people, units = frame.person, frame.table("tax_unit")
@@ -370,19 +385,38 @@ def _project(source_frame, frame, report, measured, *, arm=1):
         provenance.support_source_id_column("tax_unit")
     ]
     _require(
-        np.array_equal(
-            people.tax_unit_role_input.to_numpy(),
-            original_people.tax_unit_role_input.to_numpy(),
+        people.tax_unit_role_input.reset_index(drop=True).equals(
+            original_people.tax_unit_role_input.reset_index(drop=True)
         )
-        and np.array_equal(
-            units.filing_status_input.to_numpy(),
-            original_units.filing_status_input.to_numpy(),
+        and units.filing_status_input.reset_index(drop=True).equals(
+            original_units.filing_status_input.reset_index(drop=True)
         )
         and np.array_equal(
             people.person_tax_unit_id.map(unit_source).to_numpy(),
             original_people.person_tax_unit_id.to_numpy(),
         ),
         "MODELED_ROLE_INHERITANCE",
+    )
+    _require(
+        "age" in people
+        and "age" in original_people
+        and people.age.reset_index(drop=True).equals(
+            original_people.age.reset_index(drop=True)
+        ),
+        "DEMOGRAPHIC_AGE_INHERITANCE",
+    )
+    if source_sex is None:
+        # Private invented-frame arithmetic has no source issuer. The public
+        # qualifier always supplies the independently authenticated projection.
+        _require("is_female" in source_frame.person, "DEMOGRAPHIC_SEX_SOURCE")
+        source_sex = source_frame.person.set_index("person_id").is_female
+    _require(
+        type(source_sex) is pd.Series
+        and source_sex.index.is_unique
+        and set(source_sex.index) == set(source_frame.person.person_id)
+        and pd.api.types.is_bool_dtype(source_sex.dtype)
+        and source_sex.notna().all(),
+        "DEMOGRAPHIC_SEX_SOURCE",
     )
     person_ids = people[provenance.support_source_id_column("person")].to_numpy()
     person_report = report.loc[person_ids].copy(deep=True)
@@ -414,11 +448,61 @@ def _project(source_frame, frame, report, measured, *, arm=1):
     recipients = (
         units[provenance.support_clone_index_column("tax_unit")].eq(arm).to_numpy()
     )
-    features, money_evidence = _current_money_surface(frame, recipients)
-    for name in MONEY_PREDICTORS:
+    components, money_evidence = _current_money_surface(frame, recipients)
+    # Age and role must be complete before demographic coercion. Sex comes from
+    # its separate source-qualified projection above, never a carried alias.
+    support._require_complete_recipient_predictor_sources(
+        frame,
+        recipients,
+        tuple(
+            name
+            for name in full.DEMOGRAPHIC_PREDICTORS
+            if name != "puf_predictor_head_is_female"
+        ),
+    )
+    demographics = support._tax_unit_demographics(
+        units.tax_unit_id.to_numpy(),
+        people.person_tax_unit_id.to_numpy(),
+        age=people.age.to_numpy(),
+        is_female=source_sex.loc[person_ids].to_numpy(),
+        role=people.tax_unit_role_input.to_numpy(),
+        preserve_nulls=True,
+    )
+    features = pd.DataFrame(index=units.index)
+    for name in full.DEMOGRAPHIC_PREDICTORS:
+        features[name] = demographics[support._predictor_source_column(name)].to_numpy()
+    total = np.zeros(len(units), dtype=np.float64)
+    for component in support.PUF_TAX_DETAIL_INCOME_RANK_COMPONENTS:
+        total += components[component].to_numpy(dtype=np.float64)
+    total[~recipients] = np.nan
+    features["puf_predictor_income_rank_share"] = support._weighted_top_rank_share(
+        total, frame.resolve_weights("tax_unit").values
+    )
+    features["puf_predictor_has_earnings"] = support._earnings_indicator(
+        [components[name] for name in support.PUF_TAX_DETAIL_EARNINGS_COMPONENTS]
+    )
+    support._require_complete_recipient_predictors(
+        features, recipients, full.CONDITIONAL_PREDICTORS
+    )
+    for name in full.CONDITIONAL_PREDICTORS:
         received_measurement[name] = features[name].to_numpy(
             dtype=np.float64, copy=True
         )
+    money_evidence.update(
+        {
+            "income_levels_are_predictors": False,
+            "income_rank_population": "selected_recipient_arm_before_ss_routing",
+            "recipient_arm": arm,
+            "income_rank_definition": "shared_weighted_midpoint_share_from_top",
+            "demographics": "shared_tax_unit_roles_with_inherited_age_and_qualified_sex",
+            "recipient_feature_values_sha256": support._predictor_feature_values_sha256(
+                features.loc[recipients, list(full.CONDITIONAL_PREDICTORS)],
+                units.loc[recipients, "tax_unit_id"],
+            ),
+        }
+    )
+    money_evidence.pop("sha256")
+    money_evidence["sha256"] = support._receipt_sha256(money_evidence)
     matrices, selected = [], []
     for profile in PROFILES:
         mask = recipients & received_measurement[ss.ROUTE].eq(profile.value).to_numpy()
@@ -500,6 +584,7 @@ def qualify_puf55_survey_recipients(financial_run, *, arm=1):
     preparation = state.prefix.preparation
     source_frame = state.preparation_entry[2].frame
     frame = state.financial_population.frame
+    source_sex, demographic_evidence = _qualified_sex(preparation)
     snapshot = _literal_snapshot(state.preparation_entry[2])
     report = ss.reports.qualify_current_social_security(preparation)
     ss._source_identity(source_frame.person, report)
@@ -512,7 +597,12 @@ def qualify_puf55_survey_recipients(financial_run, *, arm=1):
         source_frame.person, source_frame.table("tax_unit"), authoritative_report
     )
     person, units, matrices, money_evidence = _project(
-        source_frame, frame, authoritative_report, expected_measurement, arm=arm
+        source_frame,
+        frame,
+        authoritative_report,
+        expected_measurement,
+        arm=arm,
+        source_sex=source_sex,
     )
     receipt = source._encode(
         {
@@ -533,6 +623,9 @@ def qualify_puf55_survey_recipients(financial_run, *, arm=1):
             "native_measurement_counts": measurement_counts,
             "measurement_knownness": "all included HEAD/actual JOINT SPOUSE reports available; no dependent, component or partial-sum fallback",
             "money_predictor_evidence": money_evidence,
+            "demographic_source_evidence": financial.codec.decode_json(
+                demographic_evidence
+            ),
             "routes": [
                 {
                     "profile": name,
@@ -555,7 +648,7 @@ def qualify_puf55_survey_recipients(financial_run, *, arm=1):
                 else "all clone-zero tax units exactly once; empty routes omitted in nine/eight order"
             ),
             "role_boundary": "retained modeled HEAD/actual JOINT SPOUSE roles; not observed filer status",
-            "money_contract": "existing six features sum all modeled tax-unit members; current financial leaves only",
+            "money_contract": "six current financial components sum all modeled tax-unit members; only weighted rank and earnings participation enter the PUF fit",
             "current_money_tax_units_reconstructed_here": False,
             "person_social_security_changed": False,
             "population_changed": False,
@@ -573,9 +666,19 @@ def qualify_puf55_survey_recipients(financial_run, *, arm=1):
     fresh_measurement, _ = ss._measure(
         source_frame.person, source_frame.table("tax_unit"), fresh
     )
+    final_sex, final_demographic_evidence = _qualified_sex(preparation)
     final_person, final_units, final_matrices, final_money = _project(
-        source_frame, frame, fresh, fresh_measurement, arm=arm
+        source_frame,
+        frame,
+        fresh,
+        fresh_measurement,
+        arm=arm,
+        source_sex=final_sex,
     )
+    # Sex requalification borrows source owners after the earlier financial
+    # check. Seal the complete receiving population again after that I/O;
+    # projection equality alone cannot detect unrelated population mutations.
+    financial._pure_run(financial_run, entry)
     _require(
         financial._run_entry(financial_run) is entry
         and result.financial_run is financial_run
@@ -589,7 +692,19 @@ def qualify_puf55_survey_recipients(financial_run, *, arm=1):
             arm,
         )
         == stamp
-        and final_money == money_evidence,
+        and final_money == money_evidence
+        and financial.codec.sha(
+            source_sex.to_frame().reset_index().to_json(orient="table").encode()
+        )
+        == financial.codec.decode_json(demographic_evidence)["person_projection_sha256"]
+        and financial.codec.sha(
+            final_sex.to_frame().reset_index().to_json(orient="table").encode()
+        )
+        == financial.codec.decode_json(final_demographic_evidence)[
+            "person_projection_sha256"
+        ]
+        and final_sex.equals(source_sex)
+        and final_demographic_evidence == demographic_evidence,
         "FINAL_PROJECTION",
     )
     return result

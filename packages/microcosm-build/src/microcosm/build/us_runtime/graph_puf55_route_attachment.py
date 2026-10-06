@@ -632,23 +632,58 @@ class Boundary:
         """Reconstruct from the actual pinned originals, before any pickle read."""
         state = self.donor_state
         definition, _, _, _, seed, scheme, *_ = state
+        processed_pin = state[8]
         ordered = tuple(
             (p.source_name, dict(self.donor_paths)[p.source_name])
-            for p in (definition.main, definition.demographic)
+            for p in (definition.main, definition.demographic, processed_pin)
         )
         buffers = self.donor_kernel._read_sources(ordered, state)
         self.donor_kernel._read_resources(state)
-        decoded = canonical.source.decode_full_puf_source(*buffers, definition)
+        decoded = canonical.source.decode_full_puf_source(*buffers[:2], definition)
         raw_payload = canonical.source.encode_full_puf_source(decoded)
+        demographic_columns, demographic_receipt = (
+            canonical.demographics.project_processed_puf_demographics(
+                buffers[2],
+                decoded.status["RECID"][decoded.ordinary],
+                pin=processed_pin,
+            )
+        )
         constructed = canonical.canonical.construct_canonical_puf59(
             decoded,
             interest_bands=canonical.interest.US_PUF_E19200_AGI_BANDS,
             interest_asset_sha256=canonical.canonical.INTEREST_ASSET_SHA256,
             seed=seed,
             growth_scheme=scheme,
+            demographic_columns=demographic_columns,
+            demographic_receipt=demographic_receipt,
+        )
+        require(
+            canonical.canonical_json(constructed.receipt.get("demographic_source"))
+            == demographic_receipt
+            and all(
+                np.array_equal(constructed.source_predictors[name], column)
+                for name, column in demographic_columns.items()
+            ),
+            "CONSTRUCTED_DEMOGRAPHICS_CHANGED",
         )
         payload = canonical.envelope.encode_canonical_puf59(
             constructed, expected_growth_scheme=scheme
+        )
+        encoded_arrays, encoded_receipt = canonical.envelope.decode_canonical_puf59(
+            payload, expected_growth_scheme=scheme
+        )
+        require(
+            canonical.envelope.reencode_canonical_puf59(
+                encoded_arrays, encoded_receipt, expected_growth_scheme=scheme
+            )
+            == payload
+            and canonical.canonical_json(encoded_receipt.get("demographic_source"))
+            == demographic_receipt
+            and all(
+                np.array_equal(encoded_arrays[name], column)
+                for name, column in demographic_columns.items()
+            ),
+            "ENCODED_DEMOGRAPHICS_CHANGED",
         )
         require(
             values["full_return_source"].payload == raw_payload

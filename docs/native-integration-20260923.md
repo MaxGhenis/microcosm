@@ -368,3 +368,27 @@ will be recorded by the lane owner after validation. Earlier journal test result
 are historical and are not evidence that the final merged tree passed. No
 actual-data native run, benchmark, certification, upload, or publication was
 performed as part of this conflict documentation.
+
+## Native PUF predictors after #982 (27 September)
+
+Native PUF55 and PUF59 preparation uses main's shared #982 block: head age,
+spouse age, head sex, dependent count, weighted income-rank share and earnings
+participation. The six qualified financial components aggregate all tax-unit
+members and supply only rank and participation. Recipient ranks cover the
+selected clone arm before Social Security routing, including original-arm
+application. Inherited roles and age retain their source identity; sex is
+qualified separately from current ASEC and native ACS without changing the
+financial population. Full-PUF preparation reconstructs total Schedule C income
+from ordinary and SSTB outputs before ranking. Canonical donor demographics come
+from the existing specification-pinned processed PUF through an authenticated,
+demographic-only join on the complete ordinary RECID cohort, using the same
+shared role reducer. Processed money, weights and synthetic rows do not enter
+the native donor projection; native ordinary rows, amounts and weights retain
+their existing source/model lineage. Canonical59 v3 binds demographic values and
+immutable source evidence. Amount-only v2 remains valid in its existing scope
+and refuses PUF55 donation with `PUF55_DONOR_DEMOGRAPHICS_UNAVAILABLE`. Strict
+completeness, knownness, demographic-role validation, source qualification and
+final replay checks remain required. This work included no actual-data run or
+certification.
+
+[Validation report](evidence/native-puf982-integration-20260927.md).

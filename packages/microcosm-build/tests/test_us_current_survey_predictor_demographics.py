@@ -40,6 +40,32 @@ def _qualify(live, **kwargs):
     )
 
 
+def test_puf_sex_projection_joins_qualified_sources_without_attaching(known_source):
+    live = known_source
+    original = values.source._frame_identity(live.preparation.frame)
+    female, evidence_bytes = values.qualify_current_survey_puf_sex(live.preparation)
+    assert type(evidence_bytes) is bytes
+    evidence = values.codec.decode_json(evidence_bytes)
+    people = live.preparation.frame.person.set_index("person_id")
+    source = people[values.provenance.support_channel_column("person")]
+    native = people[values.provenance.spine_source_id_column("person")]
+    asec_ids = native.loc[source.eq("asec")].sort_values().index
+    assert native.loc[asec_ids].tolist() == [105, 106, 107, 108]
+    assert female.loc[asec_ids].tolist() == [False, True, False, True]
+    assert not female.loc[source.eq("acs")].any()
+    assert female.dtype == pd.BooleanDtype()
+    assert evidence["asec_sex_observation_year"] == 2025
+    assert evidence["acs_sex_observation_year"] == 2024
+    assert not evidence["source_admission_issued"]
+    assert values.source._frame_identity(live.preparation.frame) == original
+    female.loc[asec_ids[0]] = True
+    repeated, repeated_evidence = values.qualify_current_survey_puf_sex(
+        live.preparation
+    )
+    assert not repeated.loc[asec_ids[0]]
+    assert repeated_evidence == evidence_bytes
+
+
 def test_demographic_features_fit_attach_and_require_replay(known_source):
     live = known_source
     original = live.clone_population
@@ -261,6 +287,13 @@ def test_unresolved_source_demographics_refuse_opt_in_and_preserve_default(
     assert source_values.person.is_female.isna().any()
     assert source_values.household.state_fips.isna().any()
     assert json.loads(source_values.receipt)["sex_unknown_persons"] == 1
+    female, evidence_bytes = values.qualify_current_survey_puf_sex(live.preparation)
+    evidence = values.codec.decode_json(evidence_bytes)
+    unknown = source_values.person.index[~source_values.person.sex_known]
+    assert female.loc[unknown].isna().all()
+    assert (
+        evidence["unknown_policy"] == "retained_for_strict_PUF_predictor_completeness"
+    )
 
 
 def test_last_money_owner_borrow_cannot_change_detached_demographic_values(

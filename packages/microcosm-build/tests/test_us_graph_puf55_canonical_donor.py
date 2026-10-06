@@ -6,6 +6,7 @@ No financial fixture, source issuer imitation, engine or model pickle is used.
 """
 
 import hashlib
+import io
 import json
 import sys
 from dataclasses import dataclass, replace
@@ -16,6 +17,7 @@ import pandas as pd
 import pytest
 
 from microcosm.build.us_runtime import graph_puf55_canonical_donor as owner
+from microcosm.build.us_runtime import puf_processed_demographics as processed
 from microcosm.graph import (
     ContentStore,
     Graph,
@@ -28,6 +30,42 @@ from microcosm.graph import (
 from microcosm.graph.artifact_edges import descriptor
 from microcosm.graph.kernel import KernelContext
 from microcosm.graph.keys import opaque_artifact_key
+
+
+def _processed_demographic_payload():
+    """Invented modeled people; processed money and synthetic units stay unused."""
+    h5py = pytest.importorskip("h5py")
+    units = np.array([*range(501000, 501064), 1000000], dtype=np.int64)
+    links, ages, heads, spouses, female = [], [], [], [], []
+    for i, unit in enumerate(units):
+        links.append(unit)
+        ages.append(25 + i % 60)
+        heads.append(True)
+        spouses.append(False)
+        female.append(bool(i % 2))
+        if i < 64 and i % 4 == 1:
+            links.append(unit)
+            ages.append(23 + i % 60)
+            heads.append(False)
+            spouses.append(True)
+            female.append(not bool(i % 2))
+    arrays = {
+        "tax_unit_id": units,
+        "person_id": np.arange(9000000, 9000000 + len(links), dtype=np.int64),
+        "person_tax_unit_id": np.asarray(links, dtype=np.int64),
+        "age": np.asarray(ages, dtype=np.int64),
+        "is_tax_unit_head": np.asarray(heads, dtype=bool),
+        "is_tax_unit_spouse": np.asarray(spouses, dtype=bool),
+        "is_tax_unit_dependent": np.zeros(len(links), dtype=bool),
+        "is_female": np.asarray(female, dtype=bool),
+        "employment_income": np.full(len(links), 1e9),
+        "household_weight": np.full(len(units), 1e9),
+    }
+    stream = io.BytesIO()
+    with h5py.File(stream, "w") as h5:
+        for name, array in arrays.items():
+            h5.create_dataset(name, data=array, track_times=False)
+    return stream.getvalue()
 
 
 def _original_sources(root, *, defect=None, full_finalization_support=False):
@@ -131,7 +169,12 @@ def _original_sources(root, *, defect=None, full_finalization_support=False):
         path = root / (pin.name + ".csv")
         path.write_bytes(payload)
         paths[pin.source_name] = path
-    return definition, paths, (main, demo)
+    payload = _processed_demographic_payload()
+    processed_pin = processed.fixture_pin(payload)
+    path = root / "puf_2024.h5"
+    path.write_bytes(payload)
+    paths[processed.SOURCE_NAME] = path
+    return definition, paths, (main, demo), processed_pin
 
 
 @pytest.mark.parametrize(
@@ -145,8 +188,10 @@ def test_original_source_fixture_weighted_tail_support(tmp_path, case):
     assert owner.source.DIRECT_MAPPINGS[target] == "E01100"
     assert all(target in profile.targets for profile in owner.numerical.PROFILES)
 
-    baseline_definition, _, baseline_buffers = _original_sources(tmp_path / "default")
-    definition, paths, buffers = _original_sources(
+    baseline_definition, _, baseline_buffers, _ = _original_sources(
+        tmp_path / "default"
+    )
+    definition, paths, buffers, processed_pin = _original_sources(
         tmp_path / "selected", full_finalization_support=case == "supported"
     )
     for pin, payload in zip(
@@ -228,12 +273,49 @@ def _context(kernel, paths):
     )
 
 
+def test_canonical59_artifact_refuses_unavailable_puf_demographics(tmp_path):
+    definition, _, buffers, _ = _original_sources(tmp_path / "originals")
+    source = owner.source.decode_full_puf_source(*buffers, definition)
+    constructed = owner.canonical.construct_canonical_puf59(
+        source,
+        interest_bands=owner.interest.US_PUF_E19200_AGI_BANDS,
+        interest_asset_sha256=owner.canonical.INTEREST_ASSET_SHA256,
+    )
+    payload = owner.envelope.encode_canonical_puf59(constructed)
+    arrays, _ = owner.envelope.decode_canonical_puf59(payload)
+    np.testing.assert_array_equal(arrays["RECID"], np.arange(501000, 501064))
+    assert len(constructed.columns) == 59
+    assert tuple(constructed.source_predictors) == (
+        "puf_2015_filing_status_code",
+        "puf_2015_capped_return_size",
+    )
+    for profile in owner.numerical.PROFILES:
+        with pytest.raises(ValueError) as error:
+            owner.projection.canonical_puf55_donor_from_artifact(
+                payload,
+                expected_artifact_sha256=owner._sha(payload),
+                profile=profile,
+            )
+        assert str(error.value) == (
+            "PUF55_DONOR_DEMOGRAPHICS_UNAVAILABLE: "
+            "['head_age', 'spouse_age', 'head_is_female', 'dependent_count']"
+        )
+    with pytest.raises(ValueError, match="^PUF55_DONOR_ARTIFACT_IDENTITY$"):
+        owner.projection.canonical_puf55_donor_from_artifact(
+            payload, expected_artifact_sha256="0" * 64
+        )
+
+
 @pytest.fixture(scope="module")
 def canonical_run(tmp_path_factory):
     root = tmp_path_factory.mktemp("puf55_canonical_source")
-    definition, paths, buffers = _original_sources(root / "originals")
-    kernel = owner.CanonicalPuf55DonorKernel(fixture_definition=definition)
-    node = owner.canonical_puf55_donor_node(fixture_definition=definition)
+    definition, paths, buffers, processed_pin = _original_sources(root / "originals")
+    kernel = owner.CanonicalPuf55DonorKernel(
+        fixture_definition=definition, fixture_processed_pin=processed_pin
+    )
+    node = owner.canonical_puf55_donor_node(
+        fixture_definition=definition, fixture_processed_pin=processed_pin
+    )
     assert node == _context(kernel, paths).node
     compiled = compile_graph(Graph("us", kernel.source_refs, (node,)))
     store = ContentStore(root / "store", codecs=kernel.source_codecs)
@@ -247,6 +329,7 @@ def canonical_run(tmp_path_factory):
         definition=definition,
         paths=paths,
         buffers=buffers,
+        processed_pin=processed_pin,
         kernel=kernel,
         node=node,
         compiled=compiled,
@@ -255,7 +338,10 @@ def canonical_run(tmp_path_factory):
         store=store,
     )
     kernel._check_state(kernel._state)
-    assert kernel._read_sources(tuple(paths.items()), kernel._state) == buffers
+    assert kernel._read_sources(tuple(paths.items()), kernel._state) == (
+        *buffers,
+        paths[processed.SOURCE_NAME].read_bytes(),
+    )
 
 
 def _payloads(run, manifest):
@@ -333,19 +419,26 @@ def test_both_predictor_slices_share_one_donor_cohort(canonical_run):
         pd.testing.assert_frame_equal(selected, nine.loc[:, list(profile.predictors)])
         assert not any("prior" in name for name in selected)
     assert len(run.node.outputs) == 64
-    assert len({ref.name for ref in run.kernel.source_refs}) == 2
+    assert {ref.name for ref in run.kernel.source_refs} == {
+        run.definition.main.source_name,
+        run.definition.demographic.source_name,
+        run.processed_pin.source_name,
+    }
 
 
 @pytest.mark.parametrize("seed", [True, -1, 2**64, 1.5])
 def test_seed_is_an_exact_uint64(canonical_run, seed):
     with pytest.raises(ValueError, match="PUF55_CANONICAL_SOURCE_SEED"):
         owner.canonical_puf55_donor_node(
-            seed=seed, fixture_definition=canonical_run.definition
+            seed=seed,
+            fixture_definition=canonical_run.definition,
+            fixture_processed_pin=canonical_run.processed_pin,
         )
 
 
 @pytest.mark.parametrize("kind", ["packaged", "detached_pin"])
 def test_caller_definition_cannot_issue_production_authority(canonical_run, kind):
+    processed_pin = canonical_run.processed_pin
     if kind == "packaged":
         definition = owner.raw.packaged_definition()
     else:
@@ -356,10 +449,14 @@ def test_caller_definition_cannot_issue_production_authority(canonical_run, kind
     with pytest.raises(
         ValueError, match="PUF55_CANONICAL_SOURCE_(FIXTURE_AUTHORITY|DEFINITION_PINS)"
     ):
-        owner.CanonicalPuf55DonorKernel(fixture_definition=definition)
+        owner.CanonicalPuf55DonorKernel(
+            fixture_definition=definition, fixture_processed_pin=processed_pin
+        )
 
 
-@pytest.mark.parametrize("kind", ["params", "columns", "artifact", "sources"])
+@pytest.mark.parametrize(
+    "kind", ["params", "columns", "artifact", "sources", "missing_processed"]
+)
 def test_exact_declaration_and_artifact_roster(canonical_run, kind):
     run = canonical_run
     context = _context(run.kernel, run.paths)
@@ -379,6 +476,13 @@ def test_exact_declaration_and_artifact_roster(canonical_run, kind):
                 context.node, artifact_outputs=context.node.artifact_outputs[:-1]
             ),
         )
+    elif kind == "missing_processed":
+        context = replace(
+            context,
+            sources={
+                k: v for k, v in context.sources.items() if k != processed.SOURCE_NAME
+            },
+        )
     else:
         context = replace(context, sources={})
     with pytest.raises(
@@ -387,40 +491,67 @@ def test_exact_declaration_and_artifact_roster(canonical_run, kind):
         run.kernel.run(context)
 
 
-def test_wrong_source_codec_cannot_replace_pinned_loader(canonical_run, monkeypatch):
+@pytest.mark.parametrize("source_kind", ("raw", "processed"))
+def test_wrong_source_codec_cannot_replace_pinned_loader(
+    canonical_run, monkeypatch, source_kind
+):
     kernel = canonical_run.kernel
-    codec = kernel._definition.main.codec
+    codec = (
+        kernel._definition.main.codec
+        if source_kind == "raw"
+        else canonical_run.processed_pin.codec
+    )
     with monkeypatch.context() as patch:
         patch.setitem(
             kernel.source_codecs._byte_loaders,
             codec,
             lambda *a, **k: canonical_run.buffers[0],
         )
-        with pytest.raises(ValueError, match="PUF55_CANONICAL_SOURCE_CODEC_BINDING"):
+        with pytest.raises(
+            ValueError, match="PUF55_CANONICAL_SOURCE_(PROCESSED_)?CODEC_BINDING"
+        ):
             kernel.run(_context(kernel, canonical_run.paths))
 
 
-def test_changed_source_bytes_refuse_before_construction(tmp_path):
-    definition, paths, _ = _original_sources(tmp_path / "source_changed")
-    kernel = owner.CanonicalPuf55DonorKernel(fixture_definition=definition)
-    path = paths[definition.main.source_name]
+@pytest.mark.parametrize("source_kind", ("raw", "processed"))
+def test_changed_source_bytes_refuse_before_construction(tmp_path, source_kind):
+    definition, paths, _, processed_pin = _original_sources(tmp_path / "source_changed")
+    kernel = owner.CanonicalPuf55DonorKernel(
+        fixture_definition=definition, fixture_processed_pin=processed_pin
+    )
+    path = paths[
+        definition.main.source_name if source_kind == "raw" else processed.SOURCE_NAME
+    ]
     payload = path.read_bytes()
-    path.write_bytes(payload.replace(b"40000", b"49999", 1))
+    changed = (
+        payload.replace(b"40000", b"49999", 1)
+        if source_kind == "raw"
+        else payload[:-1] + bytes([payload[-1] ^ 1])
+    )
+    path.write_bytes(changed)
     with pytest.raises(ValueError):
         kernel.run(_context(kernel, paths))
 
 
 @pytest.mark.parametrize("defect", ["header", "duplicate"])
 def test_pinned_bytes_still_require_actual_source_structure(tmp_path, defect):
-    definition, paths, _ = _original_sources(tmp_path / defect, defect=defect)
-    kernel = owner.CanonicalPuf55DonorKernel(fixture_definition=definition)
+    definition, paths, _, processed_pin = _original_sources(
+        tmp_path / defect, defect=defect
+    )
+    kernel = owner.CanonicalPuf55DonorKernel(
+        fixture_definition=definition, fixture_processed_pin=processed_pin
+    )
     with pytest.raises(ValueError):
         kernel.run(_context(kernel, paths))
 
 
 def test_source_order_is_not_replaced_by_technical_identifiers(tmp_path):
-    definition, paths, _ = _original_sources(tmp_path / "reordered", defect="reordered")
-    kernel = owner.CanonicalPuf55DonorKernel(fixture_definition=definition)
+    definition, paths, _, processed_pin = _original_sources(
+        tmp_path / "reordered", defect="reordered"
+    )
+    kernel = owner.CanonicalPuf55DonorKernel(
+        fixture_definition=definition, fixture_processed_pin=processed_pin
+    )
     result = kernel.run(_context(kernel, paths))
     np.testing.assert_array_equal(
         result.frame.table("tax_unit").index, np.arange(501063, 500999, -1)
@@ -545,14 +676,18 @@ def test_late_detached_outputs_have_immutable_seals(canonical_run, kind):
     _at_last_resource_return(run.kernel, _context(run.kernel, run.paths), mutate)
 
 
-def test_late_source_path_substitution_refuses(canonical_run):
+@pytest.mark.parametrize("source_kind", ("raw", "processed"))
+def test_late_source_path_substitution_refuses(canonical_run, source_kind):
     run = canonical_run
     context = _context(run.kernel, run.paths)
 
     def mutate(_):
-        context.sources[run.kernel._definition.main.source_name] = next(
-            iter(run.paths.values())
-        ).with_name("other.csv")
+        name = (
+            run.kernel._definition.main.source_name
+            if source_kind == "raw"
+            else processed.SOURCE_NAME
+        )
+        context.sources[name] = run.paths[name].with_name("other-source")
 
     _at_last_resource_return(run.kernel, context, mutate)
 
@@ -744,3 +879,92 @@ def test_live_marker_tracks_code_replacement_and_nested_mutable_defaults(mutatio
     else:
         subject.__kwdefaults__["options"]["scale"] += 1
     assert owner._marker(subject) != baseline
+
+
+@pytest.mark.parametrize("boundary", ["construction", "encoding", "encoding_restore"])
+def test_constructed_demographics_cannot_rehash_away_the_source_binding(
+    canonical_run, boundary
+):
+    from types import MappingProxyType
+
+    fired = []
+    original_fields = []
+    restored = []
+
+    def rehash(receipt):
+        changed = dict(receipt)
+        changed.pop("sha256", None)
+        changed["sha256"] = owner._sha(owner.canonical_json(changed))
+        return changed
+
+    def profile(frame, event, result):
+        if (
+            boundary == "encoding_restore"
+            and event == "return"
+            and frame.f_code is owner.envelope.encode_canonical_puf59.__code__
+            and original_fields
+        ):
+            borrowed = frame.f_locals["result"]
+            predictors, receipt = original_fields[0]
+            object.__setattr__(borrowed, "source_predictors", predictors)
+            object.__setattr__(borrowed, "receipt", receipt)
+            restored.append(True)
+            return
+        if (
+            boundary == "construction"
+            and event == "return"
+            and frame.f_code is owner.canonical.construct_canonical_puf59.__code__
+            and result is not None
+        ) or (
+            boundary in ("encoding", "encoding_restore")
+            and event == "call"
+            and frame.f_code is owner.envelope.encode_canonical_puf59.__code__
+        ):
+            if boundary != "construction":
+                result = frame.f_locals["result"]
+            original_fields.append((result.source_predictors, result.receipt))
+            original = owner.envelope.encode_canonical_puf59(result)
+            predictors = dict(result.source_predictors)
+            predictors["head_age"] = predictors["head_age"].copy()
+            predictors["head_age"][0] += 1
+            receipt = json.loads(owner.canonical_json(result.receipt))
+            receipt["demographic_source"] = rehash(
+                {
+                    **receipt["demographic_source"],
+                    "demographic_values_sha256": processed.demographic_values_digest(
+                        result.recids,
+                        {
+                            name: predictors[name]
+                            for name in owner.full.support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES
+                        },
+                    ),
+                }
+            )
+            object.__setattr__(
+                result, "source_predictors", MappingProxyType(predictors)
+            )
+            object.__setattr__(result, "receipt", MappingProxyType(rehash(receipt)))
+            # The forged values and both receipt hashes remain internally valid.
+            # Only the immutable original source projection can reject this edit.
+            assert owner.envelope.encode_canonical_puf59(result) != original
+            fired.append(True)
+
+    previous = sys.getprofile()
+    sys.setprofile(profile)
+    try:
+        reason = (
+            "CONSTRUCTED_DEMOGRAPHICS_CHANGED"
+            if boundary == "construction"
+            else "ENCODED_DEMOGRAPHICS_CHANGED"
+        )
+        with pytest.raises(
+            ValueError,
+            match="^PUF55_CANONICAL_SOURCE_" + reason + "$",
+        ):
+            canonical_run.kernel.run(
+                _context(canonical_run.kernel, canonical_run.paths)
+            )
+    finally:
+        sys.setprofile(previous)
+    assert fired == [True]
+    assert restored == ([True] if boundary == "encoding_restore" else [])

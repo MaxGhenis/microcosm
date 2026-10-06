@@ -4,11 +4,15 @@
 def test_puf59_canonical_source_and_artifact_controls():
     import copy
     import hashlib
+    import io
     import json
+    import sys
     from dataclasses import replace
+    from types import MappingProxyType
 
     import numpy as np
     import pandas as pd
+    import pytest
 
     from microcosm.build.us_runtime import full_puf_enrichment as enrichment
     from microcosm.build.us_runtime import puf55_canonical_donor as donor55
@@ -16,9 +20,11 @@ def test_puf59_canonical_source_and_artifact_controls():
     from microcosm.build.us_runtime import puf59_canonical_artifact as artifact
     from microcosm.build.us_runtime import puf_full_source as full
     from microcosm.build.us_runtime import puf_interest_components as interest
+    from microcosm.build.us_runtime import puf_processed_demographics as demographics
     from microcosm.build.us_runtime import puf_raw_source as raw
     from microcosm.build.us_runtime import puf_target2024_growth as growth
 
+    h5py = pytest.importorskip("h5py")
     checks = []
 
     def check(name, value):
@@ -124,6 +130,52 @@ def test_puf59_canonical_source_and_artifact_controls():
             source,
             interest_bands=interest.US_PUF_E19200_AGI_BANDS,
             interest_asset_sha256=asset["asset_sha256"],
+            **kwargs,
+        )
+
+    def build_with_demographics(source, **kwargs):
+        """Decode explicit invented people through the maintained source helper."""
+        ids = source.status["RECID"][source.ordinary]
+        status = source.status["MARS"][source.ordinary]
+        links, ages, heads, spouses, female = [], [], [], [], []
+        for i, (recid, filing_status) in enumerate(zip(ids, status, strict=True)):
+            links.append(recid)
+            ages.append(25 + i % 60)
+            heads.append(True)
+            spouses.append(False)
+            female.append(bool(i % 2))
+            if filing_status == 2:
+                links.append(recid)
+                ages.append(23 + i % 60)
+                heads.append(False)
+                spouses.append(True)
+                female.append(not bool(i % 2))
+        arrays = {
+            "tax_unit_id": ids[::-1],
+            "person_id": np.arange(1, len(links) + 1, dtype=np.int64),
+            "person_tax_unit_id": np.asarray(links, dtype=np.int64),
+            "age": np.asarray(ages, dtype=np.int64),
+            "is_tax_unit_head": np.asarray(heads, dtype=bool),
+            "is_tax_unit_spouse": np.asarray(spouses, dtype=bool),
+            "is_tax_unit_dependent": np.zeros(len(links), dtype=bool),
+            "is_female": np.asarray(female, dtype=bool),
+            # These are deliberately unrelated to the native return amounts
+            # and weights: demographic projection must never consume them.
+            "employment_income": np.full(len(links), 1e9),
+            "household_weight": np.full(len(ids), 1e9),
+        }
+        stream = io.BytesIO()
+        with h5py.File(stream, "w") as h5:
+            for name, values in arrays.items():
+                h5.create_dataset(name, data=values, track_times=False)
+        payload = stream.getvalue()
+        columns, receipt = demographics.project_processed_puf_demographics(
+            payload, ids, pin=demographics.fixture_pin(payload)
+        )
+        return build(
+            source,
+            demographic_columns=columns,
+            demographic_receipt=receipt,
             **kwargs,
         )
 
@@ -303,14 +355,43 @@ def test_puf59_canonical_source_and_artifact_controls():
         checks.append("canonical59_decoded_arrays_immutable")
     else:
         raise AssertionError("decoded arrays mutable")
+    refuses(
+        "amount_only_v2_donor_cannot_supply_demographics",
+        lambda: donor55.canonical_puf55_donor_from_artifact(
+            payload, expected_artifact_sha256=hashlib.sha256(payload).hexdigest()
+        ),
+        "PUF55_DONOR_DEMOGRAPHICS_UNAVAILABLE",
+    )
+    qualified_small = build_with_demographics(
+        small, qbi_employment_calibration=small_result.qbi_calibration
+    )
+    qualified_result = build_with_demographics(
+        source, qbi_employment_calibration=result.qbi_calibration
+    )
+    check(
+        "demographic_v3_preserves_native_outputs_and_weights",
+        qualified_result.receipt["schema"] == canonical.DEMOGRAPHIC_VERSION
+        and all(
+            np.array_equal(qualified_result.columns[name], column)
+            for name, column in result.columns.items()
+        )
+        and np.array_equal(qualified_result.design_weight, result.design_weight),
+    )
+    donor_arrays, _ = artifact.decode_canonical_puf59(
+        artifact.encode_canonical_puf59(qualified_result)
+    )
+    demographic_names = enrichment.support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES
     tax_unit = pd.DataFrame(
         {
-            "tax_unit_id": arrays["RECID"],
-            "weight": arrays["weight"],
-            "filing_status_code": arrays["puf_2015_filing_status_code"],
-            "puf_person_incidence_capacity": arrays["puf_person_incidence_capacity"],
-            **{k: arrays[k] for k in enrichment.PUF59.targets},
-            **{k: arrays[k] for k in enrichment.PUF59.source_predictors},
+            "tax_unit_id": donor_arrays["RECID"],
+            "weight": donor_arrays["weight"],
+            "filing_status_code": donor_arrays["puf_2015_filing_status_code"],
+            "puf_person_incidence_capacity": donor_arrays[
+                "puf_person_incidence_capacity"
+            ],
+            **{k: donor_arrays[k] for k in enrichment.PUF59.targets},
+            **{k: donor_arrays[k] for k in enrichment.PUF59.source_predictors},
+            **{k: donor_arrays[k] for k in demographic_names},
         }
     )
     known = pd.DataFrame(
@@ -323,6 +404,7 @@ def test_puf59_canonical_source_and_artifact_controls():
             *enrichment.PUF59.person_outputs,
             *enrichment.PUF59.tax_unit_outputs,
             *enrichment.PUF59.source_predictors,
+            *demographic_names,
         ),
     )
     donor = enrichment.canonical_full_puf_donor(
@@ -343,12 +425,51 @@ def test_puf59_canonical_source_and_artifact_controls():
             "puf_person_incidence_capacity",
         ),
     )
+    schedule_c = (
+        donor_arrays["self_employment_income_before_lsr"]
+        + donor_arrays["sstb_self_employment_income_before_lsr"]
+    )
+    income = (
+        donor_arrays["employment_income_before_lsr"]
+        + schedule_c
+        + donor_arrays["taxable_interest_income"]
+        + donor_arrays["qualified_dividend_income"]
+        + donor_arrays["non_qualified_dividend_income"]
+        + donor_arrays["short_term_capital_gains"]
+        + donor_arrays["long_term_capital_gains_before_response"]
+    )
+    weights = donor_arrays["weight"]
+    expected_rank = np.array(
+        [
+            (weights[income > amount].sum() + weights[income == amount].sum() / 2)
+            / weights.sum()
+            for amount in income
+        ]
+    )
     check(
-        "actual_profile59_conditioning_uses_total_schedule_c",
+        "actual_profile59_rank_uses_total_schedule_c",
+        np.allclose(donor.puf_predictor_income_rank_share.to_numpy(), expected_rank),
+    )
+    check(
+        "actual_profile59_conditioning_uses_earnings_participation",
         np.array_equal(
-            donor[enrichment.PUF59.predictors[3]].to_numpy(),
-            arrays["self_employment_income_before_lsr"]
-            + arrays["sstb_self_employment_income_before_lsr"],
+            donor.puf_predictor_has_earnings.to_numpy(),
+            (donor_arrays["employment_income_before_lsr"] != 0) | (schedule_c != 0),
+        ),
+    )
+    check(
+        "actual_profile59_conditioning_excludes_income_levels",
+        not {
+            "puf_predictor_" + name
+            for name in enrichment.support.PUF_TAX_DETAIL_INCOME_RANK_COMPONENTS
+        }
+        & set(donor.columns),
+    )
+    check(
+        "actual_profile59_retains_qualified_demographics",
+        all(
+            np.array_equal(donor["puf_predictor_" + name], donor_arrays[name])
+            for name in demographic_names
         ),
     )
     check(
@@ -365,7 +486,7 @@ def test_puf59_canonical_source_and_artifact_controls():
 
     # Reuse actual source decoding, canonical construction and envelope checks.
     # The old four SS carriers represent one total, never observed components.
-    for candidate in (small_result, result):
+    for candidate in (qualified_small, qualified_result):
         packed = artifact.encode_canonical_puf59(candidate)
         digest = hashlib.sha256(packed).hexdigest()
         projected, metadata = donor55.canonical_puf55_donor_from_artifact(
@@ -615,6 +736,73 @@ def test_puf59_canonical_source_and_artifact_controls():
             ).encode()
         ).hexdigest()
         return changed
+
+    qualified_payload = artifact.encode_canonical_puf59(qualified_small)
+    qualified_arrays, qualified_receipt = artifact.decode_canonical_puf59(
+        qualified_payload
+    )
+    source_receipt_bytes = json.dumps(
+        qualified_receipt["demographic_source"],
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode()
+    protected, protected_receipt = canonical.validated_demographic_projection(
+        qualified_arrays["RECID"],
+        {name: qualified_arrays[name] for name in demographic_names},
+        source_receipt_bytes,
+    )
+    check(
+        "demographic_validator_keeps_immutable_source_evidence",
+        type(protected) is MappingProxyType
+        and type(protected_receipt) is bytes
+        and protected_receipt == source_receipt_bytes,
+    )
+    with pytest.raises(TypeError):
+        protected["head_age"] = np.zeros(len(qualified_small.recids))
+    with pytest.raises(ValueError):
+        protected["head_age"][0] += 1
+
+    altered_decode = []
+
+    def mutate_decoded_demographics(frame, event, returned):
+        if (
+            event == "return"
+            and frame.f_code is donor55.decode_canonical_puf59.__code__
+            and returned is not None
+        ):
+            altered_decode.append(True)
+            decoded, original_receipt = returned
+            changed_age = decoded["head_age"].copy()
+            changed_age[0] += 1
+            decoded["head_age"] = changed_age
+            original_receipt["demographic_source"] = rehash_receipt(
+                {
+                    **original_receipt["demographic_source"],
+                    "demographic_values_sha256": demographics.demographic_values_digest(
+                        decoded["RECID"],
+                        {name: decoded[name] for name in demographic_names},
+                    ),
+                }
+            )
+            updated = rehash_receipt(original_receipt)
+            original_receipt.clear()
+            original_receipt.update(updated)
+
+    previous_profile = sys.getprofile()
+    sys.setprofile(mutate_decoded_demographics)
+    try:
+        refuses(
+            "consistent_decoded_demographic_forgery_cannot_replace_source_bytes",
+            lambda: donor55.canonical_puf55_donor_from_artifact(
+                qualified_payload,
+                expected_artifact_sha256=hashlib.sha256(qualified_payload).hexdigest(),
+            ),
+            "PUF55_DONOR_DECODED_ARTIFACT_CHANGED",
+        )
+    finally:
+        sys.setprofile(previous_profile)
+    check("decoded_demographic_mutation_exercised", altered_decode == [True])
 
     for field, value in (
         ("rows", True),

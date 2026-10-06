@@ -300,7 +300,14 @@ def test_one_nonempty_route_uses_same_whole_cohort_finalizer(
 
 @pytest.mark.parametrize(
     "defect",
-    ("recid_order", "target", "weight", "capacity", "shared_money", "shared_status"),
+    (
+        "recid_order",
+        "target",
+        "weight",
+        "capacity",
+        "shared_demographic",
+        "shared_status",
+    ),
 )
 def test_donor_parity_refuses_before_any_model_decode(defect):
     donors, draws = _donors(), raw_inputs()
@@ -312,7 +319,7 @@ def test_donor_parity_refuses_before_any_model_decode(defect):
             "target": bridge.PROFILES[1].targets[-1],
             "weight": "weight",
             "capacity": "puf_person_incidence_capacity",
-            "shared_money": bridge.PROFILES[1].predictors[2],
+            "shared_demographic": "puf_predictor_head_age",
             "shared_status": bridge.PROFILES[1].predictors[0],
         }[defect]
         changed.iloc[0, changed.columns.get_loc(column)] += 1

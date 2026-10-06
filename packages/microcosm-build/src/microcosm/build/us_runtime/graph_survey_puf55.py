@@ -254,7 +254,14 @@ def _registry(existing, donor):
 
 
 def _construct(
-    financial_run, donor_sources, *, fixture_definition, seed, n_estimators, zero_atol
+    financial_run,
+    donor_sources,
+    *,
+    fixture_definition,
+    fixture_processed_pin=None,
+    seed,
+    n_estimators,
+    zero_atol,
 ):
     """Construct actual declarations and bind actual source keys without running."""
     financial.check_survey_financial_run(financial_run)
@@ -270,7 +277,9 @@ def _construct(
     qualified = recipient.values.qualify_puf55_survey_recipients(financial_run)
     upstream_count = len(financial_run.compiled.order)
     donor = canonical.CanonicalPuf55DonorKernel(
-        seed=seed, fixture_definition=fixture_definition
+        seed=seed,
+        fixture_definition=fixture_definition,
+        fixture_processed_pin=fixture_processed_pin,
     )
     require(
         type(donor_sources) is dict
@@ -512,12 +521,14 @@ def run_survey_puf55(
     n_estimators=100,
     zero_atol=1e-8,
     fixture_definition=None,
+    fixture_processed_pin=None,
     resume="auto",
 ):
     """Run one extension over an actual issued run; no pre-run or donor injection.
 
-    ``fixture_definition`` is the canonical owner's explicit invented-source
-    route. It cannot claim packaged-source admission. A separate call with
+    ``fixture_definition`` and ``fixture_processed_pin`` select the canonical
+    owner's explicit invented-source route for the raw deliveries and processed
+    demographics. They cannot claim packaged-source admission. A separate call with
     ``resume='require'`` must reproduce every source/producer and all values.
     """
     require(resume in ("auto", "require"), "RESUME")
@@ -525,6 +536,7 @@ def run_survey_puf55(
         financial_run,
         donor_sources,
         fixture_definition=fixture_definition,
+        fixture_processed_pin=fixture_processed_pin,
         seed=seed,
         n_estimators=n_estimators,
         zero_atol=zero_atol,

@@ -15,10 +15,13 @@ from types import MappingProxyType
 import numpy as np
 
 from . import puf_full_source as source_owner
+from . import puf_processed_demographics as demographics_owner
 from . import puf_qbi_model as qbi
 from . import puf_target2024_growth as growth
+from .puf_support import PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES
 
 VERSION = "microcosm.us.puf59_canonical_return/2"
+DEMOGRAPHIC_VERSION = "microcosm.us.puf59_canonical_return/3"
 INTEREST_ASSET_SHA256 = (
     "c3356ae216487f365cb0e0a7ab1ba46843a6c52950b75eae1bfab9b0b80a735a"
 )
@@ -51,6 +54,61 @@ def prefix_values_digest(arrays):
 def _require(value, code):
     if not value:
         raise ValueError(code)
+
+
+def validated_demographic_projection(recids, columns, receipt):
+    """Validate detached demographic values against their immutable source receipt.
+
+    This is an integrity check, not source admission. The graph source owner
+    authenticates the processed-PUF bytes and independently repeats that read.
+    """
+    _require(
+        isinstance(columns, Mapping)
+        and set(columns) == set(PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES)
+        and type(receipt) is bytes,
+        "PUF59_DEMOGRAPHIC_PROJECTION",
+    )
+    document = json.loads(receipt)
+    _require(
+        type(document) is dict
+        and json.dumps(
+            document, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode()
+        == receipt,
+        "PUF59_DEMOGRAPHIC_RECEIPT_CANONICAL",
+    )
+    digest = document.pop("sha256", None)
+    _require(
+        digest
+        == hashlib.sha256(
+            json.dumps(
+                document, sort_keys=True, separators=(",", ":"), allow_nan=False
+            ).encode()
+        ).hexdigest()
+        and document.get("schema") == demographics_owner.PROTOCOL
+        and document.get("source_admission_issued") is False,
+        "PUF59_DEMOGRAPHIC_RECEIPT",
+    )
+    demographics_owner.pin_from_document(document["processed_source_pin"])
+    document["sha256"] = digest
+    normalized = {}
+    for name, raw_values in sorted(columns.items()):
+        values = _money(raw_values, name, len(recids))
+        valid = values >= 0
+        if name == "head_is_female":
+            valid &= np.isin(values, (0, 1))
+        elif name == "dependent_count":
+            valid &= values == np.floor(values)
+        _require(bool(valid.all()), "PUF59_DEMOGRAPHIC_DOMAIN:" + name)
+        normalized[name] = np.frombuffer(values.tobytes(), dtype=np.float64)
+    _require(
+        demographics_owner.ordinary_recid_digest(recids)
+        == document.get("ordinary_recid_sha256")
+        and demographics_owner.demographic_values_digest(recids, normalized)
+        == document.get("demographic_values_sha256"),
+        "PUF59_DEMOGRAPHIC_VALUES_BINDING",
+    )
+    return MappingProxyType(normalized), receipt
 
 
 def _money(value, name, n):
@@ -217,6 +275,8 @@ def construct_canonical_puf59(
     qbi_employment_calibration=None,
     growth_scheme="family_observed",
     seed=0,
+    demographic_columns=None,
+    demographic_receipt=None,
 ):
     """Construct canonical outputs from an owner-decoded ordinary source cohort.
 
@@ -228,6 +288,15 @@ def construct_canonical_puf59(
     )
     n = len(status["RECID"])
     _require(n > 0, "PUF59_EMPTY_COHORT")
+    _require(
+        (demographic_columns is None) == (demographic_receipt is None),
+        "PUF59_DEMOGRAPHIC_ARGUMENTS",
+    )
+    demographics, demographic_evidence = ({}, None)
+    if demographic_columns is not None:
+        demographics, demographic_evidence = validated_demographic_projection(
+            status["RECID"], demographic_columns, demographic_receipt
+        )
     modeled, model_receipt = baseline_modeled_columns(
         aux,
         n=n,
@@ -260,6 +329,7 @@ def construct_canonical_puf59(
         k: np.frombuffer(np.asarray(aux[k], dtype=np.int64).tobytes(), dtype=np.int64)
         for k in ("puf_2015_filing_status_code", "puf_2015_capped_return_size")
     }
+    predictors.update(demographics)
     prefix_arrays = {
         "RECID": status["RECID"],
         "weight": weight,
@@ -268,7 +338,7 @@ def construct_canonical_puf59(
     }
     receipt = {
         "prefix_values_sha256": prefix_values_digest(prefix_arrays),
-        "schema": VERSION,
+        "schema": VERSION if demographic_evidence is None else DEMOGRAPHIC_VERSION,
         "source_definition_sha256": source.definition_sha256,
         "source_sha256": dict(source.source_sha256),
         "source_statistical_year": 2015,
@@ -286,6 +356,12 @@ def construct_canonical_puf59(
         "mortgage_structure_generated": False,
         "release_eligible": False,
     }
+    if demographic_evidence is not None:
+        receipt["demographic_source"] = json.loads(demographic_evidence)
+        receipt["demographic_use"] = (
+            "Processed-PUF person age, sex and roles joined to the unchanged ordinary "
+            "RECID cohort; no processed weights, income or synthetic tail imported."
+        )
     receipt["sha256"] = hashlib.sha256(
         json.dumps(
             receipt, sort_keys=True, separators=(",", ":"), allow_nan=False

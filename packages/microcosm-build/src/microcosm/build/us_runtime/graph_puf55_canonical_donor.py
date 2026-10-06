@@ -31,6 +31,7 @@ from microcosm.graph import (
     Numeric,
     Owned,
     SeedSource,
+    SourceRef,
     StructuralDelta,
     codecs,
     source_hash,
@@ -48,12 +49,14 @@ from . import puf59_canonical_artifact as envelope
 from . import puf_full_source as source
 from . import puf_full_source_graph as source_graph
 from . import puf_interest_components as interest
+from . import puf_processed_demographics as demographics
 from . import puf_raw_source as raw
+from . import puf_source_agi as source_agi
 
 CANONICAL_DONOR_NODE = "survey_puf55.canonical_donor"
-CANONICAL_DONOR_TYPE = ArtifactType("microcosm.us.puf59_canonical_return", 2)
+CANONICAL_DONOR_TYPE = ArtifactType("microcosm.us.puf59_canonical_return", 3)
 DONOR_PROJECTION_TYPE = ArtifactType("microcosm.us.puf55_donor_projection", 1)
-PHASE = "us.survey_puf55.canonical_donor.v1"
+PHASE = "us.survey_puf55.canonical_donor.v2"
 MAX_PROJECTION_BYTES = 128 * 1024
 
 
@@ -172,7 +175,33 @@ def _recipe(seed, growth_scheme):
     }
 
 
-def _params(definition, seed, growth_scheme, packaged_sha256):
+def _processed_pin(definition, fixture_processed_pin):
+    packaged = demographics.packaged_pin()
+    if definition.route == "packaged":
+        _require(fixture_processed_pin is None, "PROCESSED_FIXTURE_AUTHORITY")
+        selected = packaged
+    else:
+        _require(fixture_processed_pin is not None, "PROCESSED_FIXTURE_REQUIRED")
+        selected = demographics.validate_pin(fixture_processed_pin)
+        _require(
+            selected.route == "test_fixture" and selected.sha256 != packaged.sha256,
+            "PROCESSED_FIXTURE_AUTHORITY",
+        )
+    return selected, canonical_json(demographics.pin_document(packaged))
+
+
+def _source_refs(definition, processed_pin):
+    return (
+        *raw.us_puf_raw_source_refs(definition),
+        SourceRef(
+            processed_pin.source_name,
+            processed_pin.codec,
+            description="Pinned processed-PUF person demographics; no money or weights consumed.",
+        ),
+    )
+
+
+def _params(definition, seed, growth_scheme, packaged_sha256, processed_pin):
     return {
         **_recipe(seed, growth_scheme),
         "definition": definition.params_text,
@@ -180,6 +209,9 @@ def _params(definition, seed, growth_scheme, packaged_sha256):
         "packaged_definition_bytes_sha256": packaged_sha256,
         "source_pins": canonical_json(
             (_pin(definition.main), _pin(definition.demographic))
+        ).decode("ascii"),
+        "processed_demographics_pin": canonical_json(
+            demographics.pin_document(processed_pin)
         ).decode("ascii"),
     }
 
@@ -191,7 +223,11 @@ def _node(definition, params):
         CANONICAL_DONOR_NODE,
         CanonicalPuf55DonorKernel.ref,
         structural=StructuralDelta.CREATE,
-        sources=(definition.main.source_name, definition.demographic.source_name),
+        sources=(
+            definition.main.source_name,
+            definition.demographic.source_name,
+            demographics.SOURCE_NAME,
+        ),
         outputs=tuple(
             Owned("tax_unit", name, "float64")
             for name in (*profile.predictors, *profile.targets)
@@ -207,10 +243,18 @@ def _node(definition, params):
 
 
 def canonical_puf55_donor_node(
-    *, seed=578, growth_scheme="family_observed", fixture_definition=None
+    *,
+    seed=578,
+    growth_scheme="family_observed",
+    fixture_definition=None,
+    fixture_processed_pin=None,
 ):
     definition, packaged_sha = _fresh_definition(fixture_definition)
-    return _node(definition, _params(definition, seed, growth_scheme, packaged_sha))
+    processed_pin, _ = _processed_pin(definition, fixture_processed_pin)
+    return _node(
+        definition,
+        _params(definition, seed, growth_scheme, packaged_sha, processed_pin),
+    )
 
 
 def _modules():
@@ -227,6 +271,8 @@ def _modules():
         envelope,
         projection,
         interest,
+        demographics,
+        source_agi,
         full,
         full.support,
         numerical,
@@ -391,17 +437,32 @@ class CanonicalPuf55DonorKernel(KernelBase):
         numeric=Numeric.PLATFORM_BITWISE,
         seed_source=SeedSource.PARAM,
         structural=StructuralDelta.CREATE,
-        dependencies=("numpy", "pandas"),
+        dependencies=("numpy", "pandas", "h5py", "PyYAML"),
     )
 
     def __init__(
-        self, *, seed=578, growth_scheme="family_observed", fixture_definition=None
+        self,
+        *,
+        seed=578,
+        growth_scheme="family_observed",
+        fixture_definition=None,
+        fixture_processed_pin=None,
     ):
         definition, packaged_sha = _fresh_definition(fixture_definition)
+        processed_pin, packaged_processed = _processed_pin(
+            definition, fixture_processed_pin
+        )
         self._definition = definition
+        self._processed_pin = processed_pin
         self.source_codecs = raw.puf_raw_source_codecs(definition)
-        self.source_refs = raw.us_puf_raw_source_refs(definition)
-        params = canonical_json(_params(definition, seed, growth_scheme, packaged_sha))
+        self.source_codecs.register_bytes(
+            processed_pin.codec,
+            partial(demographics.load_pinned_processed_puf_bytes, pin=processed_pin),
+        )
+        self.source_refs = _source_refs(definition, processed_pin)
+        params = canonical_json(
+            _params(definition, seed, growth_scheme, packaged_sha, processed_pin)
+        )
         # Retain primitive pins and immutable baselines before any future borrow.
         self._state = (
             definition,
@@ -412,6 +473,8 @@ class CanonicalPuf55DonorKernel(KernelBase):
             growth_scheme,
             self.implementation_hash(),
             _live(),
+            processed_pin,
+            packaged_processed,
         )
         self._check_state(self._state)
 
@@ -422,6 +485,9 @@ class CanonicalPuf55DonorKernel(KernelBase):
         if state is not None:
             self._check_state(state)
         packaged = raw._packaged_bytes()
+        packaged_processed = canonical_json(
+            demographics.pin_document(demographics.packaged_pin())
+        )
         asset = interest.puf_e19200_interest_components_asset_identity()
         code = source_hash(*_modules(), dependencies=self.capabilities.dependencies)
         if state is not None:
@@ -430,7 +496,8 @@ class CanonicalPuf55DonorKernel(KernelBase):
             type(packaged) is bytes
             and asset["asset_sha256"] == canonical.INTEREST_ASSET_SHA256
             and asset["agi_bands"]
-            == interest.puf_e19200_agi_bands_runtime_identity()["agi_bands"],
+            == interest.puf_e19200_agi_bands_runtime_identity()["agi_bands"]
+            and (state is None or packaged_processed == state[9]),
             "IMPLEMENTATION_RESOURCES",
         )
         return _sha(
@@ -438,6 +505,9 @@ class CanonicalPuf55DonorKernel(KernelBase):
                 {
                     "code": code,
                     "packaged_definition_bytes_sha256": _sha(packaged),
+                    "packaged_processed_demographics_pin": json.loads(
+                        packaged_processed
+                    ),
                     "interest_asset": asset,
                     "csv_acceptance": raw.csv_acceptance_profile(),
                 }
@@ -445,14 +515,28 @@ class CanonicalPuf55DonorKernel(KernelBase):
         )
 
     def _check_state(self, state):
-        definition, definition_seal, params, packaged_sha, seed, scheme, _, live = state
+        (
+            definition,
+            definition_seal,
+            params,
+            packaged_sha,
+            seed,
+            scheme,
+            _,
+            live,
+            processed_pin,
+            _,
+        ) = state
         _require(
             self._state is state
             and self._definition is definition
             and _definition(definition) == definition_seal
-            and canonical_json(_params(definition, seed, scheme, packaged_sha))
+            and self._processed_pin is processed_pin
+            and canonical_json(
+                _params(definition, seed, scheme, packaged_sha, processed_pin)
+            )
             == params
-            and self.source_refs == raw.us_puf_raw_source_refs(definition)
+            and self.source_refs == _source_refs(definition, processed_pin)
             and _live() == live,
             "LIVE_STATE_CHANGED",
         )
@@ -463,7 +547,8 @@ class CanonicalPuf55DonorKernel(KernelBase):
             "CODEC_MODE",
         )
         _require(
-            set(self.source_codecs.bytes_names()) == {p.codec for p in expected},
+            set(self.source_codecs.bytes_names())
+            == {p.codec for p in (*expected, processed_pin)},
             "CODEC_ROSTER",
         )
         for pin in expected:
@@ -477,6 +562,15 @@ class CanonicalPuf55DonorKernel(KernelBase):
                 and _pin(loader.keywords["pin"]) == _pin(pin),
                 "CODEC_BINDING",
             )
+        loader = self.source_codecs.get(processed_pin.codec)
+        _require(
+            type(loader) is partial
+            and loader.func is demographics.load_pinned_processed_puf_bytes
+            and loader.args == ()
+            and set(loader.keywords) == {"pin"}
+            and loader.keywords["pin"] is processed_pin,
+            "PROCESSED_CODEC_BINDING",
+        )
 
     def _context(self, context, state, expected_paths=None):
         definition, _, params, *_ = state
@@ -488,12 +582,16 @@ class CanonicalPuf55DonorKernel(KernelBase):
             and not context.artifacts
             and len(context.strata) == 0
             and set(context.sources)
-            == {definition.main.source_name, definition.demographic.source_name},
+            == {
+                definition.main.source_name,
+                definition.demographic.source_name,
+                state[8].source_name,
+            },
             "DECLARATION_OR_CONTEXT",
         )
         paths = tuple(
             (p.source_name, context.sources[p.source_name])
-            for p in (definition.main, definition.demographic)
+            for p in (definition.main, definition.demographic, state[8])
         )
         _require(
             all(type(path) is type(Path()) and path.is_absolute() for _, path in paths),
@@ -510,7 +608,7 @@ class CanonicalPuf55DonorKernel(KernelBase):
         return tuple(
             codecs.load_source_bytes(pin.codec, path, registry=self.source_codecs)
             for pin, (_, path) in zip(
-                (definition.main, definition.demographic), paths, strict=True
+                (definition.main, definition.demographic, state[8]), paths, strict=True
             )
         )
 
@@ -540,17 +638,55 @@ class CanonicalPuf55DonorKernel(KernelBase):
         self._read_resources(state)
         buffers = self._read_sources(paths, state)
         definition, _, params, _, seed, scheme, *_ = state
-        decoded = source.decode_full_puf_source(*buffers, definition)
+        decoded = source.decode_full_puf_source(*buffers[:2], definition)
         raw_payload = source.encode_full_puf_source(decoded)
+        demographic_columns, demographic_receipt = (
+            demographics.project_processed_puf_demographics(
+                buffers[2], decoded.status["RECID"][decoded.ordinary], pin=state[8]
+            )
+        )
         constructed = canonical.construct_canonical_puf59(
             decoded,
             interest_bands=interest.US_PUF_E19200_AGI_BANDS,
             interest_asset_sha256=canonical.INTEREST_ASSET_SHA256,
             seed=seed,
             growth_scheme=scheme,
+            demographic_columns=demographic_columns,
+            demographic_receipt=demographic_receipt,
+        )
+        # The source projection is immutable. A mutable result/receipt returned
+        # from canonical construction must still represent exactly those facts,
+        # even if a borrower changes its values and recomputes descriptive hashes.
+        _require(
+            canonical_json(constructed.receipt.get("demographic_source"))
+            == demographic_receipt
+            and all(
+                np.array_equal(constructed.source_predictors[name], values)
+                for name, values in demographic_columns.items()
+            ),
+            "CONSTRUCTED_DEMOGRAPHICS_CHANGED",
         )
         canonical_payload = envelope.encode_canonical_puf59(
             constructed, expected_growth_scheme=scheme
+        )
+        # Encoding borrows the constructed result. Bind the bytes it produced
+        # back to the immutable source projection, including when a borrower
+        # consistently changes the result and its descriptive receipt hashes.
+        encoded_arrays, encoded_receipt = envelope.decode_canonical_puf59(
+            canonical_payload, expected_growth_scheme=scheme
+        )
+        _require(
+            envelope.reencode_canonical_puf59(
+                encoded_arrays, encoded_receipt, expected_growth_scheme=scheme
+            )
+            == canonical_payload
+            and canonical_json(encoded_receipt.get("demographic_source"))
+            == demographic_receipt
+            and all(
+                np.array_equal(encoded_arrays[name], values)
+                for name, values in demographic_columns.items()
+            ),
+            "ENCODED_DEMOGRAPHICS_CHANGED",
         )
         donor, evidence = projection.canonical_puf55_donor_from_artifact(
             canonical_payload,

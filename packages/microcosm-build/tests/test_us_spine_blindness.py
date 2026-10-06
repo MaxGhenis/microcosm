@@ -805,6 +805,9 @@ _US_LAUNCH_GRAPH_RUNTIME_MODULES = frozenset(
         "puf_detail_transfer.py",
         # Qualified transport for one development-only PUF conditional diagnostic
         "puf_diagnostic_consumer.py",
+        # Qualified processed-PUF demographics by ordinary RECID only; no
+        # processed money, weights, synthetic donors or population authority.
+        "puf_processed_demographics.py",
         # Additive full-return PUF source projection, before canonical modeling
         "puf_full_source.py",
         # Graph owner of the additive complete PUF return-source artifact
@@ -3787,6 +3790,9 @@ _REVIEWED_DYNAMIC_SELECTOR_MODULES = frozenset(
         "puf59_canonical_artifact.py",
         "puf_full_source.py",
         "puf_price_baseline.py",
+        # Reviewed 2026-09-27: exact H5 demographic-array/schema names, immutable
+        # pin/receipt fields and ordinary-RECID indexers; no provenance selector.
+        "puf_processed_demographics.py",
         "puf_qbi_model.py",
         "puf_target2024_growth.py",
         "survey_atomic_geography.py",

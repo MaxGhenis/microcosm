@@ -482,13 +482,14 @@ def genuine(originals):
         originals.transfer,
     )
     _phase("puf.before")
-    definition, paths, _ = _original_sources(
+    definition, paths, _, processed_pin = _original_sources(
         root / "invented-puf", full_finalization_support=True
     )
     parent = graph.parent.run_survey_puf55(
         financial,
         donor_sources=paths,
         fixture_definition=definition,
+        fixture_processed_pin=processed_pin,
         seed=578,
         n_estimators=2,
         zero_atol=0,

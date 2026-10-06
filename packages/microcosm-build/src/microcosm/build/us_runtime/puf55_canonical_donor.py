@@ -14,7 +14,10 @@ import numpy as np
 import pandas as pd
 
 from . import full_puf_enrichment as enrichment
-from .puf59_canonical_artifact import decode_canonical_puf59
+from .puf59_canonical_artifact import (
+    decode_canonical_puf59,
+    reencode_canonical_puf59,
+)
 
 _SS_CARRIER_METHOD = (
     "Component-neutral carrier: total SS in retirement, other component carriers "
@@ -32,7 +35,7 @@ def canonical_puf55_donor_from_artifact(
 ):
     """Return the ordered donor and descriptive projection metadata.
 
-    The canonical59 v2 producer puts grown E02400 into its retirement carrier
+    The canonical59 producer puts grown E02400 into its retirement carrier
     and zeroes the other three carriers. Require that exact modeled convention
     before relabeling the total as a predictor. It is transported tax-return
     income, not an observed current-year total or a beneficiary component.
@@ -59,6 +62,15 @@ def canonical_puf55_donor_from_artifact(
     arrays, source_receipt = decode_canonical_puf59(
         payload, expected_growth_scheme=expected_growth_scheme
     )
+    # The decoder's public maps are detached mutable values. Rebind them to
+    # the original immutable artifact before consuming any field or receipt.
+    if (
+        reencode_canonical_puf59(
+            arrays, source_receipt, expected_growth_scheme=expected_growth_scheme
+        )
+        != payload
+    ):
+        raise ValueError("PUF55_DONOR_DECODED_ARTIFACT_CHANGED")
     assumptions = source_receipt.get("model_assumptions")
     if (
         not isinstance(assumptions, dict)
@@ -72,6 +84,19 @@ def canonical_puf55_donor_from_artifact(
     ):
         raise ValueError("PUF55_DONOR_SS_CARRIER")
 
+    # The return-only v2 artifact has no qualified person demographics. Its
+    # capped return size and monetary outputs cannot supply the shared #982
+    # age/sex/role block, and missing supplement rows cannot become defaults.
+    missing_demographics = [
+        name
+        for name in enrichment.support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES
+        if name not in arrays
+    ]
+    if missing_demographics:
+        raise ValueError(
+            "PUF55_DONOR_DEMOGRAPHICS_UNAVAILABLE: " + repr(missing_demographics)
+        )
+
     index = pd.Index(arrays["RECID"], name="tax_unit_id")
     tax_unit = pd.DataFrame(
         {
@@ -79,6 +104,10 @@ def canonical_puf55_donor_from_artifact(
             "weight": arrays["weight"],
             "filing_status_code": arrays["puf_2015_filing_status_code"],
             "puf_person_incidence_capacity": arrays["puf_person_incidence_capacity"],
+            **{
+                name: arrays[name]
+                for name in enrichment.support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES
+            },
             **{name: arrays[name] for name in profile.targets},
             **{name: arrays[name] for name in enrichment.PUF59.source_predictors},
             **(
@@ -104,6 +133,7 @@ def canonical_puf55_donor_from_artifact(
             "puf_person_incidence_capacity",
             *profile.targets,
             *profile.source_predictors,
+            *enrichment.support.PUF_TAX_DETAIL_DEMOGRAPHIC_SOURCES,
         ),
     )
     donor = enrichment.canonical_full_puf_donor(
@@ -120,6 +150,7 @@ def canonical_puf55_donor_from_artifact(
         "source_receipt_sha256": source_receipt["sha256"],
         "source_statistical_year": 2015,
         "money_year": 2024,
+        "demographic_source": source_receipt["demographic_source"],
         "rows": len(donor),
         "profile": profile.value,
         "ordered_columns": list(donor.columns),

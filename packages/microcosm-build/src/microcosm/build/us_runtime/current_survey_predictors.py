@@ -74,6 +74,101 @@ def _check_demographic_values(values, receipt):
         )
 
 
+def qualify_current_survey_puf_sex(preparation):
+    """Project source-qualified sex for PUF demographics without changing money.
+
+    The financial completion does not supply source sex. PUF recipients need
+    this separate projection, keyed by the un-cloned stacked person ID. Unknown
+    ASEC observations stay unknown for strict demographic-source completeness;
+    neither carried values nor observation-time state can fill them.
+    """
+    require(
+        type(preparation) is source.AuthenticatedSurveyPopulationPreparation,
+        "PREPARATION_TYPE",
+    )
+    entry = preparation._checked()
+    state = entry[2]
+    values = observed_geography.demographics.qualify_current_asec_demographics(
+        preparation
+    )
+    receipt = values.receipt
+    _check_demographic_values(values, receipt)
+    document = json.loads(receipt)
+    require(
+        document["preparation_sha256"] == codec.sha(entry[1])
+        and document["sex_observation_year"] == 2025
+        and document["income_year"] == 2024,
+        "PUF_SEX_PERIOD",
+    )
+    people = state.frame.person
+    index = pd.Index(_ids(people.person_id), name="person_id")
+    asec = people[provenance.support_channel_column("person")].eq("asec")
+    native_ids = people[provenance.spine_source_id_column("person")]
+    require(
+        values.person.index.is_unique
+        and set(values.person.index) == set(index[asec])
+        and np.array_equal(
+            values.person.reindex(index[asec]).native_person_id.to_numpy(),
+            native_ids.loc[asec].to_numpy(),
+        ),
+        "PUF_SEX_ASEC_PERSON_JOIN",
+    )
+    asec_person = values.person.reindex(index[asec])
+    require(
+        pd.api.types.is_bool_dtype(asec_person.is_female.dtype)
+        and np.array_equal(
+            asec_person.sex_known.to_numpy(), asec_person.is_female.notna().to_numpy()
+        ),
+        "PUF_SEX_ASEC_KNOWNNESS",
+    )
+    acs_frame = state.source_frames[0]
+    source.acs_native.verify_acs_native_coverage(state.native[0], acs_frame)
+    acs_payload = source.acs_native._owned(state.native[0]).payload
+    require(json.loads(acs_payload)["vintage"] == 2024, "PUF_SEX_ACS_PERIOD")
+    original = acs_frame.person.set_index("person_id", drop=False)
+    require(
+        original.index.is_unique
+        and set(original.index) == set(native_ids.loc[~asec])
+        and {"SEX", "is_female"} <= set(original),
+        "PUF_SEX_ACS_PERSON_JOIN",
+    )
+    acs_person = original.reindex(native_ids.loc[~asec].to_numpy())
+    sex = _numeric(acs_person.SEX)
+    require(
+        np.isin(sex, (1, 2)).all()
+        and pd.api.types.is_bool_dtype(acs_person.is_female.dtype)
+        and acs_person.is_female.notna().all()
+        and np.array_equal(acs_person.is_female.to_numpy(), sex == 2),
+        "PUF_SEX_ACS_IDENTITY",
+    )
+    female = pd.Series(pd.NA, index=index, name="is_female", dtype="boolean")
+    female.loc[index[asec]] = asec_person.is_female.array
+    female.loc[index[~asec]] = sex == 2
+    projection = female.to_frame().reset_index().to_json(orient="table").encode()
+    evidence = {
+        "asec_projection_sha256": codec.sha(receipt),
+        "acs_native_sha256": codec.sha(acs_payload),
+        "asec_sex_observation_year": 2025,
+        "acs_sex_observation_year": 2024,
+        "asec_allocated_sex": "retained_when_source_owner_binding_is_known",
+        "acs_sex_allocation_provenance": "unresolved; no_unallocated_value_claim",
+        "unknown_policy": "retained_for_strict_PUF_predictor_completeness",
+        "person_projection_sha256": codec.sha(projection),
+        "source_admission_issued": False,
+    }
+    # Source borrowing must finish before accepting the detached projection.
+    source._pure_final(state)
+    host.survey_budget._preparation_entry(preparation, entry[1], entry)
+    _check_demographic_values(values, receipt)
+    require(
+        female.to_frame().reset_index().to_json(orient="table").encode() == projection,
+        "FINAL_PUF_SEX_PROJECTION",
+    )
+    # Preserve the source-derived digest after this mutable Series is returned.
+    # A consumer checks it again after its own final source borrow.
+    return female, codec.encode_json(evidence)
+
+
 def _demographic_features(preparation, entry):
     """Bind selected source sex and observation-time state, without fallback.
 
