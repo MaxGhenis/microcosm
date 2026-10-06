@@ -249,6 +249,10 @@ from populace.calibrate.diagnostics import (
     diagnostics_payload,
     write_calibration_diagnostics,
 )
+from populace.data.contract import (
+    EVIDENCE_RELEASE_ID_SEGMENT,
+    EVIDENCE_RELEASE_MANIFEST_SCHEMA_VERSION,
+)
 from populace.data.us_critical_targets import (
     US_CRITICAL_TARGET_IMPROVEMENT_MAX_ABS_RELATIVE_ERROR,
     US_EXACT_CRITICAL_TARGET_FIT_REQUIREMENTS,
@@ -863,6 +867,36 @@ def _parse_args() -> argparse.Namespace:
             "Diagnostic escape hatch (populace#368): record the reform-coverage "
             "smoke gate result without failing the build when a bound reform "
             "probe scores ~$0. Release builds must leave this unset."
+        ),
+    )
+    parser.add_argument(
+        "--evidence-release",
+        action="store_true",
+        help=(
+            "Build an EVIDENCE-tier release (populace#506): on terminal-gate "
+            "failure, continue to write the H5 and full manifests with the "
+            "recorded failures carried verbatim in the release manifest's "
+            "known_failures block (each with an owner issue), instead of "
+            "refusing to export. NOT a gate bypass: the release id carries an "
+            "'-evidence-' segment, the release manifest declares the evidence "
+            "schema marker the certified contract structurally rejects, and a "
+            "run whose gates all pass is refused under this flag (rerun "
+            "without it). Preflight gates, artifact-integrity assertions "
+            "(e.g. --audit-export-targets), and the dirty-worktree refusal "
+            "still abort: the evidence tier relaxes gate verdicts, never "
+            "artifact auditability."
+        ),
+    )
+    parser.add_argument(
+        "--evidence-failure-owners",
+        type=Path,
+        help=(
+            "JSON file mapping failure-substring patterns to owner issue refs "
+            "(e.g. {\"Input coverage failed:\": \"PolicyEngine/populace#368\"}) "
+            "for --evidence-release. Checked ahead of the standing "
+            "US_EVIDENCE_FAILURE_OWNERS register; a recorded failure matching "
+            "neither refuses the evidence export — every shipped failure "
+            "needs an owner."
         ),
     )
     parser.add_argument(
@@ -6740,11 +6774,131 @@ def _fiscal_target_source_provenance(
     }
 
 
-def _assert_us_release_id(release_id: str) -> None:
+#: Standing failure-pattern -> owner register for --evidence-release
+#: (populace#506). Only owner-adjudicated families belong here: the two dense
+#: blockers named in the #506 brief — the SOI Table 1.4 dollar blanket (the
+#: −30.2% capital-gain-distributions row, PUF donor uprating, #487) and the
+#: dense QRF tail-concentration set (bootstrap seed-lottery tail draws, #481,
+#: with the #487 uprating interaction). Any other recorded failure needs a
+#: per-run adjudication via --evidence-failure-owners; an unowned failure
+#: refuses the evidence export.
+US_EVIDENCE_FAILURE_OWNERS: tuple[tuple[str, str], ...] = (
+    (
+        "SOI Table 1.4 national dollar fit failed:",
+        "PolicyEngine/populace#487",
+    ),
+    (
+        "QRF tail concentration failed:",
+        "PolicyEngine/populace#481, PolicyEngine/populace#487",
+    ),
+)
+
+# Kept in lockstep with populace.data.contract._ISSUE_REF_RE; the evidence
+# publish contract re-validates every owner ref, so drift here fails at
+# publish rather than silently.
+_EVIDENCE_ISSUE_REF_RE = re.compile(r"#\d+|github\.com/\S+/(?:issues|pull)/\d+")
+
+
+def _load_evidence_failure_owner_patterns(
+    path: Path | None,
+) -> tuple[tuple[str, str], ...]:
+    """Failure-pattern -> owner pairs: per-run adjudications first, then the
+    standing register, so a run-specific entry can sharpen a standing owner."""
+    per_run: list[tuple[str, str]] = []
+    if path is not None:
+        payload = json.loads(path.read_text())
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"--evidence-failure-owners {path} must be a JSON object of "
+                "failure-substring pattern -> owner issue ref."
+            )
+        for pattern, owner in payload.items():
+            if not isinstance(pattern, str) or not pattern.strip():
+                raise ValueError(
+                    f"--evidence-failure-owners {path} has an empty pattern key."
+                )
+            if not isinstance(owner, str) or not _EVIDENCE_ISSUE_REF_RE.search(owner):
+                raise ValueError(
+                    f"--evidence-failure-owners {path} owner for pattern "
+                    f"{pattern!r} must carry an issue reference (e.g. "
+                    f"'PolicyEngine/populace#487'), got {owner!r}."
+                )
+            per_run.append((pattern, owner))
+    return (*per_run, *US_EVIDENCE_FAILURE_OWNERS)
+
+
+def _evidence_known_failures(
+    failures: Sequence[str],
+    owner_patterns: Sequence[tuple[str, str]],
+) -> list[dict[str, str]]:
+    """Recorded gate failures -> owned known_failures entries, verbatim.
+
+    Every failure string must match an owner pattern (substring, first match
+    wins); an unowned failure refuses the evidence export — the tier ships
+    failures only when somewhere is accountable for fixing them.
+    """
+    entries: list[dict[str, str]] = []
+    unowned: list[str] = []
+    for failure in failures:
+        owner = next(
+            (owner for pattern, owner in owner_patterns if pattern in failure),
+            None,
+        )
+        if owner is None:
+            unowned.append(failure)
+        else:
+            entries.append({"failure": failure, "owner": owner})
+    if unowned:
+        raise RuntimeError(
+            "Evidence release refused: recorded gate failure(s) match no "
+            "owner in the standing US_EVIDENCE_FAILURE_OWNERS register or "
+            "the --evidence-failure-owners file. Adjudicate an owner issue "
+            "for each before shipping (populace#506): " + "; ".join(unowned)
+        )
+    return entries
+
+
+def _evidence_release_manifest_fields(
+    evidence_known_failures: Sequence[Mapping[str, str]],
+) -> dict[str, object]:
+    """The release-manifest fields that mark the evidence tier.
+
+    The schema marker is the structural guarantee (populace#506): the
+    certified contract rejects any manifest carrying it, so no flag-plumbing
+    bug can mint a certified-shape manifest from an evidence build. An empty
+    failure record is refused here too — the tier exists to carry failures,
+    and an all-green run belongs on the certified path.
+    """
+    if not evidence_known_failures:
+        raise ValueError(
+            "an evidence release manifest requires at least one known "
+            "failure; an all-green artifact belongs on the certified path."
+        )
+    return {
+        "schema_version": EVIDENCE_RELEASE_MANIFEST_SCHEMA_VERSION,
+        "tier": "evidence",
+        "known_failures": [dict(entry) for entry in evidence_known_failures],
+    }
+
+
+def _assert_us_release_id(release_id: str, *, evidence_release: bool = False) -> None:
     if not release_id.startswith("populace-us-"):
         raise ValueError(
             "US fiscal refresh release ids must start with 'populace-us-' so "
             "the US release contract requires source coverage diagnostics."
+        )
+    if evidence_release and EVIDENCE_RELEASE_ID_SEGMENT not in release_id:
+        raise ValueError(
+            "--evidence-release ids must carry the "
+            f"{EVIDENCE_RELEASE_ID_SEGMENT!r} segment (e.g. "
+            "populace-us-2024-evidence-<sha>-<date>) so the tier is visible "
+            "in every tag and download path."
+        )
+    if not evidence_release and EVIDENCE_RELEASE_ID_SEGMENT in release_id:
+        raise ValueError(
+            f"release ids containing {EVIDENCE_RELEASE_ID_SEGMENT!r} are "
+            "reserved for --evidence-release builds; a certified build must "
+            "not squat the evidence namespace."
         )
 
 
