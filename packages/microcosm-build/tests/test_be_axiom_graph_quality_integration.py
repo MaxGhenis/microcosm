@@ -850,7 +850,8 @@ def test_module_refuses_the_declared_bundle_period() -> None:
     assert adapter.materialize(frame, [BASE_TAX], period=LEGAL_PERIOD)[BASE_TAX][
         0
     ] == pytest.approx(9_612.0)
-    with pytest.raises(Exception, match="no formula version at 2023-01-01"):
+    # The engine raises a plain RuntimeError; the adapter does not wrap it.
+    with pytest.raises(RuntimeError, match="no formula version at 2023-01-01"):
         adapter.materialize(frame, [BASE_TAX], period=BUNDLE_TARGET_PERIOD)
 
 
