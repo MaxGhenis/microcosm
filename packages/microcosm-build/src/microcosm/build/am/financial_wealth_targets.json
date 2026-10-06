@@ -9,157 +9,157 @@
       "reference": {
         "name": "armstat_src_gross_payroll_annual",
         "ledger_selector": {"source_name": "armstat_src_payroll_register", "source_measure_id": "annual_gross_payroll", "geography_level": "country"},
-        "entity": "household", "measure": "gross_payroll_amd", "period": 2024, "family": "earnings",
+        "entity": "household", "measure": "gross_payroll_amd", "period": 2024, "family": "earnings", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_prepared_measure"}
       },
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024", "temporal_basis": "annual_flow", "sector": "registered_employees", "perimeter": "src_registered_gross_payroll", "valuation": "gross_cash_and_in_kind"},
       "readiness": "requires_prepared_measure",
-      "source_url": "https://armstat.am/file/doc/99570268.xlsx",
+      "source_urls": ["https://armstat.am/file/doc/99570268.xlsx", "https://armstat.am/file/doc/99570293.xlsx"],
       "notes": "Derive the annual amount by summing each monthly employee count times its corresponding mean gross monthly wage. Preserve published-mean rounding uncertainty. Do not multiply December by twelve or multiply independent annual means. A transported donor employment-income column is an allocation assumption, not observed Armenian pay. Regional employer-location figures must not bind to household residence without a geography bridge."
     },
     {
       "reference": {
         "name": "minfin_personal_income_tax_receipts",
         "ledger_selector": {"source_name": "minfin_budget_execution", "source_measure_id": "personal_income_tax_receipts", "geography_level": "country"},
-        "entity": "household", "measure": "personal_income_tax_paid_amd", "period": 2024, "family": "income_tax",
+        "entity": "household", "measure": "personal_income_tax_paid_amd", "period": 2024, "family": "income_tax", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_policy_output"}
       },
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024", "temporal_basis": "annual_flow", "sector": "income_taxpayers", "perimeter": "state_budget_income_tax_receipts_gross_mortgage_refund", "valuation": "cash_receipts"},
       "readiness": "requires_policy_output",
-      "source_url": "https://minfin.am/website/images/files/2022-2024.xlsx",
+      "source_urls": ["https://minfin.am/website/images/files/2022-2024.xlsx"],
       "notes": "2024 actual execution, not budget or forecast. Since 2024 mortgage-interest refunds are allowance expenditure rather than deductions from income-tax receipts. Includes income-tax bases beyond payroll. Require a real Armenian policy-output or independently observed payment bridge with cash/liability and refund reconciliation; never substitute US tax liability."
     },
     {
       "reference": {
         "name": "minfin_funded_pension_social_payments",
         "ledger_selector": {"source_name": "minfin_budget_execution", "source_measure_id": "funded_pension_social_payments", "geography_level": "country"},
-        "entity": "household", "measure": "funded_pension_social_payment_amd", "period": 2024, "family": "social_contributions",
+        "entity": "household", "measure": "funded_pension_social_payment_amd", "period": 2024, "family": "social_contributions", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_policy_output"}
       },
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024", "temporal_basis": "annual_flow", "sector": "funded_pension_contributors", "perimeter": "budget_funded_pension_social_payments", "valuation": "cash_receipts"},
       "readiness": "requires_policy_output",
-      "source_url": "https://minfin.am/website/images/files/2022-2024.xlsx",
+      "source_urls": ["https://minfin.am/website/images/files/2022-2024.xlsx"],
       "notes": "A contribution flow, not pension benefits or pension-asset wealth. Require the Armenian contribution/payment perimeter; US Social Security contributions are not an Armenian measurement."
     },
     {
       "reference": {
         "name": "minfin_budget_pensions",
         "ledger_selector": {"source_name": "minfin_budget_execution", "source_measure_id": "pension_expenditure", "geography_level": "country"},
-        "entity": "household", "measure": "budget_pension_receipts_amd", "period": 2024, "family": "pensions",
+        "entity": "household", "measure": "budget_pension_receipts_amd", "period": 2024, "family": "pensions", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_coverage_bridge"}
       },
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024", "temporal_basis": "annual_flow", "sector": "budget_pension_recipients", "perimeter": "treasury_economic_classification_pensions", "valuation": "cash_expenditure"},
       "readiness": "requires_coverage_bridge",
-      "source_url": "https://minfin.am/website/images/files/2022-2024.xlsx",
+      "source_urls": ["https://minfin.am/website/images/files/2022-2024.xlsx"],
       "notes": "Annual pension expenditure, not year-end caseload times December pension. Reconcile recipient residence, pension categories, and payment timing before household allocation. US Social Security/private-pension columns are not automatically the same program universe."
     },
     {
       "reference": {
         "name": "minfin_budget_allowances",
         "ledger_selector": {"source_name": "minfin_budget_execution", "source_measure_id": "allowance_expenditure", "geography_level": "country"},
-        "entity": "household", "measure": "budget_allowance_receipts_amd", "period": 2024, "family": "benefits",
+        "entity": "household", "measure": "budget_allowance_receipts_amd", "period": 2024, "family": "benefits", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_coverage_bridge"}
       },
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024", "temporal_basis": "annual_flow", "sector": "budget_allowance_recipients", "perimeter": "treasury_economic_classification_allowances_including_mortgage_refunds", "valuation": "cash_expenditure"},
       "readiness": "requires_coverage_bridge",
-      "source_url": "https://minfin.am/website/images/files/2022-2024.xlsx",
-      "notes": "Broad Treasury allowance expenditure includes the 2024 mortgage-interest-refund reclassification. It is not family/social-benefit expenditure. Do not add the combined pensions-and-allowances parent as another independent constraint. Require program decomposition and household-payment reconciliation."
+      "source_urls": ["https://minfin.am/website/images/files/2022-2024.xlsx"],
+      "notes": "Broad Treasury allowance expenditure under Social allowances and pensions includes the 2024 mortgage-interest-refund reclassification. It is not limited or equivalent to family/social-benefit expenditure. Do not add the combined pensions-and-allowances parent as another independent constraint. Require program decomposition and household-payment reconciliation."
     },
     {
       "reference": {
         "name": "cba_resident_household_deposits",
         "ledger_selector": {"source_name": "cba_deposits_by_sector", "source_measure_id": "resident_household_deposits", "geography_level": "country"},
-        "entity": "household", "measure": "deposit_assets_amd", "period": 2024, "family": "wealth_deposits",
+        "entity": "household", "measure": "deposit_assets_amd", "period": "2024-12-31", "family": "wealth_deposits", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_prepared_measure"}
       },
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024-12-31", "temporal_basis": "closing_stock", "sector": "resident_households", "perimeter": "resident_household_deposits_domestic_banks_excluding_accrued_interest", "valuation": "nominal_balance_amd_equivalent"},
       "readiness": "requires_prepared_measure",
-      "source_url": "https://old.cba.am/stat/stat_data_eng/5_Deposits%20by%20sectors_eng.xlsx",
+      "source_urls": ["https://old.cba.am/stat/stat_data_eng/5_Deposits%20by%20sectors_eng.xlsx"],
       "notes": "Sum resident-household demand and time deposits in dram and foreign currency; all source cells are already AMD equivalents. Do not convert the foreign-currency subtotal again. Bank-account donor assets are a modeled proxy whose money-market and foreign-bank coverage must be declared. Aggregate every person carrier to households, not just head-flagged people. This is a deposit-stock constraint, not total wealth."
     },
     {
       "reference": {
         "name": "cba_resident_household_bank_loans",
         "ledger_selector": {"source_name": "cba_loans_by_sector", "source_measure_id": "resident_household_bank_loans", "geography_level": "country"},
-        "entity": "household", "measure": "bank_loan_liabilities_amd", "period": 2024, "family": "wealth_debt",
+        "entity": "household", "measure": "bank_loan_liabilities_amd", "period": "2024-12-31", "family": "wealth_debt", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_coverage_bridge"}
       },
-      "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024-12-31", "temporal_basis": "closing_stock", "sector": "resident_households", "perimeter": "resident_household_domestic_bank_loans", "valuation": "outstanding_balance_amd_equivalent"},
+      "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024-12-31", "temporal_basis": "closing_stock", "sector": "resident_households", "perimeter": "resident_household_domestic_bank_loans_including_leasing_factoring_and_repos_excluding_accrued_interest", "valuation": "outstanding_balance_amd_equivalent"},
       "readiness": "requires_coverage_bridge",
-      "source_url": "https://old.cba.am/stat/stat_data_eng/6_loans%20by%20sectors_eng.xlsx",
-      "notes": "All household bank lending, not just mortgages. The current donor lacks comprehensive outstanding loan principal. First-home mortgage balances cannot stand in for total loans. The donor auto_loan_balance field records original financing, not remaining principal, and is excluded."
+      "source_urls": ["https://old.cba.am/stat/stat_data_eng/6_loans%20by%20sectors_eng.xlsx"],
+      "notes": "All resident-household bank lending, including leasing, factoring and bank repos and excluding accrued interest, not just mortgages. The current donor lacks comprehensive outstanding loan principal. First-home mortgage balances cannot stand in for total loans. The donor auto_loan_balance field records original financing, not remaining principal, and is excluded."
     },
     {
       "reference": {
         "name": "cba_resident_household_credit_org_loans",
         "ledger_selector": {"source_name": "cba_loans_by_sector", "source_measure_id": "resident_household_credit_org_loans", "geography_level": "country"},
-        "entity": "household", "measure": "credit_org_loan_liabilities_amd", "period": 2024, "family": "wealth_debt",
+        "entity": "household", "measure": "credit_org_loan_liabilities_amd", "period": "2024-12-31", "family": "wealth_debt", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_coverage_bridge"}
       },
-      "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024-12-31", "temporal_basis": "closing_stock", "sector": "resident_households", "perimeter": "resident_household_domestic_credit_organization_loans", "valuation": "outstanding_balance_amd_equivalent"},
+      "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024-12-31", "temporal_basis": "closing_stock", "sector": "resident_households", "perimeter": "resident_household_domestic_credit_organization_loans_including_leasing_and_factoring_excluding_accrued_interest", "valuation": "outstanding_balance_amd_equivalent"},
       "readiness": "requires_coverage_bridge",
-      "source_url": "https://old.cba.am/stat/stat_data_eng/6_loans%20by%20sectors_eng.xlsx",
-      "notes": "Separate lender perimeter from bank loans. A future debt bridge must prevent assigning the same donor liability to both lender classes. Borrower counts overlap by loan category and are natural-person rather than household counts."
+      "source_urls": ["https://old.cba.am/stat/stat_data_eng/6_loans%20by%20sectors_eng.xlsx"],
+      "notes": "Separate lender perimeter from bank loans; the source includes leasing and factoring and excludes accrued interest. A future debt bridge must prevent assigning the same donor liability to both lender classes. Borrower counts overlap by loan category and are natural-person rather than household counts."
     },
     {
       "reference": {
         "name": "cba_mandatory_pension_fund_net_assets",
         "ledger_selector": {"source_name": "cba_pension_funds", "source_measure_id": "mandatory_pension_fund_net_assets", "geography_level": "country"},
-        "entity": "household", "measure": "mandatory_pension_entitlements_amd", "period": 2024, "family": "wealth_pension_entitlements",
+        "entity": "household", "measure": "mandatory_pension_entitlements_amd", "period": "2024-12-31", "family": "wealth_pension_entitlements", "period_match_policy": "exact",
         "metadata": {"monetary_target_role": "calibration", "measure_kind": "prepared_column", "activation_status": "requires_coverage_bridge"}
       },
-      "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024-12-31", "temporal_basis": "closing_stock", "sector": "mandatory_pension_fund_members", "perimeter": "mandatory_pension_fund_net_assets", "valuation": "net_asset_value"},
+      "basis": {"currency": "AMD", "unit": "base_currency", "period": "2024-12-31", "temporal_basis": "closing_stock", "sector": "mandatory_pension_funds", "perimeter": "fund_level_mandatory_pension_net_assets", "valuation": "net_asset_value"},
       "readiness": "requires_coverage_bridge",
-      "source_url": "https://old.cba.am/stat/stat_data_eng/PF_series_eng.xlsx",
-      "notes": "Fund net assets are an entitlement-pool proxy, not pay-as-you-go pension wealth. Reconcile fund liabilities, member residence, and the household entitlement concept before activation. Never add the fund's underlying investments again to household pension entitlements."
+      "source_urls": ["https://old.cba.am/stat/stat_data_eng/PF_series_eng.xlsx"],
+      "notes": "The declared basis is the observed fund-level NAV source, while the reference names a proposed household entitlement measure. They are not conceptually identical. Reconcile fund liabilities, member residence, and the household entitlement concept before activation. Fund net assets are not pay-as-you-go pension wealth; never add the fund's underlying investments again to household pension entitlements."
     },
     {
-      "reference": {"name": "armstat_s14_s15_currency_deposits_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_assets_f2", "geography_level": "country"}, "entity": "household", "measure": "currency_deposits_amd", "period": 2023, "family": "wealth_financial_accounts", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
+      "reference": {"name": "armstat_s14_s15_currency_deposits_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_assets_f2", "geography_level": "country"}, "entity": "household", "measure": "currency_deposits_amd", "period": "2023-12-31", "family": "wealth_financial_accounts", "period_match_policy": "exact", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2023-12-31", "temporal_basis": "closing_stock", "sector": "S14+S15", "perimeter": "financial_accounts_assets_F2", "valuation": "current_prices"},
       "readiness": "historical_validation_only",
-      "source_url": "https://armstat.am/file/article/finansner_2025_6.pdf",
+      "source_urls": ["https://armstat.am/file/article/finansner_2025_6.pdf"],
       "notes": "Table 6.8, households plus NPISH. Includes currency as well as deposits and differs from the domestic-bank household series. Publication year 2025 is not the stock reference year."
     },
     {
-      "reference": {"name": "armstat_s14_s15_debt_securities_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_assets_f3", "geography_level": "country"}, "entity": "household", "measure": "debt_security_assets_amd", "period": 2023, "family": "wealth_financial_accounts", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
+      "reference": {"name": "armstat_s14_s15_debt_securities_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_assets_f3", "geography_level": "country"}, "entity": "household", "measure": "debt_security_assets_amd", "period": "2023-12-31", "family": "wealth_financial_accounts", "period_match_policy": "exact", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2023-12-31", "temporal_basis": "closing_stock", "sector": "S14+S15", "perimeter": "financial_accounts_assets_F3", "valuation": "current_prices"},
       "readiness": "historical_validation_only",
-      "source_url": "https://armstat.am/file/article/finansner_2025_6.pdf",
+      "source_urls": ["https://armstat.am/file/article/finansner_2025_6.pdf"],
       "notes": "Debt securities held as assets. Not the household sector's loan liabilities. Requires date and S15 separation before a 2024 household-only target."
     },
     {
-      "reference": {"name": "armstat_s14_s15_equity_funds_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_assets_f5", "geography_level": "country"}, "entity": "household", "measure": "equity_fund_assets_amd", "period": 2023, "family": "wealth_financial_accounts", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
+      "reference": {"name": "armstat_s14_s15_equity_funds_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_assets_f5", "geography_level": "country"}, "entity": "household", "measure": "equity_fund_assets_amd", "period": "2023-12-31", "family": "wealth_financial_accounts", "period_match_policy": "exact", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2023-12-31", "temporal_basis": "closing_stock", "sector": "S14+S15", "perimeter": "financial_accounts_assets_F5", "valuation": "current_prices"},
       "readiness": "historical_validation_only",
-      "source_url": "https://armstat.am/file/article/finansner_2025_6.pdf",
+      "source_urls": ["https://armstat.am/file/article/finansner_2025_6.pdf"],
       "notes": "Equity and investment-fund shares. Donor stocks plus mutual funds do not establish all unlisted-business equity coverage. No automatic 2023-to-2024 aging."
     },
     {
-      "reference": {"name": "armstat_s14_s15_insurance_pensions_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_assets_f6", "geography_level": "country"}, "entity": "household", "measure": "insurance_pension_entitlements_amd", "period": 2023, "family": "wealth_financial_accounts", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
+      "reference": {"name": "armstat_s14_s15_insurance_pensions_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_assets_f6", "geography_level": "country"}, "entity": "household", "measure": "insurance_pension_entitlements_amd", "period": "2023-12-31", "family": "wealth_financial_accounts", "period_match_policy": "exact", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2023-12-31", "temporal_basis": "closing_stock", "sector": "S14+S15", "perimeter": "financial_accounts_assets_F6", "valuation": "current_prices"},
       "readiness": "historical_validation_only",
-      "source_url": "https://armstat.am/file/article/finansner_2025_6.pdf",
+      "source_urls": ["https://armstat.am/file/article/finansner_2025_6.pdf"],
       "notes": "Insurance, pension and standardized-guarantee entitlements; broader than mandatory pension NAV. Benefit-income flows and entitlement stocks are not interchangeable."
     },
     {
-      "reference": {"name": "armstat_s14_s15_financial_assets_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_financial_assets", "geography_level": "country"}, "entity": "household", "measure": "total_financial_assets_amd", "period": 2023, "family": "wealth_financial_accounts", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
+      "reference": {"name": "armstat_s14_s15_financial_assets_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_financial_assets", "geography_level": "country"}, "entity": "household", "measure": "total_financial_assets_amd", "period": "2023-12-31", "family": "wealth_financial_accounts", "period_match_policy": "exact", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2023-12-31", "temporal_basis": "closing_stock", "sector": "S14+S15", "perimeter": "financial_accounts_all_financial_assets", "valuation": "current_prices"},
       "readiness": "historical_validation_only",
-      "source_url": "https://armstat.am/file/article/finansner_2025_6.pdf",
+      "source_urls": ["https://armstat.am/file/article/finansner_2025_6.pdf"],
       "notes": "Complete financial-asset aggregate including loans receivable, derivatives and receivables. Bank-account plus stock plus bond donor leaves do not exhaust it. Parent aggregate is accounting validation, not an additional independent component constraint. Excludes nonfinancial housing and land."
     },
     {
-      "reference": {"name": "armstat_s14_s15_financial_liabilities_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_financial_liabilities", "geography_level": "country"}, "entity": "household", "measure": "total_financial_liabilities_amd", "period": 2023, "family": "wealth_financial_accounts", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
+      "reference": {"name": "armstat_s14_s15_financial_liabilities_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_financial_liabilities", "geography_level": "country"}, "entity": "household", "measure": "total_financial_liabilities_amd", "period": "2023-12-31", "family": "wealth_financial_accounts", "period_match_policy": "exact", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2023-12-31", "temporal_basis": "closing_stock", "sector": "S14+S15", "perimeter": "financial_accounts_all_financial_liabilities", "valuation": "current_prices"},
       "readiness": "historical_validation_only",
-      "source_url": "https://armstat.am/file/article/finansner_2025_6.pdf",
+      "source_urls": ["https://armstat.am/file/article/finansner_2025_6.pdf"],
       "notes": "Loan liabilities plus other accounts payable. Do not substitute mortgage debt alone or add overlapping lender and instrument totals."
     },
     {
-      "reference": {"name": "armstat_s14_s15_net_financial_worth_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_net_financial_worth", "geography_level": "country"}, "entity": "household", "measure": "net_financial_worth_amd", "period": 2023, "family": "wealth_financial_accounts", "signed": true, "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
+      "reference": {"name": "armstat_s14_s15_net_financial_worth_2023", "ledger_selector": {"source_name": "armstat_financial_accounts", "source_measure_id": "s14_s15_net_financial_worth", "geography_level": "country"}, "entity": "household", "measure": "net_financial_worth_amd", "period": "2023-12-31", "family": "wealth_financial_accounts", "signed": true, "period_match_policy": "exact", "metadata": {"monetary_target_role": "validation", "measure_kind": "prepared_column", "activation_status": "historical_validation_only"}},
       "basis": {"currency": "AMD", "unit": "base_currency", "period": "2023-12-31", "temporal_basis": "closing_stock", "sector": "S14+S15", "perimeter": "financial_accounts_BF90", "valuation": "current_prices"},
       "readiness": "historical_validation_only",
-      "source_url": "https://armstat.am/file/article/finansner_2025_6.pdf",
+      "source_urls": ["https://armstat.am/file/article/finansner_2025_6.pdf"],
       "notes": "BF90 is financial assets minus financial liabilities, not total net worth. The donor's independently imputed SCF net_worth includes nonfinancial assets and must never bind to this row. Preserve the accounting identity; do not fit assets, liabilities and their difference as three independent observations."
     }
   ]

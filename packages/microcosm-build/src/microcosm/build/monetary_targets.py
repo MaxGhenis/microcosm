@@ -6,9 +6,10 @@ import hashlib
 import json
 import math
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date
 from typing import Literal
+from urllib.parse import urlparse
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -71,6 +72,38 @@ class MonetaryBasis:
             date.fromisoformat(self.period)
         else:
             raise ValueError("temporal_basis must be annual_flow or closing_stock.")
+
+
+@dataclass(frozen=True)
+class MonetaryTargetContract:
+    """Inactive source contract that must accompany any profile activation."""
+
+    reference: LedgerTargetReference
+    basis: MonetaryBasis
+    readiness: str
+    source_urls: tuple[str, ...]
+    notes: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.reference, LedgerTargetReference):
+            raise TypeError("reference must be LedgerTargetReference.")
+        if not isinstance(self.basis, MonetaryBasis):
+            raise TypeError("basis must be MonetaryBasis.")
+        if not isinstance(self.source_urls, tuple) or not self.source_urls:
+            raise ValueError("source_urls must be a nonempty tuple.")
+        if any(not isinstance(url, str) or not url.strip() for url in self.source_urls):
+            raise ValueError("source_urls must contain nonempty strings.")
+        if any(
+            urlparse(url).scheme != "https" or not urlparse(url).netloc
+            for url in self.source_urls
+        ):
+            raise ValueError("source_urls must contain absolute HTTPS URLs.")
+        if not isinstance(self.notes, str) or not self.notes.strip():
+            raise ValueError("notes must be a nonempty string.")
+        if self.reference.source is not None or self.reference.notes:
+            raise ValueError(
+                "contract citations and notes must not be duplicated in reference."
+            )
 
 
 @dataclass(frozen=True, eq=False)
@@ -214,7 +247,7 @@ def prepare_monetary_measure(
 
 
 def bind_monetary_target(
-    reference: LedgerTargetReference,
+    reference: LedgerTargetReference | MonetaryTargetContract,
     *,
     value: float,
     source_basis: MonetaryBasis,
@@ -223,13 +256,24 @@ def bind_monetary_target(
     prepared: PreparedMonetaryMeasure,
     source: str | None = None,
 ) -> TargetSpec:
-    """Bind one observed fact only after exact basis and direct-measure checks."""
-    if not isinstance(reference, LedgerTargetReference):
-        raise TypeError("reference must be LedgerTargetReference.")
+    """Bind one observed fact only after exact basis and direct-measure checks.
+
+    An inventory reference whose activation status is
+    ``requires_prepared_measure`` must be passed as its complete
+    :class:`MonetaryTargetContract`. Passing only the embedded reference is
+    refused so a caller cannot discard the declared basis, citations or notes.
+    """
     if not isinstance(source_basis, MonetaryBasis) or not isinstance(
         prepared, PreparedMonetaryMeasure
     ):
         raise TypeError("source_basis and prepared must be typed monetary values.")
+    contract = reference if isinstance(reference, MonetaryTargetContract) else None
+    if contract is not None:
+        reference = contract.reference
+    if not isinstance(reference, LedgerTargetReference):
+        raise TypeError(
+            "reference must be LedgerTargetReference or MonetaryTargetContract."
+        )
     prepared._check_vector_metadata()
     if reference.filter is not None:
         raise ValueError(
@@ -245,6 +289,8 @@ def bind_monetary_target(
     reserved_metadata = {
         "monetary_binding",
         "monetary_binding_sha256",
+        "monetary_contract",
+        "monetary_contract_sha256",
         "monetary_source_activation_status",
     }
     conflicts = reserved_metadata.intersection(metadata)
@@ -252,6 +298,56 @@ def bind_monetary_target(
         raise ValueError(
             "Reference metadata may not predeclare generated monetary binding "
             f"fields: {sorted(conflicts)}."
+        )
+    if contract is not None:
+        if contract.readiness != "requires_prepared_measure":
+            raise ValueError(
+                "Only requires_prepared_measure profile contracts may bind "
+                "through the direct monetary binder."
+            )
+        if (
+            reference.period_match_policy != "exact"
+            or isinstance(reference.period, bool)
+            or str(reference.period) != contract.basis.period
+        ):
+            raise ValueError(
+                "A bindable monetary contract requires an exact reference period "
+                "equal to its accounting basis period."
+            )
+        if source_basis != contract.basis or prepared.basis != contract.basis:
+            raise ValueError("Declared monetary contract basis mismatch.")
+        contract_source = " | ".join(contract.source_urls)
+        if source is not None and source != contract_source:
+            raise ValueError(
+                "A profile contract source override must exactly retain every "
+                "declared source URL."
+            )
+        contract_receipt = {
+            "schema_version": 1,
+            "reference": asdict(reference),
+            "basis": asdict(contract.basis),
+            "readiness": contract.readiness,
+            "source_urls": list(contract.source_urls),
+            "notes": contract.notes,
+        }
+        contract_json = json.dumps(
+            contract_receipt, sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+        reference = replace(
+            reference,
+            source=contract_source,
+            notes=contract.notes,
+            metadata={
+                **metadata,
+                "monetary_contract": contract_json,
+                "monetary_contract_sha256": monetary_digest(contract_receipt),
+            },
+        )
+        metadata = reference.metadata
+        source = contract_source
+    elif metadata.get("activation_status") == "requires_prepared_measure":
+        raise ValueError(
+            "Profile references must bind through their complete monetary contract."
         )
     if metadata.get("monetary_target_role", "calibration") != "calibration":
         raise ValueError(

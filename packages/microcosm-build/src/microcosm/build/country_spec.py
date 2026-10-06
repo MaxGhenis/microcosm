@@ -40,13 +40,15 @@ from dataclasses import dataclass, field
 from importlib import resources as importlib_resources
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from microcosm.build.ledger_targets import (
     LedgerTargetReference,
+    carried_reference_value_keys,
     period_type_hint,
     period_values_semantically_equal,
 )
+from microcosm.build.monetary_profile import MonetaryTargetProfile
 from microcosm.build.plan import DonorSpec, Stage, StagePlan
 from microcosm.build.source_manifest import (
     SourceManifest,
@@ -54,9 +56,6 @@ from microcosm.build.source_manifest import (
 )
 from microcosm.build.trace import compute_composition_fingerprint, sha256_file
 from microcosm.frame import Frame
-
-if TYPE_CHECKING:
-    from microcosm.build.monetary_profile import MonetaryTargetProfile
 
 __all__ = [
     "ALLOWED_GATE_FUNCTIONS",
@@ -190,23 +189,6 @@ ALLOWED_VINTAGE_POLICIES = frozenset({"error"})
 #: Lookahead rather than \b so embedded tokens ("populace_be_v2_staging")
 #: are caught, not just trailing ones; "sha-v2x" and "nuts1" stay benign.
 _ORDINAL_VERSION_PATTERN = re.compile(r"[-_]v\d+(?=[-_.]|$)")
-
-#: Observed-value keys are refused at every nesting depth: a value smuggled
-#: under ledger_selector or metadata is as much a Ledger bypass as one at
-#: the top level.
-_FORBIDDEN_VALUE_KEYS = frozenset({"value", "values", "observed", "observed_value"})
-
-
-def _carried_value_keys(node: Any) -> set[str]:
-    carried: set[str] = set()
-    if isinstance(node, Mapping):
-        carried.update(_FORBIDDEN_VALUE_KEYS.intersection(node))
-        for child in node.values():
-            carried.update(_carried_value_keys(child))
-    elif isinstance(node, (list, tuple)):
-        for child in node:
-            carried.update(_carried_value_keys(child))
-    return carried
 
 
 def _require_non_empty_string(value: Any, *, field_name: str, context: str) -> str:
@@ -811,7 +793,7 @@ def _validate_target_references(
     references = []
     for row in rows:
         row = _require_mapping(row, context=f"{context} reference")
-        carried = sorted(_carried_value_keys(row))
+        carried = sorted(carried_reference_value_keys(row))
         if carried:
             raise ValueError(
                 f"{context}: reference {row.get('name')!r} carries observed "
@@ -2142,11 +2124,20 @@ def load_country_spec(country: str | Path) -> ResolvedCountrySpec:
     )
     monetary_profile = None
     if "financial_wealth_targets.json" in payloads:
-        from microcosm.build.monetary_profile import MonetaryTargetProfile
-
         monetary_profile = MonetaryTargetProfile.from_mapping(
             payloads["financial_wealth_targets.json"], country=declared_country
         )
+        collisions = sorted(
+            {target.reference.name for target in monetary_profile.targets}.intersection(
+                reference.name for reference in target_references
+            )
+        )
+        if collisions:
+            raise ValueError(
+                "financial_wealth_targets.json: opt-in monetary target names "
+                "must be disjoint from active target_references.json names; "
+                f"collisions: {collisions}."
+            )
     gates = (
         GatesManifest.from_mapping(payloads["gates.json"], country=declared_country)
         if "gates.json" in payloads

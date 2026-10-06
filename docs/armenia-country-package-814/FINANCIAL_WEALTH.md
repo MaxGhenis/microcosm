@@ -39,8 +39,9 @@ funded-pension social payments, pensions and allowances respectively, in
 million AMD. Convert to AMD once. Footnote A49 explains that 2024 mortgage-
 interest refunds moved from deductions against income-tax revenue to
 allowance expenditure. Thus income tax is gross of those refunds, and
-allowances cannot be labeled family/social benefits. The combined pensions-
-and-allowances parent is reconciliation evidence, not another independent row.
+the broad allowance class is not limited or equivalent to family/social
+benefits. The combined pensions-and-allowances parent is reconciliation
+evidence, not another independent row.
 
 Deposits use the CBA [sector workbook](https://old.cba.am/stat/stat_data_eng/5_Deposits%20by%20sectors_eng.xlsx),
 sheet `deposits`, December 2024 column `KO`, rows 15, 22, 32 and 39. These
@@ -101,6 +102,11 @@ and a bridge receipt. The receipt also binds exact integer entity IDs in row
 order. The compiler checks these IDs and amount bytes against the Frame before
 accepting a monetary row. Binding rejects forecasts, incompatible bases,
 nonfinite amounts, unsupported rows and unresolved policy/coverage bridges.
+Every inventory reference uses exact period matching, including full dates for
+closing stocks. Activation requires the complete profile contract rather than
+its embedded Ledger reference alone; the binder checks the caller's source and
+prepared bases against the declared basis and carries every source URL and the
+contract notes into a hashed receipt.
 Monetary rows use prepared amounts without a separate filter; apply any masking
 before freezing the vector. Receipt-bearing compilation failures are fatal,
 while ordinary targets retain their existing reported-skip behavior. These
@@ -181,13 +187,14 @@ envelope, not a confidence interval. Central maximum/minimum weight ratio is
 positive and finite. Kish ESS over replicated donor records is not a count
 of independent Armenian households.
 
-Independent verification reproduces all 1,854 achieved cells across the three
-runs, the source targets and reported summaries. Monetary remeasurement
-differs by at most 0.000977 AMD. Source/array/ID/transport hashes and all 45
-scenario artifact hashes match. A separate post-review check recompiles the
-six monetary rows under the final compiler guard with exactly identical
-coefficients. The preserved runtime snapshots disclose the guard-only change;
-no amount, target, weight or solver was changed after the runs.
+Independent verification at the time reproduced all 1,854 achieved cells
+across the three runs, the source targets and reported summaries. Monetary
+remeasurement differed by at most 0.000977 AMD, and the recorded
+source/array/ID/transport hashes and all 45 scenario artifact hashes matched.
+These saved runs predate the current `source_reference` receipt schema and
+record the earlier profile hash `506f911b…`; they therefore do **not** establish
+exact-HEAD recompilation of this hardened inventory. They remain a historical
+local sensitivity experiment, not current release evidence.
 
 Local results and receipts are in
 `PolicyEngine/_local_runs/armenia-814-financial-wealth/README.md`, with final

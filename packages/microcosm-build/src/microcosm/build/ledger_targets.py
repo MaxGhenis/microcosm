@@ -30,6 +30,97 @@ MULTI_FACT_VALUE_OPERATIONS = frozenset(
 )
 EXACT_PERIOD_VALUE_OPERATIONS = frozenset(("identity", "sum", "count_x_mean"))
 DEFAULT_HIERARCHY_MATCH_SPEC_FIELDS = ("entity", "period", "family", "filter")
+FORBIDDEN_REFERENCE_VALUE_KEYS = frozenset(
+    {"value", "values", "observed", "observed_value"}
+)
+
+
+class _FrozenDict(dict):
+    """JSON-compatible dictionary whose public mutation methods fail closed."""
+
+    __slots__ = ()
+
+    @staticmethod
+    def _immutable(*_args: object, **_kwargs: object) -> None:
+        raise TypeError("loaded Ledger reference mappings are immutable")
+
+    __setitem__ = _immutable
+    __delitem__ = _immutable
+    clear = _immutable
+    pop = _immutable
+    popitem = _immutable
+    setdefault = _immutable
+    update = _immutable
+    __ior__ = _immutable
+
+    def copy(self) -> dict:
+        """Return an explicitly mutable copy for derived authoring work."""
+
+        return dict(self)
+
+    def __deepcopy__(self, _memo: dict[int, object]) -> _FrozenDict:
+        """Immutable mappings can be shared by defensive deep copies."""
+
+        return self
+
+
+class _FrozenList(list):
+    """JSON-compatible list whose public mutation methods fail closed."""
+
+    __slots__ = ()
+
+    @staticmethod
+    def _immutable(*_args: object, **_kwargs: object) -> None:
+        raise TypeError("loaded Ledger reference sequences are immutable")
+
+    __setitem__ = _immutable
+    __delitem__ = _immutable
+    append = _immutable
+    clear = _immutable
+    extend = _immutable
+    insert = _immutable
+    pop = _immutable
+    remove = _immutable
+    reverse = _immutable
+    sort = _immutable
+    __iadd__ = _immutable
+    __imul__ = _immutable
+
+    def copy(self) -> list:
+        """Return an explicitly mutable copy for derived authoring work."""
+
+        return list(self)
+
+    def __deepcopy__(self, _memo: dict[int, object]) -> _FrozenList:
+        """Immutable sequences can be shared by defensive deep copies."""
+
+        return self
+
+
+def _freeze_reference_value(value: object) -> object:
+    """Deep-freeze JSON-shaped selector data while preserving JSON encoding."""
+
+    if isinstance(value, Mapping):
+        return _FrozenDict(
+            (key, _freeze_reference_value(child)) for key, child in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return _FrozenList(_freeze_reference_value(child) for child in value)
+    return value
+
+
+def carried_reference_value_keys(node: object) -> frozenset[str]:
+    """Return forbidden observed-value keys carried anywhere in a reference."""
+
+    carried: set[str] = set()
+    if isinstance(node, Mapping):
+        carried.update(FORBIDDEN_REFERENCE_VALUE_KEYS.intersection(node))
+        for child in node.values():
+            carried.update(carried_reference_value_keys(child))
+    elif isinstance(node, (list, tuple)):
+        for child in node:
+            carried.update(carried_reference_value_keys(child))
+    return frozenset(carried)
 
 
 @dataclass(frozen=True)
@@ -111,6 +202,9 @@ class LedgerTargetReference:
                 f"LedgerTargetReference {self.name!r}: ledger_selector must be a "
                 f"mapping, got {type(self.ledger_selector).__name__}."
             )
+        object.__setattr__(
+            self, "ledger_selector", _freeze_reference_value(self.ledger_selector)
+        )
         if self.assertion_policy not in ALLOWED_ASSERTION_POLICIES:
             raise ValueError(
                 f"LedgerTargetReference {self.name!r}: unsupported "
@@ -161,7 +255,7 @@ class LedgerTargetReference:
                 f"LedgerTargetReference {self.name!r}: metadata keys and values "
                 f"must be non-empty strings; bad keys {bad_metadata}."
             )
-        object.__setattr__(self, "metadata", metadata)
+        object.__setattr__(self, "metadata", _FrozenDict(metadata))
 
 
 @dataclass(frozen=True)

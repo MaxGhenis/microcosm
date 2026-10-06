@@ -11,8 +11,11 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
-from microcosm.build.ledger_targets import LedgerTargetReference
-from microcosm.build.monetary_targets import MonetaryBasis
+from microcosm.build.ledger_targets import (
+    LedgerTargetReference,
+    carried_reference_value_keys,
+)
+from microcosm.build.monetary_targets import MonetaryBasis, MonetaryTargetContract
 
 READINESS_STATES = frozenset(
     {
@@ -22,17 +25,6 @@ READINESS_STATES = frozenset(
         "historical_validation_only",
     }
 )
-
-
-@dataclass(frozen=True)
-class MonetaryTargetContract:
-    """A source selector, exact accounting basis, and activation prerequisite."""
-
-    reference: LedgerTargetReference
-    basis: MonetaryBasis
-    readiness: str
-    source_url: str
-    notes: str
 
 
 @dataclass(frozen=True)
@@ -94,20 +86,34 @@ def _closed_keys(raw: Any, keys: set[str], context: str) -> None:
 
 def _contract(raw: Any, context: str) -> MonetaryTargetContract:
     _closed_keys(
-        raw, {"reference", "basis", "readiness", "source_url", "notes"}, context
+        raw, {"reference", "basis", "readiness", "source_urls", "notes"}, context
     )
     readiness = raw["readiness"]
     if readiness not in READINESS_STATES:
         raise ValueError(f"{context}: unknown readiness state {readiness!r}")
     _text(raw["notes"], f"{context}.notes")
-    _text(raw["source_url"], f"{context}.source_url")
-    url = urlparse(raw["source_url"])
-    if url.scheme != "https" or not url.netloc:
-        raise ValueError(f"{context}: source_url must be an absolute HTTPS URL")
+    source_urls = raw["source_urls"]
+    if not isinstance(source_urls, list) or not source_urls:
+        raise ValueError(f"{context}: source_urls must be a nonempty list")
+    for source_url in source_urls:
+        _text(source_url, f"{context}.source_urls")
+        url = urlparse(source_url)
+        if url.scheme != "https" or not url.netloc:
+            raise ValueError(
+                f"{context}: every source_urls entry must be an absolute HTTPS URL"
+            )
+    if len(source_urls) != len(set(source_urls)):
+        raise ValueError(f"{context}: source_urls must not contain duplicates")
     if not isinstance(raw["reference"], Mapping) or not isinstance(
         raw["basis"], Mapping
     ):
         raise ValueError(f"{context}: reference and basis must be mappings")
+    carried = sorted(carried_reference_value_keys(raw["reference"]))
+    if carried:
+        raise ValueError(
+            f"{context}: monetary references are value-free; forbidden nested "
+            f"keys: {carried}"
+        )
     try:
         reference = LedgerTargetReference(**raw["reference"])
         basis = MonetaryBasis(**raw["basis"])
@@ -115,6 +121,10 @@ def _contract(raw: Any, context: str) -> MonetaryTargetContract:
         raise ValueError(f"{context}: invalid monetary contract: {exc}") from exc
     if not reference.name or not reference.measure or reference.filter is not None:
         raise ValueError(f"{context}: require a scalar direct prepared measure")
+    if reference.source is not None or reference.notes:
+        raise ValueError(
+            f"{context}: source citations and notes belong to the outer contract"
+        )
     if (
         reference.value_operation != "identity"
         or reference.assertion_policy != "observed_only"
@@ -131,8 +141,12 @@ def _contract(raw: Any, context: str) -> MonetaryTargetContract:
         )
     ):
         raise ValueError(f"{context}: no implicit monetary period uprating")
-    if isinstance(reference.period, bool) or str(reference.period) != basis.period[:4]:
-        raise ValueError(f"{context}: model year must match the accounting basis")
+    if reference.period_match_policy != "exact":
+        raise ValueError(f"{context}: monetary references require exact periods")
+    if isinstance(reference.period, bool) or str(reference.period) != basis.period:
+        raise ValueError(
+            f"{context}: reference period must exactly match the accounting basis"
+        )
     role = "validation" if readiness == "historical_validation_only" else "calibration"
     metadata = reference.metadata
     if (
@@ -143,5 +157,5 @@ def _contract(raw: Any, context: str) -> MonetaryTargetContract:
     if metadata.get("measure_kind") != "prepared_column":
         raise ValueError(f"{context}: monetary references require prepared_column")
     return MonetaryTargetContract(
-        reference, basis, readiness, raw["source_url"], raw["notes"]
+        reference, basis, readiness, tuple(source_urls), raw["notes"]
     )

@@ -1,6 +1,6 @@
 {
   "country": "am",
-  "fingerprint": "4a8b9c2a529dd50da281ba6a9cc9a10a53827b9c1333898589dd431975353094",
+  "fingerprint": "4071e8a2a432565e50213e436c9fca26550f38fde68286e5a2a7942e11da487b",
   "gate_ids": [
     "calibration_per_family_fit",
     "national_and_marz_admin_aggregates",
@@ -34,7 +34,7 @@
   },
   "resource_hashes": {
     "country_package.json": "f800cbd08cc7c76b6bc24ae16b9692126621058a7fe3e7ad030229b710aa14af",
-    "financial_wealth_targets.json": "2c5f56f41b311ac6b59c78ad6e9f10e9e05744196c5836b7a4d9a598f704c1a1",
+    "financial_wealth_targets.json": "5e696f77d9e4fd5dbccba4f0350887100ff1f391fdbcfa45e4d9acb7319a006e",
     "gates.json": "ccfb0558558f2b0678637a3bebf0778a25e7a3b999981a0a20bc89f3e7b3d320",
     "geography_spine.json": "12ee8607f1a222b642cbc251d3fe51c209786b24542084a06249aab8c7ab2fa1",
     "release_contract.json": "86339163c03eaa4d9abea5712546dc63697ea4223b8870d177f23b89a0098dbb",

@@ -145,9 +145,11 @@ tax-benefit quantities into targets.
 
 ## Scope exclusions
 
-- No wealth results: Armenia has no supplied wealth survey or tax tabulation,
-  and donor wealth imputation would reproduce the borrowed-distribution problem
-  the demonstrator is meant to expose.
+- No released, certified, or comprehensive wealth result: the local deposit
+  sensitivity experiment fits one administrative stock total using borrowed
+  donor structure. Armenia has no supplied wealth survey or tax tabulation,
+  and donor wealth imputation alone cannot establish distributional wealth
+  accounts.
 - No claim that calibration solves SNA/DNA concept reconciliation.
 - No external announcement without the certified-claims gate.
 - No native-ILCS v2 implementation and no `rulespec-am` implementation in this
