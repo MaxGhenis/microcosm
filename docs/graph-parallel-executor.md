@@ -148,6 +148,12 @@ when the loop raises, in `run_graph`'s handler before `_settle_failed_run`.
 No kernel is still reading a source while settlement re-derives it, and no
 write can arrive after settlement copies the ledger.
 
+If `KeyboardInterrupt` or `SystemExit` interrupts shutdown while the run is
+already failing, the coordinator records it on the original exception and
+retries shutdown. Settlement starts only after the join completes; repeated
+interrupts cannot replace the original failure or leave a worker running
+while sources are checked.
+
 ## Observers
 
 The private population observer runs on the coordinator, once per admitted
@@ -218,21 +224,22 @@ gets a new key, and so does every node downstream of it, because
 hit records a run at the base wrote. This is the repository's whole-module
 identity rule working as intended, not a change in what any node computes.
 
-Recomputed at the branch head by pointing `_package_roots` at a `git archive`
-of `47960af43`'s package sources, in the same environment:
+The base was computed by pointing `_package_roots` at a `git archive` of
+`47960af43`'s package sources, in the same environment. The current hashes
+were refreshed after the interrupted-shutdown fix:
 
-| Stage | Base `47960af43` | Head |
+| Stage | Base `47960af43` | This change |
 | --- | --- | --- |
-| `acs_codec_2024` | `6c61215b59267f17317b1531aeff315f47318bedb072d725e8d5ec20c4b9d283` | `3291d2df9d57157ee6b6fa22aecb75b297f1599a3d28c51eb3adb2a6803e29bc` |
-| `acs_housing_universe_2024` | `69fbe11a19ceaad3b4bc04d5be5bfd4f4cd12a6177f6b76535dc600d7724b33d` | `bfe9bcd8ec8a528619e41288d79d900a05b5e567e2275c3874ff71b94d8a4854` |
-| `asec_codec_v4` | `ff7fcb3b95b73bef2ba3c9c022ebbc04c400ae1b61eb649501731ec354a05295` | `18593b3b6c409f51904ded37bff902541c027a239e15882e3f4d06bdfdb9941c` |
-| `asec_prepared_v3` | `39a133f41c96186aada225cb1bc908ec71fefcd0152c122ff4b6cc792c6429b0` | `84a4f6ee1d5c91b107eb13ada47d32920b19c59518ae498f7963c58bcd7bce3b` |
-| `assembly_harmonize` | `80c4a19b5e352135690c0748e679ab1947564be5eb439003fc3efbd93b7da7db` | `782ead6b1a724feac1826c08fae8411ec3ae1804586eebe6244121c5e6a72b16` |
-| `assembly_prepare` | `add78163c07c8384663486171d44e6d6aacaa919679facbe623ce294e33fe45e` | `0d7391020c091d6382da5abd63fb0bd5970dda8dec6a68e421ebb90824a5bdc4` |
-| `authenticated_survey_population_v1` | `32989bd3d285b2d80d5661f91a0aa28a36f558baaf7a372c700fbc1dd80fbe1e` | `ce324a033e1f6143e572ea918567b7dd718a3788b1f2b408682ec46b6d528f04` |
-| `composed_asec_binding_v1` | `646dd7cd93e3d51b79a51a44ac1f1c41c03d697eb9022fd3b0d0bd112ce4bc6e` | `94abf0dae6d76075e79f20c487a813dba579e5aa17c6a3bfb04774b8fd1640d7` |
-| `composed_population_v1` | `9fdd7b603348345bf0ff262cace687af73d58e2ca183b255bf413f419deb5527` | `3652891b79400996468c3be40cb3c0e79f4e45979e3951d98c4a7ec214c5210e` |
-| `geography` | `cee1a147a2d272fc0e7c3ea66effb4d5ebb76509655e124b503be6f3f43e586a` | `ad6bb91d93727c14794733d33566786aafb204cee7c64667926791fab59ff2dd` |
+| `acs_codec_2024` | `6c61215b59267f17317b1531aeff315f47318bedb072d725e8d5ec20c4b9d283` | `b0005d9e3c786a04e17d7ef0281fd3e9b7733808267fc6a9fd87e72af1983927` |
+| `acs_housing_universe_2024` | `69fbe11a19ceaad3b4bc04d5be5bfd4f4cd12a6177f6b76535dc600d7724b33d` | `d60c320c37259dba8aa61f5e618edd2070fcde0f12f8db81d40bdc51216e803f` |
+| `asec_codec_v4` | `ff7fcb3b95b73bef2ba3c9c022ebbc04c400ae1b61eb649501731ec354a05295` | `6241612d1d665206c5099444ba1b39cf3a342e1c05715c0f32fa21bc81b1cea5` |
+| `asec_prepared_v3` | `39a133f41c96186aada225cb1bc908ec71fefcd0152c122ff4b6cc792c6429b0` | `981a86e03e0dce16b8fac01abcb1c848a56601d9a45b082cf050dcf9d0dd9430` |
+| `assembly_harmonize` | `80c4a19b5e352135690c0748e679ab1947564be5eb439003fc3efbd93b7da7db` | `753f5d2001ee3c82fdc472c962dd64b86b991acdb89cbddc3c81781484818d74` |
+| `assembly_prepare` | `add78163c07c8384663486171d44e6d6aacaa919679facbe623ce294e33fe45e` | `8267e192e213ddf33b5ed452cacfe853cac74b2086a49cea72c616361ea472f8` |
+| `authenticated_survey_population_v1` | `32989bd3d285b2d80d5661f91a0aa28a36f558baaf7a372c700fbc1dd80fbe1e` | `b75845226d1a053b208a66c068ff3eb883d9df189940f3d367e432ba6fa31e0c` |
+| `composed_asec_binding_v1` | `646dd7cd93e3d51b79a51a44ac1f1c41c03d697eb9022fd3b0d0bd112ce4bc6e` | `6195d8d13595e9b04378999d53c705264affaa4aecef0474968a5e0725d85bfd` |
+| `composed_population_v1` | `9fdd7b603348345bf0ff262cace687af73d58e2ca183b255bf413f419deb5527` | `d6842c081f390621211ea88baf7bb1ec65915cec88047907956df9a66ca10805` |
+| `geography` | `cee1a147a2d272fc0e7c3ea66effb4d5ebb76509655e124b503be6f3f43e586a` | `fe536de4ca3be64740fbecbd66887e63e78b1310a85c836b4a6bc71978eb7f6a` |
 
 A kernel built on `KernelBase` hashes only its own defining module
 (`source_hash(type(self))` in `kernel.py`), so the keys of the toy and
@@ -240,7 +247,7 @@ acceptance kernels do not move.
 
 ## Evidence
 
-Fixture-level, all run at the branch head in this worktree:
+Fixture-level evidence accumulated on this branch in this worktree:
 
 | Claim | Test |
 | --- | --- |
@@ -248,8 +255,9 @@ Fixture-level, all run at the branch head in this worktree:
 | Seeded per-node pauses produce at least two completion orders over six seeds at four workers, and every order folds to the sequential bytes | `test_seeded_completion_orders_all_fold_to_the_sequential_run` |
 | Independent kernels really overlap: two kernels meet at a barrier neither can pass alone | `test_independent_siblings_actually_overlap`, `test_kernels_run_concurrently_not_merely_on_another_thread` |
 | A warm rerun hits every record and dispatches nothing; a partial store resumes to the same bytes; `resume="forbid"` rewrites the same bytes | `test_warm_reruns_hit_every_record_and_dispatch_nothing`, `test_a_partial_store_resumes_to_the_same_bytes`, `test_forbidden_reuse_rewrites_the_same_bytes` |
-| A failure raises the sequential exception with the sequential published prefix; a speculative sibling failure surfaces only at its own turn; a gate exception on a worker is still a failed verdict; context mutation on a worker is refused; an observer failure stops at the same node with the same store; a source changed by a worker evicts the run as it does sequentially | `test_a_failure_raises_the_sequential_refusal_and_publishes_its_prefix_only` and the five tests after it |
+| A failure raises the sequential exception with the sequential published prefix; a speculative sibling failure surfaces only at its own turn; a gate exception on a worker is still a failed verdict; context mutation on a worker is refused; an observer failure stops at the same node with the same store; a source changed by a worker evicts the run as it does sequentially | The failure, gate, mutation, observer, and source-change tests in `test_graph_parallel_executor.py` |
 | The observer sees canonical order on the calling thread | `test_the_observer_sees_the_canonical_order_on_the_calling_thread` |
+| Repeated shutdown interrupts preserve the original kernel failure or interrupt, and settlement waits for the outstanding sibling to finish | `test_interrupted_failure_cleanup_joins_before_settlement_and_preserves_error` |
 | A stale early projection is discarded and recomputed | `test_a_stale_early_projection_is_discarded_and_the_turn_recomputes` |
 | Flag resolution, refusal before any write, environment opt-in, nothing in the portable manifest, scheduler bounds and readiness, join on close | the remaining tests in the file; an autouse fixture also fails any test that leaves a worker thread alive |
 | Native nineteen-node financial graph (invented, source-issued fixture): at four workers, both manifests (the nine-node population prefix and the financial graph), every content receipt and every object SHA-256 equal the sequential run's, with native kernels on overlapping worker threads | `packages/microcosm-build/tests/test_us_graph_parallel_financial.py` |
@@ -297,10 +305,12 @@ the sequential `fit.000 -> fit.001 -> fit.002` chain. All of them precede
 outside kernel calls, in the runner and in admission. Declared dependencies
 do not change with the sampling fraction.
 
-No 1/1000 actual-data measurement was run. When this lane checked, another
-native survey run was active on the shared machine, and the lane measures
-only when none is. What follows is a deduction, not a measurement. The
-2026-09-23 native-line state note reads the 1/15 receipt as a node loop of
+No 1/1000 actual-data measurement was run. When this lane first checked,
+another native survey run was active on the shared machine, and the lane
+measures only when none is. During final validation on September 23, the
+sandbox blocked `ps`, so the lane could not verify that admission condition
+and again skipped the benchmark. What follows is a deduction, not a
+measurement. The 2026-09-23 native-line state note reads the 1/15 receipt as a node loop of
 2,184 of 8,015 wall-seconds. Its four heaviest nodes were `attach` (497 s),
 `asec_design_donor` (483 s), `source_projection` (473 s) and
 `asec_current_columns` (466 s): 1,919 s, or 88% of the loop. They are the

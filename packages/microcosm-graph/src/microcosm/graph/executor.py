@@ -2764,10 +2764,20 @@ def run_graph(
                 _verification_epoch=_verification_epoch,
             )
         except BaseException as error:
-            try:
-                run_sources.join_workers()
-            finally:
-                _settle_failed_run(store, written, run_sources, error)
+            while True:
+                try:
+                    run_sources.join_workers()
+                    break
+                except (KeyboardInterrupt, SystemExit) as join_error:
+                    # A second interrupt must neither replace the original
+                    # failure nor let settlement race an outstanding kernel.
+                    # shutdown is idempotent, so retry until every worker joins.
+                    error.add_note(
+                        "Worker shutdown was interrupted "
+                        f"({type(join_error).__name__}: {join_error}); "
+                        "waiting for all workers before source settlement."
+                    )
+            _settle_failed_run(store, written, run_sources, error)
             raise
 
 

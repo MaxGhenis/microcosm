@@ -892,6 +892,100 @@ def test_a_speculative_sibling_failure_surfaces_only_at_its_own_turn(
     assert len(results[1][1]) > 0
 
 
+@pytest.mark.parametrize("kernel_error_type", [RuntimeError, KeyboardInterrupt])
+@pytest.mark.parametrize("join_error_type", [KeyboardInterrupt, SystemExit])
+def test_interrupted_failure_cleanup_joins_before_settlement_and_preserves_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    kernel_error_type: type[BaseException],
+    join_error_type: type[BaseException],
+) -> None:
+    """Repeated shutdown interruptions cannot strand a still-running sibling."""
+
+    sibling_started = threading.Event()
+    release_sibling = threading.Event()
+    sibling_finished = threading.Event()
+    kernel_error = kernel_error_type("the canonical kernel failed")
+
+    def fail(context: KernelContext) -> KernelResult:
+        assert sibling_started.wait(timeout=10), "the sibling never started"
+        raise kernel_error
+
+    def wait_for_cleanup(context: KernelContext) -> KernelResult:
+        sibling_started.set()
+        try:
+            assert release_sibling.wait(timeout=10), "cleanup never released the sibling"
+            return _ages("b_value")(context)
+        finally:
+            sibling_finished.set()
+
+    graph = Graph(
+        "toy",
+        (toy.SOURCE,),
+        (
+            toy.CREATE,
+            _person_node("a_fails", "fail.cleanup@1", "a_value"),
+            _person_node("b_waits", "wait.cleanup@1", "b_value"),
+        ),
+    )
+    registry = toy.toy_registry()
+    registry.register(FnKernel("fail.cleanup@1", _PLAIN, fail))
+    registry.register(FnKernel("wait.cleanup@1", _PLAIN, wait_for_cleanup))
+    original_close = Speculation.close
+    original_settle = graph_executor._settle_failed_run
+    close_calls: list[Speculation] = []
+    settled: list[BaseException] = []
+    joined = False
+
+    def interrupted_close(speculation: Speculation) -> None:
+        nonlocal joined
+        close_calls.append(speculation)
+        if len(close_calls) <= 2:
+            assert sibling_started.is_set()
+            assert not sibling_finished.is_set()
+            raise join_error_type(f"cleanup interrupt {len(close_calls)}")
+        release_sibling.set()
+        original_close(speculation)
+        joined = True
+
+    def settle_after_join(store, written, run_sources, error) -> None:
+        assert joined, "source settlement ran before worker shutdown completed"
+        assert sibling_finished.is_set()
+        assert live_workers() == []
+        settled.append(error)
+        original_settle(store, written, run_sources, error)
+
+    monkeypatch.setattr(Speculation, "close", interrupted_close)
+    monkeypatch.setattr(graph_executor, "_settle_failed_run", settle_after_join)
+    expected_error = (
+        NodeRejected if kernel_error_type is RuntimeError else KeyboardInterrupt
+    )
+    try:
+        with pytest.raises(expected_error, match="the canonical kernel failed") as raised:
+            run_graph(
+                compile_graph(graph),
+                sources={"survey": toy.copy_source(tmp_path / "source")},
+                store=ContentStore(tmp_path / "store"),
+                kernels=registry,
+                max_workers=2,
+            )
+        if kernel_error_type is RuntimeError:
+            assert raised.value.__cause__ is kernel_error
+        else:
+            assert raised.value is kernel_error
+        assert settled == [raised.value]
+        assert len(close_calls) == 3
+        notes = getattr(raised.value, "__notes__", [])
+        for number in (1, 2):
+            assert any(f"cleanup interrupt {number}" in note for note in notes)
+    finally:
+        # Keep the regression safe on the broken implementation as well: a
+        # failed ordering assertion must not leave a worker blocking pytest.
+        release_sibling.set()
+        if close_calls:
+            original_close(close_calls[0])
+
+
 def test_a_gate_that_raises_on_a_worker_is_still_a_failed_verdict(
     tmp_path: Path,
 ) -> None:
