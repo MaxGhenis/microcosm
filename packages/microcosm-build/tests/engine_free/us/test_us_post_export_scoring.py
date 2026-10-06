@@ -1533,7 +1533,15 @@ def test_reform_passes_do_not_accumulate_engine_variable_modules(
                 self.formulas.append(module.formula)
             self.cycle = self
 
-    engine = _fake_engine(_EngineLog())
+    class Unrecorded(list):
+        """The fixture log keeps every engine, and with it every system."""
+
+        def append(self, item) -> None:
+            pass
+
+    log = _EngineLog()
+    log.constructions = Unrecorded()
+    engine = _fake_engine(log)
     engine.default_tax_benefit_system = ModuleRegisteringSystem
     # The production full collections (the fixture stubs them out).
     monkeypatch.setattr(builder, "_collect_family_garbage", gc.collect)
