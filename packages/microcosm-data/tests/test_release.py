@@ -1939,3 +1939,88 @@ def test_non_enrichment_publisher_refuses_enrichment_only_arguments(
         publish_cli.main([*cli_args, "--preflight-only"])
     assert hub.events == []
     assert hub.uploads == []
+
+
+# ---- PREMORTEM PROBE (throwaway worktree only; never committed) ----
+def test_probe_promote_after_tag_only_same_release_id(
+    hub: FakeHub, release_dir: Path, artifact_root: Path
+) -> None:
+    publish_release(
+        release_dir,
+        "policyengine/populace-us",
+        api=hub,
+        artifact_root=artifact_root,
+        updated_at="2026-06-11T13:53:15+00:00",
+        update_latest=False,
+        tag_only=True,
+    )
+    main_before = hub._refs["main"]
+    tag_commit = hub._refs[RELEASE_ID]
+    hub.events.clear()
+    with pytest.raises(ValueError, match="tag exists") as excinfo:
+        publish_release(
+            release_dir,
+            "policyengine/populace-us",
+            api=hub,
+            artifact_root=artifact_root,
+            updated_at="2026-06-12T13:53:15+00:00",
+            notify=False,
+        )
+    print("\nPROBE second-publish error:", excinfo.value)
+    print("PROBE events:", [e for e, _ in hub.events])
+    print("PROBE leftover branches:", sorted(r for r in hub._refs if r.startswith("release-staging/")))
+    assert [e for e, _ in hub.events] == ["create_branch", "create_commit"]
+    assert f"release-staging/{RELEASE_ID}" in hub._refs
+    assert hub._refs["main"] == main_before
+    assert hub._refs[RELEASE_ID] == tag_commit
+    with pytest.raises(FileNotFoundError):
+        hub.hf_hub_download(
+            repo_id="policyengine/populace-us",
+            filename=LATEST_POINTER_PATH,
+            repo_type="dataset",
+        )
+    # A third attempt now fails even earlier: the residue branch blocks create_branch.
+    hub.events.clear()
+    with pytest.raises(ValueError, match="branch exists"):
+        publish_release(
+            release_dir,
+            "policyengine/populace-us",
+            api=hub,
+            artifact_root=artifact_root,
+            notify=False,
+        )
+    assert hub.events == []
+
+
+def test_probe_promote_alternatives_refused_locally(
+    release_dir: Path, artifact_root: Path
+) -> None:
+    from microcosm.data.release import prepare_release
+
+    with pytest.raises(ValueError, match="must create the matching"):
+        prepare_release(release_dir, artifact_root=artifact_root, create_tag=False)
+    with pytest.raises(ValueError, match="tag_name must"):
+        prepare_release(
+            release_dir, artifact_root=artifact_root, tag_name=RELEASE_ID + "-promote"
+        )
+
+
+def test_probe_real_hfapi_create_tag_raises_on_409(monkeypatch) -> None:
+    import httpx
+    import huggingface_hub.hf_api as hf_api_module
+    from huggingface_hub import HfApi
+    from huggingface_hub.errors import HfHubHTTPError
+
+    class _Session:
+        def post(self, url, headers=None, json=None):
+            request = httpx.Request("POST", url)
+            return httpx.Response(409, request=request, json={"error": "Tag already exists"})
+
+    monkeypatch.setattr(hf_api_module, "get_session", lambda: _Session())
+    api = HfApi(token="hf_fake_probe_token")
+    with pytest.raises(HfHubHTTPError):
+        api.create_tag(repo_id="policyengine/populace-us", tag="t", repo_type="dataset", revision="abc")
+    # exist_ok=True would swallow it (the library's own escape hatch the publisher never passes).
+    api.create_tag(
+        repo_id="policyengine/populace-us", tag="t", repo_type="dataset", revision="abc", exist_ok=True
+    )
