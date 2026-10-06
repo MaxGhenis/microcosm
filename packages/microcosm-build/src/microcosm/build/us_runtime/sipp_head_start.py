@@ -19,8 +19,14 @@ reported upstream screen and therefore cannot support a measured negative.
 
 A weighted QRF is fit to the immutable, SHA-pinned full 2023 SIPP donor.  It
 predicts once for each stable ``person_source_id`` in the PolicyEngine age
-3--5 domain and fans that decision to all support clones.  Existing output is
-used only for an exact idempotence check; a stale or default surface is healed.
+3--5 domain and fans that decision to every support copy and every location
+copy of that source person.  A location clone
+(``block_location.clone_frame_for_location``) is a distinct copy that differs
+only in location: it keeps its source ID and support clone index, so a copy is
+identified by (source ID, support copy rank, location clone index), with a
+never-located table read as location clone 0.  The canonical predictor row is
+the lowest support copy rank, then location clone 0.  Existing output is used
+only for an exact idempotence check; a stale or default surface is healed.
 """
 
 from __future__ import annotations
@@ -36,6 +42,8 @@ from microcosm.build.gates import GateResult
 from microcosm.build.source_manifest import SourceStageSpec, load_source_manifest
 from microcosm.build.us_runtime.support_provenance import (
     has_support_role_metadata,
+    location_clone_index_column,
+    location_clone_index_series,
     require_assembled_support_provenance,
     support_copy_rank_series,
     support_role_series,
@@ -483,10 +491,14 @@ def _support_group_keys(
 ) -> tuple[pd.Series, pd.Series]:
     """Return source-person keys and each row's validated support-copy rank.
 
-    Every support copy of a source person shares its key. The rank orders the
-    copies (native first) and, with the source ID, identifies exactly one row:
-    the capital-gains own-tail copy is a second PUF-role row of its source
-    person, distinguished from the primary PUF-detail copy by clone index.
+    Every support copy and every location copy of a source person shares its
+    key, so the one source decision fans out to all of them. The rank orders
+    the support copies (native first): the capital-gains own-tail copy is a
+    second PUF-role row of its source person, distinguished from the primary
+    PUF-detail copy by clone index. Location cloning repeats each support copy
+    without changing its rank, so the source ID, rank and location clone index
+    (:func:`location_clone_index_series`, 0 when never located) together
+    identify exactly one row.
 
     Only a historical table without support metadata ranks every row 0. An
     assembled table that lost its provenance columns is refused before that
@@ -574,6 +586,17 @@ def _recipient_predictors(frame: Frame) -> tuple[pd.DataFrame, pd.Series, np.nda
 
     source_id = _decoded_strings(person[_PERSON_SOURCE_ID_COLUMN])
     source_key, copy_rank = _support_group_keys(person, source_id)
+    # A location clone is a distinct copy of its source unit that differs
+    # only in location. A table that was never location-cloned has no column
+    # and reads as location clone 0, so its keys, canonical rows and error
+    # text are exactly the K = 1 ones.
+    located = location_clone_index_column("person") in person
+    try:
+        location_rank = location_clone_index_series(person, entity="person")
+    except ValueError as exc:
+        raise ValueError(
+            f"US SIPP Head Start found malformed location clone metadata: {exc}"
+        ) from exc
     age_unique = (
         pd.Series(age, index=person.index).groupby(source_key, sort=False).nunique()
     )
@@ -587,21 +610,32 @@ def _recipient_predictors(frame: Frame) -> tuple[pd.DataFrame, pd.Series, np.nda
     order["source_id"] = source_id
     order["source_key"] = source_key
     order["copy_rank"] = copy_rank
-    duplicate_copies = order.duplicated(["source_id", "copy_rank"], keep=False)
+    order["location_rank"] = location_rank
+    copy_key = ["source_id", "copy_rank", "location_rank"]
+    duplicate_copies = order.duplicated(copy_key, keep=False)
     if duplicate_copies.any():
+        shown, label = (
+            (copy_key, "(source, copy rank, location clone) triple(s)")
+            if located
+            else (copy_key[:2], "(source, copy rank) pair(s)")
+        )
         bad = (
-            order.loc[duplicate_copies, ["source_id", "copy_rank"]]
+            order.loc[duplicate_copies, shown]
             .drop_duplicates()
             .itertuples(index=False, name=None)
         )
         raise ValueError(
             "US SIPP Head Start source units carry duplicated support copies; "
-            f"invalid (source, copy rank) pair(s): {list(bad)[:5]}."
+            f"invalid {label}: {list(bad)[:5]}."
         )
     order["person_key"] = person["person_id"].astype(str)
+    # The canonical predictor row is the lowest support copy rank, then
+    # location clone 0. The copy key is unique by now, so the person-id
+    # string never decides; location clone 0 wins even where id * K + k
+    # would sort another clone first as a string ("100" < "99").
     canonical_index = (
         order.sort_values(
-            ["source_id", "copy_rank", "person_key"],
+            ["source_id", "copy_rank", "location_rank", "person_key"],
             kind="mergesort",
         )
         .drop_duplicates("source_key", keep="first")

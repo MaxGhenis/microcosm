@@ -22,9 +22,14 @@ federal dependent attachment.
 
 A weighted QRF is fit at source-tax-unit grain.  On an expanded support frame,
 the ASEC member of each ``tax_unit_source_id`` supplies predictors, the model
-draws once, and the result fans out to every clone.  Re-running with the same
-donor and build seed recomputes the same surface rather than trusting an
-arbitrary pre-existing nonconstant column.
+draws once, and the result fans out to every clone.  A location clone
+(``tax_unit_location_clone_index``, written by
+``block_location.clone_frame_for_location``) differs from its source copy only
+in location, so it is one more copy of the source unit: location clone 0 of the
+lowest surviving support copy supplies predictors, and the one decision fans
+out to every support and location copy.  Re-running with the same donor and
+build seed recomputes the same surface rather than trusting an arbitrary
+pre-existing nonconstant column.
 """
 
 from __future__ import annotations
@@ -39,6 +44,8 @@ from microcosm.build.gates import GateResult
 from microcosm.build.source_manifest import SourceStageSpec, load_source_manifest
 from microcosm.build.us_runtime.support_provenance import (
     has_support_role_metadata,
+    location_clone_index_column,
+    location_clone_index_series,
     require_assembled_support_provenance,
     support_clone_index_column,
     support_copy_rank_series,
@@ -728,10 +735,20 @@ def _source_receiver_rows(
     capital-gains own-tail copy. An assembled table missing a provenance
     column is refused first, so it can reach neither the copy ranking nor the
     one-row-per-source path for tables without support metadata.
+
+    Location cloning repeats every support copy ``K`` times, keeping its
+    source ID and copy rank, so a location-cloned copy is identified by
+    ``(source, copy rank, location clone)`` and the canonical row is location
+    clone 0 of the lowest surviving copy rank. That row carries the same
+    predictors as the unit's ``K = 1`` row, so the receiver, and with it every
+    positional QRF draw, is the ``K = 1`` receiver. A table that was never
+    location-cloned takes exactly the historical keys and messages.
     """
 
     tax_unit = frame.table("tax_unit")
     require_assembled_support_provenance(tax_unit, entity="tax_unit")
+    location_cloned = location_clone_index_column("tax_unit") in tax_unit
+    location_clone = location_clone_index_series(tax_unit, entity="tax_unit")
     if _TAX_UNIT_SOURCE_ID_COLUMN in tax_unit:
         source_ids = tax_unit[_TAX_UNIT_SOURCE_ID_COLUMN]
         if source_ids.isna().any():
@@ -743,26 +760,42 @@ def _source_receiver_rows(
             raise ValueError(
                 "US voluntary-filing support clones require tax_unit_source_id."
             )
+        if location_clone.gt(0).any():
+            # Without a source ID each tax_unit_id would be its own source,
+            # and location cloning remaps it to id * K + k: every location
+            # copy would draw its own decision.
+            raise ValueError(
+                "US voluntary-filing location clones require tax_unit_source_id: "
+                "location cloning remaps tax_unit_id, so the copies of one "
+                "source unit cannot be grouped without it."
+            )
         source_ids = tax_unit["tax_unit_id"]
 
     rows = receiver.copy()
     rows["_source_id"] = _decoded_strings(source_ids).to_numpy()
     rows["_tax_unit_id"] = tax_unit["tax_unit_id"].to_numpy()
+    if location_cloned:
+        rows["_location_clone"] = location_clone.to_numpy()
     if has_support_role_metadata(tax_unit, entity="tax_unit"):
         rows["_copy_rank"] = support_copy_rank_series(
             tax_unit, entity="tax_unit"
         ).to_numpy()
         rows["_source_key"] = rows["_source_id"]
-        copy_counts = rows.groupby(
-            ["_source_id", "_copy_rank"],
-            sort=False,
-        ).size()
+        copy_key = ["_source_id", "_copy_rank"]
+        if location_cloned:
+            copy_key.append("_location_clone")
+        copy_counts = rows.groupby(copy_key, sort=False).size()
         duplicated_copies = copy_counts[copy_counts > 1]
         if not duplicated_copies.empty:
             bad = duplicated_copies.index.tolist()
+            identity = (
+                "(source, copy rank, location clone) triple(s)"
+                if location_cloned
+                else "(source, copy rank) pair(s)"
+            )
             raise ValueError(
                 "US voluntary-filing support source units carry duplicated "
-                f"support copies; invalid (source, copy rank) pair(s) {bad[:5]}."
+                f"support copies; invalid {identity} {bad[:5]}."
             )
         # Prefer each unit's native copy. A frozen-support selection may keep
         # only its PUF-role copies (the primary PUF-detail copy, the
@@ -770,9 +803,36 @@ def _source_receiver_rows(
         # then supplies the unit's predictors, deterministically, and its one
         # decision fans out to every copy. Beyond IDs, weight and provenance,
         # the tail transfer writes only the capital-gains vector onto its
-        # copy, and none of that vector is a predictor here.
+        # copy, and none of that vector is a predictor here. Within that copy
+        # rank, location clone 0 (else the lowest surviving one) is canonical,
+        # ahead of the remapped tax_unit_id tiebreak.
+        canonical_order = ["_source_id", "_copy_rank"]
+        if location_cloned:
+            canonical_order.append("_location_clone")
         source_rows = rows.sort_values(
-            ["_source_id", "_copy_rank", "_tax_unit_id"],
+            [*canonical_order, "_tax_unit_id"],
+            kind="stable",
+        ).drop_duplicates("_source_key", keep="first")
+    elif location_cloned:
+        # Each source unit may carry one row per location clone; its location
+        # copies share one decision drawn from the lowest location clone.
+        rows["_source_key"] = rows["_source_id"]
+        duplicated = rows.duplicated(["_source_id", "_location_clone"])
+        if duplicated.any():
+            bad = list(
+                zip(
+                    rows.loc[duplicated, "_source_id"].tolist(),
+                    rows.loc[duplicated, "_location_clone"].tolist(),
+                    strict=True,
+                )
+            )
+            raise ValueError(
+                "US voluntary-filing unexpanded receiver has duplicate source "
+                f"unit location copies; invalid (source, location clone) "
+                f"pair(s) {bad[:5]}."
+            )
+        source_rows = rows.sort_values(
+            ["_source_id", "_location_clone", "_tax_unit_id"],
             kind="stable",
         ).drop_duplicates("_source_key", keep="first")
     else:
@@ -950,10 +1010,20 @@ def with_us_voluntary_filing_input(
 
 
 def us_voluntary_filing_summary(frame: Frame) -> dict[str, object]:
-    """Return weighted incidence, boolean validity, and clone diagnostics."""
+    """Return weighted incidence, boolean validity, and clone diagnostics.
+
+    On a location-cloned table every location copy of a source unit must
+    agree with its source's other copies, same-role and one-row-per-source
+    duplicate checks key on the location clone as well, and
+    ``clone_source_units`` still counts sources with more than one support
+    copy (a location copy is not a support copy). A table that was never
+    location-cloned keeps exactly the historical keys and diagnostics.
+    """
 
     tax_unit = frame.table("tax_unit")
     require_assembled_support_provenance(tax_unit, entity="tax_unit")
+    location_cloned = location_clone_index_column("tax_unit") in tax_unit
+    location_clone = location_clone_index_series(tax_unit, entity="tax_unit")
     values = pd.to_numeric(tax_unit[_OUTPUT], errors="coerce").to_numpy(
         dtype=np.float64
     )
@@ -1002,10 +1072,13 @@ def us_voluntary_filing_summary(frame: Frame) -> dict[str, object]:
                         "value": values,
                     }
                 )
+                if location_cloned:
+                    clone_table["location_clone"] = location_clone.to_numpy()
                 if support_clone_index_column("tax_unit") not in tax_unit:
-                    role_counts = clone_table.groupby(
-                        ["source_id", "role"], sort=False
-                    ).size()
+                    role_key = ["source_id", "role"]
+                    if location_cloned:
+                        role_key.append("location_clone")
+                    role_counts = clone_table.groupby(role_key, sort=False).size()
                     duplicated_roles = role_counts[role_counts > 1]
                     if not duplicated_roles.empty:
                         raise ValueError(
@@ -1015,17 +1088,55 @@ def us_voluntary_filing_summary(frame: Frame) -> dict[str, object]:
                         )
                 # Every source copy must agree. Channel-only tables have one
                 # row per source and role, as required by the receiver path.
-                sizes = clone_table.groupby("source_id", sort=False).size()
+                if location_cloned:
+                    # Count support copies, not their location copies: one
+                    # entry per (source, copy rank), whichever location
+                    # clones of that copy survive.
+                    clone_table["copy_rank"] = support_copy_rank_series(
+                        tax_unit, entity="tax_unit"
+                    ).to_numpy()
+                    support_copies = clone_table.drop_duplicates(
+                        ["source_id", "copy_rank"]
+                    )
+                else:
+                    support_copies = clone_table
+                sizes = support_copies.groupby("source_id", sort=False).size()
                 clone_source_units = int((sizes > 1).sum())
+                # Agreement spans every row: all support and location copies.
                 unique = clone_table.groupby("source_id", sort=False)["value"].nunique(
                     dropna=False
                 )
                 clone_mismatch_source_units = int((unique > 1).sum())
     elif _TAX_UNIT_SOURCE_ID_COLUMN in tax_unit:
         source_ids = tax_unit[_TAX_UNIT_SOURCE_ID_COLUMN]
-        clone_metadata_missing = bool(
-            source_ids.isna().any() or _decoded_strings(source_ids).duplicated().any()
-        )
+        if not location_cloned:
+            clone_metadata_missing = bool(
+                source_ids.isna().any()
+                or _decoded_strings(source_ids).duplicated().any()
+            )
+        elif source_ids.isna().any():
+            clone_metadata_missing = True
+        else:
+            # One row per (source, location clone); the location copies of a
+            # source unit share its one decision.
+            location_table = pd.DataFrame(
+                {
+                    "source_id": _decoded_strings(source_ids).to_numpy(),
+                    "location_clone": location_clone.to_numpy(),
+                    "value": values,
+                }
+            )
+            clone_metadata_missing = bool(
+                location_table.duplicated(["source_id", "location_clone"]).any()
+            )
+            unique = location_table.groupby("source_id", sort=False)[
+                "value"
+            ].nunique(dropna=False)
+            clone_mismatch_source_units = int((unique > 1).sum())
+    elif location_clone.gt(0).any():
+        # Location cloning remapped tax_unit_id, and nothing else groups the
+        # copies of one source unit.
+        clone_metadata_missing = True
 
     return {
         "weighted_true_share": float(weights[true].sum()) / total_weight,

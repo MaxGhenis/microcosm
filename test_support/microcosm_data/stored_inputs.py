@@ -22,6 +22,7 @@ observable without either engine.
 from __future__ import annotations
 
 # ruff: noqa: F401
+import hashlib
 import json
 import random
 import re
@@ -153,11 +154,86 @@ def _column_strategies(st):
 # ---------------------------------------------------------------------------
 
 
+#: The location-clone index of every US entity, spelled here because
+#: microcosm-data cannot import the build. test_us_stored_input_register.py
+#: binds each to support_provenance.location_clone_index_column and to the
+#: column block_location.clone_frame_for_location writes.
+_LOCATION_CLONE_INDEX_ENTRIES = frozenset(
+    f"{entity}_location_clone_index" for entity in stored_inputs._US_ENTITIES
+)
+
 #: Register entries that postdate the files examined for #1026 and rest on a
 #: live producer instead: the parent ids (microcosm#884), bound to
-#: eligibility_inputs.US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS by
+#: eligibility_inputs.US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS, and the six
+#: location-clone indexes, bound to their producer, both by
 #: test_us_stored_input_register.py (microcosm-data cannot import the build).
-_PRODUCER_BOUND_ENTRIES = frozenset({"parent_1_id", "parent_2_id"})
+_PRODUCER_BOUND_ENTRIES = frozenset(
+    {"parent_1_id", "parent_2_id"} | _LOCATION_CLONE_INDEX_ENTRIES
+)
+
+#: Names a stray or misspelled location column could take. None is a register
+#: entry, so each is refused by name if a table stores it: the register lists
+#: exact names, never a pattern. ``location_clone_index`` and
+#: ``location_clone_id`` are the per-draw location table's columns
+#: (microcosm.build.us_runtime.block_location), which no entity table carries.
+_LOCATION_NEAR_MISSES = (
+    "location_clone_index",
+    "location_clone_id",
+    "household_location_clone_id",
+    "household_location_clone_index_2",
+    "household_location_clone",
+    "benunit_location_clone_index",
+    "households_location_clone_index",
+)
+
+
+def _canonical_sha256(payload) -> str:
+    text = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(text.encode("ascii")).hexdigest()
+
+
+def _inventory_verdicts_sha256(inventories) -> str:
+    """Digest of the check's reading of every examined file's stored tables.
+
+    An engine that defines no variable refuses every model-named column the
+    register does not list, so this reading moves with any change to which of
+    those files' columns the register covers. The body is the one the K = 1
+    golden below was computed with on the pre-change tree.
+    """
+
+    engine = CertifiedEngine("policyengine-us 0.0.0", frozenset())
+    payload = {}
+    for name in sorted(inventories):
+        tables = inventories[name]["tables"]
+        columns = {column for names in tables.values() for column in names}
+        payload[name] = {
+            "failures": stored_input_failures(tables, engine=engine),
+            "refused": list(
+                undefined_stored_inputs(columns, engine_variables=engine.variables)
+            ),
+            "registered": sorted(
+                column
+                for column in columns
+                if is_model_named(column) and column in US_STORED_NON_VARIABLE_COLUMNS
+            ),
+        }
+    return _canonical_sha256(payload)
+
+
+#: K = 1 goldens, computed on the tree before the location-clone entries
+#: existed (commit 4324432e5, "Location v1: address review round 2") by
+#: running :func:`_inventory_verdicts_sha256`'s body there on
+#: ``fixtures/stored_input_inventories.json``, and by reading that tree's
+#: ``register_sha256()`` and register size. None of the examined files
+#: stores a location column, so their verdicts must not move; the register
+#: must be that register plus exactly the six location entries.
+_K1_INVENTORY_VERDICTS_SHA256 = (
+    "3723b1ddc6080db10d4a5d0d8dbaaf7ac742fdf94020ea3efb88c6fdfabfad71"
+)
+_PRE_LOCATION_REGISTER_SHA256 = (
+    "0d9337be53d42e7da7e466ba76642a7d3e83eeb917023544b78dd0cd1147bc0c"
+)
+_PRE_LOCATION_REGISTER_SIZE = 51
 
 
 #: The role columns policyengine-core's ``build_from_dataset`` reads to build

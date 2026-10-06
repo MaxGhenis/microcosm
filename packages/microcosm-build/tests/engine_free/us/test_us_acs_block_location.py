@@ -310,9 +310,12 @@ def test__block_v1__refuses_more_than_one_location_clone(
         _pool(ladder, _donor_base(ladder), _acs(ladder), location_clones=2)
     message = str(caught.value)
     assert message == ACS_POOL_LOCATION_CLONES_REFUSAL
-    assert "_require_stored_inputs" in message
-    assert "US_STORED_NON_VARIABLE_COLUMNS" in message
     assert "_assign_pooled_block_location" in message
+    assert "K = 1" in message
+    # The stored-inputs register now lists every '{entity}_location_clone_index'
+    # (test_us_stored_input_register.py), so the refusal no longer cites it.
+    assert "_require_stored_inputs" not in message
+    assert "US_STORED_NON_VARIABLE_COLUMNS" not in message
 
 
 @pytest.mark.parametrize(
@@ -641,7 +644,7 @@ def test__legacy_tool__parser_defaults_are_legacy() -> None:
         (
             ["--location-rule", "block_v1", "--block-ladder", "x.npz"]
             + ["--location-clones", "2"],
-            "_require_stored_inputs",
+            "_assign_pooled_block_location",
         ),
         (
             ["--location-rule", "block_v1", "--block-ladder", "x.npz"]

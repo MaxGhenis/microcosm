@@ -9,11 +9,11 @@ def test_the_register_spells_the_us_entities_in_schema_order():
 
 
 def test_every_register_entry_is_a_named_producer_column():
-    """The register is exactly the four support provenance columns and the
-    base-spine tag of every US entity, the pooled-source provenance columns,
-    microunit's two tax-unit construction columns, the PUF capital-gains tail
-    provenance columns, the ACS-native acs_ amounts and acs_pums's puma_geoid
-    alias."""
+    """The register is exactly the four support provenance columns, the
+    location-clone index and the base-spine tag of every US entity, the
+    pooled-source provenance columns, microunit's two tax-unit construction
+    columns, the PUF capital-gains tail provenance columns, the ACS-native
+    acs_ amounts, acs_pums's puma_geoid alias and the two parent ids."""
 
     support = {
         column(entity)
@@ -35,9 +35,11 @@ def test_every_register_entry_is_a_named_producer_column():
         puf_tail.PUF_CAPITAL_GAINS_TAIL_TRANSFER_WEIGHT_COLUMN,
     }
     construction = {_TAX_UNIT_ROLE_COLUMN, TAX_UNIT_FILING_STATUS_COLUMN}
+    location = {location_clone_index_column(entity) for entity in US_SCHEMA.entities}
 
     assert set(US_STORED_NON_VARIABLE_COLUMNS) == (
         support
+        | location
         | set(_POOLED_SOURCE_PROVENANCE_COLUMNS)
         | construction
         | tail
@@ -46,7 +48,8 @@ def test_every_register_entry_is_a_named_producer_column():
         | set(US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS)
     )
     assert len(_ACS_NATIVE_AMOUNTS) == 6
-    assert len(US_STORED_NON_VARIABLE_COLUMNS) == 30 + 6 + 6 + 6 + 1 + 2
+    assert location == _LOCATION_CLONE_COLUMNS and len(location) == 6
+    assert len(US_STORED_NON_VARIABLE_COLUMNS) == 30 + 6 + 6 + 6 + 1 + 2 + 6
 
 
 def test_every_register_reason_names_where_its_column_comes_from():
@@ -79,9 +82,26 @@ def test_every_register_reason_names_where_its_column_comes_from():
             column: "US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS"
             for column in US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS
         },
+        **{
+            location_clone_index_column(entity): (
+                "microcosm.build.us_runtime.support_provenance."
+                "location_clone_index_column"
+            )
+            for entity in US_SCHEMA.entities
+        },
     }
     for column, owner in expected_owner.items():
         assert owner in US_STORED_NON_VARIABLE_COLUMNS[column], column
+    for column in _LOCATION_CLONE_COLUMNS:
+        reason = US_STORED_NON_VARIABLE_COLUMNS[column]
+        assert (
+            "microcosm.build.us_runtime.block_location.clone_frame_for_location"
+            in reason
+        )
+        assert "K > 1 location clones" in reason
+        assert "source id and support clone index" in reason
+        assert "distinct copy" in reason
+        assert reason.endswith("Build lineage, not a model input.")
     for column in US_STORED_NON_VARIABLE_COLUMNS:
         if column.startswith("puf_capital_gains_tail_"):
             assert (
@@ -239,6 +259,241 @@ def test_the_gate_fails_closed_without_an_engine(builder, monkeypatch):
     assert len(failures) == 1
     assert "cannot be imported" in failures[0]
     assert details["evaluated"] is False
+
+
+# ---------------------------------------------------------------------------
+# Location clones: the register binds the column clone_frame_for_location
+# writes, and the gate passes a location-cloned export
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("clones", [2, 3])
+def test_every_location_entry_is_the_column_clone_frame_for_location_writes(clones):
+    """Bound to the live producer: cloning adds exactly one column to every
+    entity table, the helper's name for that entity, and the register lists
+    exactly those names. Each carries the copy's index k in 0..K-1, and its
+    unit's clones are adjacent."""
+
+    frame = _frame()
+    cloned = clone_frame_for_location(frame, clones)
+
+    written = set()
+    for entity in US_SCHEMA.entities:
+        added = set(cloned.table(entity).columns) - set(frame.table(entity).columns)
+        assert added == {location_clone_index_column(entity)}
+        assert added == {f"{entity}_location_clone_index"}
+        (column,) = added
+        assert column in US_STORED_NON_VARIABLE_COLUMNS
+        np.testing.assert_array_equal(
+            cloned.table(entity)[column].to_numpy(),
+            np.tile(np.arange(clones), len(frame.table(entity))),
+        )
+        written |= added
+    assert written == _LOCATION_CLONE_COLUMNS
+    assert written == {
+        column
+        for column in US_STORED_NON_VARIABLE_COLUMNS
+        if column.endswith("_location_clone_index")
+    }
+
+
+def test_a_k1_clone_writes_no_location_column():
+    frame = _frame()
+
+    assert clone_frame_for_location(frame, 1) is frame
+    assert not any(
+        column in _LOCATION_CLONE_COLUMNS
+        for entity in US_SCHEMA.entities
+        for column in frame.table(entity).columns
+    )
+
+
+@pytest.mark.parametrize("clones", [2, 3])
+def test_the_gate_passes_a_location_cloned_export(builder, monkeypatch, clones):
+    """The Route A pre-export gate on a location-cloned frame: no failure, the
+    six location columns read as registered non-variables, and the modeled
+    stored tables carry each entity's location column."""
+
+    monkeypatch.setattr(builder, "installed_us_engine", lambda: _engine(*_STRUCTURAL))
+    frame = _frame(takes_up_wic_if_eligible=[True, False])
+    cloned = clone_frame_for_location(frame, clones)
+
+    failures, details = builder._stored_input_gate_failures(
+        cloned, stage="export frame"
+    )
+
+    assert failures == []
+    assert details["evaluated"] is True
+    assert details["refused"] == []
+    assert details["registered_non_variables"] == sorted(_LOCATION_CLONE_COLUMNS)
+    assert details["stored_columns"] == len(_STRUCTURAL) + 6
+    stored = builder._export_stored_tables(cloned)
+    assert stored == _cloned_stored_tables(
+        builder._export_stored_tables(frame), clones
+    )
+    assert stored["household"] == (
+        "household_id",
+        "household_location_clone_index",
+        "household_weight",
+    )
+    assert (
+        stored_input_failures(stored, engine=_engine(*_STRUCTURAL)) == []
+    ), "the rule itself, as the post-write check applies it, passes too"
+
+
+def test_the_gate_passes_the_location_columns_with_support_provenance(
+    builder, monkeypatch
+):
+    """A support-cloned, then location-cloned export stores all three copy
+    keys (source id, support clone index, location clone index); each is a
+    registered non-variable and none is refused."""
+
+    monkeypatch.setattr(builder, "installed_us_engine", lambda: _engine(*_STRUCTURAL))
+    cloned = clone_frame_for_location(_k1_gate_frames()["provenance"], 2)
+
+    failures, details = builder._stored_input_gate_failures(
+        cloned, stage="export frame"
+    )
+
+    assert failures == []
+    assert details["registered_non_variables"] == sorted(
+        {"person_source_id", "person_support_channel", "person_support_clone_index"}
+        | _LOCATION_CLONE_COLUMNS
+    )
+
+
+@pytest.mark.parametrize("clones", [2, 3, 4])
+def test_location_cloning_commutes_with_the_gate(builder, monkeypatch, clones):
+    """Differential: on every K = 1 golden frame, the gate's reading of the
+    K-cloned frame is the K = 1 reading with only the location columns added.
+    The failure lines are identical (so a stale input is still refused, once
+    and by name) and no location column is refused."""
+
+    monkeypatch.setattr(builder, "installed_us_engine", lambda: _engine(*_STRUCTURAL))
+    frames = _k1_gate_frames()
+    k1 = _gate_readings(builder, frames)
+    cloned = _gate_readings(
+        builder,
+        {name: clone_frame_for_location(frame, clones) for name, frame in frames.items()},
+    )
+
+    for name, reading in k1.items():
+        after = cloned[name]
+        assert after["failures"] == reading["failures"], name
+        assert after["details"]["refused"] == reading["details"]["refused"], name
+        assert after["details"]["registered_non_variables"] == sorted(
+            set(reading["details"]["registered_non_variables"])
+            | _LOCATION_CLONE_COLUMNS
+        ), name
+        assert after["details"]["stored_columns"] == (
+            reading["details"]["stored_columns"] + 6
+        ), name
+        assert after["stored"] == {
+            entity: list(columns)
+            for entity, columns in _cloned_stored_tables(
+                reading["stored"], clones
+            ).items()
+        }, name
+    assert [line.split("'")[1] for line in cloned["stale"]["failures"]] == [
+        "would_claim_wic"
+    ]
+
+
+def test_the_gate_reading_at_k1_matches_the_pre_change_golden(builder, monkeypatch):
+    """K = 1 is byte-identical to the tree before the location entries: the
+    gate's modeled stored tables, failure lines and details (less the
+    register digest, which moves with any register change) hash to the value
+    computed on that tree. See ``_K1_GATE_READINGS_SHA256``."""
+
+    monkeypatch.setattr(builder, "installed_us_engine", lambda: _engine(*_STRUCTURAL))
+    frames = {
+        name: clone_frame_for_location(frame, 1)
+        for name, frame in _k1_gate_frames().items()
+    }
+
+    assert _canonical_sha256(_gate_readings(builder, frames)) == (
+        _K1_GATE_READINGS_SHA256
+    )
+
+
+@pytest.mark.parametrize(
+    "stray",
+    [
+        "location_clone_index",
+        "location_clone_id",
+        "person_location_clone_id",
+        "person_location_clone_index_2",
+        "benunit_location_clone_index",
+    ],
+)
+def test_the_gate_refuses_a_location_column_the_register_does_not_name(
+    builder, monkeypatch, stray
+):
+    """Fail closed: the register lists six exact names, not a pattern. A
+    location-like column under any other name (the per-draw location table's
+    own ``location_clone_index`` and ``location_clone_id``, a misspelling, a
+    non-US entity) is refused by name on a location-cloned export."""
+
+    monkeypatch.setattr(builder, "installed_us_engine", lambda: _engine(*_STRUCTURAL))
+    cloned = clone_frame_for_location(_frame(**{stray: [0, 1]}), 2)
+
+    failures, details = builder._stored_input_gate_failures(
+        cloned, stage="export frame"
+    )
+
+    assert [line.split("'")[1] for line in failures] == [stray]
+    assert details["refused"] == [stray]
+    assert stray not in US_STORED_NON_VARIABLE_COLUMNS
+
+
+def test_the_gate_refuses_a_renamed_location_column(builder, monkeypatch):
+    """A location-cloned household table whose index column is stored under
+    the location table's name is refused, and the five correctly named
+    entity columns still pass."""
+
+    monkeypatch.setattr(builder, "installed_us_engine", lambda: _engine(*_STRUCTURAL))
+    cloned = clone_frame_for_location(_frame(), 2)
+    tables = {entity: cloned.table(entity).copy() for entity in cloned.entities}
+    tables["household"] = tables["household"].rename(
+        columns={"household_location_clone_index": "location_clone_index"}
+    )
+    renamed = Frame(
+        tables,
+        US_SCHEMA,
+        {"household": cloned.weights_for("household")},
+        cloned.strata,
+    )
+
+    failures, details = builder._stored_input_gate_failures(
+        renamed, stage="export frame"
+    )
+
+    assert details["refused"] == ["location_clone_index"]
+    assert len(failures) == 1 and "(household table)" in failures[0]
+    assert details["registered_non_variables"] == sorted(
+        _LOCATION_CLONE_COLUMNS - {"household_location_clone_index"}
+    )
+
+
+def test_the_post_write_check_passes_a_location_cloned_file(
+    builder, monkeypatch, tmp_path
+):
+    """The written H5 of a location-cloned export earns the gate's clean
+    verdict (the file's stored tables modeled as the gate modeled them)."""
+
+    cloned = clone_frame_for_location(_frame(), 2)
+    written = builder._export_stored_tables(cloned)
+
+    assert (
+        _post_write_check(
+            builder,
+            monkeypatch,
+            tmp_path,
+            written,
+            {"evaluated": True, "refused": []},
+        )
+        is None
+    )
 
 
 def test_the_post_write_check_passes_the_verdict_the_gate_reached(

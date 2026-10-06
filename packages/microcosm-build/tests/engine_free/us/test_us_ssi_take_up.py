@@ -1113,3 +1113,203 @@ def test_writer_emits_strict_json_and_refuses_nan(tmp_path: Path) -> None:
     invalid["weighted_flag_true_share"] = np.nan
     with pytest.raises(ValueError, match="Out of range float"):
         write_us_ssi_take_up_diagnostics(invalid, tmp_path / "invalid.json")
+
+
+# --- Location clones: a clone differs only in location ---
+#
+# block_location.clone_frame_for_location repeats every support row K times
+# with person_location_clone_index 0..K-1 and weight w/K, keeping
+# person_source_id, channel and support clone index. Each copy is distinct,
+# and every copy inherits its source person's one Bernoulli decision.
+
+
+@pytest.mark.parametrize("scenario", sorted(_K1_GOLDEN_SCENARIOS))
+def test_k1_assignment_is_byte_identical_to_the_pre_location_code(
+    scenario: str,
+) -> None:
+    frame, potential = _K1_GOLDEN_SCENARIOS[scenario]()
+    assert _LOCATION_CLONE_INDEX not in frame.table("person")
+    assert clone_frame_for_location(frame, 1) is frame
+    digest = _golden_digest(_scenario_payload(frame, potential))
+    assert digest == _K1_GOLDEN_DIGESTS[scenario]
+
+
+@pytest.mark.parametrize("scenario", sorted(_K1_DUPLICATE_MESSAGES))
+def test_k1_duplicate_identity_error_text_is_unchanged(scenario: str) -> None:
+    frame, potential = _K1_GOLDEN_SCENARIOS[scenario]()
+    assert _duplicate_message(frame, potential) == _K1_DUPLICATE_MESSAGES[scenario]
+
+
+@pytest.mark.parametrize("clones", [2, 3])
+@pytest.mark.parametrize("scenario", sorted(_K1_GOLDEN_SCENARIOS))
+def test_location_clones_commute_with_ssi_take_up(scenario: str, clones: int) -> None:
+    """Differential: SSI on K location copies is the K = 1 run, repeated."""
+
+    frame, potential = _K1_GOLDEN_SCENARIOS[scenario]()
+    base, base_diagnostics = with_us_ssi_take_up(
+        frame, uncapped_ssi=potential, seed=17, targets=_TARGETS
+    )
+    located, located_potential = _located(frame, potential, clones)
+    result, diagnostics = with_us_ssi_take_up(
+        located, uncapped_ssi=located_potential, seed=17, targets=_TARGETS
+    )
+
+    person = result.table("person")
+    np.testing.assert_array_equal(
+        person[_OUTPUT].to_numpy(dtype=bool),
+        np.repeat(base.table("person")[_OUTPUT].to_numpy(dtype=bool), clones),
+    )
+    pd.testing.assert_series_equal(_source_decisions(result), _source_decisions(base))
+    copies = person.groupby(["person_source_id", "person_support_channel"])[
+        _LOCATION_CLONE_INDEX
+    ]
+    assert copies.nunique().eq(clones).all()
+    assert copies.size().eq(clones).all()
+
+    # Per-source mass and the source-grain table are K-invariant; only the
+    # number of rows behind each source identity scales by K.
+    pd.testing.assert_series_equal(
+        _per_source_person_weight(located),
+        _per_source_person_weight(frame),
+        check_exact=False,
+        rtol=1e-12,
+    )
+    base_rows, base_source = _source_table(frame, uncapped_ssi=potential, seed=17)
+    rows, source = _source_table(located, uncapped_ssi=located_potential, seed=17)
+    assert "location_clone_index" not in base_rows
+    np.testing.assert_array_equal(
+        rows["location_clone_index"], np.tile(np.arange(clones), len(base_rows))
+    )
+    np.testing.assert_array_equal(
+        source["row_count"], base_source["row_count"] * clones
+    )
+    pd.testing.assert_frame_equal(
+        source.drop(columns="row_count"),
+        base_source.drop(columns="row_count"),
+        check_exact=False,
+        rtol=1e-12,
+    )
+
+    # Diagnostics match K = 1 (band priors, capacities, source identity
+    # counts, weighted shares) except per-channel row counts, which scale.
+    assert (
+        diagnostics["source_identity_count"]
+        == base_diagnostics["source_identity_count"]
+    )
+    assert diagnostics["source_identity_mismatch_count"] == 0
+    assert diagnostics["bernoulli_law_violation_count"] == 0
+    for channel, values in diagnostics["channel_diagnostics"].items():
+        base_rows_count = base_diagnostics["channel_diagnostics"][channel]["rows"]
+        assert values["rows"] == clones * base_rows_count
+    _assert_nested_close(
+        _without_channel_rows(diagnostics), _without_channel_rows(base_diagnostics)
+    )
+    assert (
+        us_ssi_take_up_gate(diagnostics, targets=_TARGETS).passed
+        == us_ssi_take_up_gate(base_diagnostics, targets=_TARGETS).passed
+    )
+
+    # The release-final measurement also runs at K > 1 and agrees with K = 1.
+    final = _release_final_of(result, located_potential, diagnostics)
+    base_final = _release_final_of(base, potential, base_diagnostics)
+    assert final["bernoulli_law_violation_count"] == 0
+    assert final["source_identity_mismatch_count"] == 0
+    _assert_nested_close(
+        _without_channel_rows(final), _without_channel_rows(base_final)
+    )
+
+
+def test_pruned_location_copies_keep_the_frozen_source_decision() -> None:
+    """Selection may drop some location copies; that is not partial lineage."""
+
+    frame, potential = _clone_indexed_frame()
+    located, located_potential = _located(frame, potential, 3)
+    result, diagnostics = with_us_ssi_take_up(
+        located, uncapped_ssi=located_potential, seed=17, targets=_TARGETS
+    )
+    person = result.table("person")
+    keep = ~(
+        person[_LOCATION_CLONE_INDEX].eq(2).to_numpy()
+        | (
+            person[_LOCATION_CLONE_INDEX].eq(1).to_numpy()
+            & (person["person_id"].to_numpy() % 2 == 0)
+        )
+    )
+    pruned = result.select(keep)
+    final = _release_final_of(pruned, located_potential[keep], diagnostics)
+    assert final["bernoulli_law_violation_count"] == 0
+    assert final["source_identity_mismatch_count"] == 0
+    assert final["source_identity_count"] == diagnostics["source_identity_count"]
+    pd.testing.assert_series_equal(_source_decisions(pruned), _source_decisions(result))
+
+
+@pytest.mark.parametrize("scenario", ["legacy_channel_only", "support_clone_indexed"])
+def test_a_genuinely_repeated_location_copy_is_still_refused(scenario: str) -> None:
+    frame, potential = _K1_GOLDEN_SCENARIOS[scenario]()
+    located, located_potential = _located(frame, potential, 2)
+    person = located.table("person").copy()
+    # Rows 0 and 1 are location copies 0 and 1 of under_18:0's ASEC row.
+    assert person.loc[[0, 1], "person_source_id"].eq("under_18:0").all()
+    assert person.loc[[0, 1], _LOCATION_CLONE_INDEX].tolist() == [0, 1]
+    person.loc[1, _LOCATION_CLONE_INDEX] = 0
+    key = ["source_id", "channel"]
+    example: dict[str, object] = {"source_id": "under_18:0", "channel": "asec"}
+    if scenario == "support_clone_indexed":
+        key.append("clone_index")
+        example["clone_index"] = 0
+    key.append("location_clone_index")
+    example["location_clone_index"] = 0
+    expected = (
+        "US SSI take-up requires at most one row per clone-aware support "
+        f"identity {key}; duplicate examples {[example]}."
+    )
+    with pytest.raises(ValueError) as error:
+        with_us_ssi_take_up(
+            _replace_person(located, person),
+            uncapped_ssi=located_potential,
+            seed=17,
+            targets=_TARGETS,
+        )
+    assert str(error.value) == expected
+
+
+def test_a_duplicated_support_copy_is_still_refused_at_k_above_one() -> None:
+    frame, potential = _clone_indexed_frame()
+    located, located_potential = _located(frame, potential, 3)
+    person = located.table("person").copy()
+    # Relabel every location copy of under_18:0's PUF row as its ASEC copy.
+    puf_copies = person["person_source_id"].eq("under_18:0") & person[
+        "person_support_channel"
+    ].eq("puf_tax_detail")
+    assert puf_copies.sum() == 3
+    person.loc[puf_copies, "person_support_channel"] = "asec"
+    person.loc[puf_copies, "person_support_clone_index"] = 0
+    with pytest.raises(ValueError, match="at most one row per clone-aware support"):
+        with_us_ssi_take_up(
+            _replace_person(located, person),
+            uncapped_ssi=located_potential,
+            seed=17,
+            targets=_TARGETS,
+        )
+
+
+@pytest.mark.parametrize("bad", [-1, 1.5, np.nan, np.inf, None, "one", 2.0**64])
+def test_malformed_location_clone_indices_are_refused(bad: object) -> None:
+    frame, potential = _clone_indexed_frame()
+    located, located_potential = _located(frame, potential, 2)
+    person = located.table("person").copy()
+    person[_LOCATION_CLONE_INDEX] = person[_LOCATION_CLONE_INDEX].astype(object)
+    person.loc[person.index[1], _LOCATION_CLONE_INDEX] = bad
+    with pytest.raises(
+        ValueError,
+        match=(
+            "location clone metadata column 'person_location_clone_index' "
+            "must contain nonnegative integers"
+        ),
+    ):
+        with_us_ssi_take_up(
+            _replace_person(located, person),
+            uncapped_ssi=located_potential,
+            seed=17,
+            targets=_TARGETS,
+        )

@@ -35,6 +35,7 @@ __all__ = [
     "StageRunContext",
     "StageRuntime",
     "assert_clone_expansion",
+    "assert_location_clone_expansion",
     "assert_unchanged_identity",
     "frame_identity",
 ]
@@ -748,6 +749,20 @@ def assert_clone_expansion(
                     f"cloned {entity!r} did not preserve pooled provenance "
                     f"{provenance!r} in channel-major order."
                 )
+        # A frame located before its support clone keeps each location copy's
+        # index on both of its support copies.
+        location_clone_index = f"{entity}_location_clone_index"
+        if location_clone_index in source and (
+            location_clone_index not in expanded
+            or not _ordered_values_equal(
+                expanded[location_clone_index],
+                np.tile(source[location_clone_index].to_numpy(), 2),
+            )
+        ):
+            raise AssertionError(
+                f"cloned {entity!r} did not preserve {location_clone_index!r} "
+                "in channel-major order."
+            )
 
     person_entity = before.schema.person_entity
     before_person = before.table(person_entity)
@@ -818,6 +833,229 @@ def assert_clone_expansion(
                     )
 
 
+def assert_location_clone_expansion(
+    before: Frame,
+    after: Frame,
+    *,
+    clones: int,
+    stage: str,
+    person_reference_columns: Sequence[str] = (),
+) -> None:
+    """Assert an exact row-adjacent ``clones``-fold location-clone expansion.
+
+    A location clone differs from its source unit only in location. With
+    ``K = clones > 1`` every entity table repeats each row ``K`` times with
+    the copies adjacent and gains an int64 ``{entity}_location_clone_index``
+    running ``0..K-1`` within each unit. Every primary id and person
+    membership maps ``id -> id * K + k``, as does each named
+    ``person_reference_columns`` column (``0`` stays the no-person
+    sentinel). Every other identity column (``{entity}_source_id``,
+    ``{entity}_support_channel``, ``{entity}_support_clone_index`` and the
+    pooled source provenance) is carried verbatim to all ``K`` copies, so
+    ``(source ID, support clone index, location clone index)`` is a unique
+    key wherever ``(source ID, support clone index)`` was one. Link rows
+    repeat with both ids mapped into the same clone, strata repeat
+    row-adjacently, the mass log is unchanged, and each weighted entity's
+    weight ``w`` becomes exactly ``K`` copies of ``w / K`` of the same kind,
+    so every unit's and every entity's total mass is conserved.
+
+    ``K = 1`` is :func:`assert_unchanged_identity`: the location step adds
+    payload columns only, and a stray location clone index changes the
+    identity and is refused.
+    """
+
+    if (
+        isinstance(clones, bool)
+        or not isinstance(clones, int | np.integer)
+        or clones < 1
+    ):
+        raise ValueError(f"location clones must be an integer >= 1, got {clones!r}.")
+    count = int(clones)
+    if count == 1:
+        assert_unchanged_identity(before, after, stage=stage)
+        return
+    label = f"stage {stage!r} location-clone expansion"
+    if before.schema != after.schema:
+        raise AssertionError(f"{label} changed the Frame entity schema.")
+    if before.links != after.links:
+        raise AssertionError(f"{label} changed the set of link tables.")
+    if before.weighted_entities != after.weighted_entities:
+        raise AssertionError(
+            f"{label} changed the weighted entities: {before.weighted_entities} "
+            f"-> {after.weighted_entities}."
+        )
+    if before.mass_log != after.mass_log:
+        raise AssertionError(f"{label} changed the mass log; cloning conserves mass.")
+
+    identity_columns = {
+        name: columns for name, _table, columns in _identity_tables_and_columns(before)
+    }
+    person_entity = before.schema.person_entity
+    memberships = tuple(
+        before.schema.membership_column(group) for group in before.schema.group_entities
+    )
+    for entity in before.entities:
+        source = before.table(entity)
+        expanded = after.table(entity)
+        n_rows = len(source)
+        clone_column = f"{entity}_location_clone_index"
+        if clone_column in source:
+            raise AssertionError(
+                f"{label}: {entity!r} is already location-cloned ({clone_column})."
+            )
+        if len(expanded) != count * n_rows:
+            raise AssertionError(
+                f"{label} must repeat every {entity!r} row {count} times: expected "
+                f"{count * n_rows} rows, got {len(expanded)}."
+            )
+        clone_index = np.tile(np.arange(count, dtype=np.int64), n_rows)
+        if (
+            clone_column not in expanded
+            or expanded[clone_column].dtype != np.dtype(np.int64)
+            or not np.array_equal(expanded[clone_column].to_numpy(), clone_index)
+        ):
+            raise AssertionError(
+                f"{label}: {entity!r} {clone_column} must be int64 0..{count - 1} "
+                "per unit with each unit's copies adjacent."
+            )
+        remapped = {before.schema.entity_id_column(entity)}
+        if entity == person_entity:
+            remapped.update(memberships)
+        positions = np.repeat(np.arange(n_rows), count)
+        for column in identity_columns[entity]:
+            if column in remapped:
+                _assert_location_remapped(
+                    source,
+                    expanded,
+                    column,
+                    clone_index,
+                    count=count,
+                    keep_zero=False,
+                    label=f"{label}: {entity!r} id column {column!r}",
+                )
+                continue
+            expected = source[column].take(positions)
+            if (
+                column not in expanded
+                or expanded[column].dtype != expected.dtype
+                or not _ordered_values_equal(expanded[column], expected)
+            ):
+                raise AssertionError(
+                    f"{label}: {entity!r} identity column {column!r} must be "
+                    "carried verbatim to every location copy of its unit."
+                )
+        if entity == person_entity:
+            for column in person_reference_columns:
+                if column not in source:
+                    continue
+                _assert_location_remapped(
+                    source,
+                    expanded,
+                    column,
+                    clone_index,
+                    count=count,
+                    keep_zero=True,
+                    label=f"{label}: person reference {column!r}",
+                )
+
+    for link_name in before.links:
+        source_link = before.link(link_name)
+        expanded_link = after.link(link_name)
+        if len(expanded_link) != count * len(source_link):
+            raise AssertionError(
+                f"{label} must repeat every link {link_name!r} row {count} times: "
+                f"expected {count * len(source_link)} rows, got {len(expanded_link)}."
+            )
+        clone_index = np.tile(np.arange(count, dtype=np.int64), len(source_link))
+        for column in identity_columns[link_name]:
+            _assert_location_remapped(
+                source_link,
+                expanded_link,
+                column,
+                clone_index,
+                count=count,
+                keep_zero=False,
+                label=f"{label}: link {link_name!r} id column {column!r}",
+            )
+
+    if not _ordered_values_equal(
+        after.strata, np.repeat(before.strata.to_numpy(), count)
+    ):
+        raise AssertionError(
+            f"{label} must repeat each person's stratum on its adjacent copies."
+        )
+
+    tolerance = max(1e-12, 4.0 * count * float(np.finfo(np.float64).eps))
+    for entity in before.weighted_entities:
+        source_weights = before.weights_for(entity)
+        expanded_weights = after.weights_for(entity)
+        if expanded_weights.kind is not source_weights.kind:
+            raise AssertionError(
+                f"{label} changed {entity!r} weight kind: "
+                f"{source_weights.kind.value} -> {expanded_weights.kind.value}."
+            )
+        if len(expanded_weights) != count * len(source_weights):
+            raise AssertionError(
+                f"{label} must give every {entity!r} location copy a weight: "
+                f"expected {count * len(source_weights)}, got {len(expanded_weights)}."
+            )
+        per_unit = expanded_weights.values.reshape(-1, count).sum(axis=1)
+        drifted = ~np.isclose(per_unit, source_weights.values, rtol=tolerance, atol=0.0)
+        if drifted.any():
+            unit = int(np.flatnonzero(drifted)[0])
+            raise AssertionError(
+                f"{label} must conserve each {entity!r} unit's weight: the "
+                f"{count} location copies of row {unit} sum to "
+                f"{float(per_unit[unit])!r}, not {float(source_weights.values[unit])!r} "
+                f"({int(drifted.sum())} unit(s) drifted)."
+            )
+        if not np.array_equal(
+            expanded_weights.values, np.repeat(source_weights.values / count, count)
+        ):
+            raise AssertionError(
+                f"{label} must split each {entity!r} weight equally: every "
+                f"location copy carries exactly w / {count}."
+            )
+        try:
+            source_weights.assert_mass_conserved(expanded_weights)
+        except ValueError as error:
+            raise AssertionError(f"{label}: {entity!r} {error}") from error
+
+
+def _assert_location_remapped(
+    source: pd.DataFrame,
+    expanded: pd.DataFrame,
+    column: str,
+    clone_index: np.ndarray,
+    *,
+    count: int,
+    keep_zero: bool,
+    label: str,
+) -> None:
+    """Require ``expanded[column] == repeat(source[column], K) * K + k``."""
+
+    if column not in expanded:
+        raise AssertionError(f"{label} is missing after location cloning.")
+    if expanded[column].dtype.kind not in "iu":
+        raise AssertionError(
+            f"{label} must stay integral, got {expanded[column].dtype}."
+        )
+    try:
+        raw = np.repeat(source[column].to_numpy(dtype=np.int64), count)
+    except (TypeError, ValueError) as error:
+        raise AssertionError(f"{label} must hold integer ids.") from error
+    if len(raw) and int(np.abs(raw).max()) > (np.iinfo(np.int64).max - count) // count:
+        raise AssertionError(f"{label} is too large to map id -> id * {count} + k.")
+    expected = raw * count + clone_index
+    if keep_zero:
+        expected = np.where(raw == 0, 0, expected)
+    if not np.array_equal(expanded[column].to_numpy(dtype=np.int64), expected):
+        rule = "id -> id * K + k (0 kept)" if keep_zero else "id -> id * K + k"
+        raise AssertionError(
+            f"{label} must map {rule} with K = {count} into its own location copy."
+        )
+
+
 def _identity_tables_and_columns(
     frame: Frame,
 ) -> tuple[tuple[str, pd.DataFrame, tuple[str, ...]], ...]:
@@ -830,11 +1068,15 @@ def _identity_tables_and_columns(
                 frame.schema.membership_column(group)
                 for group in frame.schema.group_entities
             )
+        # A location clone (K > 1) carries every support column verbatim, so
+        # only its location clone index tells the copies apart. The column is
+        # absent when K = 1, which leaves the digest unchanged.
         candidates.extend(
             (
                 f"{entity}_source_id",
                 f"{entity}_support_channel",
                 f"{entity}_support_clone_index",
+                f"{entity}_location_clone_index",
             )
         )
         candidates.extend(_POOLED_SOURCE_PROVENANCE_COLUMNS)

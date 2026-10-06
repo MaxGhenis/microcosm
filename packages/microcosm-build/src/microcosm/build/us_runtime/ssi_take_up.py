@@ -76,6 +76,8 @@ from microcosm.build.us_runtime.support_provenance import (
     PERSON_SUPPORT_CHANNEL_COLUMN,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
     has_support_role_metadata,
+    location_clone_index_column,
+    location_clone_index_series,
     support_clone_index_column,
     support_gate_source_channel_series,
     support_role_series,
@@ -148,6 +150,7 @@ US_SSI_TAKE_UP_REQUIRED_SOURCE_COLUMNS: tuple[str, ...] = (
 _OUTPUT = US_SSI_TAKE_UP_OUTPUT_COLUMNS[0]
 _SOURCE_ID = "person_source_id"
 _SUPPORT_CLONE_INDEX = support_clone_index_column("person")
+_LOCATION_CLONE_INDEX = location_clone_index_column("person")
 _ASEC_CHANNEL = BASE_ASEC_SUPPORT_CHANNEL
 _PUF_CHANNEL = PUF_TAX_DETAIL_SUPPORT_CHANNEL
 _KNOWN_CHANNELS = frozenset((_ASEC_CHANNEL, _PUF_CHANNEL))
@@ -652,6 +655,13 @@ def _source_table(
         clone_index = clone_index.astype(np.int64)
         rows["clone_index"] = clone_index
         lineage_key.append("clone_index")
+    if _LOCATION_CLONE_INDEX in person:
+        # Each location clone is a distinct copy of its support row; like
+        # support copies, it shares its source person's one decision.
+        rows["location_clone_index"] = location_clone_index_series(
+            person, entity="person"
+        ).to_numpy()
+        lineage_key.append("location_clone_index")
     duplicated_channel = rows.duplicated(lineage_key, keep=False)
     if duplicated_channel.any():
         examples = (

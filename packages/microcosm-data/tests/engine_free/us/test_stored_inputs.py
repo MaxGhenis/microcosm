@@ -129,6 +129,154 @@ def test_every_register_entry_is_stored_by_a_file_examined_for_1026():
     assert not _PRODUCER_BOUND_ENTRIES & stored
 
 
+def test_the_register_lists_one_location_clone_index_per_us_entity():
+    """The six location-clone index entries: one per US entity, each naming
+    the helper that names it and the function that writes it, and saying
+    what the column is for."""
+
+    location = {
+        column
+        for column in US_STORED_NON_VARIABLE_COLUMNS
+        if "location_clone" in column
+    }
+
+    assert location == _LOCATION_CLONE_INDEX_ENTRIES
+    assert len(location) == len(stored_inputs._US_ENTITIES) == 6
+    for entity in stored_inputs._US_ENTITIES:
+        reason = US_STORED_NON_VARIABLE_COLUMNS[f"{entity}_location_clone_index"]
+        assert (
+            "microcosm.build.us_runtime.support_provenance."
+            "location_clone_index_column" in reason
+        )
+        assert (
+            "microcosm.build.us_runtime.block_location.clone_frame_for_location"
+            in reason
+        )
+        assert f"this {entity} row" in reason
+        assert f"the {entity}'s source id and support clone index" in reason
+        assert reason.endswith("Build lineage, not a model input.")
+
+
+def test_the_register_is_the_pre_location_register_plus_six_entries():
+    """Only the six location entries were added: without them the register
+    hashes to the digest the pre-change tree's ``register_sha256()`` returned,
+    so no other entry or reason moved."""
+
+    before = {
+        column: reason
+        for column, reason in US_STORED_NON_VARIABLE_COLUMNS.items()
+        if column not in _LOCATION_CLONE_INDEX_ENTRIES
+    }
+
+    assert len(before) == _PRE_LOCATION_REGISTER_SIZE
+    assert len(US_STORED_NON_VARIABLE_COLUMNS) == _PRE_LOCATION_REGISTER_SIZE + 6
+    assert register_sha256(before) == _PRE_LOCATION_REGISTER_SHA256
+    assert register_sha256() != _PRE_LOCATION_REGISTER_SHA256
+
+
+def test_the_examined_files_verdicts_match_the_pre_change_golden():
+    """K = 1 is byte-identical: no examined file stores a location column, and
+    the check's reading of all five (failure lines, refused and registered
+    columns, against an engine that defines nothing) hashes to the value
+    computed on the pre-change tree. See ``_K1_INVENTORY_VERDICTS_SHA256``."""
+
+    inventories = _inventories()
+    stored = {
+        column
+        for inventory in inventories.values()
+        for columns in inventory["tables"].values()
+        for column in columns
+    }
+
+    assert not stored & _LOCATION_CLONE_INDEX_ENTRIES
+    assert _inventory_verdicts_sha256(inventories) == _K1_INVENTORY_VERDICTS_SHA256
+
+
+def test_a_location_cloned_file_passes_and_near_misses_are_refused(tmp_path):
+    """A file storing each entity's location-clone index passes an engine that
+    defines none of them, read back from HDF metadata. A location-like column
+    under any other name is refused by name: the register lists exact names,
+    never a pattern."""
+
+    cloned = {
+        entity: [f"{entity}_id", f"{entity}_location_clone_index"]
+        for entity in stored_inputs._US_ENTITIES
+    }
+    cloned["person"] = ["person_id", "person_location_clone_index", "A_AGE"]
+    path = tmp_path / "cloned.h5"
+    _write_pandas_layout(path, cloned)
+    engine = _engine(
+        *(f"{entity}_id" for entity in stored_inputs._US_ENTITIES),
+        label="policyengine-us 2.2.1",
+    )
+
+    summary = require_h5_stored_inputs(path, engine=engine)
+
+    assert summary["registered_non_variables"] == sorted(_LOCATION_CLONE_INDEX_ENTRIES)
+    for stray in _LOCATION_NEAR_MISSES:
+        assert stray not in US_STORED_NON_VARIABLE_COLUMNS
+        failures = stored_input_failures(
+            {**cloned, "household": [*cloned["household"], stray]}, engine=engine
+        )
+        assert [_QUOTED.findall(line) for line in failures] == [[stray]], stray
+        assert "(household table)" in failures[0]
+
+
+def test_property_storing_the_location_columns_never_changes_the_verdict():
+    """Differential, for any stored tables over the US entities and any engine
+    that does not define the location columns: adding each stored table's
+    ``{entity}_location_clone_index`` (what K > 1 location cloning adds to a
+    release) leaves the failure lines exactly as they were, and only adds
+    those names to the registered non-variables."""
+
+    hypothesis, st = _hypothesis()
+    model_named, column = _column_strategies(st)
+    plain = column.filter(lambda name: name not in _LOCATION_CLONE_INDEX_ENTRIES)
+    entity = st.sampled_from(stored_inputs._US_ENTITIES)
+
+    @hypothesis.settings(
+        max_examples=60,
+        deadline=None,
+        suppress_health_check=[hypothesis.HealthCheck.too_slow],
+    )
+    @hypothesis.given(
+        tables=st.dictionaries(entity, st.lists(plain, max_size=6), max_size=6),
+        engine=st.frozensets(
+            model_named.filter(lambda name: name not in _LOCATION_CLONE_INDEX_ENTRIES),
+            max_size=6,
+        ),
+    )
+    def check(tables, engine):
+        certified = CertifiedEngine("policyengine-us 0.0.0", engine)
+        cloned = {
+            name: [*columns, f"{name}_location_clone_index"]
+            for name, columns in tables.items()
+        }
+
+        before = stored_input_failures(tables, engine=certified)
+        after = stored_input_failures(cloned, engine=certified)
+        columns = {c for cs in tables.values() for c in cs}
+        cloned_columns = {c for cs in cloned.values() for c in cs}
+
+        assert after == before
+        assert undefined_stored_inputs(
+            cloned_columns, engine_variables=engine
+        ) == undefined_stored_inputs(columns, engine_variables=engine)
+        registered = {
+            c for c in columns if is_model_named(c) and c in US_STORED_NON_VARIABLE_COLUMNS
+        }
+        cloned_registered = {
+            c
+            for c in cloned_columns
+            if is_model_named(c) and c in US_STORED_NON_VARIABLE_COLUMNS
+        }
+        assert cloned_registered - registered == {
+            f"{name}_location_clone_index" for name in tables
+        }
+
+    check()
+
+
 def test_the_examined_files_store_no_state_code_column():
     """policyengine-us's only variables outside the convention are the 53
     state and territory codes (pinned against the engine below). No examined

@@ -89,21 +89,23 @@ ACS_POOL_BLOCK_LOCATION_METADATA_KEY = "acs_pool_block_location"
 #: block within its state.
 DONOR_BLOCK_PRESERVED = "preserved_donor_block"
 DONOR_BLOCK_STATE_DRAWN = "state_drawn_missing_donor_block"
-#: Why this line refuses ``location_clones > 1`` today; admitting K > 1 end
-#: to end is the follow-up to microcosm#696.
+#: Why this line refuses ``location_clones > 1``. The refusal used to give a
+#: second reason: the six ``{entity}_location_clone_index`` columns were not
+#: in ``microcosm.data.stored_inputs.US_STORED_NON_VARIABLE_COLUMNS``, so the
+#: package stage's stored-inputs gate would have refused the release. They
+#: are registered now, so that reason is gone. What remains is the preserved
+#: donor blocks, together with the location design's choice to keep this
+#: line at K = 1: its full-scale build of 22 September held 1,588,854
+#: households (docs/us-modal-stage-runbook.md), about 3,600 per
+#: congressional district across the ladder's 436. The refusal stays.
 ACS_POOL_LOCATION_CLONES_REFUSAL = (
-    "location_clones > 1 is not yet admitted on the ACS local-release line. "
-    "(1) block_location.clone_frame_for_location adds an "
-    "'{entity}_location_clone_index' column to every entity table; those "
-    "names are model-named, are not policyengine-us variables and are not in "
-    "microcosm.data.stored_inputs.US_STORED_NON_VARIABLE_COLUMNS, so the "
-    "package stage's stored-inputs gate "
-    "(tools/build_us_acs_local_release.py:_require_stored_inputs -> "
-    "stored_inputs.require_h5_stored_inputs) refuses the release. "
-    "(2) base_pool._assign_pooled_block_location preserves each ASEC-by-PUF "
+    "location_clones > 1 is not admitted on the ACS local-release line. "
+    "base_pool._assign_pooled_block_location preserves each ASEC-by-PUF "
     "donor's already-assigned block rather than redrawing it, so K copies of "
     "a preserved donor would be K identical locations, not K draws; no rule "
-    "for redrawing preserved donor blocks per clone exists yet. "
+    "for redrawing preserved donor blocks per clone exists. The location "
+    "design also keeps this line at K = 1, since it already carries about "
+    "3,600 households per congressional district. "
     "Use location_clones=1."
 )
 

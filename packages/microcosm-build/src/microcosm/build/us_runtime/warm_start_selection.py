@@ -31,6 +31,21 @@ Two modes are supported (``docs/informed-l0-warm-start-design.md``):
 
 Both modes refuse on a non-unique join key (selection would be order-dependent)
 and on an ambiguous match (one source identity hitting more than one base row).
+
+Location copies. ``block_location.clone_frame_for_location`` repeats each
+household ``K > 1`` times and marks each copy with
+``household_location_clone_index`` (``0..K-1``); the source identity columns
+are copied unchanged. A location clone is a distinct copy of its source unit,
+so on a location-cloned frame the effective join key is the requested key plus
+``household_location_clone_index``. :func:`load_selection_source_from_h5`
+appends it when the source frame is location-cloned, so the selection names
+exact copies. A location-cloned base therefore needs a source whose key names
+location copies: a ``K = 1`` selection cannot choose among a base identity's
+copies and is refused, as is a location-aware key on a ``K = 1`` base.
+Uniqueness and ambiguity are then checked on the effective key. A base must
+also carry every copy ``0..K-1`` of each identity, as
+``clone_frame_for_location`` writes it. A frame with no location column
+takes exactly the pre-location path: same key, same checks, same messages.
 """
 
 from __future__ import annotations
@@ -53,6 +68,10 @@ from microcosm.build.us_runtime.h5_io import (
     refuse_denied_frame,
     refuse_denied_pool_h5,
     refuse_denied_pool_h5_digest,
+)
+from microcosm.build.us_runtime.support_provenance import (
+    location_clone_index_column,
+    location_clone_index_series,
 )
 from microcosm.frame import Frame, WeightKind, Weights
 from microcosm.frame.units import US_SCHEMA
@@ -80,6 +99,8 @@ SELECTION_MODES: tuple[SelectionMode, ...] = ("frozen_support", "informed_init")
 #: excludes assigned row ids (``household_id``, ``person_id``): those are
 #: order-dependent and would silently misjoin across a base rebuild. Each column
 #: is tagged with the entity table it lives on.
+#: ``household_location_clone_index`` names one location copy of a source
+#: identity; it is never an identity by itself.
 SELECTION_JOIN_KEY_COLUMNS: dict[str, str] = {
     "source_year": "person",
     "source_household_id": "person",
@@ -87,7 +108,11 @@ SELECTION_JOIN_KEY_COLUMNS: dict[str, str] = {
     "household_support_channel": "household",
     "household_support_clone_index": "household",
     "household_source_id": "household",
+    "household_location_clone_index": "household",
 }
+
+#: The household location-copy column ``clone_frame_for_location`` writes.
+_LOCATION_CLONE_COLUMN = location_clone_index_column("household")
 
 #: The Phase-1-verified unique, clone-aware household identity key.
 DEFAULT_SELECTION_JOIN_KEY: tuple[str, ...] = (
@@ -114,7 +139,85 @@ def _validate_join_key(join_key: Sequence[str]) -> tuple[str, ...]:
         )
     if len(set(key)) != len(key):
         raise ValueError(f"selection join key has duplicate columns: {key}.")
+    if key == (_LOCATION_CLONE_COLUMN,):
+        raise ValueError(
+            f"selection join key {key} names only {_LOCATION_CLONE_COLUMN!r}; the "
+            "location clone index tells the copies of one source identity apart "
+            "and cannot identify a record by itself. Add the source identity "
+            "columns."
+        )
     return key
+
+
+def _validated_location_clone_values(values: pd.Series, *, context: str) -> np.ndarray:
+    """Return location-clone indices as int64, refusing any malformed value.
+
+    NaN, negative, non-integral and out-of-int64 values are refused by the
+    shared provenance validator rather than cast to a plausible copy index.
+    Booleans are refused too: ``True`` is not a copy index.
+    """
+
+    if pd.api.types.is_bool_dtype(values.dtype) or (
+        pd.api.types.is_object_dtype(values.dtype)
+        and any(isinstance(value, (bool, np.bool_)) for value in values)
+    ):
+        raise ValueError(
+            f"{context}: location clone index {_LOCATION_CLONE_COLUMN!r} must hold "
+            "nonnegative integers, not booleans."
+        )
+    try:
+        series = location_clone_index_series(
+            pd.DataFrame({_LOCATION_CLONE_COLUMN: values}), entity="household"
+        )
+    except ValueError as exc:
+        raise ValueError(f"{context}: {exc}") from exc
+    return series.to_numpy(dtype=np.int64)
+
+
+def _household_location_clone_indices(
+    frame: Frame, *, context: str
+) -> np.ndarray | None:
+    """Validated household location-clone indices, or ``None`` at ``K = 1``.
+
+    A frame that was never location-cloned carries no ``*_location_clone_index``
+    column on any entity table and returns ``None``, so callers keep their
+    pre-location path. A frame where some entity carries its location column
+    but the household table does not is partial location metadata: which
+    copy a household is cannot be read, so it is refused.
+    """
+
+    carrying = [
+        location_clone_index_column(entity)
+        for entity in frame.entities
+        if location_clone_index_column(entity) in frame.table(entity).columns
+    ]
+    if not carrying:
+        return None
+    household = frame.table("household")
+    if _LOCATION_CLONE_COLUMN not in household.columns:
+        raise ValueError(
+            f"the {context} carries location-clone columns {carrying} but its "
+            f"household table lacks {_LOCATION_CLONE_COLUMN!r}; partial location "
+            "metadata cannot say which location copy a household is. Refusing "
+            "to select on it."
+        )
+    return _validated_location_clone_values(
+        household[_LOCATION_CLONE_COLUMN], context=f"{context} household table"
+    )
+
+
+def _refuse_location_key_without_location_copies(
+    join_key: Sequence[str], *, context: str
+) -> None:
+    """Refuse a location-aware join key on a frame that was never cloned."""
+
+    if _LOCATION_CLONE_COLUMN in join_key:
+        raise ValueError(
+            f"selection join key {tuple(join_key)} names "
+            f"{_LOCATION_CLONE_COLUMN!r}, but the {context} was never "
+            f"location-cloned (no {_LOCATION_CLONE_COLUMN!r} column); a "
+            "selection over location copies cannot map onto a K=1 frame."
+        )
 
 
 def _identities_digest(join_key: Sequence[str], identities: Sequence[Sequence]) -> str:
@@ -162,7 +265,10 @@ class SelectionSource:
 
     ``identities`` is a list of rows, each row a list of values aligned to
     ``join_key`` (e.g. ``[2024, 13, "asec", 0]``). The rows are the source
-    artifact's selected records expressed in stable-identity space.
+    artifact's selected records expressed in stable-identity space. When the
+    key names ``household_location_clone_index`` each row names one location
+    copy (e.g. ``[2024, 13, "asec", 0, 2]``), and every such value must be a
+    nonnegative integer.
     """
 
     join_key: tuple[str, ...]
@@ -179,6 +285,12 @@ class SelectionSource:
                     f"each identity row must have {len(key)} values aligned to "
                     f"the join key {key}; got {row}."
                 )
+        if _LOCATION_CLONE_COLUMN in key:
+            position = key.index(_LOCATION_CLONE_COLUMN)
+            _validated_location_clone_values(
+                pd.Series([row[position] for row in rows], dtype=object),
+                context="selection source identities",
+            )
         object.__setattr__(self, "identities", rows)
         object.__setattr__(self, "provenance", dict(self.provenance))
 
@@ -200,13 +312,35 @@ class SelectionSource:
         """Return a household-level boolean mask over ``base_frame`` and a report.
 
         The mask marks base households whose identity is in this source's set.
+        On a location-cloned base the source's key must name
+        ``household_location_clone_index`` (the effective key), and each row
+        selects exactly the location copy it names.
         """
         if mode not in SELECTION_MODES:
             raise ValueError(
                 f"unknown selection mode {mode!r}; expected one of {SELECTION_MODES}."
             )
+        base_location = _household_location_clone_indices(
+            base_frame, context="base frame"
+        )
+        if base_location is None:
+            _refuse_location_key_without_location_copies(
+                self.join_key, context="base frame"
+            )
+        elif _LOCATION_CLONE_COLUMN not in self.join_key:
+            raise ValueError(
+                "the base frame is location-cloned (its household table carries "
+                f"{_LOCATION_CLONE_COLUMN!r}), but the selection source's join key "
+                f"{self.join_key} does not name location copies. A K=1 selection "
+                "cannot pick among the location copies of one source identity. "
+                "Regenerate the selection source from a location-cloned H5 (its "
+                f"join key then gains {_LOCATION_CLONE_COLUMN!r}), or build the "
+                "base with K=1."
+            )
         base_key = _base_household_key_frame(base_frame, self.join_key)
         _assert_key_unique(base_key, self.join_key, context="base frame")
+        if base_location is not None:
+            _assert_location_copies_complete(base_key, self.join_key)
 
         source_key = self._source_key_frame()
         if source_key.duplicated().any():
@@ -276,6 +410,10 @@ def _canonicalize_key_frame(
         series = frame[column]
         if column in ("household_support_channel", "source_person_id"):
             out[column] = series.astype(str)
+        elif column == _LOCATION_CLONE_COLUMN:
+            out[column] = _validated_location_clone_values(
+                series, context="selection join key"
+            )
         else:
             out[column] = pd.to_numeric(series).astype("int64")
     return out
@@ -349,6 +487,34 @@ def _assert_key_unique(
         )
 
 
+def _assert_location_copies_complete(
+    base_key: pd.DataFrame, join_key: Sequence[str]
+) -> None:
+    """Refuse a base whose identities do not all carry copies ``0..K-1``.
+
+    ``clone_frame_for_location`` writes every copy of every household, so a
+    candidate pool missing a copy is partial location metadata. ``K`` is the
+    largest index plus one. The effective key is already unique, so an
+    identity with ``K`` rows carries each index ``0..K-1`` exactly once.
+    """
+
+    if base_key.empty:
+        return
+    identity = [column for column in join_key if column != _LOCATION_CLONE_COLUMN]
+    clones = int(base_key[_LOCATION_CLONE_COLUMN].max()) + 1
+    copies = base_key.groupby(identity, sort=False)[_LOCATION_CLONE_COLUMN].size()
+    incomplete = copies[copies != clones]
+    if len(incomplete):
+        examples = incomplete.reset_index().loc[:, identity].head(5).values.tolist()
+        raise ValueError(
+            f"{len(incomplete)} base source identities under the join key "
+            f"{tuple(identity)} do not carry all K={clones} location copies "
+            f"({_LOCATION_CLONE_COLUMN} 0..{clones - 1}); a partially "
+            "location-cloned base cannot be a frozen-support candidate pool. "
+            f"Example identities: {examples}."
+        )
+
+
 def select_frozen_support(
     base_frame: Frame, source: SelectionSource
 ) -> tuple[Frame, SelectionReport]:
@@ -357,6 +523,9 @@ def select_frozen_support(
     Returns the reduced frame and a :class:`SelectionReport`. Raises on a
     non-unique join key, any unmapped source identity, or an ambiguous match —
     the frozen-support contract forbids a fabricated or truncated selection.
+    On a location-cloned base each source row keeps exactly the location copy
+    it names, with that copy's own ``w/K`` weight; naming all ``K`` copies of
+    an identity keeps its full ``K = 1`` mass.
     """
     mask, report = source.base_selection_mask(base_frame, mode="frozen_support")
     person_mask = _household_mask_to_person_mask(base_frame, mask)
@@ -388,10 +557,24 @@ def load_selection_source_from_h5(
     ``source`` is a microcosm US frame (e.g. the certified live default loaded via
     the release tool's frame loader) whose record set defines the support. Its
     per-household identities under ``join_key`` become the selection.
+
+    The effective key is ``join_key`` plus ``household_location_clone_index``
+    when ``source`` is location-cloned and ``join_key`` does not already name
+    it, so each identity names one location copy. A ``join_key`` naming the
+    location column on a source that was never location-cloned is refused.
     """
     key = _validate_join_key(join_key)
     if source.schema != US_SCHEMA:
         raise ValueError("selection source frame must use the US schema.")
+    source_location = _household_location_clone_indices(
+        source, context="selection source frame"
+    )
+    if source_location is None:
+        _refuse_location_key_without_location_copies(
+            key, context="selection source frame"
+        )
+    elif _LOCATION_CLONE_COLUMN not in key:
+        key = (*key, _LOCATION_CLONE_COLUMN)
     key_frame = _base_household_key_frame(source, key)
     _assert_key_unique(key_frame, key, context="selection source frame")
     identities = [list(row) for row in key_frame.itertuples(index=False, name=None)]
@@ -585,7 +768,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--join-key",
         default=",".join(DEFAULT_SELECTION_JOIN_KEY),
-        help="Comma-separated stable-identity columns (default: %(default)s).",
+        help=(
+            "Comma-separated stable-identity columns (default: %(default)s). "
+            "A location-cloned source H5 appends household_location_clone_index."
+        ),
     )
     parser.add_argument("--repo-id", default=None)
     parser.add_argument("--revision", default=None)

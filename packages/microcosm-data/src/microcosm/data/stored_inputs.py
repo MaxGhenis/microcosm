@@ -176,6 +176,15 @@ _SUPPORT_CLONE_INDEX = (
     "source record (microcosm.build.us_runtime.support_provenance."
     "support_clone_index_column). Build lineage, not a model input."
 )
+_LOCATION_CLONE_INDEX = (
+    "Location provenance: the index k in 0..K-1 of this {entity} row among "
+    "the K location copies of its unit (microcosm.build.us_runtime."
+    "support_provenance.location_clone_index_column), written by "
+    "microcosm.build.us_runtime.block_location.clone_frame_for_location when "
+    "a build draws K > 1 location clones. With the {entity}'s source id and "
+    "support clone index it identifies a distinct copy. Build lineage, not a "
+    "model input."
+)
 _SPINE_SOURCE_ID = (
     "Support provenance: the {entity} record's raw id in the source spine it "
     "came from, before spine assembly remaps colliding ids (microcosm.build."
@@ -265,11 +274,19 @@ _US_ENTITIES = ("person", "household", "tax_unit", "spm_unit", "family", "marita
 #: - the ACS local-area release ``populace-us-2024-buildo-acs-local-
 #:   767312d60-20260923T074941Z`` (the ``*_spine`` tags as well).
 #:
-#: One pair postdates those files: ``parent_1_id`` and ``parent_2_id``
-#: (microcosm#884). No examined file stores them yet, so they rest on their
-#: live producer, ``eligibility_inputs.US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS``,
-#: which ``test_us_stored_input_register.py`` binds, and leave the register
-#: once the pinned engine defines them.
+#: Two groups of entries postdate those files. No examined file stores them,
+#: so each rests on its live producer instead, bound by test in
+#: ``test_us_stored_input_register.py``:
+#:
+#: - ``parent_1_id`` and ``parent_2_id`` (microcosm#884), whose producer is
+#:   ``eligibility_inputs.US_ELIGIBILITY_INPUTS_PARENT_ID_COLUMNS``. They leave
+#:   the register once the pinned engine defines them.
+#: - the six ``{entity}_location_clone_index`` columns, named by
+#:   ``support_provenance.location_clone_index_column`` and written by
+#:   ``block_location.clone_frame_for_location`` on every entity table when a
+#:   build draws K > 1 location clones. A K = 1 build stores none of them. The
+#:   test clones a frame and requires the column written for every entity to
+#:   be both the helper's name and this register's entry.
 #:
 #: Two model-named non-variable columns that the published default, its
 #: receipt child and the ACS local-area release store are deliberately absent,
@@ -310,6 +327,12 @@ US_STORED_NON_VARIABLE_COLUMNS: Mapping[str, str] = MappingProxyType(
         },
         **{
             f"{entity}_support_clone_index": _SUPPORT_CLONE_INDEX.format(entity=entity)
+            for entity in _US_ENTITIES
+        },
+        **{
+            f"{entity}_location_clone_index": _LOCATION_CLONE_INDEX.format(
+                entity=entity
+            )
             for entity in _US_ENTITIES
         },
         **{

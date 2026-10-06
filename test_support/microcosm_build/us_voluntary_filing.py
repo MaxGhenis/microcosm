@@ -7,7 +7,9 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import io
+import json
 import urllib.request
+from collections.abc import Callable, Collection
 from importlib.metadata import version
 from pathlib import Path
 
@@ -16,9 +18,13 @@ import pandas as pd
 import pytest
 
 import microcosm.build.us_runtime.voluntary_filing as module
+from microcosm.build.us_runtime.block_location import clone_frame_for_location
 from microcosm.build.us_runtime.puf_support import clone_us_frame_for_puf_support
 from microcosm.build.us_runtime.release_input_coverage import (
     us_release_reform_coverage_probes,
+)
+from microcosm.build.us_runtime.support_provenance import (
+    location_clone_index_column,
 )
 from microcosm.build.us_runtime.voluntary_filing import (
     SIPP_2023_VOLUNTARY_FILING_DONOR_REVISION,
@@ -372,5 +378,290 @@ def _assembled_gate_frame(
     if clone_indices is not None:
         columns["tax_unit_support_clone_index"] = np.asarray(clone_indices)
     return _replace_tax_unit(_frame(4), **columns)
+
+
+# --- Location clones -------------------------------------------------------
+#
+# ``block_location.clone_frame_for_location`` repeats every entity row K times
+# (clones adjacent), remaps entity ids to ``id * K + k``, splits weights K ways
+# and writes ``{entity}_location_clone_index``; source IDs and support clone
+# indices are carried unchanged. These helpers pin that one decision per
+# source unit fans out to every support and location copy.
+
+_LOCATION_CLONE_COLUMN = location_clone_index_column("tax_unit")
+_PERSON_LOCATION_CLONE_COLUMN = location_clone_index_column("person")
+
+
+class _PositionalQRF:
+    """Deterministic fake QRF whose draw depends on receiver row position.
+
+    Filing is ``wages >= 10,000`` flipped on every third receiver row, so any
+    change to the receiver's rows, order or predictor values moves the
+    fanned-out output. It records each receiver it predicts.
+    """
+
+    receivers: list[pd.DataFrame] = []
+
+    def __init__(self, **_kwargs: object) -> None:
+        pass
+
+    def fit(self, *_args: object, **_kwargs: object) -> _PositionalQRF:
+        return self
+
+    def predict(self, receiver: pd.DataFrame) -> pd.DataFrame:
+        self.receivers.append(receiver.copy())
+        wages = receiver["employment_income"].ge(10_000.0).to_numpy()
+        flip = (np.arange(len(receiver)) % 3) == 1
+        return pd.DataFrame({_OUTPUT: wages ^ flip}, index=receiver.index)
+
+
+def _impute_with_fake_qrf(frame: Frame, qrf: type = _PositionalQRF) -> pd.Series:
+    """Run the real imputer with ``qrf`` standing in for the fitted model."""
+
+    qrf.receivers.clear()
+    previous = module.QRF
+    module.QRF = qrf
+    try:
+        return impute_us_voluntary_filing(frame, _donor(), seed=17, n_estimators=3)
+    finally:
+        module.QRF = previous
+
+
+def _replace_person(
+    frame: Frame,
+    mask: np.ndarray | pd.Series,
+    **columns: object,
+) -> Frame:
+    """Overwrite person ``columns`` on the ``mask`` rows."""
+
+    tables = {entity: frame.table(entity).copy() for entity in frame.entities}
+    rows = np.asarray(mask, dtype=bool)
+    for column, value in columns.items():
+        tables["person"].loc[rows, column] = value
+    return Frame(
+        tables,
+        frame.schema,
+        {entity: frame.weights_for(entity) for entity in frame.weighted_entities},
+        frame.strata,
+        mass_log=frame.mass_log,
+    )
+
+
+def _without_tax_units(frame: Frame, tax_unit_ids: Collection[int]) -> Frame:
+    """Drop the persons (and so the groups) of ``tax_unit_ids``."""
+
+    person = frame.table("person")
+    return frame.select(~person["person_tax_unit_id"].isin(tax_unit_ids).to_numpy())
+
+
+def _tax_unit_ids(frame: Frame, mask: pd.Series) -> list[int]:
+    return frame.table("tax_unit").loc[mask, "tax_unit_id"].astype(int).tolist()
+
+
+#: Existing fixtures covering every receiver and summary branch at K = 1:
+#: historical support with tail copies (and with divergent tail wages), a
+#: two-copy PUF-support frame, an unexpanded frame with and without source
+#: IDs (IDs chosen so string order differs from numeric order), a
+#: channel-only legacy table and an assembled table without native copies.
+_K1_GOLDEN_FIXTURES: dict[str, Callable[[], Frame]] = {
+    "historical_tail": lambda: _historical_tail_frame(),
+    "historical_tail_divergent": lambda: _divergent_tail_wages(
+        _historical_tail_frame()
+    ),
+    "puf_support": lambda: clone_us_frame_for_puf_support(_frame(10)),
+    "unexpanded": lambda: _frame(12),
+    "unexpanded_with_source": lambda: _replace_tax_unit(
+        _frame(12), tax_unit_source_id=np.arange(12, dtype=np.int64) * 7 + 3
+    ),
+    "channel_only": lambda: _replace_tax_unit(
+        _frame(4),
+        tax_unit_source_id=np.asarray([10, 10, 20, 20]),
+        tax_unit_support_channel=np.asarray(
+            ["asec", "puf_tax_detail"] * 2, dtype=object
+        ),
+    ),
+    "assembled": lambda: _replace_tax_unit(
+        _frame(5),
+        tax_unit_source_id=np.asarray([10, 10, 10, 20, 20]),
+        tax_unit_spine_source_id=np.asarray([1, 1, 1, 2, 2]),
+        tax_unit_support_channel=np.asarray(["acs"] * 5, dtype=object),
+        tax_unit_support_clone_index=np.asarray([0, 1, 2, 1, 2]),
+    ),
+}
+
+#: Fixtures with a ``tax_unit_source_id``: every one of them may be
+#: location-cloned. ``unexpanded`` has none and is refused once cloned.
+_SOURCE_KEYED_FIXTURES = tuple(
+    name for name in _K1_GOLDEN_FIXTURES if name != "unexpanded"
+)
+
+
+def _k1_refusal_messages() -> dict[str, str]:
+    """Today's K = 1 refusal texts, which location support must not move."""
+
+    messages: dict[str, str] = {}
+    tail = _historical_tail_frame()
+    clone_index = tail.table("tax_unit")["tax_unit_support_clone_index"].to_numpy()
+    duplicated_copy = _replace_tax_unit(
+        tail,
+        tax_unit_support_clone_index=np.where(clone_index == 2, 1, clone_index),
+    )
+    duplicated_source = _replace_tax_unit(
+        _frame(4), tax_unit_source_id=np.asarray([10, 10, 20, 20])
+    )
+    duplicated_role = _replace_tax_unit(
+        _frame(5),
+        tax_unit_source_id=np.asarray([10, 10, 10, 20, 20]),
+        tax_unit_support_channel=np.asarray(
+            ["asec", "puf_tax_detail", "puf_tax_detail", "asec", "puf_tax_detail"],
+            dtype=object,
+        ),
+        **{_OUTPUT: np.asarray([False, False, True, True, True])},
+    )
+    cases = {
+        "duplicated_support_copy": lambda: _impute_with_fake_qrf(duplicated_copy),
+        "duplicated_unexpanded_source": lambda: _impute_with_fake_qrf(
+            duplicated_source
+        ),
+        "duplicated_same_role_rows": lambda: us_voluntary_filing_summary(
+            duplicated_role
+        ),
+    }
+    for name, call in cases.items():
+        with pytest.raises(ValueError) as caught:
+            call()
+        messages[name] = str(caught.value)
+    return messages
+
+
+def _k1_golden_payload() -> dict[str, object]:
+    """Receiver rows, fan-out keys, draws, summary and gate for every fixture."""
+
+    payload: dict[str, object] = {}
+    for name, build in _K1_GOLDEN_FIXTURES.items():
+        frame = build()
+        receiver = module._recipient_tax_unit_predictor_table(frame)
+        rows, keys = module._source_receiver_rows(frame, receiver)
+        predicted = _impute_with_fake_qrf(frame)
+        materialized = _replace_tax_unit(frame, **{_OUTPUT: predicted.to_numpy()})
+        gate = us_voluntary_filing_signal_gate(materialized)
+        payload[name] = {
+            "receiver_index": [str(value) for value in rows.index],
+            "receiver_columns": [str(value) for value in rows.columns],
+            "receiver_values": rows.to_numpy(dtype=np.float64).tolist(),
+            "fanout_keys": [str(value) for value in keys.tolist()],
+            "fanout_index": [str(value) for value in keys.index],
+            "predicted": [bool(value) for value in predicted.tolist()],
+            "predicted_index": [int(value) for value in predicted.index],
+            "summary": us_voluntary_filing_summary(materialized),
+            "gate_passed": bool(gate.passed),
+            "gate_failures": list(gate.failures),
+        }
+    payload["refusals"] = _k1_refusal_messages()
+    return payload
+
+
+def _k1_golden_digest() -> str:
+    encoded = json.dumps(_k1_golden_payload(), sort_keys=True, allow_nan=False)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _source_decisions(frame: Frame, predicted: pd.Series) -> pd.Series:
+    """One decision per source unit, asserting every copy agrees."""
+
+    source = frame.table("tax_unit")["tax_unit_source_id"].astype(str).to_numpy()
+    grouped = pd.Series(predicted.to_numpy(), index=source).groupby(level=0)
+    assert (grouped.nunique() == 1).all(), "copies of one source unit disagree"
+    return grouped.first()
+
+
+def _source_weights(frame: Frame) -> pd.Series:
+    source = frame.table("tax_unit")["tax_unit_source_id"].astype(str).to_numpy()
+    weights = np.asarray(frame.resolve_weights("tax_unit").values, dtype=np.float64)
+    return pd.Series(weights, index=source).groupby(level=0).sum()
+
+
+def _assert_location_summary_matches_k1(
+    frame: Frame,
+    predicted: pd.Series,
+    clones: int,
+) -> dict[str, object]:
+    """Location-clone a materialized frame; its summary must equal K = 1's.
+
+    Counts, flags and keys are exact; weighted totals and shares agree up to
+    the float summation order of the ``w / K`` split.
+    """
+
+    materialized = _replace_tax_unit(frame, **{_OUTPUT: predicted.to_numpy()})
+    cloned = clone_frame_for_location(materialized, clones)
+    expected = us_voluntary_filing_summary(materialized)
+    observed = us_voluntary_filing_summary(cloned)
+    assert set(observed) == set(expected)
+    approximate = {
+        "weighted_true_share",
+        "weighted_true_total",
+        "weighted_false_total",
+        "channel_diagnostics",
+    }
+    for key in set(expected) - approximate:
+        assert observed[key] == expected[key], key
+    for key in ("weighted_true_share", "weighted_true_total", "weighted_false_total"):
+        assert observed[key] == pytest.approx(expected[key], rel=1e-12, abs=1e-12)
+    assert set(observed["channel_diagnostics"]) == set(expected["channel_diagnostics"])
+    for channel, diagnostics in expected["channel_diagnostics"].items():
+        location = observed["channel_diagnostics"][channel]
+        assert location["unique_count"] == diagnostics["unique_count"]
+        assert location["weighted_true_share"] == pytest.approx(
+            diagnostics["weighted_true_share"], rel=1e-12, abs=1e-12
+        )
+    expected_gate = us_voluntary_filing_signal_gate(materialized)
+    observed_gate = us_voluntary_filing_signal_gate(cloned)
+    assert observed_gate.passed == expected_gate.passed
+    assert observed_gate.failures == expected_gate.failures
+    pd.testing.assert_series_equal(
+        _source_weights(cloned), _source_weights(materialized), rtol=1e-12
+    )
+    return observed
+
+
+def _location_scenario_frame(
+    n_households: int,
+    *,
+    wages: Collection[int],
+    tail_households: Collection[int],
+    drop_native: Collection[int],
+    drop_primary: Collection[int],
+) -> Frame:
+    """A historical support frame with tail copies and frozen-support survivors.
+
+    ``wages`` (thousands, cycled over person rows) replace every person's wage
+    before PUF-support cloning, so all support copies share them. Tail copies
+    are added for ``tail_households``; then the native (clone 0) copy of each
+    ``drop_native`` source household and the primary PUF-detail (clone 1) copy
+    of each ``drop_primary`` source household are dropped, except that source
+    household 1 always keeps its native copy so the frame is never empty.
+    """
+
+    base = _frame(n_households)
+    person = base.table("person")
+    cycle = np.resize(np.asarray(list(wages), dtype=np.float64), len(person))
+    base = _replace_person(
+        base,
+        np.ones(len(person), dtype=bool),
+        employment_income_before_lsr=cycle * 1_000.0,
+    )
+    frame = clone_us_frame_for_puf_support(base)
+    if tail_households:
+        frame = _TAIL.with_capital_gains_tail_copies(frame, sorted(tail_households))
+    tax_unit = frame.table("tax_unit")
+    source_household = tax_unit["tax_unit_source_id"].astype(int) - 100
+    clone_index = tax_unit["tax_unit_support_clone_index"].astype(int)
+    dropped = (
+        clone_index.eq(0)
+        & source_household.isin(drop_native)
+        & source_household.ne(1)
+    ) | (clone_index.eq(1) & source_household.isin(drop_primary))
+    return _without_tax_units(frame, _tax_unit_ids(frame, dropped))
+
 
 __all__ = [name for name in globals() if not name.startswith("__")]

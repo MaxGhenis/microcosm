@@ -947,3 +947,292 @@ def test_imputer_fails_closed_on_invalid_donor(
     donor.loc[0, column] = value
     with pytest.raises(ValueError, match=message):
         impute_us_voluntary_filing(_frame(), donor, seed=0, n_estimators=4)
+
+# --- Location clones ---------------------------------------------------------
+
+#: sha256 of ``_k1_golden_payload()`` (receiver rows, fan-out keys, positional
+#: fake-QRF draws, summary, gate and refusal texts over every
+#: ``_K1_GOLDEN_FIXTURES`` fixture) as computed by the pre-location-clone
+#: ``voluntary_filing.py`` (commit 4324432e5, the base of this change): the
+#: same payload code was executed against that checkout's module and
+#: fixtures. Every value is exact (integral fixture predictors; float sums
+#: in a fixed order), so it is platform independent. K = 1 must reproduce it.
+_K1_GOLDEN_SHA256 = (
+    "6c46ebc05b1a39af036d98032d5436f26c0f591c31c4fa3c2274244c3ba18116"
+)
+
+def test_k1_receiver_draws_summary_and_refusals_match_pre_location_golden() -> None:
+    assert _k1_golden_digest() == _K1_GOLDEN_SHA256
+
+def test_k1_location_cloning_is_the_identity() -> None:
+    frame = _historical_tail_frame()
+    assert clone_frame_for_location(frame, 1) is frame
+    assert _LOCATION_CLONE_COLUMN not in frame.table("tax_unit")
+
+@pytest.mark.parametrize("clones", [2, 3])
+@pytest.mark.parametrize("fixture", _SOURCE_KEYED_FIXTURES)
+def test_location_cloning_commutes_with_the_source_fanout(
+    fixture: str, clones: int
+) -> None:
+    frame = _K1_GOLDEN_FIXTURES[fixture]()
+    expected = _impute_with_fake_qrf(frame)
+    (expected_receiver,) = _PositionalQRF.receivers
+
+    cloned = clone_frame_for_location(frame, clones)
+    tax_unit = cloned.table("tax_unit")
+    assert tax_unit[_LOCATION_CLONE_COLUMN].tolist() == (
+        list(range(clones)) * len(frame.table("tax_unit"))
+    )
+    predicted = _impute_with_fake_qrf(cloned)
+    (receiver,) = _PositionalQRF.receivers
+
+    # The receiver is the K = 1 receiver (rows, order, index, values), so the
+    # positional draw is unchanged, and each K = 1 decision is repeated on its
+    # K adjacent location copies.
+    pd.testing.assert_frame_equal(receiver, expected_receiver)
+    np.testing.assert_array_equal(
+        predicted.to_numpy(), np.repeat(expected.to_numpy(), clones)
+    )
+    pd.testing.assert_series_equal(
+        _source_decisions(cloned, predicted), _source_decisions(frame, expected)
+    )
+    _assert_location_summary_matches_k1(frame, expected, clones)
+
+def test_location_clones_share_the_real_qrf_decision() -> None:
+    for fixture in ("historical_tail", "unexpanded_with_source"):
+        frame = _K1_GOLDEN_FIXTURES[fixture]()
+        expected = impute_us_voluntary_filing(
+            frame, _donor(), seed=17, n_estimators=7
+        )
+        for clones in (2, 3):
+            predicted = impute_us_voluntary_filing(
+                clone_frame_for_location(frame, clones),
+                _donor(),
+                seed=17,
+                n_estimators=7,
+            )
+            np.testing.assert_array_equal(
+                predicted.to_numpy(), np.repeat(expected.to_numpy(), clones)
+            )
+
+def test_location_clone_zero_of_the_lowest_copy_rank_supplies_predictors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(module, "QRF", _IncomeThresholdQRF)
+    cloned = clone_frame_for_location(_historical_tail_frame(), 3)
+    person = cloned.table("person")
+    # Zero every nonzero location clone's wages: a non-canonical predictor row
+    # would flip units 3 to 6 to non-filers.
+    zeroed = _replace_person(
+        cloned,
+        person[_PERSON_LOCATION_CLONE_COLUMN].gt(0),
+        employment_income_before_lsr=0.0,
+    )
+    _IncomeThresholdQRF.receivers.clear()
+    predicted = impute_us_voluntary_filing(zeroed, _donor(), seed=17)
+    (receiver,) = _IncomeThresholdQRF.receivers
+    assert len(receiver) == 6
+    assert _source_decisions(zeroed, predicted).to_dict() == {
+        "101": False,
+        "102": False,
+        "103": True,
+        "104": True,
+        "105": True,
+        "106": True,
+    }
+
+    # Copy rank orders before location clone: with native location clone 0 of
+    # unit 6 gone, native location clone 1 (wages 20,000) outranks location
+    # clone 0 of the zero-wage PUF-role copies.
+    cloned = clone_frame_for_location(_historical_tail_frame(), 2)
+    tax_unit = cloned.table("tax_unit")
+    source_six = tax_unit["tax_unit_source_id"].eq(106)
+    clone_index = tax_unit["tax_unit_support_clone_index"]
+    location = tax_unit[_LOCATION_CLONE_COLUMN]
+    puf_role_units = _tax_unit_ids(cloned, source_six & clone_index.gt(0))
+    person = cloned.table("person")
+    zero_puf = _replace_person(
+        cloned,
+        person["person_tax_unit_id"].isin(puf_role_units),
+        employment_income_before_lsr=0.0,
+    )
+    survivors = _without_tax_units(
+        zero_puf, _tax_unit_ids(cloned, source_six & clone_index.eq(0) & location.eq(0))
+    )
+    _IncomeThresholdQRF.receivers.clear()
+    predicted = impute_us_voluntary_filing(survivors, _donor(), seed=17)
+    (receiver,) = _IncomeThresholdQRF.receivers
+    assert receiver.loc["106", "employment_income"] == pytest.approx(20_000.0)
+    surviving = survivors.table("tax_unit")
+    rows_six = surviving["tax_unit_source_id"].eq(106).to_numpy()
+    assert surviving.loc[rows_six, "tax_unit_support_clone_index"].tolist() == [
+        0,
+        1,
+        1,
+        2,
+        2,
+    ]
+    assert predicted[rows_six].all()
+
+def test_location_copy_disagreement_fails_the_gate() -> None:
+    frame = _historical_tail_frame()
+    expected = _impute_with_fake_qrf(frame)
+    cloned = clone_frame_for_location(
+        _replace_tax_unit(frame, **{_OUTPUT: expected.to_numpy()}), 2
+    )
+    values = cloned.table("tax_unit")[_OUTPUT].to_numpy().copy()
+    location = cloned.table("tax_unit")[_LOCATION_CLONE_COLUMN].to_numpy()
+    flipped = int(np.flatnonzero(location == 1)[0])
+    values[flipped] = not values[flipped]
+    mismatch = _replace_tax_unit(cloned, **{_OUTPUT: values})
+
+    summary = us_voluntary_filing_summary(mismatch)
+    assert summary["clone_mismatch_source_units"] == 1
+    assert summary["clone_source_units"] == 6
+    gate = us_voluntary_filing_signal_gate(mismatch)
+    assert any("disagree for 1 source unit" in failure for failure in gate.failures)
+
+def test_duplicated_location_triple_is_still_refused() -> None:
+    cloned = clone_frame_for_location(_historical_tail_frame(), 2)
+    location = cloned.table("tax_unit")[_LOCATION_CLONE_COLUMN].to_numpy().copy()
+    location[1] = 0  # location clone 1 of (101, copy rank 0) now repeats clone 0
+    duplicated = _replace_tax_unit(cloned, **{_LOCATION_CLONE_COLUMN: location})
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"duplicated support copies; invalid \(source, copy rank, location "
+            r"clone\) triple\(s\) \[\('101', 0, 0\)\]"
+        ),
+    ):
+        _impute_with_fake_qrf(duplicated)
+
+    # A repeated support copy is refused in every location clone.
+    tail = _historical_tail_frame()
+    clone_index = tail.table("tax_unit")["tax_unit_support_clone_index"].to_numpy()
+    repeated_copy = clone_frame_for_location(
+        _replace_tax_unit(
+            tail,
+            tax_unit_support_clone_index=np.where(clone_index == 2, 1, clone_index),
+        ),
+        2,
+    )
+    with pytest.raises(
+        ValueError,
+        match=r"duplicated support copies.*\('103', 1, 0\), \('103', 1, 1\)",
+    ):
+        _impute_with_fake_qrf(repeated_copy)
+
+def test_location_clones_without_source_id_are_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Before this guard each remapped tax_unit_id drew its own decision.
+    cloned = clone_frame_for_location(_frame(12), 2)
+    tax_unit = cloned.table("tax_unit")
+    receiver = module._recipient_tax_unit_predictor_table(cloned)
+    with pytest.raises(ValueError, match="location clones require tax_unit_source_id"):
+        module._source_receiver_rows(cloned, receiver)
+
+    def unexpected_qrf(**_kwargs: object) -> None:
+        pytest.fail("Location clones without source IDs must fail before QRF")
+
+    monkeypatch.setattr(module, "QRF", unexpected_qrf)
+    with pytest.raises(ValueError, match="location clones require tax_unit_source_id"):
+        impute_us_voluntary_filing(cloned, _donor(), seed=17)
+
+    materialized = _replace_tax_unit(
+        cloned, **{_OUTPUT: np.tile([False, True, True], len(tax_unit) // 3)}
+    )
+    summary = us_voluntary_filing_summary(materialized)
+    assert summary["clone_metadata_missing"] is True
+    gate = us_voluntary_filing_signal_gate(materialized)
+    assert not gate.passed
+    assert any("provenance" in failure for failure in gate.failures)
+
+def test_unsupported_location_copies_key_on_source_and_location_clone() -> None:
+    frame = _K1_GOLDEN_FIXTURES["unexpanded_with_source"]()
+    cloned = clone_frame_for_location(frame, 2)
+    expected = _impute_with_fake_qrf(frame)
+    predicted = _impute_with_fake_qrf(cloned)
+    (receiver,) = _PositionalQRF.receivers
+    assert len(receiver) == 12
+    summary = _assert_location_summary_matches_k1(frame, expected, 2)
+    assert summary["clone_metadata_missing"] is False
+    assert summary["clone_source_units"] == 0
+
+    materialized = _replace_tax_unit(cloned, **{_OUTPUT: predicted.to_numpy()})
+    values = predicted.to_numpy().copy()
+    values[1] = not values[1]  # location clone 1 of the first source unit
+    disagreeing = _replace_tax_unit(cloned, **{_OUTPUT: values})
+    assert us_voluntary_filing_summary(disagreeing)["clone_mismatch_source_units"] == 1
+    assert not us_voluntary_filing_signal_gate(disagreeing).passed
+
+    # Two tax units sharing one source ID are still duplicates, per location
+    # clone.
+    source = cloned.table("tax_unit")["tax_unit_source_id"].to_numpy().copy()
+    source[2:4] = source[0:2]
+    duplicated = _replace_tax_unit(materialized, tax_unit_source_id=source)
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"duplicate source unit location copies; invalid \(source, location "
+            r"clone\) pair\(s\) \[\('3', 0\), \('3', 1\)\]"
+        ),
+    ):
+        _impute_with_fake_qrf(duplicated)
+    assert us_voluntary_filing_summary(duplicated)["clone_metadata_missing"] is True
+    gate = us_voluntary_filing_signal_gate(duplicated)
+    assert any("provenance" in failure for failure in gate.failures)
+
+def test_channel_only_location_copies_key_on_source_role_and_location_clone() -> None:
+    frame = _replace_tax_unit(
+        _K1_GOLDEN_FIXTURES["channel_only"](),
+        **{_OUTPUT: np.asarray([False, False, True, True])},
+    )
+    cloned = clone_frame_for_location(frame, 3)
+    summary = us_voluntary_filing_summary(cloned)
+    assert summary["clone_source_units"] == 2
+    assert summary["clone_mismatch_source_units"] == 0
+    assert summary["clone_metadata_missing"] is False
+    assert us_voluntary_filing_signal_gate(cloned).passed
+
+    # A repeated (source, role) within one location clone is still refused.
+    location = cloned.table("tax_unit")[_LOCATION_CLONE_COLUMN].to_numpy().copy()
+    location[1] = 0
+    duplicated = _replace_tax_unit(cloned, **{_LOCATION_CLONE_COLUMN: location})
+    for consumer in (us_voluntary_filing_summary, us_voluntary_filing_signal_gate):
+        with pytest.raises(
+            ValueError,
+            match=r"duplicated same-role rows; invalid source role\(s\) "
+            r"\[\('10', 'asec', 0\)\]",
+        ):
+            consumer(duplicated)
+
+@pytest.mark.parametrize(
+    "bad",
+    [np.nan, -1.0, 0.5, float(2**63), "north"],
+    ids=["nan", "negative", "fractional", "past_int64", "text"],
+)
+def test_malformed_location_clone_index_is_refused(bad: object) -> None:
+    cloned = clone_frame_for_location(_historical_tail_frame(), 2)
+    tax_unit = cloned.table("tax_unit")
+    location = tax_unit[_LOCATION_CLONE_COLUMN].to_numpy(dtype=object).copy()
+    location[3] = bad
+    malformed = _replace_tax_unit(
+        cloned,
+        **{
+            _LOCATION_CLONE_COLUMN: location,
+            _OUTPUT: np.ones(len(tax_unit), dtype=bool),
+        },
+    )
+    message = (
+        r"location clone metadata column 'tax_unit_location_clone_index' must "
+        r"contain nonnegative integers"
+    )
+    receiver = module._recipient_tax_unit_predictor_table(malformed)
+    with pytest.raises(ValueError, match=message):
+        module._source_receiver_rows(malformed, receiver)
+    with pytest.raises(ValueError, match=message):
+        _impute_with_fake_qrf(malformed)
+    for consumer in (us_voluntary_filing_summary, us_voluntary_filing_signal_gate):
+        with pytest.raises(ValueError, match=message):
+            consumer(malformed)

@@ -32,6 +32,8 @@ from microcosm.build.us_runtime.puf_support import (
 from microcosm.build.us_runtime.support_provenance import (
     PUF_TAX_DETAIL_CLONE_INDEX,
     PUF_TAX_DETAIL_SUPPORT_CHANNEL,
+    location_clone_index_column,
+    location_clone_index_series,
     puf_tax_detail_clone_mask,
     support_clone_index_column,
     support_source_id_column,
@@ -469,7 +471,12 @@ def assert_puf_capital_gains_tail_survives_selection(
     *,
     require_present: bool = False,
 ) -> dict[str, object]:
-    """Require frozen-support recovery to retain every materialized tail donor."""
+    """Require frozen-support recovery to retain every materialized tail donor.
+
+    A location clone is a distinct copy of its tail tax unit, so each carrier
+    is keyed by ``(donor source ID, location clone index)`` (index 0 when the
+    base was never location-cloned).
+    """
 
     base_tax_unit = base_frame.table("tax_unit")
     if PUF_CAPITAL_GAINS_TAIL_APPLIED_COLUMN not in base_tax_unit:
@@ -487,10 +494,19 @@ def assert_puf_capital_gains_tail_survives_selection(
             "missing_tail_record_count": 0,
         }
     selected_tax_unit = selected_frame.table("tax_unit")
+    location_column = location_clone_index_column("tax_unit")
+    located = location_column in base_tax_unit
+    if location_column in selected_tax_unit and not located:
+        raise ValueError(
+            "Frozen support carries location-clone provenance the base lacks: "
+            f"{[location_column]}."
+        )
     required = {
         PUF_CAPITAL_GAINS_TAIL_APPLIED_COLUMN,
         PUF_CAPITAL_GAINS_TAIL_DONOR_SOURCE_ID_COLUMN,
     }
+    if located:
+        required.add(location_column)
     missing = sorted(required - set(selected_tax_unit.columns))
     if missing:
         raise ValueError(
@@ -509,30 +525,39 @@ def assert_puf_capital_gains_tail_survives_selection(
                     applied,
                     PUF_CAPITAL_GAINS_TAIL_DONOR_SOURCE_ID_COLUMN,
                 ].to_numpy(dtype=np.int64),
+                "location_clone_index": location_clone_index_series(
+                    tax_unit, entity="tax_unit"
+                ).to_numpy()[applied],
                 "effective_weight": frame.resolve_weights("tax_unit").values[applied],
             }
         )
-        if rows["donor_source_id"].duplicated().any():
+        if rows.duplicated(["donor_source_id", "location_clone_index"]).any():
             raise ValueError(
                 "PUF capital-gains tail donor provenance must remain one-to-one."
             )
-        return rows.sort_values("donor_source_id", kind="mergesort").reset_index(
-            drop=True
+        return rows.sort_values(
+            ["donor_source_id", "location_clone_index"], kind="mergesort"
+        ).reset_index(drop=True)
+
+    def carriers(rows: pd.DataFrame) -> set[tuple[int, int]]:
+        return set(
+            zip(
+                rows["donor_source_id"].tolist(),
+                rows["location_clone_index"].tolist(),
+                strict=True,
+            )
         )
 
     base_tail = tail_rows(base_frame)
     selected_tail = tail_rows(selected_frame)
-    missing_ids = sorted(
-        set(base_tail["donor_source_id"]) - set(selected_tail["donor_source_id"])
-    )
-    extra_ids = sorted(
-        set(selected_tail["donor_source_id"]) - set(base_tail["donor_source_id"])
-    )
+    missing_ids = sorted(carriers(base_tail) - carriers(selected_tail))
+    extra_ids = sorted(carriers(selected_tail) - carriers(base_tail))
     if missing_ids or extra_ids:
+        noun = "donor location copy(ies)" if located else "donor(s)"
         raise ValueError(
             "Frozen support does not preserve the PUF capital-gains own-tail "
-            f"stratum: missing {len(missing_ids)} donor(s), extra "
-            f"{len(extra_ids)} donor(s). Regenerate the selection-source "
+            f"stratum: missing {len(missing_ids)} {noun}, extra "
+            f"{len(extra_ids)} {noun}. Regenerate the selection-source "
             "manifest from the rebuilt support before release."
         )
     if not np.array_equal(
@@ -543,8 +568,9 @@ def assert_puf_capital_gains_tail_survives_selection(
             "Frozen support changed PUF capital-gains tail design weights before "
             "calibration."
         )
-    donor_ids = base_tail["donor_source_id"].astype("int64").tolist()
-    return {
+    # Each location copy carries its donor's ID; the digest names donors once.
+    donor_ids = sorted(set(base_tail["donor_source_id"].astype("int64").tolist()))
+    receipt: dict[str, object] = {
         "passed": True,
         "status": "retained",
         "base_tail_record_count": int(len(base_tail)),
@@ -553,6 +579,15 @@ def assert_puf_capital_gains_tail_survives_selection(
         "tail_design_weight": float(base_tail["effective_weight"].sum()),
         "donor_source_ids_sha256": _canonical_sha256(donor_ids),
     }
+    if located:
+        receipt["tail_donor_count"] = len(donor_ids)
+        receipt["tail_location_copy_keys_sha256"] = _canonical_sha256(
+            base_tail[["donor_source_id", "location_clone_index"]]
+            .astype("int64")
+            .to_numpy()
+            .tolist()
+        )
+    return receipt
 
 
 #: Float tolerance for the worsening comparator (microcosm#571 review):

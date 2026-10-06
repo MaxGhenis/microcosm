@@ -6,7 +6,9 @@ import dataclasses
 import hashlib
 import importlib.util
 import json
+import math
 import pickle
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -47,11 +49,28 @@ from microcosm.build.us_runtime.puf_support import (
     support_source_id_column,
 )
 from microcosm.build.us_runtime.support_provenance import (
+    location_clone_index_column,
     spine_assembly_manifest,
     spine_source_id_column,
 )
 from microcosm.frame import US_SCHEMA, Frame, WeightKind, Weights
+from test_support.microcosm_build.us_puf_capital_gains_tail import (
+    golden_sha256,
+    household_person_mask,
+    located_frame,
+    rebuild_frame,
+    survival_golden_outcomes,
+    survival_outcome,
+    synthetic_tail_frame,
+    tail_household_mask,
+)
 from test_support.paths import paths_for
+
+hypothesis = pytest.importorskip("hypothesis")
+st = pytest.importorskip("hypothesis.strategies")
+given = hypothesis.given
+settings = hypothesis.settings
+HealthCheck = hypothesis.HealthCheck
 
 _TEST_PATHS = paths_for("microcosm-build")
 
@@ -813,6 +832,417 @@ def test_frozen_selection_must_retain_every_tail_donor() -> None:
             transferred,
             without_tail,
         )
+
+
+# The survival check on fixed K = 1 scenarios (receipt JSON or error text for
+# each; ``survival_golden_outcomes``), computed by running the scenarios
+# against assert_puf_capital_gains_tail_survives_selection as it stood before
+# location clones were keyed (4324432e5), with that checkout's own fixtures.
+_SURVIVAL_K1_GOLDEN_SHA256 = (
+    "f83be759af9dc8607af5131aab15f4bc2d3bca138b0cab84422ecd339dbf3117"
+)
+_SURVIVAL_K1_RETAINED_RECEIPT = (
+    '{"passed": true, "status": "retained", "base_tail_record_count": 2, '
+    '"selected_tail_record_count": 2, "missing_tail_record_count": 0, '
+    '"tail_design_weight": 4.0, "donor_source_ids_sha256": '
+    '"abb80560b233a17995f55c60f76aa8ac00ffefbc9befda196b4d3c6067cfa587"}'
+)
+_TAX_UNIT_LOCATION_COLUMN = location_clone_index_column("tax_unit")
+
+
+def _transferred_tail() -> tuple[Frame, dict]:
+    return transfer_puf_capital_gains_tail(
+        _expanded_recipient_frame(),
+        _donor(),
+        seed=567,
+    )
+
+
+def _applied_donor_ids(frame: Frame) -> list[int]:
+    tax_unit = frame.table("tax_unit")
+    applied = tax_unit[PUF_CAPITAL_GAINS_TAIL_APPLIED_COLUMN].astype(bool)
+    return sorted(
+        tax_unit.loc[applied, PUF_CAPITAL_GAINS_TAIL_DONOR_SOURCE_ID_COLUMN]
+        .astype("int64")
+        .tolist()
+    )
+
+
+def _carrier_household_position(frame: Frame, donor: int, location: int) -> int:
+    """Household row that holds ``donor``'s tail unit on location copy ``location``."""
+
+    tax_unit = frame.table("tax_unit")
+    row = tax_unit[PUF_CAPITAL_GAINS_TAIL_DONOR_SOURCE_ID_COLUMN].eq(donor) & tax_unit[
+        _TAX_UNIT_LOCATION_COLUMN
+    ].eq(location)
+    (unit_id,) = tax_unit.loc[row, "tax_unit_id"].tolist()
+    person = frame.table("person")
+    (household_id,) = set(
+        person.loc[person["person_tax_unit_id"].eq(unit_id), "person_household_id"]
+    )
+    household = frame.table("household")["household_id"].to_numpy()
+    return int(np.flatnonzero(household == household_id)[0])
+
+
+def _tail_weight_by_donor(frame: Frame) -> pd.Series:
+    tax_unit = frame.table("tax_unit")
+    applied = tax_unit[PUF_CAPITAL_GAINS_TAIL_APPLIED_COLUMN].astype(bool).to_numpy()
+    return (
+        pd.Series(frame.resolve_weights("tax_unit").values[applied])
+        .groupby(
+            tax_unit[PUF_CAPITAL_GAINS_TAIL_DONOR_SOURCE_ID_COLUMN].to_numpy()[applied]
+        )
+        .sum()
+    )
+
+
+def test_tail_survival_k1_matches_pre_location_golden() -> None:
+    transferred, _manifest = _transferred_tail()
+    outcomes = survival_golden_outcomes(
+        assert_puf_capital_gains_tail_survives_selection,
+        transferred,
+        _expanded_recipient_frame(),
+    )
+
+    assert outcomes["retained"] == _SURVIVAL_K1_RETAINED_RECEIPT
+    assert golden_sha256(outcomes) == _SURVIVAL_K1_GOLDEN_SHA256
+    # K = 1 location cloning returns the frame itself: no location column, so
+    # no new key, key order, digest, count or error text can move.
+    unlocated = located_frame(transferred, 1)
+    assert _TAX_UNIT_LOCATION_COLUMN not in unlocated.table("tax_unit")
+    assert (
+        survival_golden_outcomes(
+            assert_puf_capital_gains_tail_survives_selection,
+            unlocated,
+            _expanded_recipient_frame(),
+        )
+        == outcomes
+    )
+
+
+@pytest.mark.parametrize("clones", [2, 3])
+def test_tail_survival_keys_location_copies(clones: int) -> None:
+    transferred, manifest = _transferred_tail()
+    reference = assert_puf_capital_gains_tail_survives_selection(
+        transferred, transferred, require_present=True
+    )
+    located = located_frame(transferred, clones)
+
+    receipt = assert_puf_capital_gains_tail_survives_selection(
+        located, located, require_present=True
+    )
+
+    record_count = manifest["record_count"]
+    assert receipt["passed"]
+    assert receipt["status"] == "retained"
+    assert receipt["base_tail_record_count"] == clones * record_count
+    assert receipt["selected_tail_record_count"] == clones * record_count
+    assert receipt["missing_tail_record_count"] == 0
+    assert receipt["donor_source_ids_sha256"] == reference["donor_source_ids_sha256"]
+    assert np.isclose(
+        receipt["tail_design_weight"],
+        reference["tail_design_weight"],
+        rtol=1e-12,
+        atol=0.0,
+    )
+    assert receipt["tail_donor_count"] == record_count
+    donors = _applied_donor_ids(transferred)
+    assert receipt["tail_location_copy_keys_sha256"] == (
+        tail_module._canonical_sha256(
+            [[donor, clone] for donor in donors for clone in range(clones)]
+        )
+    )
+    # The K = 1 keys come first, in their K = 1 order; the new ones follow.
+    assert list(receipt) == [
+        *reference,
+        "tail_donor_count",
+        "tail_location_copy_keys_sha256",
+    ]
+    # Every location copy carries w / K of its source unit's tail weight.
+    np.testing.assert_allclose(
+        _tail_weight_by_donor(located).to_numpy(),
+        _tail_weight_by_donor(transferred).to_numpy(),
+        rtol=1e-12,
+        atol=0.0,
+    )
+
+
+@pytest.mark.parametrize("clones", [2, 3])
+def test_tail_survival_on_location_copies_matches_k1_verdicts(clones: int) -> None:
+    """Selecting every copy of a source household commutes with location cloning."""
+
+    transferred, _manifest = _transferred_tail()
+    located = located_frame(transferred, clones)
+    carriers = tail_household_mask(transferred)
+    tail_positions = np.flatnonzero(carriers)
+    first_plain = int(np.flatnonzero(~carriers)[0])
+    for tail_kept in range(2 ** len(tail_positions)):
+        for drop_plain in (False, True):
+            keep = np.ones(len(carriers), dtype=bool)
+            for bit, position in enumerate(tail_positions):
+                keep[position] = bool(tail_kept >> bit & 1)
+            keep[first_plain] = not drop_plain
+            k1 = survival_outcome(
+                lambda keep=keep: assert_puf_capital_gains_tail_survives_selection(
+                    transferred,
+                    transferred.select(household_person_mask(transferred, keep)),
+                )
+            )
+            copies = survival_outcome(
+                lambda keep=keep: assert_puf_capital_gains_tail_survives_selection(
+                    located,
+                    located.select(
+                        household_person_mask(located, np.repeat(keep, clones))
+                    ),
+                )
+            )
+            dropped = int((~keep[tail_positions]).sum())
+            if dropped == 0:
+                k1_receipt = json.loads(k1)
+                copies_receipt = json.loads(copies)
+                digest = k1_receipt["donor_source_ids_sha256"]
+                assert copies_receipt["donor_source_ids_sha256"] == digest
+                assert copies_receipt["base_tail_record_count"] == (
+                    clones * k1_receipt["base_tail_record_count"]
+                )
+                assert math.isclose(
+                    copies_receipt["tail_design_weight"],
+                    k1_receipt["tail_design_weight"],
+                    rel_tol=1e-12,
+                )
+            else:
+                assert f"missing {dropped} donor(s), extra 0 donor(s)." in k1
+                assert (
+                    f"missing {clones * dropped} donor location copy(ies), extra 0 "
+                    "donor location copy(ies)." in copies
+                )
+
+
+def test_tail_survival_refuses_a_dropped_location_copy() -> None:
+    transferred, _manifest = _transferred_tail()
+    located = located_frame(transferred, 3)
+    donor = _applied_donor_ids(transferred)[0]
+    keep = np.ones(len(located.table("household")), dtype=bool)
+    keep[_carrier_household_position(located, donor, 1)] = False
+    selected = located.select(household_person_mask(located, keep))
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "missing 1 donor location copy(ies), extra 0 donor location "
+            "copy(ies). Regenerate the selection-source manifest"
+        ),
+    ):
+        assert_puf_capital_gains_tail_survives_selection(located, selected)
+
+
+def test_tail_survival_refuses_an_extra_location_copy() -> None:
+    transferred, _manifest = _transferred_tail()
+    located = located_frame(transferred, 2)
+    donor = _applied_donor_ids(transferred)[-1]
+    keep = np.ones(len(located.table("household")), dtype=bool)
+    keep[_carrier_household_position(located, donor, 0)] = False
+    base = located.select(household_person_mask(located, keep))
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "missing 0 donor location copy(ies), extra 1 donor location copy(ies)."
+        ),
+    ):
+        assert_puf_capital_gains_tail_survives_selection(base, located)
+
+
+def test_tail_survival_refuses_a_repeated_location_copy() -> None:
+    transferred, _manifest = _transferred_tail()
+    located = located_frame(transferred, 3)
+    tax_unit = located.table("tax_unit").copy()
+    donor = _applied_donor_ids(transferred)[0]
+    repeated = tax_unit[PUF_CAPITAL_GAINS_TAIL_DONOR_SOURCE_ID_COLUMN].eq(
+        donor
+    ) & tax_unit[_TAX_UNIT_LOCATION_COLUMN].eq(1)
+    tax_unit.loc[repeated, _TAX_UNIT_LOCATION_COLUMN] = 0
+    corrupted = rebuild_frame(located, tables={"tax_unit": tax_unit})
+
+    with pytest.raises(ValueError, match="must remain one-to-one"):
+        assert_puf_capital_gains_tail_survives_selection(corrupted, corrupted)
+    with pytest.raises(ValueError, match="must remain one-to-one"):
+        assert_puf_capital_gains_tail_survives_selection(located, corrupted)
+
+
+def test_tail_survival_refuses_selected_frame_without_location_column() -> None:
+    transferred, _manifest = _transferred_tail()
+    located = located_frame(transferred, 2)
+    selected = rebuild_frame(
+        located,
+        tables={
+            "tax_unit": located.table("tax_unit").drop(
+                columns=[_TAX_UNIT_LOCATION_COLUMN]
+            )
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Frozen support dropped PUF capital-gains tail provenance columns: "
+            "['tax_unit_location_clone_index']."
+        ),
+    ):
+        assert_puf_capital_gains_tail_survives_selection(located, selected)
+
+
+def test_tail_survival_refuses_location_column_the_base_lacks() -> None:
+    transferred, _manifest = _transferred_tail()
+    tax_unit = transferred.table("tax_unit").copy()
+    tax_unit[_TAX_UNIT_LOCATION_COLUMN] = np.zeros(len(tax_unit), dtype=np.int64)
+    selected = rebuild_frame(transferred, tables={"tax_unit": tax_unit})
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Frozen support carries location-clone provenance the base lacks: "
+            "['tax_unit_location_clone_index']."
+        ),
+    ):
+        assert_puf_capital_gains_tail_survives_selection(transferred, selected)
+
+
+@pytest.mark.parametrize("bad", [np.nan, -1.0, 1.5, np.inf])
+def test_tail_survival_refuses_malformed_location_index(bad: float) -> None:
+    transferred, _manifest = _transferred_tail()
+    located = located_frame(transferred, 2)
+    tax_unit = located.table("tax_unit").copy()
+    values = tax_unit[_TAX_UNIT_LOCATION_COLUMN].to_numpy(dtype=np.float64)
+    values[1] = bad
+    tax_unit[_TAX_UNIT_LOCATION_COLUMN] = values
+    malformed = rebuild_frame(located, tables={"tax_unit": tax_unit})
+    message = (
+        "location clone metadata column 'tax_unit_location_clone_index' must "
+        "contain nonnegative integers"
+    )
+
+    with pytest.raises(ValueError, match=re.escape(message)):
+        assert_puf_capital_gains_tail_survives_selection(malformed, malformed)
+    with pytest.raises(ValueError, match=re.escape(message)):
+        assert_puf_capital_gains_tail_survives_selection(located, malformed)
+
+
+def test_tail_survival_refuses_a_reweighted_location_copy() -> None:
+    transferred, _manifest = _transferred_tail()
+    located = located_frame(transferred, 3)
+    donor = _applied_donor_ids(transferred)[0]
+    weights = located.weights_for("household").values.copy()
+    weights[_carrier_household_position(located, donor, 2)] *= 3.0
+    reweighted = rebuild_frame(located, household_weights=weights)
+
+    with pytest.raises(ValueError, match="changed PUF capital-gains tail design"):
+        assert_puf_capital_gains_tail_survives_selection(located, reweighted)
+
+
+@st.composite
+def _tail_scenarios(draw) -> dict:
+    counts = draw(st.lists(st.integers(1, 3), min_size=1, max_size=5))
+    total = sum(counts)
+    return {
+        "household_weights": draw(
+            st.lists(
+                st.floats(0.01, 1e6, allow_nan=False, allow_infinity=False),
+                min_size=len(counts),
+                max_size=len(counts),
+            )
+        ),
+        "tax_units_per_household": counts,
+        "applied": draw(st.lists(st.booleans(), min_size=total, max_size=total)),
+        "donor_ids": draw(
+            st.lists(
+                st.integers(0, 2**40),
+                min_size=total,
+                max_size=total,
+                unique=True,
+            )
+        ),
+    }
+
+
+@settings(
+    max_examples=60,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow],
+)
+@given(scenario=_tail_scenarios(), clones=st.integers(1, 4), data=st.data())
+def test_tail_survival_property_over_location_clones(
+    scenario: dict,
+    clones: int,
+    data,
+) -> None:
+    frame = synthetic_tail_frame(**scenario)
+    reference = assert_puf_capital_gains_tail_survives_selection(frame, frame)
+    located = located_frame(frame, clones)
+
+    # Every tail decision is made once per source tax unit and fanned out.
+    for column in (
+        PUF_CAPITAL_GAINS_TAIL_APPLIED_COLUMN,
+        PUF_CAPITAL_GAINS_TAIL_DONOR_SOURCE_ID_COLUMN,
+    ):
+        assert np.array_equal(
+            located.table("tax_unit")[column].to_numpy(),
+            np.repeat(frame.table("tax_unit")[column].to_numpy(), clones),
+        )
+    full = assert_puf_capital_gains_tail_survives_selection(located, located)
+    assert full["passed"]
+    assert full["donor_source_ids_sha256"] == reference["donor_source_ids_sha256"]
+    assert full["base_tail_record_count"] == (
+        clones * reference["base_tail_record_count"]
+    )
+    assert math.isclose(
+        full["tail_design_weight"],
+        reference["tail_design_weight"],
+        rel_tol=1e-12,
+        abs_tol=0.0,
+    )
+    assert ("tail_donor_count" in full) == (clones > 1)
+    # Per-donor weight is conserved across that donor's location copies.
+    located_by_donor = _tail_weight_by_donor(located)
+    reference_by_donor = _tail_weight_by_donor(frame)
+    assert located_by_donor.index.tolist() == reference_by_donor.index.tolist()
+    np.testing.assert_allclose(
+        located_by_donor.to_numpy(),
+        reference_by_donor.to_numpy(),
+        rtol=1e-12,
+        atol=0.0,
+    )
+
+    household_count = len(located.table("household"))
+    keep = np.asarray(
+        data.draw(
+            st.lists(
+                st.booleans(),
+                min_size=household_count,
+                max_size=household_count,
+            ).filter(any)
+        ),
+        dtype=bool,
+    )
+    selected = located.select(household_person_mask(located, keep))
+    tax_unit = located.table("tax_unit")
+    applied_units = tax_unit.loc[
+        tax_unit[PUF_CAPITAL_GAINS_TAIL_APPLIED_COLUMN].astype(bool), "tax_unit_id"
+    ]
+    dropped = int(
+        (~applied_units.isin(selected.table("tax_unit")["tax_unit_id"])).sum()
+    )
+    if dropped == 0:
+        assert (
+            assert_puf_capital_gains_tail_survives_selection(located, selected) == full
+        )
+    else:
+        noun = "donor location copy(ies)" if clones > 1 else "donor(s)"
+        with pytest.raises(
+            ValueError,
+            match=re.escape(f"missing {dropped} {noun}, extra 0 {noun}."),
+        ):
+            assert_puf_capital_gains_tail_survives_selection(located, selected)
 
 
 def test_tail_vectors_feed_schedule_d_stage_without_changing_source_legs() -> None:
