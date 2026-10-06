@@ -534,6 +534,35 @@ def test_export_target_audit_is_opt_in(monkeypatch) -> None:
     assert args.audit_export_targets
 
 
+@pytest.mark.parametrize(
+    "pin_args",
+    [
+        [],
+        ["--ledger-facts-sha256", "a" * 64],
+        ["--ledger-manifest-sha256", "b" * 64],
+    ],
+)
+def test_sol_release_cli_requires_both_ledger_pins(monkeypatch, pin_args) -> None:
+    builder = _load_builder_module()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "build_us_fiscal_refresh_release.py",
+            "--ledger-facts",
+            "artifact",
+            "--out",
+            "release",
+            *pin_args,
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        builder._parse_args()
+
+    assert excinfo.value.code == 2
+
+
 def test_cd_targets_require_vintage_crosswalk(monkeypatch) -> None:
     builder = _load_builder_module()
 

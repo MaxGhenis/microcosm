@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 
 import pytest
 
@@ -91,9 +92,7 @@ def _legacy_fact_row(**overrides):
 
 
 def _write_facts(path, rows):
-    path.write_text(
-        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows)
-    )
+    path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows))
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -422,3 +421,186 @@ def test_rejects_missing_and_empty_feeds(tmp_path):
     empty_facts.write_text("\n")
     with pytest.raises(ValueError, match="empty"):
         load_ledger_consumer_artifact(empty_facts)
+
+
+# ---------------------------------------------------------------------------
+# 2026-07-10 independent verification counterexamples (SOL review).
+# ---------------------------------------------------------------------------
+
+
+def _artifact_pins(artifact_dir):
+    return (
+        hashlib.sha256(
+            (artifact_dir / "consumer_facts.jsonl").read_bytes()
+        ).hexdigest(),
+        hashlib.sha256((artifact_dir / "manifest.json").read_bytes()).hexdigest(),
+    )
+
+
+def test_sol_postfix_manifest_still_accepts_legacy_pre_newline_profile_hash(tmp_path):
+    """Characterize the legacy boundary: Populace does not version-gate it."""
+
+    body = b'{"targets": [1, 2, 3]}'
+    artifact_dir = _write_artifact_dir(
+        tmp_path,
+        [_schema_complete_fact_row()],
+        profile_body=body,
+        profile_trailing_newline=True,
+        declared_profile_sha=hashlib.sha256(body).hexdigest(),
+        manifest_overrides={
+            "consumer_fact_schema_sha256": CONSUMER_FACT_SCHEMA_SHA256,
+        },
+    )
+    facts_pin, manifest_pin = _artifact_pins(artifact_dir)
+
+    artifact = load_ledger_consumer_artifact(
+        artifact_dir,
+        expected_facts_sha256=facts_pin,
+        expected_manifest_sha256=manifest_pin,
+        require_pins=True,
+    )
+
+    assert artifact.profile_hash_semantics == {"us_fiscal": "legacy_pre_newline"}
+
+
+def test_sol_counterexample_manifest_schema_hash_is_not_checked(tmp_path):
+    artifact_dir = _write_artifact_dir(
+        tmp_path,
+        [_schema_complete_fact_row()],
+        manifest_overrides={"consumer_fact_schema_sha256": "0" * 64},
+    )
+    facts_pin, manifest_pin = _artifact_pins(artifact_dir)
+
+    artifact = load_ledger_consumer_artifact(
+        artifact_dir,
+        expected_facts_sha256=facts_pin,
+        expected_manifest_sha256=manifest_pin,
+        require_pins=True,
+    )
+
+    assert artifact.rows_validated
+    assert artifact.manifest["consumer_fact_schema_sha256"] == "0" * 64
+    assert artifact.schema_sha256 == CONSUMER_FACT_SCHEMA_SHA256
+
+
+def test_sol_counterexample_stale_identity_keys_and_false_counts_are_accepted(tmp_path):
+    row = _schema_complete_fact_row()
+    row.update(
+        {
+            "aggregate_fact_key": "ledger.aggregate_fact.v2:" + "0" * 24,
+            "semantic_fact_key": "ledger.semantic_fact.v2:" + "0" * 24,
+            "legacy_fact_key": "ledger.fact.v1:" + "0" * 24,
+            "source_release_key": "ledger.source_release.v2:" + "0" * 24,
+            "source_series_key": "ledger.source_series.v2:" + "0" * 24,
+            "observed_measure_key": "ledger.observed_measure.v2:" + "0" * 24,
+            "dimension_set_key": "ledger.dimension_set.v2:" + "0" * 24,
+            "universe_constraint_set_key": (
+                "ledger.universe_constraint_set.v2:" + "0" * 24
+            ),
+        }
+    )
+    artifact_dir = _write_artifact_dir(
+        tmp_path,
+        [row],
+        manifest_overrides={
+            "consumer_fact_schema_sha256": CONSUMER_FACT_SCHEMA_SHA256,
+            "fact_row_count": 999,
+        },
+    )
+    manifest_path = artifact_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["profiles"]["us_fiscal"]["target_count"] = 999
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    facts_pin, manifest_pin = _artifact_pins(artifact_dir)
+
+    artifact = load_ledger_consumer_artifact(
+        artifact_dir,
+        expected_facts_sha256=facts_pin,
+        expected_manifest_sha256=manifest_pin,
+        require_pins=True,
+    )
+
+    assert artifact.facts[0]["aggregate_fact_key"].endswith("0" * 24)
+    assert artifact.fact_row_count == 1
+    assert artifact.manifest["fact_row_count"] == 999
+    assert artifact.manifest["profiles"]["us_fiscal"]["target_count"] == 999
+
+
+def test_sol_main_style_pinned_load_skips_a_missing_manifest_profile(tmp_path):
+    """The release main passes pins but omits require_pins=True."""
+
+    artifact_dir = _write_artifact_dir(tmp_path, [_schema_complete_fact_row()])
+    facts_pin, manifest_pin = _artifact_pins(artifact_dir)
+    (artifact_dir / "profiles" / "us_fiscal.json").unlink()
+
+    artifact = load_ledger_consumer_artifact(
+        artifact_dir,
+        expected_facts_sha256=facts_pin,
+        expected_manifest_sha256=manifest_pin,
+    )
+    assert artifact.profile_hash_semantics == {}
+
+    destination = tmp_path / "release" / "ledger_artifact"
+    vendor_ledger_consumer_artifact(
+        artifact,
+        destination,
+        verified_facts_sha256=facts_pin,
+        verified_manifest_sha256=manifest_pin,
+    )
+    verify_vendored_ledger_artifact(destination)
+    assert not (destination / "profiles" / "us_fiscal.json").exists()
+
+
+def test_sol_counterexample_vendored_file_and_local_hash_rewrite_verify(tmp_path):
+    """The verifier catches file-only tamper, but authenticates no outer root."""
+
+    artifact_dir = _write_artifact_dir(tmp_path, [_schema_complete_fact_row()])
+    loaded = load_ledger_consumer_artifact(artifact_dir)
+    destination = tmp_path / "release" / "ledger_artifact"
+    vendor_ledger_consumer_artifact(loaded, destination)
+
+    facts_path = destination / "consumer_facts.jsonl"
+    row = json.loads(facts_path.read_text())
+    row["value"] = 999_999
+    facts_path.write_text(json.dumps(row, sort_keys=True) + "\n")
+    vendored_manifest_path = destination / "vendored_manifest.json"
+    vendored = json.loads(vendored_manifest_path.read_text())
+    facts_entry = next(
+        entry for entry in vendored["files"] if entry["path"] == "consumer_facts.jsonl"
+    )
+    facts_entry["sha256"] = hashlib.sha256(facts_path.read_bytes()).hexdigest()
+    facts_entry["size_bytes"] = len(facts_path.read_bytes())
+    vendored_manifest_path.write_text(
+        json.dumps(vendored, indent=2, sort_keys=True) + "\n"
+    )
+
+    verified = verify_vendored_ledger_artifact(destination)
+    assert verified["files"] == vendored["files"]
+
+
+@pytest.mark.parametrize(
+    "nonfinite",
+    [float("nan"), float("inf"), float("-inf")],
+    ids=["nan", "positive-infinity", "negative-infinity"],
+)
+def test_sol_counterexample_nonstandard_json_numbers_pass_schema_load(
+    tmp_path,
+    nonfinite,
+):
+    artifact_dir = _write_artifact_dir(
+        tmp_path,
+        [_schema_complete_fact_row(value=nonfinite, value_type="number")],
+        manifest_overrides={
+            "consumer_fact_schema_sha256": CONSUMER_FACT_SCHEMA_SHA256,
+        },
+    )
+    facts_pin, manifest_pin = _artifact_pins(artifact_dir)
+
+    artifact = load_ledger_consumer_artifact(
+        artifact_dir,
+        expected_facts_sha256=facts_pin,
+        expected_manifest_sha256=manifest_pin,
+        require_pins=True,
+    )
+
+    assert not math.isfinite(artifact.facts[0]["value"])

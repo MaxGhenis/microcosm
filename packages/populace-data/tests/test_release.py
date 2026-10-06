@@ -751,6 +751,54 @@ def test_publish_uploads_manifest_release_diagnostics_from_release_dir(
     )
 
 
+def test_sol_counterexample_vendored_ledger_directory_is_not_published(
+    hub: FakeHub,
+    release_dir: Path,
+    artifact_root: Path,
+) -> None:
+    """The builder vendors a directory, but publication selects top-level files."""
+
+    ledger_dir = release_dir / "ledger_artifact"
+    ledger_dir.mkdir()
+    vendored_files = {
+        "manifest.json": b'{"schema_version":"policyengine_ledger.consumer_artifact.v1"}',
+        "consumer_facts.jsonl": b'{"value":1}\n',
+        "vendored_manifest.json": b'{"schema_version":"populace.vendored_ledger_artifact.v1"}',
+    }
+    for filename, content in vendored_files.items():
+        (ledger_dir / filename).write_bytes(content)
+    vendored_block = {
+        "schema_version": "populace.vendored_ledger_artifact.v1",
+        "files": [
+            {
+                "path": filename,
+                "sha256": hashlib.sha256(content).hexdigest(),
+                "size_bytes": len(content),
+            }
+            for filename, content in vendored_files.items()
+        ],
+    }
+    build_manifest_path = release_dir / "build_manifest.json"
+    build_manifest = json.loads(build_manifest_path.read_text())
+    build_manifest["ledger_artifact_vendored"] = vendored_block
+    build_manifest_path.write_text(json.dumps(build_manifest))
+    release_manifest_path = release_dir / "release_manifest.json"
+    release_manifest = json.loads(release_manifest_path.read_text())
+    release_manifest["build"]["ledger_artifact_vendored"] = vendored_block
+    release_manifest_path.write_text(json.dumps(release_manifest))
+
+    publish_release(
+        release_dir,
+        "policyengine/populace-us",
+        api=hub,
+        artifact_root=artifact_root,
+        updated_at="2026-06-11T13:53:15+00:00",
+    )
+
+    uploaded_paths = {path for path, _ in hub.uploads}
+    assert not any("ledger_artifact" in path for path in uploaded_paths)
+
+
 def test_publish_requires_artifact_root_for_root_artifacts(
     hub: FakeHub, release_dir: Path
 ) -> None:

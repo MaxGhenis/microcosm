@@ -3,6 +3,7 @@ from hashlib import sha256
 from importlib.resources import files
 
 from populace.build import nonnegative_columns_gate, target_profile_coverage_gate
+from populace.build.ledger_targets import compile_ledger_target_references
 from populace.build.us_runtime import (
     US_FISCAL_MACRO_REALISM_BANDS,
     US_FISCAL_TARGET_COVERAGE_REQUIREMENTS,
@@ -17,6 +18,7 @@ from populace.build.us_runtime import (
 )
 from populace.build.us_runtime.fiscal_targets import (
     US_JCT_TAX_EXPENDITURE_TARGET_REFERENCES,
+    _dynamic_us_fiscal_target_references,
 )
 
 REFERENCE_JCT_TAX_EXPENDITURE_TARGETS = {
@@ -639,9 +641,7 @@ def test_extra_support_exclusions_drop_per_run_without_touching_registry() -> No
     baseline = compile_us_fiscal_target_registry(
         facts, allow_unaged_dollar_targets=True
     )
-    baseline_ids = {
-        spec.metadata["ledger_source_record_id"] for spec in baseline.specs
-    }
+    baseline_ids = {spec.metadata["ledger_source_record_id"] for spec in baseline.specs}
     # Without the per-run exclusion, California IS an active target.
     assert excluded_source_record_id in baseline_ids
 
@@ -4922,3 +4922,98 @@ def test_conflicting_soi_chain_facts_fail_loudly() -> None:
 
     with pytest.raises(ValueError, match="Conflicting national SOI chain facts"):
         age_us_dollar_targets(registry, facts, target_period=2024)
+
+
+# ---------------------------------------------------------------------------
+# 2026-07-10 independent verification counterexamples (SOL review).
+# ---------------------------------------------------------------------------
+
+
+def test_sol_counterexample_static_jct_reference_compiles_wrong_period_type() -> None:
+    facts = packaged_reference_facts()
+    reference = US_JCT_TAX_EXPENDITURE_TARGET_REFERENCES[0]
+    source_record_id = reference_source_record_id(reference)
+    fact = next(
+        row for row in facts if row["lineage"]["source_record_id"] == source_record_id
+    )
+    fact["period"] = {"type": "fiscal_year", "value": 2024}
+
+    registry = compile_us_fiscal_target_registry(facts)
+    spec = next(
+        row
+        for row in registry.specs
+        if row.metadata["ledger_source_record_id"] == source_record_id
+    )
+
+    assert reference.period_type is None
+    assert reference.value_scale == 1.0
+    assert spec.metadata["ledger_period_type"] == "fiscal_year"
+    assert spec.period == 2024
+
+
+def test_sol_counterexample_dynamic_latest_selection_collapses_period_types() -> None:
+    tax_year = _cbo_income_source_projection_fact(
+        2023,
+        "adjusted_gross_income",
+        value=15_000_000_000_000,
+    )
+    calendar_year = _cbo_income_source_projection_fact(
+        2024,
+        "adjusted_gross_income",
+        value=16_000_000_000_000,
+    )
+    calendar_year["period"] = {"type": "calendar_year", "value": 2024}
+    calendar_year["lineage"] = {
+        "source_record_id": (
+            "cbo.revenue_projection.cy2024.income_by_source."
+            "adjusted_gross_income.projected_amount"
+        )
+    }
+    calendar_year["layout"]["record_set_id"] = (
+        "cbo.revenue_projection.cy2024.income_by_source.adjusted_gross_income"
+    )
+
+    references = _dynamic_us_fiscal_target_references(
+        (tax_year, calendar_year),
+        target_period=2024,
+    )
+
+    assert len(references) == 1
+    assert references[0].ledger_source_record_id.endswith(
+        "cy2024.income_by_source.adjusted_gross_income.projected_amount"
+    )
+    assert references[0].period_type is None
+
+
+def test_sol_counterexample_dynamic_unit_gate_echoes_drifted_fact_unit() -> None:
+    old_fact = _cbo_income_source_projection_fact(
+        2023,
+        "adjusted_gross_income",
+        value=15_000_000_000_000,
+    )
+    drifted_fact = _cbo_income_source_projection_fact(
+        2024,
+        "adjusted_gross_income",
+        value=16_000_000,
+    )
+    drifted_fact["observed_measure"]["unit"] = "usd_thousands"
+
+    references = _dynamic_us_fiscal_target_references(
+        (old_fact, drifted_fact),
+        target_period=2024,
+    )
+    assert len(references) == 1
+    reference = references[0]
+    assert reference.expected_unit == "usd_thousands"
+    assert reference.value_scale == 1.0
+
+    registry = compile_ledger_target_references(
+        (old_fact, drifted_fact),
+        references,
+        country="us",
+    )
+    spec = registry.specs[0]
+    assert spec.value == 16_000_000
+    assert spec.metadata["ledger_measure_unit"] == "usd_thousands"
+    assert spec.metadata["ledger_expected_unit"] == "usd_thousands"
+    assert spec.metadata["ledger_value_scale"] == "1"

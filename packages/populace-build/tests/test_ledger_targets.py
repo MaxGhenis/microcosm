@@ -1579,12 +1579,12 @@ def test__given_typed_periods__then_period_type_selects_the_right_series() -> No
 
     # When / Then: the tax-year reference resolves the tax-year fact even though
     # the calendar-year fact has a later period; typed selection never crosses.
-    tax_registry = compile_ledger_target_references(facts, [tax_reference], country="us")
+    tax_registry = compile_ledger_target_references(
+        facts, [tax_reference], country="us"
+    )
     assert tax_registry.specs[0].value == 15_000_000_000_000
     assert tax_registry.specs[0].metadata["ledger_period_type"] == "tax_year"
-    assert (
-        tax_registry.specs[0].metadata["ledger_reference_period_type"] == "tax_year"
-    )
+    assert tax_registry.specs[0].metadata["ledger_reference_period_type"] == "tax_year"
 
     calendar_registry = compile_ledger_target_references(
         facts, [calendar_reference], country="us"
@@ -1632,3 +1632,55 @@ def test__given_same_period_type_across_years__then_latest_still_selected() -> N
 
     registry = compile_ledger_target_references(facts, [reference], country="us")
     assert registry.specs[0].value == 15_000_000_000_000
+
+
+# ---------------------------------------------------------------------------
+# 2026-07-10 independent verification counterexamples (SOL review).
+# ---------------------------------------------------------------------------
+
+
+def test_sol_exact_identifier_with_declared_wrong_period_type_fails_closed() -> None:
+    reference = LedgerTargetReference(
+        name="agi calendar-year total",
+        expected_unit="usd",
+        period_type="calendar_year",
+        ledger_fact_key="ledger.aggregate_fact.v2:abc123",
+        entity="tax_unit",
+        measure="adjusted_gross_income",
+        period=2024,
+        family="irs_soi",
+    )
+
+    with pytest.raises(ValueError, match="period type 'tax_year'.*'calendar_year'"):
+        compile_ledger_target_references(
+            [_consumer_fact_row()],
+            [reference],
+            country="us",
+        )
+
+
+def test_sol_counterexample_any_finite_scale_is_treated_as_authorized() -> None:
+    """There is no permitted-transform/output-unit contract for value_scale."""
+
+    reference = LedgerTargetReference(
+        name="agi arbitrary scale",
+        expected_unit="usd",
+        value_scale=1_000_000,
+        ledger_fact_key="ledger.aggregate_fact.v2:abc123",
+        entity="tax_unit",
+        measure="adjusted_gross_income",
+        period=2023,
+        family="irs_soi",
+    )
+
+    registry = compile_ledger_target_references(
+        [_consumer_fact_row(value=2)],
+        [reference],
+        country="us",
+    )
+
+    spec = registry.specs[0]
+    assert spec.value == 2_000_000
+    assert spec.metadata["ledger_measure_unit"] == "usd"
+    assert spec.metadata["ledger_expected_unit"] == "usd"
+    assert spec.metadata["ledger_value_scale"] == "1000000"
