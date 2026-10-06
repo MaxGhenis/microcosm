@@ -10,7 +10,9 @@ import inspect
 import json
 import shutil
 import sys
-from types import SimpleNamespace
+import threading
+from contextlib import contextmanager
+from types import FunctionType, SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -29,6 +31,112 @@ from microcosm.build.us_runtime import graph_us_other_disability_host as continu
 from microcosm.build.us_runtime import graph_us_survey_enrichment as host
 
 fragment, values = continuation.fragment, continuation.values
+
+# Exact stdlib-tested local-entry observer; no production functions are replaced.
+TOOL = 5
+TOOL_NAME = "microcosm-warm-qrf-entry-refusal"
+MAX_TARGETS = 2
+MAX_LABEL = 80
+
+
+def require(condition, reason):
+    if not condition:
+        raise ValueError("ENTRY_REFUSAL_" + reason)
+
+
+@contextmanager
+def reject_entries(targets):
+    """Reject current-thread entry immediately, even if the body catches it.
+
+    Only ordinary Python functions are supported. The target body never runs
+    when its PY_START event is rejected. Argument evaluation is outside scope.
+    No evidence is returned for a caller to edit or bless at scope exit.
+    """
+    require(sys.version_info >= (3, 13), "PYTHON_MINIMUM")
+    require(0 < len(targets) <= MAX_TARGETS, "TARGET_COUNT")
+    codes = {}
+    for label, function in targets.items():
+        require(type(label) is str and 0 < len(label) <= MAX_LABEL, "LABEL")
+        require(type(function) is FunctionType, "FUNCTION")
+        code = function.__code__
+        require(not code.co_flags & (0x20 | 0x80 | 0x200), "GENERATOR")
+        require(code not in codes, "DUPLICATE_CODE")
+        codes[code] = label
+    require(sys.monitoring.get_tool(TOOL) is None, "TOOL_OCCUPIED")
+    owner_thread = threading.get_ident()
+    original_profile = sys.getprofile()
+    original_thread_profile = threading.getprofile()
+
+    def other_tool_state():
+        return tuple(
+            (
+                i,
+                sys.monitoring.get_tool(i),
+                sys.monitoring.get_events(i),
+                tuple(sys.monitoring.get_local_events(i, code) for code in codes),
+            )
+            for i in range(6)
+            if i != TOOL
+        )
+
+    other_tools = other_tool_state()
+    attempted = None
+
+    def started(code, _offset):
+        nonlocal attempted
+        if threading.get_ident() != owner_thread:
+            return
+        attempted = codes[code]
+        raise AssertionError("FORBIDDEN_FUNCTION_ENTRY: " + attempted)
+
+    installed_codes = []
+    body_completed = False
+    sys.monitoring.use_tool_id(TOOL, TOOL_NAME)
+    try:
+        require(sys.monitoring.get_events(TOOL) == 0, "GLOBAL_EVENTS")
+        require(
+            sys.monitoring.register_callback(
+                TOOL, sys.monitoring.events.PY_START, started
+            )
+            is None,
+            "CALLBACK_OCCUPIED",
+        )
+        for code in codes:
+            sys.monitoring.set_local_events(TOOL, code, sys.monitoring.events.PY_START)
+            installed_codes.append(code)
+        try:
+            yield
+            body_completed = True
+        finally:
+            require(threading.get_ident() == owner_thread, "THREAD_CHANGED")
+            require(sys.getprofile() is original_profile, "PROFILE_CHANGED")
+            require(
+                threading.getprofile() is original_thread_profile,
+                "THREAD_PROFILE_CHANGED",
+            )
+            require(other_tool_state() == other_tools, "OTHER_TOOL_CHANGED")
+            require(sys.monitoring.get_tool(TOOL) == TOOL_NAME, "TOOL_CHANGED")
+            require(sys.monitoring.get_events(TOOL) == 0, "GLOBAL_EVENTS_CHANGED")
+            require(
+                all(
+                    sys.monitoring.get_local_events(TOOL, code)
+                    == sys.monitoring.events.PY_START
+                    for code in codes
+                ),
+                "LOCAL_EVENTS_CHANGED",
+            )
+            # The immediate callback already refused entry. This separate sticky
+            # check prevents a caught AssertionError from yielding a success.
+            if body_completed and attempted is not None:
+                raise AssertionError("FORBIDDEN_FUNCTION_ENTRY: " + attempted)
+    finally:
+        if sys.monitoring.get_tool(TOOL) == TOOL_NAME:
+            try:
+                for code in installed_codes:
+                    sys.monitoring.set_local_events(TOOL, code, 0)
+            finally:
+                sys.monitoring.clear_tool_id(TOOL)
+                sys.monitoring.free_tool_id(TOOL)
 
 
 def test_continuation_installs_frame_codec_without_mutating_predecessor(tmp_path):
@@ -318,22 +426,12 @@ def test_genuine_cold_preserves_population_and_source_knownness(completed):
 
 def test_required_replay_has_no_qrf_fit_or_apply(completed):
     parent, cold, _ = completed
-    previous, entered = sys.getprofile(), []
-
-    def no_qrf_fit_or_apply(frame, event, arg):
-        if previous is not None:
-            previous(frame, event, arg)
-        if event == "call" and frame.f_code in (
-            fragment.qrf_target.fit_target.__code__,
-            fragment.qrf_target.apply_target.__code__,
-        ):
-            entered.append(frame.f_code.co_name)
-            raise AssertionError(
-                "required host replay called QRF fit_target/apply_target"
-            )
-
-    try:
-        sys.setprofile(no_qrf_fit_or_apply)
+    with reject_entries(
+        {
+            "fit_target": fragment.qrf_target.fit_target,
+            "apply_target": fragment.qrf_target.apply_target,
+        }
+    ):
         warm = host.run_us_survey_enrichment(
             parent,
             n_estimators=2,
@@ -341,9 +439,7 @@ def test_required_replay_has_no_qrf_fit_or_apply(completed):
             other_disability_completion=True,
             other_disability_seed=29,
         )
-    finally:
-        sys.setprofile(previous)
-    assert not entered and all(n.hit for n in warm.manifest.nodes.values())
+    assert all(n.hit for n in warm.manifest.nodes.values())
     assert cold.manifest.key == warm.manifest.key
     host.physical.replay.same_replayed_population(cold.population, warm.population)
     host.check_survey_enrichment_run(warm)
