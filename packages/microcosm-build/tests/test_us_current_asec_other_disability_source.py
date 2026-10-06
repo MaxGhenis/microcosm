@@ -8,6 +8,7 @@ clone transport, and the fences that refuse a mutated or foreign owner.
 
 import copy
 import hashlib
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -871,6 +872,118 @@ def test_the_public_qualifier_requires_the_live_preparation_owner():
     for foreign in (None, SimpleNamespace(), object()):
         with pytest.raises(ValueError, match="PREPARATION_TYPE"):
             od.qualify_current_asec_other_disability(foreign)
+
+
+def _watch_returns(codes, callback, tool_id=4):
+    """Observe actual callback boundaries without replacing anything.
+
+    Replacing a function to record its calls would itself be a mutation the
+    implementation fence refuses, which would pass these tests for the wrong
+    reason. Local monitoring events leave every sealed object identical.
+    """
+    monitor = sys.monitoring
+    assert monitor.get_tool(tool_id) is None
+    monitor.use_tool_id(tool_id, "other-disability-owner-boundary-test")
+    monitor.register_callback(tool_id, monitor.events.PY_RETURN, callback)
+    for code in codes:
+        monitor.set_local_events(tool_id, code, monitor.events.PY_RETURN)
+
+    def release():
+        for code in codes:
+            monitor.set_local_events(tool_id, code, 0)
+        monitor.register_callback(tool_id, monitor.events.PY_RETURN, None)
+        monitor.free_tool_id(tool_id)
+
+    return release
+
+
+def test_live_preparation_qualifies_other_disability_from_real_detail_owner(
+    tmp_path, monkeypatch
+):
+    """The public qualifier runs on the actual retained preparation."""
+    from test_us_current_asec_retirement_detail_source import prepared
+
+    result = od.qualify_current_asec_other_disability(
+        prepared(detail, tmp_path, monkeypatch)
+    )
+    observed = result.person.set_index("native_person_id")
+    # 105 and 108 report DIS_SC1 = 6 with $200; 107 answers DIS_YN = 2 at 70;
+    # 106 is 14 and outside the printed reporting universe.
+    for person in (105, 108):
+        assert observed.loc[person, od.AMOUNT_COLUMN] == 200
+        assert bool(observed.loc[person, od.KNOWN_COLUMN])
+        assert observed.loc[person, od.REASON_COLUMN] == "known_positive"
+    assert observed.loc[107, od.AMOUNT_COLUMN] == 0
+    assert bool(observed.loc[107, od.KNOWN_COLUMN])
+    assert observed.loc[107, od.REASON_COLUMN] == "known_zero_nonreceipt"
+    assert not bool(observed.loc[106, od.KNOWN_COLUMN])
+    assert pd.isna(observed.loc[106, od.AMOUNT_COLUMN])
+    assert observed.loc[106, od.REASON_COLUMN] == "outside_age_universe"
+    assert result.evidence["source_admission_issued"] is False
+    assert result.evidence["release_eligible"] is False
+
+
+def test_the_public_qualifier_refuses_before_it_reads_the_source(tmp_path, monkeypatch):
+    """The entry fence precedes the preparation and detail-owner source I/O."""
+    from test_us_current_asec_retirement_detail_source import prepared
+
+    parent = prepared(detail, tmp_path, monkeypatch)
+    reads = []
+    release = _watch_returns(
+        (
+            type(parent)._checked.__code__,
+            detail.qualify_current_asec_retirement_detail.__code__,
+        ),
+        lambda code, offset, result: reads.append(code.co_name),
+    )
+    monkeypatch.setattr(od, "REPORTING_AGE", 16)
+    try:
+        with pytest.raises(
+            ValueError, match="OTHER_DISABILITY_SOURCE_IMPLEMENTATION_CHANGED"
+        ):
+            od.qualify_current_asec_other_disability(parent)
+    finally:
+        release()
+    assert reads == []
+
+
+@pytest.mark.parametrize("mutation", ["semantic_constant", "bound_qualifier"])
+def test_live_preparation_refuses_an_implementation_changed_by_a_final_callback(
+    tmp_path, monkeypatch, mutation
+):
+    """The final preparation callback is bound to the same implementation."""
+    from test_us_current_asec_retirement_detail_source import prepared
+
+    parent = prepared(detail, tmp_path, monkeypatch)
+    checked = type(parent)._checked.__code__
+    composed = od.compose_other_disability.__code__
+    armed, mutations = [], []
+
+    def after_return(code, offset, result):
+        if code is composed:
+            armed.append(code.co_name)
+        elif code is checked and armed:
+            # Fires as the last owner validation returns, after composition has
+            # already sealed and rechecked its own implementation.
+            mutations.append(mutation)
+            if mutation == "semantic_constant":
+                monkeypatch.setattr(od, "REPORTING_AGE", 16)
+            else:
+                monkeypatch.setattr(
+                    detail,
+                    "qualify_current_asec_retirement_detail",
+                    lambda preparation: None,
+                )
+
+    release = _watch_returns((checked, composed), after_return)
+    try:
+        with pytest.raises(
+            ValueError, match="OTHER_DISABILITY_SOURCE_IMPLEMENTATION_CHANGED"
+        ):
+            od.qualify_current_asec_other_disability(parent)
+    finally:
+        release()
+    assert len(armed) == len(mutations) == 1
 
 
 @pytest.mark.parametrize(

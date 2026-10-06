@@ -841,6 +841,10 @@ def qualify_current_asec_other_disability(preparation):
         type(preparation) is source.AuthenticatedSurveyPopulationPreparation,
         "PREPARATION_TYPE",
     )
+    # Before any source I/O, not only inside the composition this calls: the
+    # detail qualifier's argument is evaluated first, so a semantic constant or
+    # a swapped borrowed callable would otherwise decide what gets read.
+    _require(_implementation_unchanged(), "IMPLEMENTATION_CHANGED")
     entry = preparation._checked()
     state, native = entry[2], entry[2].native[1]
     issued = source.asec_native._ISSUED.get(id(native))
@@ -858,6 +862,10 @@ def qualify_current_asec_other_disability(preparation):
         and other_disability_values_seal(result) == seal,
         "FINAL_OWNER_OR_VALUES",
     )
+    # The retained preparation's own final validation runs after the composition
+    # sealed its implementation, so the last owner callback is bound to the same
+    # implementation too. Nothing this module calls runs after this check.
+    _require(_implementation_unchanged(), "IMPLEMENTATION_CHANGED")
     return result
 
 

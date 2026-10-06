@@ -135,7 +135,12 @@ with its own input guard and parameter dictionary. That list is deliberate, not
 a transitive closure: it covers the callables this module's own path depends on
 for the literals it reads, and it does not attest anything those callables in
 turn call. `qualify_current_asec_other_disability` additionally rechecks the
-retained preparation and native issuance.
+retained preparation and native issuance, and it evaluates that same fence
+twice around its own source I/O: once before the detail owner reads anything,
+because the qualifier call it passes down is evaluated before the composition's
+own check, and once after the retained preparation's final validation returns,
+so a semantic constant or a borrowed qualifier changed by that last callback
+refuses rather than being returned.
 
 The detail owner cross-checks the retained `DIS_VAL1/2` amounts against the
 authenticated money owner's bits, but `DIS_YN`, `DIS_SC1/2` and the allocation
