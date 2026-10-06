@@ -818,6 +818,11 @@ _US_LAUNCH_GRAPH_RUNTIME_MODULES = frozenset(
         "survey_population_replay.py",
         # Explicit source-report Social Security component basis
         "survey_social_security.py",
+        # Pure development report-lot/beneficiary convention; no reads or writes
+        "survey_social_security_beneficiaries.py",
+        # Pure canonical SS contract over supplied report evidence; clone
+        # fan-out delegates to the maintained two-clone attachment
+        "survey_social_security_canonical.py",
     }
 )
 _CLASSIFIED_US_RUNTIME_MODULES = (
